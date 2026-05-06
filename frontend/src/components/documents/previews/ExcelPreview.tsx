@@ -266,110 +266,106 @@ const ExcelPreview = memo(function ExcelPreview({
       {/* Spreadsheet grid */}
       <div
         ref={scrollContainerRef}
-        className="flex-1 overflow-auto relative overscroll-x-contain [-webkit-overflow-scrolling:touch] excel-preview-scroll"
+        className="flex-1 overflow-auto relative overscroll-x-contain [-webkit-overflow-scrolling:touch] excel-preview-scroll border-x border-stone-300 dark:border-stone-600"
       >
-        <div className="inline-block border-x border-stone-300 dark:border-stone-600">
-          <table className="border-collapse w-max min-w-full text-[13px]">
-            {/* Column headers row */}
-            <thead>
-              <tr className="sticky top-0 z-10">
-                {/* Top-left corner */}
-                <th className="sticky left-0 z-20 w-8 sm:w-10 min-w-[2rem] sm:min-w-[2.5rem] max-w-[2rem] sm:max-w-[2.5rem] px-0 py-0 text-center text-[11px] text-stone-500 dark:text-stone-400 bg-stone-100 dark:bg-stone-800 border border-stone-300 dark:border-stone-600 select-none" />
-                {/* Column letters */}
-                {Array.from({ length: totalCols }, (_, i) => (
-                  <th
-                    key={i}
-                    className={`min-w-[60px] sm:min-w-[80px] h-6 px-0 py-0 text-center text-[11px] font-normal text-stone-500 dark:text-stone-400 bg-stone-100 dark:bg-stone-800 border border-stone-300 dark:border-stone-600 select-none leading-6 ${
-                      hoveredCell?.col === i
-                        ? "bg-stone-100 dark:bg-stone-800 text-stone-700 dark:text-stone-300"
-                        : ""
+        <table className="border-collapse w-max min-w-full text-[13px]">
+          {/* Column headers row */}
+          <thead>
+            <tr className="sticky top-0 z-10">
+              {/* Top-left corner */}
+              <th className="sticky left-0 z-20 w-8 sm:w-10 min-w-[2rem] sm:min-w-[2.5rem] max-w-[2rem] sm:max-w-[2.5rem] px-0 py-0 text-center text-[11px] text-stone-500 dark:text-stone-400 bg-stone-100 dark:bg-stone-800 border-r border-b border-stone-300 dark:border-stone-600 select-none" />
+              {/* Column letters */}
+              {Array.from({ length: totalCols }, (_, i) => (
+                <th
+                  key={i}
+                  className={`min-w-[60px] sm:min-w-[80px] h-6 px-0 py-0 text-center text-[11px] font-normal text-stone-500 dark:text-stone-400 bg-stone-100 dark:bg-stone-800 border border-stone-300 dark:border-stone-600 select-none leading-6 ${
+                    hoveredCell?.col === i
+                      ? "bg-stone-100 dark:bg-stone-800 text-stone-700 dark:text-stone-300"
+                      : ""
+                  }`}
+                >
+                  {colLabel(i)}
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {Array.from({ length: displayRows }, (_, rawRowIndex) => {
+              const isHeader = rawRowIndex === 0;
+              const rowIndex = isHeader ? -1 : rawRowIndex - 1; // -1 for header in getCellValue
+              const isRowHovered =
+                hoveredCell && !isHeader && hoveredCell.row === rawRowIndex - 1;
+
+              return (
+                <tr key={rawRowIndex}>
+                  {/* Row number */}
+                  <td
+                    className={`sticky left-0 z-10 w-8 sm:w-10 min-w-[2rem] sm:min-w-[2.5rem] max-w-[2rem] sm:max-w-[2.5rem] px-0 py-0 text-center text-[11px] bg-stone-100 dark:bg-stone-800 border-r border-b border-stone-300 dark:border-stone-600 select-none tabular-nums leading-6 touch-none [box-shadow:2px_0_4px_-1px_rgba(0,0,0,0.06)] dark:[box-shadow:2px_0_4px_-1px_rgba(0,0,0,0.3)] ${
+                      isHeader
+                        ? "text-stone-400 dark:text-stone-500"
+                        : isRowHovered
+                          ? "text-blue-700 dark:text-blue-300 bg-blue-50 dark:bg-blue-900/40"
+                          : "text-stone-500 dark:text-stone-400"
                     }`}
                   >
-                    {colLabel(i)}
-                  </th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {Array.from({ length: displayRows }, (_, rawRowIndex) => {
-                const isHeader = rawRowIndex === 0;
-                const rowIndex = isHeader ? -1 : rawRowIndex - 1; // -1 for header in getCellValue
-                const isRowHovered =
-                  hoveredCell &&
-                  !isHeader &&
-                  hoveredCell.row === rawRowIndex - 1;
+                    {isHeader ? "" : rawRowIndex}
+                  </td>
+                  {/* Cells */}
+                  {Array.from({ length: totalCols }, (_, colIndex) => {
+                    const value = getCellValue(rowIndex, colIndex);
+                    const num = isNumeric(value);
+                    const isCellHovered =
+                      hoveredCell &&
+                      !isHeader &&
+                      hoveredCell.row === rawRowIndex - 1 &&
+                      hoveredCell.col === colIndex;
 
-                return (
-                  <tr key={rawRowIndex}>
-                    {/* Row number */}
-                    <td
-                      className={`sticky left-0 z-10 w-8 sm:w-10 min-w-[2rem] sm:min-w-[2.5rem] max-w-[2rem] sm:max-w-[2.5rem] px-0 py-0 text-center text-[11px] bg-stone-100 dark:bg-stone-800 border border-stone-300 dark:border-stone-600 select-none tabular-nums leading-6 touch-none [box-shadow:2px_0_4px_-1px_rgba(0,0,0,0.06)] dark:[box-shadow:2px_0_4px_-1px_rgba(0,0,0,0.3)] ${
-                        isHeader
-                          ? "text-stone-400 dark:text-stone-500"
-                          : isRowHovered
-                            ? "text-blue-700 dark:text-blue-300 bg-blue-50 dark:bg-blue-900/40"
-                            : "text-stone-500 dark:text-stone-400"
-                      }`}
-                    >
-                      {isHeader ? "" : rawRowIndex}
-                    </td>
-                    {/* Cells */}
-                    {Array.from({ length: totalCols }, (_, colIndex) => {
-                      const value = getCellValue(rowIndex, colIndex);
-                      const num = isNumeric(value);
-                      const isCellHovered =
-                        hoveredCell &&
-                        !isHeader &&
-                        hoveredCell.row === rawRowIndex - 1 &&
-                        hoveredCell.col === colIndex;
-
-                      // Header cells use th-style, data cells use td-style
-                      if (isHeader) {
-                        return (
-                          <th
-                            key={colIndex}
-                            onMouseEnter={() => handleCellHover(0, colIndex)}
-                            onMouseLeave={handleCellLeave}
-                            className={`min-h-[24px] min-w-[60px] sm:min-w-[80px] px-2 py-0 text-[13px] leading-6 border border-stone-300 dark:border-stone-600 whitespace-nowrap text-left font-semibold text-stone-700 dark:text-stone-300 bg-stone-50 dark:bg-stone-800/60 ${
-                              isCellHovered
-                                ? "!outline outline-2 outline-stone-500 dark:outline-stone-400 outline-offset-[-1px] bg-stone-100/60 dark:bg-stone-800/40 !border-stone-400 dark:!border-stone-500"
-                                : ""
-                            }`}
-                          >
-                            {value || " "}
-                          </th>
-                        );
-                      }
-
+                    // Header cells use th-style, data cells use td-style
+                    if (isHeader) {
                       return (
-                        <td
+                        <th
                           key={colIndex}
-                          onMouseEnter={() =>
-                            handleCellHover(rawRowIndex - 1, colIndex)
-                          }
+                          onMouseEnter={() => handleCellHover(0, colIndex)}
                           onMouseLeave={handleCellLeave}
-                          className={`min-h-[24px] min-w-[60px] sm:min-w-[80px] px-2 py-0 text-[13px] leading-6 border border-stone-200 dark:border-stone-700/80 whitespace-nowrap text-stone-800 dark:text-stone-200 ${
-                            num
-                              ? "text-right tabular-nums font-mono"
-                              : "text-left"
-                          } ${
+                          className={`min-h-[24px] min-w-[60px] sm:min-w-[80px] px-2 py-0 text-[13px] leading-6 border border-stone-300 dark:border-stone-600 whitespace-nowrap text-left font-semibold text-stone-700 dark:text-stone-300 bg-stone-50 dark:bg-stone-800/60 ${
                             isCellHovered
                               ? "!outline outline-2 outline-stone-500 dark:outline-stone-400 outline-offset-[-1px] bg-stone-100/60 dark:bg-stone-800/40 !border-stone-400 dark:!border-stone-500"
-                              : isRowHovered
-                                ? "bg-stone-50/70 dark:bg-stone-800/30"
-                                : ""
+                              : ""
                           }`}
                         >
                           {value || " "}
-                        </td>
+                        </th>
                       );
-                    })}
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
+                    }
+
+                    return (
+                      <td
+                        key={colIndex}
+                        onMouseEnter={() =>
+                          handleCellHover(rawRowIndex - 1, colIndex)
+                        }
+                        onMouseLeave={handleCellLeave}
+                        className={`min-h-[24px] min-w-[60px] sm:min-w-[80px] px-2 py-0 text-[13px] leading-6 border border-stone-200 dark:border-stone-700/80 whitespace-nowrap text-stone-800 dark:text-stone-200 ${
+                          num
+                            ? "text-right tabular-nums font-mono"
+                            : "text-left"
+                        } ${
+                          isCellHovered
+                            ? "!outline outline-2 outline-stone-500 dark:outline-stone-400 outline-offset-[-1px] bg-stone-100/60 dark:bg-stone-800/40 !border-stone-400 dark:!border-stone-500"
+                            : isRowHovered
+                              ? "bg-stone-50/70 dark:bg-stone-800/30"
+                              : ""
+                        }`}
+                      >
+                        {value || " "}
+                      </td>
+                    );
+                  })}
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
 
         {/* Empty state */}
         {totalRows === 0 && (
