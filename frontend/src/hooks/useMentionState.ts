@@ -67,7 +67,7 @@ export function useMentionState(
       atIndex: detected.atIndex,
       highlightedIndex,
     };
-  }, [input, cursorPosition, presets.length, highlightedIndex, dismissKey]);
+  }, [input, cursorPosition, presets.length, highlightedIndex]);
 
   const moveHighlight = useCallback((direction: "up" | "down") => {
     const len = resultCountRef.current;

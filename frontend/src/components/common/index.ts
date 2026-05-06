@@ -23,7 +23,6 @@ export {
 } from "./AttachmentCard";
 export type { AttachmentCardProps } from "./AttachmentCard";
 
-export { CodeMirrorViewer } from "./CodeMirrorViewer";
 export type { CodeMirrorViewerProps } from "./CodeMirrorViewer";
 export { DeferredCodeMirrorViewer } from "./DeferredCodeMirrorViewer";
 

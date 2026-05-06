@@ -1,5 +1,5 @@
 import { memo, useMemo } from "react";
-import { CodeMirrorViewer } from "../../common/CodeMirrorViewer";
+import { DeferredCodeMirrorViewer } from "../../common/DeferredCodeMirrorViewer";
 
 interface CodeRendererProps {
   content: string;
@@ -30,7 +30,7 @@ const CodeRenderer = memo(function CodeRenderer({
 
   return (
     <div className="relative h-full overflow-auto bg-stone-100 dark:bg-[#1e1e1e] [&_.cm-editor]:h-full [&_.cm-scroller]:!overflow-auto">
-      <CodeMirrorViewer
+      <DeferredCodeMirrorViewer
         value={displayContent}
         language={language}
         lineNumbers={true}
