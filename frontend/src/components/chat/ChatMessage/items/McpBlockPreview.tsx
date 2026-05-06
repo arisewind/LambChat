@@ -286,6 +286,11 @@ export function ToolResultContent({
     );
   }
 
+  // Plain object that wasn't handled by special formats above — render as JSON
+  if (typeof result === "object" && result !== null) {
+    return <JsonFallback data={result} />;
+  }
+
   if (textContent) {
     return isMarkdownText(textContent) ? (
       <div className="text-xs text-stone-600 dark:text-stone-300 overflow-y-auto">
