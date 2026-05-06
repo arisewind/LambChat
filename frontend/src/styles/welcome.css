@@ -101,21 +101,13 @@
 }
 
 @media (max-width: 639px) {
+  /* Mobile keyboard open — keep centered layout, just compact spacing */
   html[data-mobile-keyboard="true"] .welcome-root {
-    align-items: stretch;
-    justify-content: flex-start;
-    gap: 0.5rem;
-    overflow: hidden;
-    padding: max(0.75rem, env(safe-area-inset-top)) 0.75rem 0.5rem;
-  }
-
-  html[data-mobile-keyboard="true"] .welcome-hero {
-    height: 0;
-    min-height: 0;
-    margin: 0;
-    overflow: hidden;
-    opacity: 0;
-    pointer-events: none;
+    justify-content: center;
+    gap: 0.25rem;
+    overflow-y: auto;
+    overflow-x: hidden;
+    padding: 0.5rem 0.75rem max(0.5rem, env(safe-area-inset-bottom));
   }
 
   html[data-mobile-keyboard="true"] .welcome-input {
@@ -127,14 +119,13 @@
     padding-bottom: 0;
   }
 
+  /* Keep suggestions as grid, just compact */
   html[data-mobile-keyboard="true"] .welcome-suggestions {
     width: 100%;
     max-width: none;
     flex: 0 1 auto;
-    min-height: 2.75rem;
-    margin-top: 0;
+    margin-top: 0.25rem;
     padding: 0;
-    overflow: hidden;
   }
 
   html[data-mobile-keyboard="true"] .welcome-suggestions-header {
@@ -142,52 +133,10 @@
   }
 
   html[data-mobile-keyboard="true"] .welcome-suggestions-grid {
-    display: flex;
-    gap: 0.5rem;
-    overflow-x: auto;
-    overflow-y: hidden;
-    padding: 0.25rem 0 0.375rem;
-    scroll-snap-type: x proximity;
-    scrollbar-width: none;
-    -webkit-overflow-scrolling: touch;
-  }
-
-  html[data-mobile-keyboard="true"]
-    .welcome-suggestions-grid::-webkit-scrollbar {
-    display: none;
-  }
-
-  html[data-mobile-keyboard="true"] .welcome-suggestion-pill {
-    display: inline-flex !important;
-    flex: 0 0 auto;
-    max-width: min(78vw, 22rem);
-    min-height: 2.25rem;
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
     gap: 0.375rem;
-    border-radius: 9999px;
-    padding: 0.375rem 0.625rem;
-    scroll-snap-align: start;
-    transition: none;
-  }
-
-  html[data-mobile-keyboard="true"]
-    .welcome-suggestion-pill
-    .welcome-card-shimmer {
-    display: none;
-  }
-
-  html[data-mobile-keyboard="true"]
-    .welcome-suggestion-pill
-    > span:nth-of-type(2) {
-    width: 1.5rem;
-    height: 1.5rem;
-    border-radius: 9999px;
-    font-size: 0.75rem;
-  }
-
-  html[data-mobile-keyboard="true"] .welcome-suggestion-pill > span:last-child {
-    max-width: 100%;
-    font-size: 0.8125rem;
-    line-height: 1.25;
+    overflow: hidden;
   }
 
   html[data-mobile-keyboard="true"] .welcome-card,
@@ -195,27 +144,10 @@
     animation: none;
   }
 
-  /* When mention popup is active on mobile with keyboard:
-     - hide suggestions to free up space
-     - show popup below input instead of above (stays visible) */
+  /* Hide suggestions when mention popup is active to free space */
   html[data-mobile-keyboard="true"]
     .welcome-input:has([data-mention-active])
     ~ .welcome-suggestions {
     display: none;
-  }
-
-  html[data-mobile-keyboard="true"]
-    .welcome-input:has([data-mention-active])
-    .mention-popup-anchor {
-    bottom: auto;
-    top: 100%;
-    margin-bottom: 0;
-    margin-top: 6px;
-  }
-
-  html[data-mobile-keyboard="true"]
-    .welcome-input:has([data-mention-active])
-    .mention-popup {
-    animation: none;
   }
 }

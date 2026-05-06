@@ -138,7 +138,7 @@ export function FilesPageSkeleton() {
         </div>
 
         <main className="flex-1 overflow-hidden">
-          <div className="w-full h-full sm:mx-auto sm:max-w-3xl xl:sm:max-w-5xl">
+          <div className="w-full h-full sm:mx-auto max-w-4xl sm:max-w-5xl lg:max-w-6xl">
             <FilesContentSkeleton />
           </div>
         </main>

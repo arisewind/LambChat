@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { personaPresetApi } from "../services/api";
+import { subscribePersonaPresetsChanged } from "./personaPresetEvents";
 import type {
   PersonaPreset,
   PersonaPresetCreate,
@@ -54,6 +55,13 @@ export function usePersonaPresets(options?: { enabled?: boolean }) {
   useEffect(() => {
     fetchPresets();
   }, [fetchPresets]);
+
+  useEffect(() => {
+    if (!enabled) return;
+    return subscribePersonaPresetsChanged(() => {
+      void fetchPresets();
+    });
+  }, [enabled, fetchPresets]);
 
   const usePreset = useCallback(
     async (presetId: string): Promise<PersonaPresetSnapshot | null> => {

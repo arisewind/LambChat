@@ -232,7 +232,7 @@ export function ToolResultPanel({
             ? `overflow-hidden h-full relative transition-all duration-300 ease-out ${
                 isFullscreen
                   ? "w-full max-w-none"
-                  : "sm:max-w-3xl lg:max-w-4xl sm:h-[80vh] sm:rounded-2xl sm:my-auto"
+                  : "sm:max-w-3xl lg:max-w-4xl xl:max-w-5xl sm:h-[80vh] sm:rounded-2xl sm:my-auto"
               }`
             : isMobile
               ? `max-h-[92vh] rounded-t-2xl overflow-hidden shadow-[0_-8px_40px_-8px_rgba(0,0,0,0.2)] dark:shadow-[0_-8px_40px_-8px_rgba(0,0,0,0.5)] ${

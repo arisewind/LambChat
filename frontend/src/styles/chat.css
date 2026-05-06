@@ -429,6 +429,42 @@
   }
 }
 
+/* Mobile keyboard open — mention popup below input (both welcome & chat view) */
+@media (max-width: 639px) {
+  html[data-mobile-keyboard="true"]
+    .chat-input-container[data-mention-active]
+    .mention-popup-anchor {
+    bottom: auto;
+    top: 100%;
+    margin-bottom: 0;
+    margin-top: 6px;
+  }
+
+  html[data-mobile-keyboard="true"]
+    .chat-input-container[data-mention-active]
+    .mention-popup {
+    animation: none;
+  }
+}
+
+/* Tablet keyboard open — same treatment */
+@media (min-width: 640px) and (max-width: 1023px) {
+  html[data-mobile-keyboard="true"]
+    .chat-input-container[data-mention-active]
+    .mention-popup-anchor {
+    bottom: auto;
+    top: 100%;
+    margin-bottom: 0;
+    margin-top: 6px;
+  }
+
+  html[data-mobile-keyboard="true"]
+    .chat-input-container[data-mention-active]
+    .mention-popup {
+    animation: none;
+  }
+}
+
 /* Mention popup skeleton */
 .mention-skeleton-item {
   display: flex;

@@ -37,7 +37,7 @@ export function HeroSection({ onLogin }: HeroSectionProps) {
         aria-hidden="true"
       />
 
-      <div className="relative max-w-2xl sm:max-w-3xl lg:max-w-4xl mx-auto text-center w-full">
+      <div className="relative max-w-2xl sm:max-w-3xl lg:max-w-4xl xl:max-w-5xl mx-auto text-center w-full">
         {/* Editorial tag */}
         <div
           data-reveal

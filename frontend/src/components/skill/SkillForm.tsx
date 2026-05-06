@@ -344,7 +344,7 @@ export function SkillForm({
       onSubmit={handleSubmit}
       className={
         isFullscreen
-          ? "skill-form skill-form--fullscreen fixed inset-0 z-[400] flex flex-col bg-[var(--theme-bg)]"
+          ? "skill-form skill-form--fullscreen fixed inset-0 z-[1100] flex flex-col bg-[var(--theme-bg)]"
           : "skill-form flex flex-1 flex-col gap-4"
       }
     >

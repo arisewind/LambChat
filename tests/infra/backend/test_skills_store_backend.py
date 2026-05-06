@@ -33,6 +33,7 @@ class _FakeSkillStorage:
             "visible": {
                 "SKILL.md": "visible skill",
                 "notes.txt": "needle in visible notes",
+                "multi.txt": "alpha\nbeta\ngamma\ndelta\n",
             },
             "hidden": {
                 "SKILL.md": "hidden skill",
@@ -179,6 +180,17 @@ async def test_skills_store_backend_read_reports_offset_past_eof() -> None:
     result = await backend.aread("/skills/visible/SKILL.md", offset=400, limit=100)
 
     assert _field(result, "error") == "Line offset 400 exceeds file length (1 lines)"
+
+
+async def test_skills_store_backend_read_slices_file_data_for_offset_reads() -> None:
+    backend = SkillsStoreBackend(user_id="user-1", disabled_skills=[])
+    backend._storage = _FakeSkillStorage()
+
+    result = await backend.aread("/skills/visible/multi.txt", offset=1, limit=2)
+
+    assert _field(result, "file_data")["content"] == "beta\ngamma\n"
+    assert "2\tbeta" in str(result)
+    assert "3\tgamma" in str(result)
 
 
 async def test_skills_store_backend_sync_read_rejects_running_event_loop() -> None:

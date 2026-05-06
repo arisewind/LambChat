@@ -72,6 +72,16 @@ def _slice_text_read(content: str, offset: int, limit: int) -> str | ReadResult:
     return format_content_with_line_numbers(sliced, start_line=offset + 1)  # type: ignore[arg-type]
 
 
+def _slice_text_content(content: str, offset: int, limit: int) -> str | ReadResult:
+    if not content:
+        return ""
+    sliced = slice_read_response(create_file_data(content), offset, limit)
+    if is_read_result(sliced):
+        error = getattr(sliced, "error", None)
+        return ReadResult(error=str(error) if error is not None else read_result_to_string(sliced))
+    return cast(str, sliced)
+
+
 class SkillsStoreBackend(BackendProtocol):
     """
     Skills 存储后端
@@ -228,19 +238,25 @@ class SkillsStoreBackend(BackendProtocol):
                     f"\nThis is a binary file stored in object storage. "
                     f"Access it via the URL above."
                 )
+                sliced_content = _slice_text_content(desc, offset, limit)
+                if is_read_result(sliced_content):
+                    return sliced_content  # type: ignore[return-value]
                 rendered = _slice_text_read(desc, offset, limit)
                 if is_read_result(rendered):
                     return rendered  # type: ignore[return-value]
                 return ReadResult(
-                    file_data={"content": desc, "encoding": "utf-8"},
+                    file_data={"content": cast(str, sliced_content), "encoding": "utf-8"},
                     rendered_content=cast(str, rendered),
                 )
 
+            sliced_content = _slice_text_content(content, offset, limit)
+            if is_read_result(sliced_content):
+                return sliced_content  # type: ignore[return-value]
             rendered = _slice_text_read(content, offset, limit)
             if is_read_result(rendered):
                 return rendered  # type: ignore[return-value]
             return ReadResult(
-                file_data={"content": content, "encoding": "utf-8"},
+                file_data={"content": cast(str, sliced_content), "encoding": "utf-8"},
                 rendered_content=cast(str, rendered),
             )
 

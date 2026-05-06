@@ -58,7 +58,7 @@ export function ChatSkeleton({ count = 5 }: { count?: number }) {
             <div key={i}>
               {/* ── User message ── matches UserMessageBubble structure exactly ── */}
               <div className="w-full px-2 py-1.5 sm:px-4 mb-3 sm:mb-4">
-                <div className="mx-auto flex max-w-3xl xl:max-w-5xl justify-end px-2">
+                <div className="mx-auto flex max-w-3xl lg:max-w-4xl xl:max-w-5xl justify-end px-2">
                   <div
                     className={`flex flex-col items-end max-w-[90%] ${msg.bubble}`}
                   >
@@ -82,7 +82,7 @@ export function ChatSkeleton({ count = 5 }: { count?: number }) {
 
               {/* ── Assistant response ── matches ChatMessage structure ── */}
               <div className="group w-full mb-3 sm:mb-4">
-                <div className="mx-auto flex flex-col max-w-3xl xl:max-w-5xl px-4 sm:px-6">
+                <div className="mx-auto flex flex-col max-w-3xl lg:max-w-4xl xl:max-w-5xl px-4 sm:px-6">
                   <div className="min-w-0 min-h-0">
                     {/* Avatar + Role label */}
                     <div className="mb-3 flex items-center gap-2">
@@ -115,7 +115,7 @@ export function ChatSkeleton({ count = 5 }: { count?: number }) {
 
       {/* ── ChatInput skeleton at bottom ── matches real ChatInput rounded-3xl container */}
       <div className="shrink-0 sm:px-4 pb-3 pt-1">
-        <div className="mx-auto max-w-3xl xl:max-w-5xl px-2">
+        <div className="mx-auto max-w-3xl lg:max-w-4xl xl:max-w-5xl px-2">
           <div
             className="flex flex-col w-full rounded-3xl px-1 border"
             style={{
@@ -140,7 +140,7 @@ export function ChatSkeleton({ count = 5 }: { count?: number }) {
             </div>
           </div>
           {/* Keyboard shortcut hint — desktop only, matches real ChatInput */}
-          <div className="hidden sm:flex mx-auto mt-3 px-2 max-w-3xl xl:max-w-5xl justify-center">
+          <div className="hidden sm:flex mx-auto mt-3 px-2 max-w-3xl lg:max-w-4xl xl:max-w-5xl justify-center">
             <SkeletonLine width="w-40" className="!h-3" />
           </div>
         </div>
@@ -165,7 +165,7 @@ export function ChatSkeletonMessagesOnly({ count = 3 }: { count?: number }) {
           <div key={i}>
             {/* User message */}
             <div className="w-full px-2 py-1.5 sm:px-4 mb-3 sm:mb-4">
-              <div className="mx-auto flex max-w-3xl xl:max-w-5xl justify-end px-2">
+              <div className="mx-auto flex max-w-3xl lg:max-w-4xl xl:max-w-5xl justify-end px-2">
                 <div
                   className={`flex flex-col items-end max-w-[90%] ${msg.bubble}`}
                 >
@@ -189,7 +189,7 @@ export function ChatSkeletonMessagesOnly({ count = 3 }: { count?: number }) {
 
             {/* Assistant response */}
             <div className="group w-full mb-3 sm:mb-4">
-              <div className="mx-auto flex flex-col max-w-3xl xl:max-w-5xl px-4 sm:px-6">
+              <div className="mx-auto flex flex-col max-w-3xl lg:max-w-4xl xl:max-w-5xl px-4 sm:px-6">
                 <div className="min-w-0 min-h-0">
                   <div className="mb-3 flex items-center gap-2">
                     <div className="skeleton-line size-7 rounded-full shrink-0" />

@@ -421,7 +421,7 @@ export function ApprovalPanel({
       className="w-full max-h-[60dvh] shrink min-h-0 overflow-y-auto overscroll-contain px-3 py-2 sm:px-4 sm:py-3"
       style={{ backgroundColor: "var(--theme-bg)" }}
     >
-      <div className="mx-auto max-w-3xl xl:max-w-5xl">
+      <div className="mx-auto max-w-3xl lg:max-w-4xl xl:max-w-5xl">
         {/* Pagination */}
         {approvals.length > 1 && (
           <div className="mb-2 flex items-center justify-between px-1">

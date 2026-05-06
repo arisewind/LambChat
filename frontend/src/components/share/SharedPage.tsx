@@ -571,7 +571,7 @@ export function SharedPage() {
 
       {/* Scrollable article area */}
       <main className="relative flex-1 overflow-x-hidden scroll-smooth">
-        <article className="max-w-3xl sm:max-w-5xl mx-auto">
+        <article className="max-w-3xl lg:max-w-4xl xl:max-w-5xl mx-auto">
           {/* Editorial hero */}
           <header className="pt-20 sm:pt-28 lg:pt-36 pb-0 animate-in fade-in duration-800">
             {/* Overline label */}
@@ -766,7 +766,7 @@ export function SharedPage() {
 
       {/* Footer */}
       <footer className="relative mt-auto">
-        <div className="max-w-3xl sm:max-w-5xl mx-auto px-5 sm:px-6">
+        <div className="max-w-3xl lg:max-w-4xl xl:max-w-5xl mx-auto px-5 sm:px-6">
           {/* CTA card */}
           <div className="relative mx-4 sm:mx-0 mb-10 sm:mb-14 rounded-2xl sm:rounded-3xl border border-stone-200/70 dark:border-stone-800/50 bg-gradient-to-br from-white/80 to-stone-50/60 dark:from-stone-900/60 dark:to-stone-950/40 overflow-hidden">
             {/* Inner accent */}

@@ -62,7 +62,7 @@ export function UserMessageBubble({
 
   return (
     <div className="w-full px-2 py-3 sm:py-4 sm:px-4 group">
-      <div className="mx-auto flex max-w-3xl xl:max-w-5xl justify-end px-2">
+      <div className="mx-auto flex max-w-3xl lg:max-w-4xl xl:max-w-5xl justify-end px-2">
         <div className="flex flex-col items-end max-w-[90%]">
           {/* Attachment preview - outside message bubble */}
           {hasAttachments && renderAttachments()}

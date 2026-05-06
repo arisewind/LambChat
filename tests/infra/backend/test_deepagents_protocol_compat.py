@@ -39,11 +39,21 @@ class _FakeSkillStorage:
 
 
 class _FakeFilesAPI:
-    def __init__(self, responses: dict[str, list[SimpleNamespace]]) -> None:
+    def __init__(
+        self,
+        responses: dict[str, list[SimpleNamespace]],
+        file_contents: dict[str, str] | None = None,
+    ) -> None:
         self.responses = responses
+        self.file_contents = file_contents or {}
 
     def list(self, path: str):
         return self.responses.get(path, [])
+
+    def read(self, path: str, format: str = "text"):
+        if format != "text":
+            raise AssertionError(f"unexpected format: {format}")
+        return self.file_contents[path]
 
 
 class _FakeE2BSandbox:
@@ -92,3 +102,21 @@ def test_e2b_backend_supports_current_deepagents_protocol() -> None:
 
     matches = backend.glob_info("*.py", path="/")
     assert matches == [{"path": "/home/user/project/app.py", "size": 42}]
+
+
+def test_e2b_backend_read_slices_file_data_for_offset_reads() -> None:
+    from src.infra.backend.e2b import E2BBackend
+
+    files_api = _FakeFilesAPI(
+        responses={},
+        file_contents={
+            "/home/user/readme.md": "alpha\nbeta\ngamma\ndelta\n",
+        },
+    )
+    backend = E2BBackend(sandbox=_FakeE2BSandbox(files_api))
+
+    result = backend.read("/home/user/readme.md", offset=1, limit=2)
+
+    assert result.file_data["content"] == "beta\ngamma\n"
+    assert "2\tbeta" in str(result)
+    assert "3\tgamma" in str(result)
