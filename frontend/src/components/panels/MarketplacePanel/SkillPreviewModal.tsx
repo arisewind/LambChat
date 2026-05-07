@@ -8,6 +8,7 @@ import {
 } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { LoadingSpinner } from "../../common/LoadingSpinner";
+import { DeferredCodeMirrorViewer } from "../../common/DeferredCodeMirrorViewer";
 import { EditorSidebar } from "../../common/EditorSidebar";
 import { BinaryFilePreview } from "../../skill/BinaryFilePreview";
 import type {
@@ -167,9 +168,13 @@ export function SkillPreviewModal({
                             fileName={filePath}
                           />
                         ) : (
-                          <pre className="max-h-64 overflow-auto p-3 text-xs leading-5 text-[var(--theme-text)] whitespace-pre-wrap break-all font-mono">
-                            {previewFileContent[filePath]}
-                          </pre>
+                          <DeferredCodeMirrorViewer
+                            value={previewFileContent[filePath]}
+                            filePath={filePath}
+                            lineNumbers={true}
+                            fontSize="0.75rem"
+                            className="max-h-64"
+                          />
                         )}
                       </div>
                     )}

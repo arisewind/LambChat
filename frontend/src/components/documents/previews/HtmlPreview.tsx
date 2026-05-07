@@ -1,6 +1,7 @@
 import { memo, useState, useEffect } from "react";
 import { Code, Eye } from "lucide-react";
 import { LoadingSpinner } from "../../common/LoadingSpinner";
+import { DeferredCodeMirrorViewer } from "../../common/DeferredCodeMirrorViewer";
 import { useTranslation } from "react-i18next";
 
 interface HtmlPreviewProps {
@@ -74,9 +75,13 @@ const HtmlPreview = memo(function HtmlPreview({ content }: HtmlPreviewProps) {
       {/* HTML content */}
       <div className="flex-1 overflow-hidden">
         {showSource ? (
-          <pre className="w-full h-full overflow-auto p-4 text-[13px] leading-relaxed bg-[#fafafa] dark:bg-[#1e1e1e] text-stone-700 dark:text-stone-300 font-mono">
-            <code>{content}</code>
-          </pre>
+          <DeferredCodeMirrorViewer
+            value={content}
+            language="html"
+            lineNumbers={true}
+            fontSize="0.8125rem"
+            className="w-full h-full"
+          />
         ) : (
           <iframe
             srcDoc={content}

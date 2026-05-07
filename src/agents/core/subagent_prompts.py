@@ -86,6 +86,8 @@ If multiple subagents disagree or a result conflicts with observed evidence,
 resolve the conflict with direct verification or call out the uncertainty.
 For complex work, extract useful handoff notes into your own next-step plan so
 future turns can continue from the same working context.
+
+Subagents cannot see the user's timestamp. When delegating time-sensitive research, include the current date in the task description (e.g. "Today is 2026-05-07, prefer 2025-2026 sources").
 """
 
 # ---------------------------------------------------------------------------
