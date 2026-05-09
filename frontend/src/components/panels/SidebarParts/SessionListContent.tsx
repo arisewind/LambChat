@@ -24,6 +24,7 @@ import { SessionItem } from "../../sidebar/SessionItem";
 import { APP_NAME, GITHUB_URL } from "../../../constants";
 import { isSessionFavorite } from "../../sidebar/sessionFavorites";
 import type { Project } from "../../../types";
+import { isSidebarProject } from "./projectFilters";
 
 export interface SessionActions {
   onDeleteSession: (id: string) => void;
@@ -290,7 +291,7 @@ export function SessionListContent({
           {/* Custom projects */}
           {!isProjectsCollapsed &&
             projects
-              .filter((p) => p.type === "custom")
+              .filter(isSidebarProject)
               .sort((a, b) => a.sort_order - b.sort_order)
               .map((project) => (
                 <ProjectItem

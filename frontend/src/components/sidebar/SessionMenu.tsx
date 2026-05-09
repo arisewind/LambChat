@@ -19,6 +19,7 @@ import type { BackendSession } from "../../services/api/session";
 import type { Project } from "../../types";
 import { DynamicIcon } from "../common/DynamicIcon";
 import { useSwipeToClose } from "../../hooks/useSwipeToClose";
+import { isSidebarProject } from "../panels/SidebarParts/projectFilters";
 
 interface SessionMenuProps {
   session: BackendSession;
@@ -105,7 +106,7 @@ export function SessionMenu({
 
   if (!isOpen || !anchorEl) return null;
 
-  const customProjects = projects.filter((f) => f.type === "custom");
+  const customProjects = projects.filter(isSidebarProject);
 
   const handleSelectProject = (projectId: string | null) => {
     onMoveToProject(projectId);
