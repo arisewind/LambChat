@@ -422,6 +422,10 @@ async def list_tools(
     if agent_id:
         from src.agents.core.base import _AGENT_REGISTRY
 
+        if agent_id not in _AGENT_REGISTRY:
+            from src.agents import discover_agents
+
+            discover_agents()
         agent_cls = _AGENT_REGISTRY.get(agent_id)
         if not agent_cls:
             logger.warning(
