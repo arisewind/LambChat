@@ -9,6 +9,7 @@ from typing import Any, Dict, Optional
 
 import jwt
 
+from src.infra.utils.datetime import utc_now
 from src.kernel.config import settings
 from src.kernel.exceptions import AuthenticationError
 from src.kernel.schemas.user import TokenPayload
@@ -31,7 +32,7 @@ def create_access_token(
     if expires_delta is None:
         expires_delta = timedelta(hours=settings.ACCESS_TOKEN_EXPIRE_HOURS)
 
-    now = datetime.now(timezone.utc)
+    now = utc_now()
     expire = now + expires_delta
 
     payload = {
@@ -66,7 +67,7 @@ def create_refresh_token(
     if expires_delta is None:
         expires_delta = timedelta(days=settings.REFRESH_TOKEN_EXPIRE_DAYS)
 
-    now = datetime.now(timezone.utc)
+    now = utc_now()
     expire = now + expires_delta
 
     payload = {

@@ -13,15 +13,12 @@ from typing import Any, Mapping
 
 from src.infra.logging import get_logger
 from src.infra.storage.redis import get_redis_client
+from src.infra.utils.datetime import utc_now
 
 logger = get_logger(__name__)
 _INSTANCE_KEY_PREFIX = "health:memory:instance:"
 _PROCESS_SEED = f"{socket.gethostname()}:{os.getpid()}:{time.time_ns()}"
 _INSTANCE_ID = sha1(_PROCESS_SEED.encode("utf-8")).hexdigest()[:12]
-
-
-def _utc_now() -> datetime:
-    return datetime.now(timezone.utc)
 
 
 def _to_redis_safe(value: Any) -> Any:
@@ -250,7 +247,7 @@ def build_instance_snapshot(
     normalized_details = _normalize_details(details)
     snapshot = {
         "instance_id": _normalize_instance_id(instance_id) or get_instance_id(),
-        "captured_at": captured_at if captured_at is not None else _utc_now(),
+        "captured_at": captured_at if captured_at is not None else utc_now(),
         "summary": normalized_summary,
         "overview": _build_memory_overview(normalized_summary),
         "highlights": _build_highlight_items(normalized_summary, normalized_details),

@@ -1,10 +1,11 @@
 """Revealed file index storage — tracks all files/projects revealed via agent tools."""
 
 import re
-from datetime import datetime, timezone
+from datetime import datetime
 from typing import Any, Dict, Optional
 
 from src.infra.logging import get_logger
+from src.infra.utils.datetime import utc_now
 from src.kernel.config import settings
 
 logger = get_logger(__name__)
@@ -131,7 +132,7 @@ class RevealedFileStorage:
 
         await self.ensure_indexes_if_needed()
         try:
-            now = datetime.now(timezone.utc)
+            now = utc_now()
             # Fields managed by this method — always authoritative
             set_fields: Dict[str, Any] = {
                 "file_name": file_name,

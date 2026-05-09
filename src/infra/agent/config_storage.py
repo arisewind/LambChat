@@ -7,9 +7,9 @@ Agent 配置存储层
 - 用户默认 Agent 设置
 """
 
-from datetime import datetime, timezone
 from typing import Any, Optional
 
+from src.infra.utils.datetime import utc_now, utc_now_iso
 from src.kernel.config import settings
 from src.kernel.schemas.agent import AgentConfig, UserAgentPreference
 
@@ -63,7 +63,7 @@ class AgentConfigStorage:
 
     async def set_global_config(self, agents: list[AgentConfig]) -> list[AgentConfig]:
         """设置全局 Agent 配置"""
-        now = datetime.now(timezone.utc)
+        now = utc_now()
         await self._get_collection(_COLL_AGENT_CONFIG).update_one(
             {"type": "global"},
             {
@@ -101,7 +101,7 @@ class AgentConfigStorage:
         self, role_id: str, role_name: str, agent_ids: list[str]
     ) -> list[str]:
         """设置角色的可用 Agents"""
-        now = datetime.now(timezone.utc)
+        now = utc_now()
         await self._get_collection(_COLL_ROLE_AGENTS).update_one(
             {"role_id": role_id},
             {
@@ -155,7 +155,7 @@ class AgentConfigStorage:
         self, role_id: str, role_name: str, model_values: list[str]
     ) -> list[str]:
         """设置角色的可用 Models"""
-        now = datetime.now(timezone.utc)
+        now = utc_now()
         await self._get_collection(_COLL_ROLE_MODELS).update_one(
             {"role_id": role_id},
             {
@@ -192,7 +192,7 @@ class AgentConfigStorage:
         Returns:
             受影响的文档数量
         """
-        now = datetime.now(timezone.utc).isoformat()
+        now = utc_now_iso()
         result = await self._get_collection(_COLL_ROLE_MODELS).update_many(
             {"allowed_models": model_value},
             {
@@ -208,7 +208,7 @@ class AgentConfigStorage:
         Returns:
             受影响的文档数量
         """
-        now = datetime.now(timezone.utc).isoformat()
+        now = utc_now_iso()
         result = await self._get_collection(_COLL_ROLE_MODELS).update_many(
             {"allowed_models.0": {"$exists": True}},
             {"$set": {"allowed_models": [], "updated_at": now}},
@@ -228,7 +228,7 @@ class AgentConfigStorage:
 
     async def set_user_preference(self, user_id: str, agent_id: str) -> UserAgentPreference:
         """设置用户的默认 Agent"""
-        now = datetime.now(timezone.utc)
+        now = utc_now()
         await self._get_collection(_COLL_USER_PREFERENCES).update_one(
             {"user_id": user_id},
             {

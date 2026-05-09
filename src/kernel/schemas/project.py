@@ -5,6 +5,8 @@ from typing import Optional
 
 from pydantic import BaseModel, Field
 
+from src.infra.utils.datetime import utc_now
+
 
 class ProjectBase(BaseModel):
     """Base project schema."""
@@ -34,8 +36,8 @@ class Project(ProjectBase):
 
     id: str
     user_id: str
-    created_at: datetime = Field(default_factory=datetime.now)
-    updated_at: datetime = Field(default_factory=datetime.now)
+    created_at: datetime = Field(default_factory=utc_now)
+    updated_at: datetime = Field(default_factory=utc_now)
 
     class Config:
         from_attributes = True

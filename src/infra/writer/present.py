@@ -21,11 +21,11 @@ Writer 模块 - 统一流式输出 + 事件存储
 import json
 import uuid
 from dataclasses import dataclass
-from datetime import datetime, timezone
 from typing import TYPE_CHECKING, Any, AsyncGenerator, Dict, List, Optional
 
 from src.infra.logging import get_logger
 from src.infra.upload.file_record import FileRecordStorage
+from src.infra.utils.datetime import utc_now, utc_now_iso
 
 if TYPE_CHECKING:
     from src.infra.session.dual_writer import DualEventWriter
@@ -51,20 +51,15 @@ def _extract_attachment_keys(attachments: Optional[List[Dict[str, Any]]]) -> lis
     )
 
 
-def _get_timestamp() -> str:
-    """获取 ISO 格式时间戳"""
-    return datetime.now(timezone.utc).isoformat()
-
-
 def _generate_trace_id() -> str:
     """生成唯一 trace_id (时间戳 + 完整 UUID，确保不重复)"""
-    ts = datetime.now(timezone.utc).strftime("%Y%m%d%H%M%S%f")
+    ts = utc_now().strftime("%Y%m%d%H%M%S%f")
     return f"trace_{ts}_{uuid.uuid4().hex}"
 
 
 def _generate_run_id() -> str:
     """生成唯一 run_id (时间戳 + 完整 UUID，用于 LangSmith 关联)"""
-    ts = datetime.now(timezone.utc).strftime("%Y%m%d%H%M%S%f")
+    ts = utc_now().strftime("%Y%m%d%H%M%S%f")
     return f"run_{ts}_{uuid.uuid4().hex}"
 
 
@@ -369,7 +364,7 @@ class Presenter:
                 "agent_name": self.config.agent_name,
                 "trace_id": self.trace_id,
                 "run_id": self.run_id,
-                "timestamp": _get_timestamp(),
+                "timestamp": utc_now_iso(),
             },
         )
 
@@ -393,7 +388,7 @@ class Presenter:
             {
                 "content": content,
                 "text_id": text_id,
-                "timestamp": _get_timestamp(),
+                "timestamp": utc_now_iso(),
             },
             depth=depth,
             agent_id=agent_id,
@@ -419,7 +414,7 @@ class Presenter:
             {
                 "content": content,
                 "summary_id": summary_id,
-                "timestamp": _get_timestamp(),
+                "timestamp": utc_now_iso(),
             },
             depth=depth,
             agent_id=agent_id,
@@ -445,7 +440,7 @@ class Presenter:
             {
                 "content": content,
                 "thinking_id": thinking_id,
-                "timestamp": _get_timestamp(),
+                "timestamp": utc_now_iso(),
             },
             depth=depth,
             agent_id=agent_id,
@@ -468,7 +463,7 @@ class Presenter:
             "todo:updated",
             {
                 "todos": todos,
-                "timestamp": _get_timestamp(),
+                "timestamp": utc_now_iso(),
             },
             depth=depth,
             agent_id=agent_id,
@@ -496,7 +491,7 @@ class Presenter:
                 "step": self._step_count,
                 "agent_name": agent_name,
                 "input": input_message,
-                "timestamp": _get_timestamp(),
+                "timestamp": utc_now_iso(),
             },
             depth=depth,
             agent_id=agent_id,
@@ -522,7 +517,7 @@ class Presenter:
         data: Dict[str, Any] = {
             "result": result,
             "success": success,
-            "timestamp": _get_timestamp(),
+            "timestamp": utc_now_iso(),
         }
         if error:
             data["error"] = error
@@ -557,7 +552,7 @@ class Presenter:
                 "tool": tool_name,
                 "args": (tool_input if isinstance(tool_input, dict) else {"input": tool_input}),
                 "tool_call_id": tool_call_id,
-                "timestamp": _get_timestamp(),
+                "timestamp": utc_now_iso(),
             },
             depth=depth,
             agent_id=agent_id,
@@ -588,7 +583,7 @@ class Presenter:
             "tool": tool_name,
             "result": result,
             "success": success,
-            "timestamp": _get_timestamp(),
+            "timestamp": utc_now_iso(),
         }
         if tool_call_id:
             data["tool_call_id"] = tool_call_id
@@ -632,7 +627,7 @@ class Presenter:
                 "type": question_type,
                 "choices": choices or [],
                 "default": default,
-                "timestamp": _get_timestamp(),
+                "timestamp": utc_now_iso(),
             },
             depth=depth,
             agent_id=agent_id,
@@ -648,7 +643,7 @@ class Presenter:
         resolved_message_id = message_id or f"{self.run_id}:user"
         data: Dict[str, Any] = {
             "content": content,
-            "timestamp": _get_timestamp(),
+            "timestamp": utc_now_iso(),
             "message_id": resolved_message_id,
             "run_id": self.run_id,
         }
@@ -662,7 +657,7 @@ class Presenter:
         """输出沙箱开始初始化"""
         return self._build_event(
             "sandbox:starting",
-            {"timestamp": _get_timestamp()},
+            {"timestamp": utc_now_iso()},
         )
 
     def present_sandbox_ready(
@@ -681,7 +676,7 @@ class Presenter:
             {
                 "sandbox_id": sandbox_id,
                 "work_dir": work_dir,
-                "timestamp": _get_timestamp(),
+                "timestamp": utc_now_iso(),
             },
         )
 
@@ -693,7 +688,7 @@ class Presenter:
         """
         return self._build_event(
             "sandbox:error",
-            {"error": error, "timestamp": _get_timestamp()},
+            {"error": error, "timestamp": utc_now_iso()},
         )
 
     def present_token_usage(
@@ -724,7 +719,7 @@ class Presenter:
             "output_tokens": output_tokens,
             "total_tokens": total_tokens,
             "duration": duration,
-            "timestamp": _get_timestamp(),
+            "timestamp": utc_now_iso(),
         }
         # 添加缓存token统计（如果有）
         if cache_creation_tokens > 0:
@@ -755,7 +750,7 @@ class Presenter:
         data: Dict[str, Any] = {
             "action": action,
             "files_count": files_count,
-            "timestamp": _get_timestamp(),
+            "timestamp": utc_now_iso(),
         }
         if skill_name:
             data["skill_name"] = skill_name
@@ -770,7 +765,7 @@ class Presenter:
                 "trace_id": self.trace_id,
                 "steps": self._step_count,
                 "tool_calls": len(self._tool_calls),
-                "timestamp": _get_timestamp(),
+                "timestamp": utc_now_iso(),
             },
         )
 
@@ -788,7 +783,7 @@ class Presenter:
                 "type": error_type,
                 "trace_id": self.trace_id,
                 "details": details,
-                "timestamp": _get_timestamp(),
+                "timestamp": utc_now_iso(),
             },
         )
 

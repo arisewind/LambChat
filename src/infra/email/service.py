@@ -6,7 +6,7 @@ import asyncio
 import json
 import secrets
 import time
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timedelta
 from email.utils import formataddr
 from typing import Optional
 
@@ -15,6 +15,7 @@ import httpx
 from src.infra.email.template import EmailTemplate
 from src.infra.email.texts import get_texts
 from src.infra.logging import get_logger
+from src.infra.utils.datetime import utc_now
 from src.kernel.config import settings
 
 logger = get_logger(__name__)
@@ -150,7 +151,7 @@ class EmailService:
         """Get token expiry datetime."""
         if hours is None:
             hours = self._reset_expire_hours
-        return datetime.now(timezone.utc) + timedelta(hours=hours)
+        return utc_now() + timedelta(hours=hours)
 
     async def _send_email(
         self,

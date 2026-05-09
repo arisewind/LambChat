@@ -11,6 +11,7 @@ from pydantic import BaseModel
 
 from src.infra.logging import get_logger
 from src.infra.storage.base import StorageBase
+from src.infra.utils.datetime import utc_now
 from src.kernel.config import settings
 
 if TYPE_CHECKING:
@@ -104,9 +105,9 @@ class MongoDBStorage(StorageBase):
         """设置数据"""
         doc = {"_id": key, "value": value}
         if ttl:
-            from datetime import datetime, timedelta
+            from datetime import timedelta
 
-            doc["expires_at"] = datetime.now() + timedelta(seconds=ttl)
+            doc["expires_at"] = utc_now() + timedelta(seconds=ttl)
         await self.collection.update_one(
             {"_id": key},
             {"$set": doc},
@@ -207,7 +208,7 @@ class ApprovalStorage:
     async def create(self, approval: PendingApproval, ttl: int = APPROVAL_TTL) -> PendingApproval:
         """创建审批记录"""
         await self.ensure_indexes()
-        now = datetime.now()
+        now = utc_now()
         doc = approval.model_dump()
         doc["_id"] = approval.id
         doc["created_at"] = now
@@ -219,7 +220,7 @@ class ApprovalStorage:
     async def get(self, approval_id: str) -> Optional[PendingApproval]:
         """获取审批记录（排除 response 子文档，减少传输量）"""
         doc = await self.collection.find_one(
-            {"_id": approval_id, "expires_at": {"$gt": datetime.now()}},
+            {"_id": approval_id, "expires_at": {"$gt": utc_now()}},
             {"response": 0},
         )
         if not doc:
@@ -234,7 +235,7 @@ class ApprovalStorage:
         response: Optional[ApprovalResponse] = None,
     ) -> bool:
         """更新审批状态"""
-        update_doc = {"status": status, "updated_at": datetime.now()}
+        update_doc = {"status": status, "updated_at": utc_now()}
         if response:
             update_doc["response"] = response.model_dump()
 
@@ -265,8 +266,8 @@ class ApprovalStorage:
             return None
 
         extensions = doc.get("extensions", 0)
-        created_at = doc.get("created_at", datetime.now())
-        current_expires = doc.get("expires_at", datetime.now())
+        created_at = doc.get("created_at", utc_now())
+        current_expires = doc.get("expires_at", utc_now())
 
         if extensions >= max_extensions:
             return None
@@ -292,7 +293,7 @@ class ApprovalStorage:
         self, session_id: Optional[str] = None, user_id: Optional[str] = None
     ) -> List[PendingApproval]:
         """获取待处理审批列表"""
-        query = {"status": "pending", "expires_at": {"$gt": datetime.now()}}
+        query = {"status": "pending", "expires_at": {"$gt": utc_now()}}
         if session_id:
             query["session_id"] = session_id
         if user_id:

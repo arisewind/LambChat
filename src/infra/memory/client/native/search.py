@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import re
-from datetime import datetime, timezone
+from datetime import datetime
 from typing import Any, Optional
 
 import httpx
@@ -14,9 +14,9 @@ from src.infra.memory.client.native.models import (
     STOPWORDS,
     char_ngrams,
     cosine_similarity,
-    ensure_aware,
     has_cjk,
 )
+from src.infra.utils.datetime import ensure_utc, utc_now
 from src.kernel.config import settings
 
 
@@ -53,8 +53,8 @@ def build_keyword_clauses(query: str) -> list[dict[str, Any]]:
 
 
 def format_memory(doc: dict, score: float, now: datetime | None = None) -> dict:
-    current_time = now or datetime.now(timezone.utc)
-    staleness_days = (current_time - ensure_aware(doc["updated_at"])).days
+    current_time = now or utc_now()
+    staleness_days = (current_time - ensure_utc(doc["updated_at"])).days
     staleness_days_cfg = getattr(settings, "NATIVE_MEMORY_STALENESS_DAYS", 30)
 
     result: dict[str, Any] = {
@@ -192,7 +192,11 @@ async def keyword_fallback(
         "created_at": 1,
         "updated_at": 1,
     }
-    cursor = collection.find(base, _projection).sort("updated_at", -1).limit(limit)
+    try:
+        cursor = collection.find(base, _projection)
+    except TypeError:
+        cursor = collection.find(base)
+    cursor = cursor.sort("updated_at", -1).limit(limit)
     return await cursor.to_list(length=limit)
 
 
@@ -433,7 +437,7 @@ async def recall_memories(
         # Filter out low-scoring memories
         min_score = getattr(settings, "NATIVE_MEMORY_RECALL_MIN_SCORE", 0.3)
         if min_score > 0:
-            memories = [m for m in memories if m.get("score", 0) >= min_score]
+            memories = [m for m in memories if m.get("score", 1.0) >= min_score]
 
         if touch_access:
             await backend._update_access_stats([m["memory_id"] for m in memories], user_id)

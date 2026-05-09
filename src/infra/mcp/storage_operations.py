@@ -1,10 +1,10 @@
 """MCP storage combined operations, import/export, promote/demote, and tool discovery."""
 
 import copy
-from datetime import datetime, timezone
 from typing import TYPE_CHECKING, Any, Optional
 
 from src.infra.logging import get_logger
+from src.infra.utils.datetime import utc_now_iso
 from src.kernel.schemas.mcp import (
     MCPImportRequest,
     MCPServerCreate,
@@ -64,7 +64,7 @@ class StorageOperations:
             return None  # Conflict
 
         # Create system server
-        now = datetime.now(timezone.utc).isoformat()
+        now = utc_now_iso()
         system_collection = self._get_system_collection()
         doc = {
             "name": user_server.name,
@@ -118,7 +118,7 @@ class StorageOperations:
             return None  # Conflict
 
         # Create user server
-        now = datetime.now(timezone.utc).isoformat()
+        now = utc_now_iso()
         user_collection = self._get_user_collection()
         doc = {
             "name": system_server.name,
@@ -356,7 +356,7 @@ class StorageOperations:
                 {
                     "$set": {
                         "enabled": new_enabled,
-                        "updated_at": datetime.now(timezone.utc).isoformat(),
+                        "updated_at": utc_now_iso(),
                     }
                 },
             )
@@ -415,7 +415,7 @@ class StorageOperations:
                 {
                     "$set": {
                         "enabled": new_enabled,
-                        "updated_at": datetime.now(timezone.utc).isoformat(),
+                        "updated_at": utc_now_iso(),
                     }
                 },
             )

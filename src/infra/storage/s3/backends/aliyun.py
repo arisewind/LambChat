@@ -7,7 +7,6 @@ from __future__ import annotations
 import asyncio
 import io
 from collections.abc import AsyncIterator
-from datetime import datetime, timezone
 from typing import BinaryIO, Optional
 
 import oss2
@@ -15,6 +14,7 @@ import oss2
 from src.infra.logging import get_logger
 from src.infra.storage.s3.base import S3StorageBackend
 from src.infra.storage.s3.types import S3Config, UploadResult
+from src.infra.utils.datetime import utc_now
 
 logger = get_logger(__name__)
 
@@ -78,7 +78,7 @@ class AliyunOssBackend(S3StorageBackend):
             size=file_size,
             content_type=content_type or "application/octet-stream",
             etag=result.etag,
-            last_modified=datetime.now(timezone.utc),
+            last_modified=utc_now(),
         )
 
     async def upload_bytes(

@@ -4,7 +4,6 @@
 
 import uuid
 from copy import deepcopy
-from datetime import datetime, timezone
 from typing import List, Optional
 
 from src.infra.logging import get_logger
@@ -13,6 +12,7 @@ from src.infra.session.trace_storage import get_trace_storage
 from src.infra.storage.checkpoint import clone_checkpoints_for_fork
 from src.infra.storage.s3 import get_storage_service
 from src.infra.upload.file_record import FileRecordStorage
+from src.infra.utils.datetime import utc_now, utc_now_iso
 from src.kernel.exceptions import NotFoundError, SessionError
 from src.kernel.schemas.session import (
     Session,
@@ -272,7 +272,7 @@ class SessionManager:
             {
                 "forked_from_session_id": session_id,
                 "forked_from_message_id": message_id,
-                "forked_at": datetime.now(timezone.utc).isoformat(),
+                "forked_at": utc_now_iso(),
                 **(fork_metadata or {}),
             }
         )
@@ -416,7 +416,7 @@ class SessionManager:
         session_id: str,
         user_id: str,
     ) -> dict:
-        timestamp = user_event.get("timestamp") or datetime.now(timezone.utc)
+        timestamp = user_event.get("timestamp") or utc_now()
         return {
             "trace_id": f"trace_{uuid.uuid4().hex}",
             "session_id": session_id,

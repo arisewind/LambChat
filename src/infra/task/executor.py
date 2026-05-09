@@ -7,7 +7,6 @@ error handling, and status updates.
 """
 
 import asyncio
-from datetime import datetime
 from typing import Any, Callable, Dict, List, Optional
 
 from src.agents.core import resolve_agent_name
@@ -15,6 +14,7 @@ from src.infra.logging import get_logger
 from src.infra.session.dual_writer import get_dual_writer
 from src.infra.session.favorites import is_session_favorite
 from src.infra.session.storage import SessionStorage
+from src.infra.utils.datetime import utc_now_iso
 from src.kernel.schemas.session import SessionCreate, SessionUpdate
 
 from .exceptions import TaskInterruptedError
@@ -426,7 +426,7 @@ class TaskExecutor:
             if run_id:
                 metadata["current_run_id"] = run_id
             if status == TaskStatus.COMPLETED:
-                metadata["completed_at"] = datetime.now().isoformat()
+                metadata["completed_at"] = utc_now_iso()
                 metadata["task_recoverable"] = False
                 metadata["task_error_code"] = None
             elif status in {TaskStatus.PENDING, TaskStatus.RUNNING}:

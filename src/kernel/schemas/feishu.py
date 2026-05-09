@@ -6,6 +6,8 @@ from typing import Optional
 
 from pydantic import BaseModel, ConfigDict, Field
 
+from src.infra.utils.datetime import utc_now
+
 
 class FeishuGroupPolicy(str, Enum):
     """Group message handling policy."""
@@ -55,8 +57,8 @@ class FeishuConfig(FeishuConfigBase):
     """Feishu configuration model (database view)."""
 
     user_id: str
-    created_at: datetime = Field(default_factory=datetime.now)
-    updated_at: datetime = Field(default_factory=datetime.now)
+    created_at: datetime = Field(default_factory=utc_now)
+    updated_at: datetime = Field(default_factory=utc_now)
 
     class Config:
         from_attributes = True

@@ -3,12 +3,13 @@ Email verification and password reset routes
 """
 
 import hashlib
-from datetime import datetime, timezone
+from datetime import timezone
 
 from fastapi import APIRouter, HTTPException, Request, status
 
 from src.infra.logging import get_logger
 from src.infra.user.manager import UserManager
+from src.infra.utils.datetime import utc_now
 from src.kernel.config import settings
 from src.kernel.schemas.user import (
     ForgotPasswordRequest,
@@ -138,7 +139,7 @@ async def reset_password(request_data: ResetPasswordRequest):
         expires_dt = user.reset_token_expires
         if expires_dt.tzinfo is None:
             expires_dt = expires_dt.replace(tzinfo=timezone.utc)
-        if datetime.now(timezone.utc) > expires_dt:
+        if utc_now() > expires_dt:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="重置令牌已过期",

@@ -30,6 +30,7 @@ import {
   shouldLoadRunsForShareType,
   shouldShowExistingSharesSkeleton,
 } from "./shareDialogState";
+import { getTimeMs } from "../../utils/datetime";
 
 interface ShareDialogProps {
   isOpen: boolean;
@@ -82,8 +83,7 @@ export function ShareDialog({
       const response = await sessionApi.getRuns(sessionId);
       // Sort runs by started_at in ascending order (oldest first)
       const sortedRuns = (response.runs || []).sort(
-        (a, b) =>
-          new Date(a.started_at).getTime() - new Date(b.started_at).getTime(),
+        (a, b) => getTimeMs(a.started_at) - getTimeMs(b.started_at),
       );
       setRuns(sortedRuns);
       setHasLoadedRuns(true);

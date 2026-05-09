@@ -5,6 +5,7 @@ from typing import List, Optional
 
 from pydantic import BaseModel, ConfigDict, Field
 
+from src.infra.utils.datetime import utc_now
 from src.kernel.types import Permission
 
 
@@ -77,5 +78,5 @@ class Role(RoleBase):
     allowed_agents: List[str] = Field(default_factory=list, description="List of allowed agent IDs")
     limits: Optional[RoleLimits] = Field(default=None, description="Role-specific limits")
     is_system: bool = False  # System roles cannot be deleted
-    created_at: datetime = Field(default_factory=datetime.now)
-    updated_at: datetime = Field(default_factory=datetime.now)
+    created_at: datetime = Field(default_factory=utc_now)
+    updated_at: datetime = Field(default_factory=utc_now)

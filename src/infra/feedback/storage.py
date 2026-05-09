@@ -7,13 +7,13 @@
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
 from typing import Any, Optional
 
 from bson import ObjectId
 
 from src.infra.logging import get_logger
 from src.infra.storage.mongodb import get_mongo_client
+from src.infra.utils.datetime import utc_now
 from src.kernel.config import settings
 from src.kernel.schemas.feedback import (
     Feedback,
@@ -79,7 +79,7 @@ class FeedbackStorage:
         if existing:
             raise ValueError("您已经对该对话提交过反馈")
 
-        now = datetime.now(timezone.utc)
+        now = utc_now()
         feedback_dict: dict[str, Any] = {
             "user_id": user_id,
             "username": username,

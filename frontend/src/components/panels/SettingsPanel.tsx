@@ -23,6 +23,7 @@ import { SystemHealthSection } from "./SystemHealthSection";
 import { useAuth } from "../../hooks/useAuth";
 import { roleApi, agentApi } from "../../services/api";
 import { Permission, type AgentInfo } from "../../types";
+import { formatDateTime } from "../../utils/datetime";
 import type {
   SettingItem,
   SettingCategory,
@@ -836,9 +837,7 @@ export function SettingsPanel() {
                                 : String(setting.default_value)}
                               {setting.updated_at && (
                                 <span className="ml-2 inline-flex">
-                                  {new Date(
-                                    setting.updated_at,
-                                  ).toLocaleString()}
+                                  {formatDateTime(setting.updated_at)}
                                   {setting.updated_by &&
                                     ` · ${setting.updated_by}`}
                                 </span>

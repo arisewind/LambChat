@@ -4,12 +4,13 @@ Feishu/Lark configuration storage using MongoDB
 Stores user-level Feishu bot configurations with encrypted sensitive fields.
 """
 
-from datetime import datetime, timezone
+from datetime import datetime
 from typing import Any, Optional
 
 from src.infra.logging import get_logger
 from src.infra.mcp.encryption import decrypt_value, encrypt_value
 from src.infra.storage.mongodb import get_mongo_client
+from src.infra.utils.datetime import utc_now_iso
 from src.kernel.config import settings
 from src.kernel.schemas.feishu import (
     FeishuConfig,
@@ -60,7 +61,7 @@ class FeishuStorage:
         if existing:
             raise ValueError("Feishu configuration already exists for this user")
 
-        now = datetime.now(timezone.utc).isoformat()
+        now = utc_now_iso()
         doc = {
             "user_id": user_id,
             "app_id": config.app_id,
@@ -89,7 +90,7 @@ class FeishuStorage:
         if not doc:
             return None
 
-        update_data: dict[str, Any] = {"updated_at": datetime.now(timezone.utc).isoformat()}
+        update_data: dict[str, Any] = {"updated_at": utc_now_iso()}
 
         if updates.app_id is not None:
             update_data["app_id"] = updates.app_id

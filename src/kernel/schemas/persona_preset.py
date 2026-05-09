@@ -6,6 +6,8 @@ from typing import Optional
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
+from src.infra.utils.datetime import utc_now
+
 
 class PersonaPresetScope(str, Enum):
     """Preset ownership scope."""
@@ -102,8 +104,8 @@ class PersonaPreset(BaseModel):
     usage_count: int = 0
     created_by: Optional[str] = None
     updated_by: Optional[str] = None
-    created_at: datetime = Field(default_factory=datetime.now)
-    updated_at: datetime = Field(default_factory=datetime.now)
+    created_at: datetime = Field(default_factory=utc_now)
+    updated_at: datetime = Field(default_factory=utc_now)
 
 
 class PersonaPresetSnapshot(BaseModel):

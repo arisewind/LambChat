@@ -14,7 +14,7 @@ Dual Event Writer - 双写事件到 Redis Stream + MongoDB
 import asyncio
 import json
 from collections import OrderedDict, defaultdict
-from datetime import datetime, timezone
+from datetime import datetime
 from typing import Any, AsyncGenerator, Dict, List, Optional
 
 from pymongo import UpdateOne
@@ -22,6 +22,7 @@ from pymongo import UpdateOne
 from src.infra.logging import get_logger
 from src.infra.session.trace_storage import TraceStorage, get_trace_storage
 from src.infra.storage.redis import RedisStorage
+from src.infra.utils.datetime import utc_now
 from src.kernel.config import settings
 
 logger = get_logger(__name__)
@@ -39,10 +40,6 @@ _TTL_SET_KEYS_MAX = 5000  # _ttl_set_keys 上限，防止内存泄漏（从 1000
 def _get_max_events_per_trace() -> int:
     """获取单个 trace 最多保留的事件数（可配置）"""
     return getattr(settings, "SESSION_MAX_EVENTS_PER_TRACE", 10000)
-
-
-def _utc_now() -> datetime:
-    return datetime.now(timezone.utc)
 
 
 class DualEventWriter:
@@ -120,7 +117,7 @@ class DualEventWriter:
         - MongoDB: 缓冲写入，批量刷新（使用 Event 触发）
         """
         # 统一时间戳，确保 Redis 和 MongoDB 使用相同的时间
-        timestamp = _utc_now()
+        timestamp = utc_now()
 
         # ---- Redis 写入（立即，无锁） ----
         stream_key = self._stream_key(session_id, run_id)
@@ -191,7 +188,7 @@ class DualEventWriter:
         # 按 trace_id 分组
         grouped: dict[str, list[dict]] = defaultdict(list)
         trace_context: dict[str, tuple[str, Optional[str]]] = {}
-        now = _utc_now()
+        now = utc_now()
 
         for trace_id, event_type, data, session_id, run_id, timestamp in batch:
             grouped[trace_id].append(
@@ -379,7 +376,7 @@ class DualEventWriter:
                         "id": "timeout",
                         "event_type": "error",
                         "data": {"error": "Stream read timed out"},
-                        "timestamp": _utc_now().isoformat(),
+                        "timestamp": utc_now().isoformat(),
                     }
                     return
 
@@ -391,7 +388,7 @@ class DualEventWriter:
                         "id": "heartbeat",
                         "event_type": "heartbeat",
                         "data": {},
-                        "timestamp": _utc_now().isoformat(),
+                        "timestamp": utc_now().isoformat(),
                     }
 
                 try:

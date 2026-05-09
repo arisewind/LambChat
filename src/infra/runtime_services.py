@@ -10,7 +10,13 @@ from __future__ import annotations
 from src.infra.channel.pubsub import get_channel_config_pubsub
 from src.infra.llm.pubsub import get_model_config_pubsub
 from src.infra.memory.distributed import get_memory_pubsub
-from src.infra.memory.tools import shutdown as memory_shutdown
+from src.infra.memory.tools import (
+    shutdown as memory_shutdown,
+)
+from src.infra.memory.tools import (
+    start_memory_compaction_agent,
+)
+from src.infra.scheduler import get_runtime_scheduler
 from src.infra.settings.pubsub import get_settings_pubsub
 from src.infra.task.manager import get_task_manager
 from src.infra.tool.cache_pubsub import get_tool_cache_pubsub
@@ -31,6 +37,8 @@ async def start_runtime_services() -> None:
 
     memory_pubsub = get_memory_pubsub()
     await memory_pubsub.start_listener()
+    start_memory_compaction_agent()
+    get_runtime_scheduler().start()
 
     channel_pubsub = get_channel_config_pubsub()
     await channel_pubsub.start_listener()
@@ -58,6 +66,8 @@ async def stop_runtime_services() -> None:
 
     channel_pubsub = get_channel_config_pubsub()
     await channel_pubsub.stop_listener()
+
+    await get_runtime_scheduler().stop()
 
     memory_pubsub = get_memory_pubsub()
     await memory_pubsub.stop_listener()

@@ -1,5 +1,4 @@
 # src/infra/skill/marketplace.py
-from datetime import datetime, timezone
 from typing import TYPE_CHECKING, Any, Optional
 
 from bson import ObjectId
@@ -17,6 +16,7 @@ from src.infra.skill.types import (
     MarketplaceSkillUpdate,
 )
 from src.infra.storage.mongodb import get_mongo_client
+from src.infra.utils.datetime import utc_now_iso
 from src.kernel.config import settings
 
 logger = get_logger(__name__)
@@ -249,7 +249,7 @@ class MarketplaceStorage:
     ) -> MarketplaceSkill:
         """创建商城 Skill 元数据"""
         collection = self._get_meta_collection()
-        now = datetime.now(timezone.utc).isoformat()
+        now = utc_now_iso()
 
         existing = await collection.find_one({"skill_name": data.skill_name})
         if existing:
@@ -284,7 +284,7 @@ class MarketplaceStorage:
         if not existing:
             return None
 
-        update_data: dict[str, Any] = {"updated_at": datetime.now(timezone.utc).isoformat()}
+        update_data: dict[str, Any] = {"updated_at": utc_now_iso()}
         if data.description is not None:
             update_data["description"] = data.description
         if data.tags is not None:
@@ -315,7 +315,7 @@ class MarketplaceStorage:
     ) -> Optional[MarketplaceSkill]:
         """Admin: 激活或停用商城 Skill"""
         collection = self._get_meta_collection()
-        now = datetime.now(timezone.utc).isoformat()
+        now = utc_now_iso()
 
         result = await collection.find_one_and_update(
             {"skill_name": skill_name},
@@ -378,7 +378,7 @@ class MarketplaceStorage:
     async def set_marketplace_file(self, skill_name: str, file_path: str, content: str) -> None:
         """设置商城 Skill 单个文件"""
         collection = self._get_files_collection()
-        now = datetime.now(timezone.utc).isoformat()
+        now = utc_now_iso()
         await collection.update_one(
             {"skill_name": skill_name, "file_path": file_path},
             {
@@ -398,7 +398,7 @@ class MarketplaceStorage:
         if not files:
             return
         collection = self._get_files_collection()
-        now = datetime.now(timezone.utc).isoformat()
+        now = utc_now_iso()
 
         from pymongo import DeleteOne, UpdateOne
 

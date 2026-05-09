@@ -1,10 +1,10 @@
 """Persona preset storage."""
 
-from datetime import datetime
 from typing import Any, Optional
 
 from bson import ObjectId
 
+from src.infra.utils.datetime import utc_now
 from src.kernel.config import settings
 
 
@@ -46,7 +46,7 @@ class PersonaPresetStorage:
         return result
 
     async def create(self, data: dict[str, Any]) -> dict[str, Any]:
-        now = datetime.now()
+        now = utc_now()
         doc = {
             **data,
             "created_at": data.get("created_at") or now,
@@ -57,7 +57,7 @@ class PersonaPresetStorage:
         return doc
 
     async def insert_many(self, docs: list[dict[str, Any]]) -> list[dict[str, Any]]:
-        now = datetime.now()
+        now = utc_now()
         for doc in docs:
             doc.setdefault("created_at", now)
             doc.setdefault("updated_at", now)
@@ -123,7 +123,7 @@ class PersonaPresetStorage:
         except Exception:
             return None
         update = {k: v for k, v in update.items() if v is not None}
-        update["updated_at"] = datetime.now()
+        update["updated_at"] = utc_now()
         if not update:
             return await self.get_by_id(preset_id)
         doc = await self.collection.find_one_and_update(

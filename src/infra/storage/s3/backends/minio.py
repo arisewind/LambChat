@@ -8,12 +8,12 @@ from __future__ import annotations
 
 import asyncio
 import io
-from datetime import datetime, timezone
 from typing import TYPE_CHECKING, BinaryIO, Optional
 
 from src.infra.logging import get_logger
 from src.infra.storage.s3.base import S3StorageBackend
 from src.infra.storage.s3.types import S3Config, S3Provider, UploadResult
+from src.infra.utils.datetime import utc_now
 
 if TYPE_CHECKING:
     import minio
@@ -94,7 +94,7 @@ class MinioS3Backend(S3StorageBackend):
             size=file_size,
             content_type=content_type,
             etag=result.etag,
-            last_modified=datetime.now(timezone.utc),
+            last_modified=utc_now(),
         )
 
     async def upload_bytes(

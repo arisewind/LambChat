@@ -27,6 +27,7 @@ import { UsersPanelSkeleton } from "../skeletons";
 import { Pagination } from "../common/Pagination";
 import { userApi, roleApi } from "../../services/api";
 import { useAuth } from "../../hooks/useAuth";
+import { formatDate } from "../../utils/datetime";
 import { Permission } from "../../types";
 import type {
   User as UserType,
@@ -551,7 +552,7 @@ export function UsersPanel() {
                         )}
                       </td>
                       <td className="whitespace-nowrap px-6 py-4 text-sm text-theme-text-secondary">
-                        {new Date(user.created_at).toLocaleDateString("zh-CN")}
+                        {formatDate(user.created_at)}
                       </td>
                       {(canEdit || canDelete) && (
                         <td className="whitespace-nowrap px-6 py-4 text-right">
@@ -625,7 +626,7 @@ export function UsersPanel() {
                         </span>
                       )}
                       <span className="text-xs text-theme-text-secondary opacity-60">
-                        {new Date(user.created_at).toLocaleDateString("zh-CN")}
+                        {formatDate(user.created_at)}
                       </span>
                     </div>
 

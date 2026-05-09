@@ -28,6 +28,7 @@ import type {
   FeedbackStats,
   RatingValue,
 } from "../../types/feedback";
+import { formatDateTimeShort, formatDateTime } from "../../utils/datetime";
 
 // Stats card component
 function StatsCard({
@@ -181,7 +182,7 @@ function FeedbackDetailModal({
                   {feedback.username}
                 </p>
                 <p className="text-sm text-stone-500 dark:text-stone-400">
-                  {formatDateFull(feedback.created_at)}
+                  {formatDateTime(feedback.created_at)}
                 </p>
               </div>
             </div>
@@ -280,17 +281,7 @@ function FeedbackDetailModal({
   );
 }
 
-// Helper function to format full date
-function formatDateFull(dateString: string) {
-  const date = new Date(dateString);
-  return date.toLocaleString(undefined, {
-    year: "numeric",
-    month: "long",
-    day: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-  });
-}
+// Helper function removed - using formatDateTime from shared utility
 
 export function FeedbackPanel() {
   const { t } = useTranslation();
@@ -366,17 +357,9 @@ export function FeedbackPanel() {
     }
   };
 
-  // Format date
-  const formatDate = (dateString: string) => {
-    const date = new Date(dateString);
-    return date.toLocaleString(undefined, {
-      year: "numeric",
-      month: "short",
-      day: "numeric",
-      hour: "2-digit",
-      minute: "2-digit",
-    });
-  };
+  // Format date - using shared utility
+  const formatDateLocal = (dateString: string) =>
+    formatDateTimeShort(dateString);
 
   return (
     <div className="glass-shell flex h-full flex-col min-h-0">
@@ -469,7 +452,7 @@ export function FeedbackPanel() {
                           {feedback.username}
                         </p>
                         <p className="text-xs text-stone-400 dark:text-stone-500">
-                          {formatDate(feedback.created_at)}
+                          {formatDateLocal(feedback.created_at)}
                         </p>
                       </div>
                     </div>
@@ -531,7 +514,7 @@ export function FeedbackPanel() {
                           {feedback.username}
                         </p>
                         <p className="text-xs text-stone-400 dark:text-stone-500">
-                          {formatDate(feedback.created_at)}
+                          {formatDateLocal(feedback.created_at)}
                         </p>
                       </div>
                     </div>

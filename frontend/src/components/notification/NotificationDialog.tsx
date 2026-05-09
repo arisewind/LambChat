@@ -12,6 +12,7 @@ import {
 } from "lucide-react";
 import { notificationApi } from "../../services/api/notification";
 import type { Notification, NotificationType } from "../../types/notification";
+import { formatDateTimeShort } from "../../utils/datetime";
 
 const TYPE_CONFIG: Record<
   NotificationType,
@@ -38,15 +39,6 @@ const TYPE_CONFIG: Record<
     dotClass: "bg-orange-500",
   },
 };
-
-function formatDate(dateString: string) {
-  return new Date(dateString).toLocaleString(undefined, {
-    month: "short",
-    day: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-  });
-}
 
 interface NotificationDialogProps {
   isOpen: boolean;
@@ -181,11 +173,13 @@ export function NotificationDialog({
               const Icon = config.icon;
               const schedule =
                 n.start_time && n.end_time
-                  ? `${formatDate(n.start_time)} - ${formatDate(n.end_time)}`
+                  ? `${formatDateTimeShort(
+                      n.start_time,
+                    )} - ${formatDateTimeShort(n.end_time)}`
                   : n.start_time
-                    ? formatDate(n.start_time)
+                    ? formatDateTimeShort(n.start_time)
                     : n.end_time
-                      ? formatDate(n.end_time)
+                      ? formatDateTimeShort(n.end_time)
                       : "";
 
               return (

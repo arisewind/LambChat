@@ -7,7 +7,6 @@ Skill 存储层 - 简化架构
 """
 
 import json
-from datetime import datetime, timezone
 from typing import TYPE_CHECKING, Any, Optional
 
 from src.infra.logging import get_logger
@@ -21,6 +20,7 @@ from src.infra.skill.binary import (
 from src.infra.skill.constants import SKILL_FILES_COLLECTION
 from src.infra.skill.types import InstalledFrom, SkillMeta
 from src.infra.storage.mongodb import get_mongo_client
+from src.infra.utils.datetime import utc_now_iso
 from src.kernel.config import settings
 
 logger = get_logger(__name__)
@@ -88,7 +88,7 @@ class SkillStorage:
     ) -> None:
         """原子 upsert 单个文件（文本内容）"""
         collection = self._get_files_collection()
-        now = datetime.now(timezone.utc).isoformat()
+        now = utc_now_iso()
         await collection.update_one(
             {"skill_name": skill_name, "user_id": user_id, "file_path": file_path},
             {
@@ -149,7 +149,7 @@ class SkillStorage:
             True 如果更新成功，False 如果内容已被其他人修改
         """
         collection = self._get_files_collection()
-        now = datetime.now(timezone.utc).isoformat()
+        now = utc_now_iso()
         result = await collection.update_one(
             {
                 "skill_name": skill_name,
@@ -193,7 +193,7 @@ class SkillStorage:
         if not files:
             return
         collection = self._get_files_collection()
-        now = datetime.now(timezone.utc).isoformat()
+        now = utc_now_iso()
 
         # 获取现有文件路径和内容（排除 __meta__），用于检测二进制引用
         existing_docs: dict[str, str] = {}
@@ -457,7 +457,7 @@ class SkillStorage:
     ) -> None:
         """设置 skill 元数据（存储为 __meta__ 文档）"""
         collection = self._get_files_collection()
-        now = datetime.now(timezone.utc).isoformat()
+        now = utc_now_iso()
         meta = SkillMeta(
             installed_from=installed_from,
             published_marketplace_name=published_marketplace_name,

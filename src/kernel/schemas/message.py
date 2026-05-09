@@ -5,6 +5,7 @@ from typing import Any, Optional
 
 from pydantic import BaseModel, Field
 
+from src.infra.utils.datetime import utc_now
 from src.kernel.types import MessageType
 
 __all__ = ["Message", "MessageType", "ToolCall", "ToolResult"]
@@ -15,7 +16,7 @@ class Message(BaseModel):
 
     type: MessageType
     content: str
-    timestamp: datetime = Field(default_factory=datetime.now)
+    timestamp: datetime = Field(default_factory=utc_now)
     metadata: dict[str, Any] = Field(default_factory=dict)
 
 

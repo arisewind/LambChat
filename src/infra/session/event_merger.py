@@ -23,11 +23,11 @@ Event Merger - 事件合并器
 """
 
 import asyncio
-from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional
 
 from src.infra.logging import get_logger
 from src.infra.storage.redis import create_redis_client
+from src.infra.utils.datetime import utc_now
 from src.kernel.config import settings
 
 logger = get_logger(__name__)
@@ -56,10 +56,6 @@ def _get_merge_interval() -> float:
 def _get_lock_timeout() -> int:
     """获取锁超时时间（合并间隔的 2 倍）"""
     return int(_get_merge_interval() * 2)
-
-
-def _utc_now() -> datetime:
-    return datetime.now(timezone.utc)
 
 
 class EventMerger:
@@ -260,7 +256,7 @@ class EventMerger:
             # 收集 bulk_write 操作
             from pymongo import UpdateOne
 
-            now = _utc_now()
+            now = utc_now()
             operations = []
             merged_count = 0
             skipped_count = 0

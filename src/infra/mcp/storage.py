@@ -5,7 +5,6 @@ Supports both system-level and user-level MCP server configurations.
 """
 
 import copy
-from datetime import datetime, timezone
 from typing import TYPE_CHECKING, Any, Optional
 
 from src.infra.logging import get_logger
@@ -16,6 +15,7 @@ from src.infra.mcp.encryption import (
 )
 from src.infra.mcp.storage_operations import StorageOperations, _can_access_system_server
 from src.infra.storage.mongodb import get_mongo_client
+from src.infra.utils.datetime import utc_now_iso
 from src.kernel.config import settings
 from src.kernel.schemas.mcp import (
     MCPServerResponse,
@@ -125,7 +125,7 @@ class MCPStorage(StorageOperations):
         """Create a system MCP server (admin only)"""
         collection = self._get_system_collection()
 
-        now = datetime.now(timezone.utc).isoformat()
+        now = utc_now_iso()
         doc = {
             "name": server.name,
             "transport": server.transport.value,
@@ -167,7 +167,7 @@ class MCPStorage(StorageOperations):
             return None
 
         update_data: dict[str, Any] = {
-            "updated_at": datetime.now(timezone.utc).isoformat(),
+            "updated_at": utc_now_iso(),
             "updated_by": admin_user_id,
         }
 
@@ -235,7 +235,7 @@ class MCPStorage(StorageOperations):
         """Create a user MCP server"""
         collection = self._get_user_collection()
 
-        now = datetime.now(timezone.utc).isoformat()
+        now = utc_now_iso()
         doc = {
             "name": server.name,
             "transport": server.transport.value,
@@ -268,7 +268,7 @@ class MCPStorage(StorageOperations):
         if not doc:
             return None
 
-        update_data: dict[str, Any] = {"updated_at": datetime.now(timezone.utc).isoformat()}
+        update_data: dict[str, Any] = {"updated_at": utc_now_iso()}
 
         if updates.transport is not None:
             update_data["transport"] = updates.transport.value
@@ -325,7 +325,7 @@ class MCPStorage(StorageOperations):
             {
                 "$set": {
                     "enabled": enabled,
-                    "updated_at": datetime.now(timezone.utc).isoformat(),
+                    "updated_at": utc_now_iso(),
                 }
             },
             upsert=True,
@@ -503,7 +503,7 @@ class MCPStorage(StorageOperations):
                     "server_name": server_name,
                     "tool_base_name": tool_name,
                     "enabled": enabled,
-                    "updated_at": datetime.now(timezone.utc).isoformat(),
+                    "updated_at": utc_now_iso(),
                 }
             },
             upsert=True,
@@ -547,7 +547,7 @@ class MCPStorage(StorageOperations):
             {
                 "$set": {
                     "disabled_tools": disabled_tools,
-                    "updated_at": datetime.now(timezone.utc).isoformat(),
+                    "updated_at": utc_now_iso(),
                 }
             },
         )
@@ -602,7 +602,7 @@ class MCPStorage(StorageOperations):
             {
                 "$set": {
                     "disabled_tools": disabled_tools,
-                    "updated_at": datetime.now(timezone.utc).isoformat(),
+                    "updated_at": utc_now_iso(),
                 }
             },
         )

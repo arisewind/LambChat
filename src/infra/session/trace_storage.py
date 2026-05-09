@@ -29,20 +29,16 @@ Trace Storage - 按 trace 聚合事件存储
 """
 
 import asyncio
-from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional
 
 from src.infra.logging import get_logger
 from src.infra.storage.mongodb import get_mongo_client
+from src.infra.utils.datetime import utc_now
 from src.kernel.config import settings
 
 logger = get_logger(__name__)
 
 _SESSION_EVENTS_BATCH_SIZE = 200
-
-
-def _utc_now() -> datetime:
-    return datetime.now(timezone.utc)
 
 
 class TraceStorage:
@@ -159,7 +155,7 @@ class TraceStorage:
         """
         from pymongo.errors import DuplicateKeyError
 
-        now = _utc_now()
+        now = utc_now()
         doc: Dict[str, Any] = {
             "trace_id": trace_id,
             "session_id": session_id,
@@ -218,11 +214,11 @@ class TraceStorage:
                         "events": {
                             "event_type": event_type,
                             "data": data,
-                            "timestamp": _utc_now(),
+                            "timestamp": utc_now(),
                         }
                     },
                     "$inc": {"event_count": 1},
-                    "$set": {"updated_at": _utc_now()},
+                    "$set": {"updated_at": utc_now()},
                 },
             )
             if result.modified_count == 0:
@@ -252,8 +248,8 @@ class TraceStorage:
         update = {
             "$set": {
                 "status": status,
-                "completed_at": _utc_now(),
-                "updated_at": _utc_now(),
+                "completed_at": utc_now(),
+                "updated_at": utc_now(),
             }
         }
         if metadata:

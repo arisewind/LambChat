@@ -3,9 +3,11 @@ from __future__ import annotations
 from datetime import datetime, timezone, tzinfo
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
+from src.infra.utils.datetime import utc_now
+
 
 def _coerce_now(now: datetime | None) -> datetime:
-    current = now or datetime.now(timezone.utc)
+    current = now or utc_now()
     if current.tzinfo is None:
         return current.replace(tzinfo=timezone.utc)
     return current

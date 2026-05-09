@@ -9,13 +9,13 @@ from __future__ import annotations
 import asyncio
 import io
 import os
-from datetime import datetime, timezone
 from pathlib import Path
 from typing import BinaryIO, Optional
 
 from src.infra.logging import get_logger
 from src.infra.storage.s3.base import S3StorageBackend
 from src.infra.storage.s3.types import S3Config, UploadResult
+from src.infra.utils.datetime import utc_now
 
 logger = get_logger(__name__)
 
@@ -62,7 +62,7 @@ class LocalStorageBackend(S3StorageBackend):
             url=f"/api/upload/file/{key}",
             size=file_size,
             content_type=content_type or "application/octet-stream",
-            last_modified=datetime.now(timezone.utc),
+            last_modified=utc_now(),
         )
 
     async def upload_bytes(

@@ -21,6 +21,7 @@ import type {
   ChannelConfigResponse,
   ChannelType,
 } from "../../types/channel";
+import { formatDate } from "../../utils/datetime";
 
 // Icon map for channel icons
 const CHANNEL_ICONS: Record<string, React.FC<{ className?: string }>> = {
@@ -355,7 +356,7 @@ export function ChannelsPage() {
                         <p className="mt-1 text-sm text-[var(--theme-text-secondary)]">
                           {t("channel.createdAt", "Created")}:{" "}
                           {instance.created_at
-                            ? new Date(instance.created_at).toLocaleDateString()
+                            ? formatDate(instance.created_at)
                             : "-"}
                         </p>
                       </div>

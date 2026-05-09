@@ -5,6 +5,7 @@ from typing import Any, Optional
 
 from pydantic import BaseModel, ConfigDict, Field
 
+from src.infra.utils.datetime import utc_now
 from src.kernel.schemas.message import ToolCall
 from src.kernel.schemas.persona_preset import PersonaPresetSnapshot
 
@@ -87,7 +88,7 @@ class StreamEvent(BaseModel):
     event_type: str  # thinking, content, tool_call, tool_result, step, complete, error
     content: str
     metadata: dict[str, Any] = Field(default_factory=dict)
-    timestamp: datetime = Field(default_factory=datetime.now)
+    timestamp: datetime = Field(default_factory=utc_now)
 
 
 class HealthResponse(BaseModel):
@@ -95,7 +96,7 @@ class HealthResponse(BaseModel):
 
     status: str = "ok"
     version: str
-    timestamp: datetime = Field(default_factory=datetime.now)
+    timestamp: datetime = Field(default_factory=utc_now)
     memory: Optional["MemoryHealthSummary"] = None
 
 

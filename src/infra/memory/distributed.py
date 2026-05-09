@@ -33,6 +33,8 @@ MEMORY_INVALIDATION_CHANNEL = "memory:invalidated"
 # Distributed lock keys
 CONSOLIDATION_LOCK_KEY = "memory:consolidation_lock:{user_id}"
 CONSOLIDATION_LOCK_TTL = 120  # seconds
+COMPACTION_SCAN_LOCK_KEY = "memory:compaction_scan_lock"
+COMPACTION_COOLDOWN_KEY = "memory:compaction_cooldown:{user_id}"
 AUTO_CAPTURE_LOCK_KEY = "memory:auto_capture_lock:{user_id}"
 AUTO_CAPTURE_LOCK_TTL = 30  # seconds
 
@@ -90,6 +92,60 @@ async def release_consolidation_lock(user_id: str, instance_id: str) -> None:
         await redis_client.eval(_RELEASE_LOCK_LUA, 1, lock_key, instance_id)  # type: ignore[misc]
     except Exception as e:
         logger.debug("[Memory] Failed to release consolidation lock for %s: %s", user_id, e)
+
+
+async def acquire_compaction_scan_lock(instance_id: str, ttl_seconds: int) -> str:
+    """Acquire a cluster-wide scan lease for periodic memory compaction.
+
+    This intentionally behaves like a TTL lease rather than a short critical-section
+    lock. The winner keeps the lease until TTL expiration so other instances do not
+    immediately run the same periodic scan after the first one finishes.
+    """
+    try:
+        redis_client = get_redis_client()
+        ttl = max(60, int(ttl_seconds))
+        acquired = await redis_client.set(
+            COMPACTION_SCAN_LOCK_KEY,
+            instance_id,
+            nx=True,
+            ex=ttl,
+        )
+        return "acquired" if acquired else "not_acquired"
+    except Exception as e:
+        logger.debug("[Memory] Failed to acquire compaction scan lock: %s", e)
+        return "unavailable"
+
+
+async def get_compaction_cooldown_state(user_id: str) -> str:
+    """Check whether a user is in distributed compaction cooldown.
+
+    Returns one of:
+    - "active": cooldown key exists
+    - "clear": no cooldown key exists
+    - "unavailable": Redis state could not be determined
+    """
+    try:
+        redis_client = get_redis_client()
+        key = COMPACTION_COOLDOWN_KEY.format(user_id=user_id)
+        active = await redis_client.exists(key)
+        return "active" if active else "clear"
+    except Exception as e:
+        logger.debug("[Memory] Failed to read compaction cooldown for %s: %s", user_id, e)
+        return "unavailable"
+
+
+async def mark_compaction_cooldown(user_id: str, ttl_seconds: int) -> str:
+    """Mark a user's compaction cooldown with a Redis TTL."""
+    if ttl_seconds <= 0:
+        return "disabled"
+    try:
+        redis_client = get_redis_client()
+        key = COMPACTION_COOLDOWN_KEY.format(user_id=user_id)
+        await redis_client.set(key, "1", ex=max(1, int(ttl_seconds)))
+        return "marked"
+    except Exception as e:
+        logger.debug("[Memory] Failed to mark compaction cooldown for %s: %s", user_id, e)
+        return "unavailable"
 
 
 async def acquire_auto_capture_lock(user_id: str, instance_id: str) -> str:

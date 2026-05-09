@@ -11,7 +11,6 @@ User-Sandbox 绑定管理器
 import asyncio
 import threading
 from collections import OrderedDict
-from datetime import datetime
 from typing import TYPE_CHECKING, Any, Optional
 
 if TYPE_CHECKING:
@@ -23,6 +22,7 @@ from src.infra.backend.daytona import DaytonaBackend
 from src.infra.backend.skills_store import create_skills_backend
 from src.infra.logging import get_logger
 from src.infra.tool.sandbox_mcp_rebuild import ensure_sandbox_mcp
+from src.infra.utils.datetime import utc_now_iso
 from src.kernel.config import settings
 
 logger = get_logger(__name__)
@@ -310,7 +310,7 @@ class SessionSandboxManager:
         is_new: bool = False,
     ) -> None:
         """保存/更新用户的沙箱绑定"""
-        now = datetime.now().isoformat()
+        now = utc_now_iso()
         update = {
             "$set": {
                 "sandbox_id": sandbox_id,

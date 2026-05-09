@@ -9,13 +9,13 @@ import asyncio
 import json
 import sys
 import time
-from datetime import datetime
 from typing import Any, AsyncGenerator, Callable, Optional, cast
 
 from src.infra.channel.feishu.channel import FeishuChannel
 from src.infra.channel.feishu.manager import FeishuChannelManager
 from src.infra.channel.feishu.markdown import FeishuMarkdownAdapter
 from src.infra.logging import get_logger
+from src.infra.utils.datetime import utc_now
 
 logger = get_logger(__name__)
 
@@ -473,7 +473,7 @@ def create_feishu_message_handler(
                     yield event
 
             # Use time-based session title for Feishu
-            session_title = datetime.now().strftime("%Y-%m-%d %H:%M")
+            session_title = utc_now().strftime("%Y-%m-%d %H:%M")
 
             run_id, _ = await task_manager.submit(
                 session_id=session_id,

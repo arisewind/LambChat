@@ -10,6 +10,7 @@ from typing import Any, Optional
 
 from src.infra.logging import get_logger
 from src.infra.storage.redis import create_redis_client
+from src.infra.utils.datetime import utc_now
 from src.kernel.config import settings
 from src.kernel.exceptions import NotFoundError, ValidationError
 from src.kernel.schemas.role import Role, RoleCreate, RoleLimits, RoleUpdate
@@ -117,7 +118,7 @@ class RoleStorage:
         if existing:
             raise ValidationError(f"角色 '{role_data.name}' 已存在")
 
-        now = datetime.now()
+        now = utc_now()
         role_dict: dict[str, Any] = {
             "name": role_data.name,
             "description": role_data.description,
@@ -252,7 +253,7 @@ class RoleStorage:
         if existing.is_system:
             raise ValidationError("系统角色不可修改")
 
-        update_dict: dict = {"updated_at": datetime.now()}
+        update_dict: dict = {"updated_at": utc_now()}
 
         if role_data.name is not None:
             # 检查新名称是否已存在
@@ -411,7 +412,7 @@ class RoleStorage:
             existing = await self.get_by_name(role_data["name"])
             if not existing:
                 # 创建新角色
-                now = datetime.now()
+                now = utc_now()
                 await self.collection.insert_one(
                     {
                         **role_data,
@@ -423,7 +424,7 @@ class RoleStorage:
                 await self.invalidate_cache(role_data["name"])
             elif role_data.get("is_system", False):
                 # 系统角色：更新权限列表、描述、限制和is_system标记
-                now = datetime.now()
+                now = utc_now()
                 await self.collection.update_one(
                     {"name": role_data["name"]},
                     {

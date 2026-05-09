@@ -43,6 +43,7 @@ import {
 } from "../chat/ChatMessage/items/revealPreviewState";
 import { reconstructMessagesFromEvents } from "../../hooks/useAgent/historyLoader";
 import { APP_NAME, GITHUB_URL } from "../../constants";
+import { formatDate, formatDateTimeShort } from "../../utils/datetime";
 import { getModelIconUrl, isMonochromeIcon } from "../agent/modelIcon";
 import { ScrollButtons } from "../landing/components/ScrollButtons";
 import {
@@ -629,14 +630,7 @@ export function SharedPage() {
                   </div>
                   {data.session.created_at && (
                     <div className="text-[11px] text-stone-400 dark:text-stone-500 mt-0.5 tracking-wide">
-                      {new Date(data.session.created_at).toLocaleDateString(
-                        undefined,
-                        {
-                          month: "long",
-                          day: "numeric",
-                          year: "numeric",
-                        },
-                      )}
+                      {formatDateTimeShort(data.session.created_at)}
                     </div>
                   )}
                 </div>
@@ -832,12 +826,7 @@ export function SharedPage() {
             <div className="flex items-center gap-2 text-[11px] text-stone-300 dark:text-stone-600">
               {data.session.created_at && (
                 <>
-                  <span>
-                    {new Date(data.session.created_at).toLocaleDateString(
-                      undefined,
-                      { year: "numeric", month: "short", day: "numeric" },
-                    )}
-                  </span>
+                  <span>{formatDate(data.session.created_at)}</span>
                   <span className="w-0.5 h-0.5 rounded-full bg-stone-200 dark:bg-stone-700" />
                 </>
               )}

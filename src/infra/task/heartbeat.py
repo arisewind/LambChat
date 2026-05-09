@@ -6,10 +6,10 @@ Manages task heartbeat for detecting stale/failed tasks in distributed scenarios
 """
 
 import asyncio
-from datetime import datetime
 
 from src.infra.logging import get_logger
 from src.infra.storage.redis import get_redis_client
+from src.infra.utils.datetime import utc_now_iso
 
 from .constants import HEARTBEAT_INTERVAL, HEARTBEAT_PREFIX, HEARTBEAT_TIMEOUT
 
@@ -39,7 +39,7 @@ class TaskHeartbeat:
                     # 设置心跳，带 TTL（超时时间的 2 倍）
                     await redis_client.set(
                         f"{HEARTBEAT_PREFIX}{run_id}",
-                        datetime.now().isoformat(),
+                        utc_now_iso(),
                         ex=HEARTBEAT_TIMEOUT * 2,
                     )
                     # 刷新并发限制的 Sorted Set 分数（保持条目活跃）

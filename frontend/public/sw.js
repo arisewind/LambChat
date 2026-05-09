@@ -53,6 +53,32 @@ async function cacheAppShell() {
   await cache.addAll(APP_SHELL_URLS);
 }
 
+async function matchCache(cacheName, request) {
+  try {
+    const cache = await caches.open(cacheName);
+    return await cache.match(request);
+  } catch (_error) {
+    return undefined;
+  }
+}
+
+async function matchAnyCache(request) {
+  try {
+    return await caches.match(request);
+  } catch (_error) {
+    return undefined;
+  }
+}
+
+async function putCache(cacheName, request, response) {
+  try {
+    const cache = await caches.open(cacheName);
+    await cache.put(request, response);
+  } catch (_error) {
+    // Cache writes are best-effort; navigation must not fail because storage did.
+  }
+}
+
 self.addEventListener("install", (event) => {
   event.waitUntil(cacheAppShell().then(() => self.skipWaiting()));
 });
@@ -73,17 +99,16 @@ self.addEventListener("activate", (event) => {
 });
 
 async function networkFirstAppShell(request) {
-  const cache = await caches.open(APP_SHELL_CACHE);
-
   try {
     const response = await fetch(request);
     if (response.ok && response.type === "basic") {
-      cache.put("/", response.clone());
+      void putCache(APP_SHELL_CACHE, "/", response.clone());
     }
     return response;
   } catch (_error) {
     const cachedShell =
-      (await cache.match("/")) || (await cache.match("/index.html"));
+      (await matchCache(APP_SHELL_CACHE, "/")) ||
+      (await matchCache(APP_SHELL_CACHE, "/index.html"));
     return (
       cachedShell ||
       new Response("LambChat is offline.", {
@@ -96,15 +121,21 @@ async function networkFirstAppShell(request) {
 }
 
 async function cacheFirstStatic(request) {
-  const cached = await caches.match(request);
+  const cached = await matchAnyCache(request);
   if (cached) return cached;
 
-  const response = await fetch(request);
-  if (response.ok && response.type === "basic") {
-    const cache = await caches.open(STATIC_CACHE);
-    cache.put(request, response.clone());
+  try {
+    const response = await fetch(request);
+    if (response.ok && response.type === "basic") {
+      void putCache(STATIC_CACHE, request, response.clone());
+    }
+    return response;
+  } catch (_error) {
+    return new Response("", {
+      status: 503,
+      statusText: "Service Unavailable",
+    });
   }
-  return response;
 }
 
 self.addEventListener("fetch", (event) => {

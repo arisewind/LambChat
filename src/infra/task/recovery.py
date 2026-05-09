@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-from datetime import datetime
 from typing import Any, Awaitable, Callable
 
 from src.agents.core import resolve_agent_name
@@ -8,6 +7,7 @@ from src.infra.logging import get_logger
 from src.infra.session.trace_storage import get_trace_storage
 from src.infra.storage.redis import get_redis_client
 from src.infra.user.storage import UserStorage
+from src.infra.utils.datetime import utc_now_iso
 from src.infra.writer.present import Presenter, PresenterConfig
 from src.kernel.schemas.session import SessionUpdate
 
@@ -290,7 +290,7 @@ class TaskRecoveryService:
                     "project_id": session_metadata.get("project_id"),
                     "recovery_of_run_id": source_run_id,
                     "recovery_reason": reason,
-                    "recovery_requested_at": datetime.now().isoformat(),
+                    "recovery_requested_at": utc_now_iso(),
                     "task_recoverable": False,
                     "task_error_code": None,
                 }
@@ -325,7 +325,7 @@ class TaskRecoveryService:
         lock_key = f"{RECOVERY_LOCK_PREFIX}{session.id}:{source_run_id}"
         acquired = await redis_client.set(
             lock_key,
-            datetime.now().isoformat(),
+            utc_now_iso(),
             ex=RECOVERY_LOCK_TTL_SECONDS,
             nx=True,
         )

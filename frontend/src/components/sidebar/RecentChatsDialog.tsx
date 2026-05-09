@@ -5,6 +5,7 @@ import { sessionApi } from "../../services/api/session";
 import { getSessionTitle } from "../panels/sessionHelpers";
 import { APP_NAME } from "../../constants";
 import type { BackendSession } from "../../services/api/session";
+import { formatDateTime } from "../../utils/datetime";
 
 interface RecentChatsDialogProps {
   isOpen: boolean;
@@ -167,7 +168,7 @@ export function RecentChatsDialog({
                   {getSessionTitle(session, t)}
                 </div>
                 <div className="text-[11px] text-stone-400 dark:text-stone-500 mt-0.5">
-                  {new Date(session.updated_at).toLocaleString()}
+                  {formatDateTime(session.updated_at)}
                 </div>
               </div>
               {session.unread_count != null && session.unread_count > 0 && (

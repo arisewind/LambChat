@@ -20,7 +20,7 @@ from __future__ import annotations
 
 import asyncio
 from collections.abc import Iterable
-from datetime import datetime, timezone
+from datetime import datetime
 from typing import TYPE_CHECKING, Any
 
 from langgraph.store.base import (
@@ -41,6 +41,7 @@ if TYPE_CHECKING:
 
 from src.infra.logging import get_logger
 from src.infra.storage.mongodb import get_mongo_client
+from src.infra.utils.datetime import utc_now
 from src.kernel.config import settings
 
 logger = get_logger(__name__)
@@ -71,7 +72,7 @@ def _parse_doc_timestamps(
 
 def _doc_to_item(doc: dict[str, Any]) -> Item:
     created_at, updated_at = _parse_doc_timestamps(doc)
-    now = datetime.now(timezone.utc)
+    now = utc_now()
     return Item(
         namespace=_list_to_ns(doc["namespace"]),
         key=doc["key"],
@@ -83,7 +84,7 @@ def _doc_to_item(doc: dict[str, Any]) -> Item:
 
 def _doc_to_search_item(doc: dict[str, Any]) -> SearchItem:
     created_at, updated_at = _parse_doc_timestamps(doc)
-    now = datetime.now(timezone.utc)
+    now = utc_now()
     return SearchItem(
         namespace=_list_to_ns(doc["namespace"]),
         key=doc["key"],
@@ -228,7 +229,7 @@ class MongoDBStore(BaseStore):
                 if op.value is None:
                     col.delete_one(filter_)
                 else:
-                    now = datetime.now(timezone.utc)
+                    now = utc_now()
                     col.update_one(
                         filter_,
                         {
@@ -325,7 +326,7 @@ class MongoDBStore(BaseStore):
         if op.value is None:
             await col.delete_one(filter_)
         else:
-            now = datetime.now(timezone.utc)
+            now = utc_now()
             await col.update_one(
                 filter_,
                 {

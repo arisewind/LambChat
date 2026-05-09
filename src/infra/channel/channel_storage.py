@@ -6,12 +6,12 @@ Supports multiple channel types (Feishu, WeChat, DingTalk, etc.)
 
 import types
 import uuid
-from datetime import datetime, timezone
 from typing import Any, Optional
 
 from src.infra.logging import get_logger
 from src.infra.mcp.encryption import decrypt_value, encrypt_value
 from src.infra.storage.mongodb import get_mongo_client
+from src.infra.utils.datetime import utc_now_iso
 from src.kernel.config import settings
 from src.kernel.schemas.channel import (
     ChannelConfigResponse,
@@ -82,7 +82,7 @@ class ChannelStorage:
         # Generate unique instance_id
         instance_id = str(uuid.uuid4())
 
-        now = datetime.now(timezone.utc).isoformat()
+        now = utc_now_iso()
         doc = {
             "user_id": user_id,
             "channel_type": channel_type.value,
@@ -126,7 +126,7 @@ class ChannelStorage:
             return None
 
         update_data: dict[str, Any] = {
-            "updated_at": datetime.now(timezone.utc).isoformat(),
+            "updated_at": utc_now_iso(),
             "config": self._encrypt_config(config),
         }
 
@@ -180,7 +180,7 @@ class ChannelStorage:
             {
                 "$set": {
                     "project_id": None,
-                    "updated_at": datetime.now(timezone.utc).isoformat(),
+                    "updated_at": utc_now_iso(),
                 }
             },
         )
@@ -196,7 +196,7 @@ class ChannelStorage:
             {
                 "$set": {
                     "project_id": None,
-                    "updated_at": datetime.now(timezone.utc).isoformat(),
+                    "updated_at": utc_now_iso(),
                 }
             },
         )

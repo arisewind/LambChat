@@ -24,6 +24,7 @@ import type {
   NotificationCreate,
 } from "../../types/notification";
 import type { I18nText } from "../../types/notification";
+import { formatDateTimeShort } from "../../utils/datetime";
 
 const LOCALE_KEYS: Array<{ key: keyof I18nText; label: string }> = [
   { key: "en", label: "English" },
@@ -432,18 +433,6 @@ function NotificationFormModal({
   );
 }
 
-/** Format date for display */
-function formatDate(dateString: string) {
-  const date = new Date(dateString);
-  return date.toLocaleString(undefined, {
-    year: "numeric",
-    month: "short",
-    day: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-  });
-}
-
 export function NotificationPanel() {
   const { t, i18n } = useTranslation();
   const { hasPermission } = useAuth();
@@ -549,17 +538,17 @@ export function NotificationPanel() {
   // Format schedule info
   const formatSchedule = (notification: Notification): string => {
     if (notification.start_time && notification.end_time) {
-      return `${formatDate(notification.start_time)} - ${formatDate(
-        notification.end_time,
-      )}`;
+      return `${formatDateTimeShort(
+        notification.start_time,
+      )} - ${formatDateTimeShort(notification.end_time)}`;
     }
     if (notification.start_time) {
-      return `${t("notification.startTime")}: ${formatDate(
+      return `${t("notification.startTime")}: ${formatDateTimeShort(
         notification.start_time,
       )}`;
     }
     if (notification.end_time) {
-      return `${t("notification.endTime")}: ${formatDate(
+      return `${t("notification.endTime")}: ${formatDateTimeShort(
         notification.end_time,
       )}`;
     }
@@ -671,7 +660,7 @@ export function NotificationPanel() {
                         </p>
                       )}
                       <p className="text-xs text-stone-400 dark:text-stone-500">
-                        {formatDate(notification.created_at)}
+                        {formatDateTimeShort(notification.created_at)}
                       </p>
                       {/* Expandable content */}
                       {hasContent && (

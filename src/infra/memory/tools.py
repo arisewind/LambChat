@@ -20,6 +20,11 @@ from src.infra.memory.client.base import (
     create_memory_backend,
     get_user_id_from_runtime,
 )
+from src.infra.memory.compaction_agent import (
+    get_memory_compaction_agent,
+    stop_memory_compaction_agent,
+)
+from src.infra.scheduler import ScheduledJob, get_runtime_scheduler
 from src.kernel.config import settings
 
 logger = get_logger(__name__)
@@ -229,42 +234,7 @@ def get_memory_delete_tool() -> BaseTool:
 
 def get_all_memory_tools() -> list[BaseTool]:
     """Get all unified memory tools (works with any backend)."""
-    return [memory_retain, memory_recall, memory_delete, memory_consolidate]
-
-
-@tool
-async def memory_consolidate(
-    runtime: ToolRuntime = None,  # type: ignore[assignment]
-) -> str:
-    """
-    Consolidate memories: merge overlapping ones and prune stale entries.
-
-    Use this when the user asks to clean up, organize, or consolidate their memories.
-    This is a maintenance operation that should be run periodically.
-    """
-    user_id = get_user_id_from_runtime(runtime)
-    if not user_id:
-        return json.dumps({"success": False, "error": "User not authenticated"}, ensure_ascii=False)
-
-    backend = await _get_backend()
-    if not backend:
-        return json.dumps(
-            {"success": False, "error": "Memory service not available"},
-            ensure_ascii=False,
-        )
-
-    try:
-        # Only native backend supports consolidation
-        if hasattr(backend, "consolidate_memories"):
-            result = await backend.consolidate_memories(user_id)
-            return json.dumps({"success": True, **result}, ensure_ascii=False)
-        return json.dumps(
-            {"success": False, "error": "Consolidation not supported for this backend"},
-            ensure_ascii=False,
-        )
-    except Exception as e:
-        logger.error(f"[Memory] Failed to consolidate memories: {e}")
-        return json.dumps({"success": False, "error": str(e)}, ensure_ascii=False)
+    return [memory_retain, memory_recall, memory_delete]
 
 
 def _background_task_error(task: asyncio.Task) -> None:
@@ -296,7 +266,32 @@ async def _auto_retain_user_memory(user_id: str, user_input: str) -> None:
                 if backend is None:
                     return
                 if hasattr(backend, "auto_retain_from_text"):
-                    await backend.auto_retain_from_text(user_id, user_input)
+                    result = await backend.auto_retain_from_text(user_id, user_input)
+                    stored = 0
+                    if isinstance(result, dict):
+                        stored = int(result.get("stored") or 0)
+                    logger.info(
+                        "[Memory] Auto-retain completed for user %s: stored=%s candidates=%s",
+                        user_id,
+                        stored,
+                        result.get("candidates") if isinstance(result, dict) else None,
+                    )
+                    if stored > 0:
+                        try:
+                            compaction_result = (
+                                await get_memory_compaction_agent().maybe_compact_after_write(
+                                    backend, user_id
+                                )
+                            )
+                            logger.info(
+                                "[Memory] Auto-compaction check for user %s: %s",
+                                user_id,
+                                compaction_result,
+                            )
+                        except Exception as e:
+                            logger.warning(
+                                "[Memory] Background memory compaction check failed: %s", e
+                            )
             finally:
                 await release_lock(user_id, instance_id)
     finally:
@@ -310,10 +305,42 @@ def schedule_auto_memory_capture(user_id: str, user_input: str) -> None:
     except RuntimeError:
         return
 
+    logger.info("[Memory] Scheduling auto-retain for user %s", user_id)
     task = loop.create_task(_auto_retain_user_memory(user_id, user_input))
     _background_tasks.add(task)
     task.add_done_callback(_background_task_error)
     task.add_done_callback(_background_tasks.discard)
+
+
+async def run_scheduled_memory_compaction() -> dict:
+    """Run the scheduled native memory compaction pass."""
+    backend = await _get_backend()
+    if backend is None:
+        return {"checked": 0, "triggered": 0, "skipped": 1, "reason": "backend_unavailable"}
+    return await get_memory_compaction_agent().run_periodic_once(backend)
+
+
+def start_memory_compaction_agent() -> None:
+    """Register periodic memory compaction checks with the unified scheduler."""
+    if not settings.ENABLE_MEMORY:
+        logger.info("[Memory] Auto-compaction scheduler not registered: ENABLE_MEMORY=false")
+        return
+    agent = get_memory_compaction_agent()
+    get_runtime_scheduler().register_interval_job(
+        ScheduledJob(
+            id="memory.compaction",
+            name="Memory compaction",
+            interval_seconds=agent.get_periodic_interval_seconds,
+            enabled=lambda: bool(settings.ENABLE_MEMORY) and agent.is_periodic_enabled(),
+            handler=run_scheduled_memory_compaction,
+        )
+    )
+    logger.info(
+        "[Memory] Auto-compaction scheduler registered: enabled=%s threshold=%s interval=%ss",
+        agent.is_periodic_enabled(),
+        getattr(agent, "threshold", None),
+        agent.get_periodic_interval_seconds(),
+    )
 
 
 # ============================================================================
@@ -333,6 +360,8 @@ async def _close_and_reset_backend() -> None:
             await backend.close()
         except Exception as e:
             logger.warning(f"[Memory] Error closing backend during reset: {e}")
+    if settings.ENABLE_MEMORY:
+        start_memory_compaction_agent()
     logger.info("[Memory] Backend reset (will be recreated on next use)")
 
 
@@ -370,6 +399,7 @@ async def shutdown() -> None:
     if _background_tasks:
         await asyncio.gather(*_background_tasks, return_exceptions=True)
     _background_tasks.clear()
+    await stop_memory_compaction_agent()
 
     # Close backend
     backend = _backend

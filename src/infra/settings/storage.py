@@ -2,9 +2,9 @@
 Settings storage using MongoDB
 """
 
-from datetime import datetime, timezone
 from typing import Any, Optional
 
+from src.infra.utils.datetime import utc_now_iso
 from src.kernel.config import (
     RESTART_REQUIRED_SETTINGS,
     SETTING_DEFINITIONS,
@@ -170,7 +170,7 @@ class SettingsStorage:
                 raise ValueError(f"Setting {key} expects a JSON array or object")
 
         collection = self._get_collection()
-        now = datetime.now(timezone.utc).isoformat()
+        now = utc_now_iso()
 
         # Get default from SETTING_DEFINITIONS (single source of truth)
         default_value = _get_default_from_settings(key)

@@ -5,17 +5,21 @@ from __future__ import annotations
 import asyncio
 import json
 import uuid
-from datetime import datetime, timezone
+from datetime import datetime
 from typing import Any, Awaitable, Callable
 
 from src.infra.logging import get_logger
-from src.infra.memory.client.native.content import build_content_fields, delete_memory_content
-from src.infra.memory.client.native.models import ensure_aware
+from src.infra.memory.client.native.content import (
+    build_content_fields,
+    delete_memory_content,
+    maybe_await,
+)
 from src.infra.memory.client.native.summaries import (
     build_index_label,
     llm_enrich_memory,
 )
 from src.infra.memory.client.types import MemoryType
+from src.infra.utils.datetime import ensure_utc, utc_now
 from src.kernel.config import settings
 
 logger = get_logger(__name__)
@@ -39,6 +43,8 @@ async def consolidate_memories(
         }
 
     try:
+        if hasattr(backend, "_do_consolidate"):
+            return await backend._do_consolidate(user_id)
         return await do_consolidate(backend, user_id)
     finally:
         await release_lock(user_id, instance_id)
@@ -55,13 +61,13 @@ async def do_consolidate(backend, user_id: str) -> dict[str, Any]:
         return {"merged": 0, "pruned": 0, "total_before": len(all_memories)}
 
     total_before = len(all_memories)
-    now = datetime.now(timezone.utc)
+    now = utc_now()
     prune_threshold = int(getattr(settings, "NATIVE_MEMORY_PRUNE_THRESHOLD", 90))
     pruned_ids: set[str] = set()
 
     for m in all_memories:
         source = m.get("source", "")
-        updated = ensure_aware(m.get("updated_at", now))
+        updated = ensure_utc(m.get("updated_at", now))
         age_days = (now - updated).days
         access_count = m.get("access_count", 0)
 
@@ -185,7 +191,7 @@ async def _llm_batch_consolidate(backend, memories: list[dict], expected_type: s
     try:
         from langchain_core.messages import HumanMessage, SystemMessage
 
-        model = await backend._get_memory_model()
+        model = await maybe_await(backend._get_memory_model())
         items_text = "\n".join(
             f"[{i + 1}] ({m.get('created_at', '').strftime('%Y-%m-%d') if isinstance(m.get('created_at'), datetime) else 'unknown'}) {m['content']}"
             for i, m in enumerate(memories)
@@ -238,7 +244,7 @@ async def _llm_batch_consolidate(backend, memories: list[dict], expected_type: s
         if not isinstance(parsed, list) or (not parsed and len(memories) >= 3):
             return None
 
-        now = datetime.now(timezone.utc)
+        now = utc_now()
         # Enrich items concurrently
         enrich_coros = [
             _enrich_item(
@@ -288,3 +294,6 @@ async def _llm_batch_consolidate(backend, memories: list[dict], expected_type: s
             "[NativeMemory] Batch consolidation failed (batch of %d): %s", len(memories), e
         )
         return None
+
+
+llm_batch_consolidate = _llm_batch_consolidate

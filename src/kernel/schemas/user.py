@@ -6,6 +6,8 @@ from typing import List, Optional
 
 from pydantic import BaseModel, ConfigDict, EmailStr, Field
 
+from src.infra.utils.datetime import utc_now
+
 
 class OAuthProvider(str, Enum):
     """OAuth provider types."""
@@ -62,8 +64,8 @@ class User(UserBase):
     permissions: List[str] = Field(default_factory=list)
     is_active: bool = True
     email_verified: bool = False  # 邮箱是否已验证
-    created_at: datetime = Field(default_factory=datetime.now)
-    updated_at: datetime = Field(default_factory=datetime.now)
+    created_at: datetime = Field(default_factory=utc_now)
+    updated_at: datetime = Field(default_factory=utc_now)
 
     class Config:
         from_attributes = True

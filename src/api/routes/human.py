@@ -13,7 +13,6 @@ import asyncio
 import json
 import time
 import uuid
-from datetime import datetime
 from typing import Callable, Dict, List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query
@@ -27,6 +26,7 @@ from src.infra.storage.mongodb import (
     notify_approval_response,
     wait_for_response_distributed,
 )
+from src.infra.utils.datetime import utc_now
 from src.kernel.schemas.user import TokenPayload
 
 logger = get_logger(__name__)
@@ -111,7 +111,7 @@ async def create_approval(
         status="pending",
         session_id=session_id,
         user_id=user_id,
-        created_at=datetime.now(),
+        created_at=utc_now(),
     )
 
     # 存储到 MongoDB

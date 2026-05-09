@@ -1,321 +1,40 @@
-/**
- * 记忆空间面板 - 查看、搜索和管理记忆
- */
-
-import { useState, useEffect, useCallback, useRef } from "react";
+import {
+  useState,
+  useEffect,
+  useCallback,
+  useRef,
+  type ChangeEvent,
+} from "react";
 import { useTranslation } from "react-i18next";
 import {
   Brain,
   Trash2,
-  ChevronDown,
   Check,
-  Clock,
-  Tag,
   RefreshCw,
-  Filter,
+  Download,
+  Upload,
+  Plus,
+  Pencil,
   Eye,
 } from "lucide-react";
 import toast from "react-hot-toast";
-import { PanelHeader } from "../common/PanelHeader";
-import { Pagination } from "../common/Pagination";
-import { Checkbox } from "../common/Checkbox";
-import { ConfirmDialog } from "../common/ConfirmDialog";
-import { BatchActionBar } from "../panels/SkillsPanel/BatchActionBar";
-import { EditorSidebar } from "../common/EditorSidebar";
-import { memoryApi, type MemoryItem } from "../../services/api/memory";
-
-const TYPE_STYLES: Record<string, string> = {
-  user: "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400",
-  feedback:
-    "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300",
-  project:
-    "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400",
-  reference:
-    "bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400",
-};
-
-const TYPE_DOTS: Record<string, string> = {
-  user: "bg-blue-500",
-  feedback: "bg-amber-500",
-  project: "bg-emerald-500",
-  reference: "bg-purple-500",
-};
-
-const PAGE_SIZE = 20;
-
-/* ---------- Type filter dropdown ---------- */
-
-const TYPE_OPTIONS = [
-  { value: "", labelKey: "memory.allTypes" },
-  { value: "user", labelKey: "memory.type.user" },
-  { value: "feedback", labelKey: "memory.type.feedback" },
-  { value: "project", labelKey: "memory.type.project" },
-  { value: "reference", labelKey: "memory.type.reference" },
-] as const;
-
-function TypeFilter({
-  value,
-  onChange,
-}: {
-  value: string;
-  onChange: (v: string) => void;
-}) {
-  const { t } = useTranslation();
-  const [open, setOpen] = useState(false);
-  const ref = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    if (!open) return;
-    const handler = (e: MouseEvent) => {
-      if (ref.current && !ref.current.contains(e.target as Node))
-        setOpen(false);
-    };
-    document.addEventListener("mousedown", handler);
-    return () => document.removeEventListener("mousedown", handler);
-  }, [open]);
-
-  const selected = TYPE_OPTIONS.find((o) => o.value === value);
-  const dot = value ? TYPE_DOTS[value] : null;
-
-  return (
-    <div ref={ref} className="relative">
-      <button
-        onClick={() => setOpen(!open)}
-        className="inline-flex h-10 items-center gap-1.5 rounded-lg border border-[var(--glass-border)] bg-[var(--glass-bg-subtle)] px-3 text-sm text-[var(--theme-text)] transition-colors hover:bg-[var(--glass-bg-hover)]"
-      >
-        <Filter size={14} className="text-[var(--theme-text-secondary)]" />
-        {dot && <span className={`inline-block h-2 w-2 rounded-full ${dot}`} />}
-        <span>{selected ? t(selected.labelKey) : ""}</span>
-        <ChevronDown
-          size={14}
-          className={`text-[var(--theme-text-secondary)] transition-transform ${
-            open ? "rotate-180" : ""
-          }`}
-        />
-      </button>
-
-      {open && (
-        <div className="absolute right-0 z-10 mt-1 w-40 rounded-xl border border-[var(--theme-border)] bg-[var(--theme-bg-card)] py-1 shadow-xl dark:shadow-black/40 animate-in fade-in-0 zoom-in-95 duration-100">
-          {TYPE_OPTIONS.map((opt) => {
-            const d = opt.value ? TYPE_DOTS[opt.value] : null;
-            return (
-              <button
-                key={opt.value}
-                onClick={() => {
-                  onChange(opt.value);
-                  setOpen(false);
-                }}
-                className={`flex w-full items-center gap-2 px-3 py-2 text-sm transition-colors ${
-                  value === opt.value
-                    ? "bg-[var(--theme-primary-light)] text-[var(--theme-text)]"
-                    : "text-[var(--theme-text-secondary)] hover:bg-[var(--glass-bg)]"
-                }`}
-              >
-                {d && <span className={`h-2 w-2 rounded-full ${d}`} />}
-                <span className="flex-1 text-left">{t(opt.labelKey)}</span>
-                {value === opt.value && (
-                  <Check
-                    size={14}
-                    className="text-[var(--theme-text-secondary)]"
-                  />
-                )}
-              </button>
-            );
-          })}
-        </div>
-      )}
-    </div>
-  );
-}
-
-function useRelativeTime() {
-  const { t } = useTranslation();
-  return (dateStr: string | null): string => {
-    if (!dateStr) return "";
-    const d = new Date(dateStr);
-    const diffDays = Math.floor((Date.now() - d.getTime()) / 86400000);
-    if (diffDays === 0)
-      return d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
-    if (diffDays === 1) return t("memory.timeAgo", { count: 1 });
-    if (diffDays < 7) return t("memory.timeAgo", { count: diffDays });
-    if (diffDays < 30)
-      return t("memory.timeWeeksAgo", { count: Math.floor(diffDays / 7) });
-    return t("memory.timeMonthsAgo", { count: Math.floor(diffDays / 30) });
-  };
-}
-
-/* ---------- Detail modal ---------- */
-
-function DetailModal({
-  memory,
-  onClose,
-  onDelete,
-  relativeTime,
-}: {
-  memory: MemoryItem;
-  onClose: () => void;
-  onDelete: (id: string) => void;
-  relativeTime: (dateStr: string | null) => string;
-}) {
-  const { t } = useTranslation();
-  const [content, setContent] = useState(memory.content);
-  const [loading, setLoading] = useState(memory.has_full_content);
-
-  useEffect(() => {
-    if (!memory.has_full_content) return;
-    let cancelled = false;
-    memoryApi
-      .get(memory.memory_id)
-      .then(
-        (full) => {
-          if (!cancelled) setContent(full.content);
-        },
-        () => {
-          if (!cancelled) setContent(memory.content);
-        },
-      )
-      .finally(() => {
-        if (!cancelled) setLoading(false);
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [memory]);
-
-  const style = TYPE_STYLES[memory.memory_type] ?? TYPE_STYLES.user;
-
-  return (
-    <EditorSidebar
-      open={true}
-      onClose={onClose}
-      title={memory.title}
-      subtitle={t(`memory.type.${memory.memory_type}`)}
-      icon={<Eye size={16} />}
-      footer={
-        <div className="flex items-center gap-3">
-          <button
-            onClick={() => onDelete(memory.memory_id)}
-            className="btn-danger"
-          >
-            <Trash2 size={16} />
-            {t("common.delete")}
-          </button>
-          <div className="flex-1" />
-          <button onClick={onClose} className="btn-secondary">
-            {t("common.close")}
-          </button>
-        </div>
-      }
-    >
-      <div className="es-form">
-        {/* Type badge & time */}
-        <div className="flex items-center gap-2 mb-3">
-          <span
-            className={`inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-[11px] font-semibold uppercase leading-none ${style}`}
-          >
-            {t(`memory.type.${memory.memory_type}`)}
-          </span>
-          <span className="text-[11px] text-theme-text-secondary">
-            {relativeTime(memory.updated_at)}
-          </span>
-        </div>
-
-        {/* Created at & access count */}
-        {memory.created_at && (
-          <p className="es-hint flex items-center gap-1">
-            <Clock size={12} />
-            {new Date(memory.created_at).toLocaleString()}
-            <span className="ml-2">
-              {memory.access_count ?? 0} {t("memory.accesses")}
-            </span>
-          </p>
-        )}
-
-        {/* Tags */}
-        {memory.tags.length > 0 && (
-          <div className="flex items-center gap-1.5 mt-3 flex-wrap">
-            <Tag
-              size={12}
-              className="text-theme-text-secondary flex-shrink-0"
-            />
-            {memory.tags.slice(0, 8).map((tag) => (
-              <span key={tag} className="es-chip">
-                {tag}
-              </span>
-            ))}
-          </div>
-        )}
-
-        {/* Divider */}
-        <hr className="es-divider" />
-
-        {/* Content */}
-        {loading ? (
-          <div className="flex items-center justify-center py-12">
-            <svg
-              className="h-6 w-6 animate-spin text-theme-text-secondary"
-              viewBox="0 0 24 24"
-              fill="none"
-            >
-              <circle
-                className="opacity-25"
-                cx="12"
-                cy="12"
-                r="10"
-                stroke="currentColor"
-                strokeWidth="4"
-              />
-              <path
-                className="opacity-75"
-                fill="currentColor"
-                d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
-              />
-            </svg>
-          </div>
-        ) : (
-          <div className="es-section">
-            <p className="text-sm text-theme-text whitespace-pre-wrap leading-relaxed">
-              {content || memory.summary}
-            </p>
-          </div>
-        )}
-      </div>
-    </EditorSidebar>
-  );
-}
-
-/* ---------- Delete modal ---------- */
-
-function DeleteModal({
-  onConfirm,
-  onCancel,
-  count = 1,
-}: {
-  onConfirm: () => void;
-  onCancel: () => void;
-  count?: number;
-}) {
-  const { t } = useTranslation();
-
-  return (
-    <ConfirmDialog
-      isOpen
-      title={t("memory.deleteConfirm")}
-      message={
-        count > 1
-          ? t("memory.batchDeleteConfirmMessage", { count })
-          : t("memory.deleteConfirmMessage")
-      }
-      confirmText={t("common.delete")}
-      cancelText={t("common.cancel")}
-      onConfirm={onConfirm}
-      onCancel={onCancel}
-      variant="danger"
-    />
-  );
-}
-
-/* ---------- Main panel ---------- */
+import { PanelHeader } from "../../common/PanelHeader";
+import { Pagination } from "../../common/Pagination";
+import { Checkbox } from "../../common/Checkbox";
+import { BatchActionBar } from "../SkillsPanel/BatchActionBar";
+import { memoryApi, type MemoryItem } from "../../../services/api/memory";
+import {
+  TYPE_STYLES,
+  SOURCE_STYLES,
+  SOURCE_DOTS,
+  PAGE_SIZE,
+} from "./constants";
+import { useRelativeTime } from "./useRelativeTime";
+import { formatDateTimeShort } from "../../../utils/datetime";
+import { MemoryFilter } from "./MemoryFilter";
+import { MemoryEditor } from "./MemoryEditor";
+import { DetailModal } from "./DetailModal";
+import { DeleteModal } from "./DeleteModal";
 
 export function MemoryPanel() {
   const { t } = useTranslation();
@@ -325,14 +44,22 @@ export function MemoryPanel() {
   const [isLoading, setIsLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
   const [filterType, setFilterType] = useState("");
+  const [filterSource, setFilterSource] = useState("");
   const [page, setPage] = useState(1);
   const [selected, setSelected] = useState<MemoryItem | null>(null);
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [checkedIds, setCheckedIds] = useState<Set<string>>(new Set());
   const [batchLoading, setBatchLoading] = useState(false);
+  const [exportLoading, setExportLoading] = useState(false);
+  const [importLoading, setImportLoading] = useState(false);
+  const [editingMemory, setEditingMemory] = useState<
+    MemoryItem | null | undefined
+  >(undefined);
+  // undefined = closed, null = create new, MemoryItem = edit existing
 
   const [debouncedSearch, setDebouncedSearch] = useState("");
   const searchTimer = useRef<ReturnType<typeof setTimeout>>(null);
+  const importInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (searchTimer.current) clearTimeout(searchTimer.current);
@@ -347,13 +74,14 @@ export function MemoryPanel() {
 
   useEffect(() => {
     setCheckedIds(new Set());
-  }, [filterType, debouncedSearch, page]);
+  }, [filterType, filterSource, debouncedSearch, page]);
 
   const fetchMemories = useCallback(async () => {
     setIsLoading(true);
     try {
       const res = await memoryApi.list({
         memory_type: filterType || undefined,
+        source: filterSource || undefined,
         search: debouncedSearch || undefined,
         limit: PAGE_SIZE,
         offset: (page - 1) * PAGE_SIZE,
@@ -365,7 +93,7 @@ export function MemoryPanel() {
     } finally {
       setIsLoading(false);
     }
-  }, [filterType, debouncedSearch, page, t]);
+  }, [filterType, filterSource, debouncedSearch, page, t]);
 
   useEffect(() => {
     fetchMemories();
@@ -373,7 +101,7 @@ export function MemoryPanel() {
 
   useEffect(() => {
     setPage(1);
-  }, [filterType, debouncedSearch]);
+  }, [filterType, filterSource, debouncedSearch]);
 
   const handleDelete = async () => {
     if (!deleteId) return;
@@ -400,6 +128,59 @@ export function MemoryPanel() {
       toast.error(t("memory.deleteError"));
     } finally {
       setBatchLoading(false);
+    }
+  };
+
+  const handleExport = async () => {
+    setExportLoading(true);
+    try {
+      const data = await memoryApi.export();
+      const blob = new Blob([JSON.stringify(data, null, 2)], {
+        type: "application/json",
+      });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      const date = new Date().toISOString().slice(0, 10);
+      link.href = url;
+      link.download = `lambchat-memory-${date}.json`;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      URL.revokeObjectURL(url);
+      toast.success(t("memory.exportSuccess", { count: data.memories.length }));
+    } catch {
+      toast.error(t("memory.exportError"));
+    } finally {
+      setExportLoading(false);
+    }
+  };
+
+  const handleImportClick = () => {
+    importInputRef.current?.click();
+  };
+
+  const handleImportFile = async (event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    event.target.value = "";
+    if (!file) return;
+
+    setImportLoading(true);
+    try {
+      const text = await file.text();
+      const data = JSON.parse(text);
+      const result = await memoryApi.import(data);
+      toast.success(
+        t("memory.importSuccess", {
+          imported: result.imported,
+          created: result.created,
+          overwritten: result.overwritten,
+        }),
+      );
+      await fetchMemories();
+    } catch {
+      toast.error(t("memory.importError"));
+    } finally {
+      setImportLoading(false);
     }
   };
 
@@ -438,10 +219,47 @@ export function MemoryPanel() {
         onSearchChange={setSearchQuery}
         searchPlaceholder={t("memory.searchPlaceholder")}
         searchAccessory={
-          <TypeFilter value={filterType} onChange={setFilterType} />
+          <MemoryFilter
+            typeValue={filterType}
+            typeOnChange={setFilterType}
+            sourceValue={filterSource}
+            sourceOnChange={setFilterSource}
+          />
         }
         actions={
           <>
+            <button
+              onClick={() => setEditingMemory(null)}
+              className="btn-primary"
+              title={t("memory.createTitle")}
+            >
+              <Plus size={16} />
+              <span className="hidden sm:inline">{t("memory.createBtn")}</span>
+            </button>
+            <button
+              onClick={handleImportClick}
+              disabled={importLoading}
+              className="btn-secondary"
+              title={t("memory.import")}
+            >
+              <Upload
+                size={16}
+                className={importLoading ? "animate-pulse" : ""}
+              />
+              <span className="hidden sm:inline">{t("memory.import")}</span>
+            </button>
+            <button
+              onClick={handleExport}
+              disabled={exportLoading}
+              className="btn-secondary"
+              title={t("memory.export")}
+            >
+              <Download
+                size={16}
+                className={exportLoading ? "animate-pulse" : ""}
+              />
+              <span className="hidden sm:inline">{t("memory.export")}</span>
+            </button>
             <button onClick={toggleAll} className="btn-secondary">
               <Check size={16} />
               <span className="hidden sm:inline">
@@ -463,6 +281,14 @@ export function MemoryPanel() {
             </button>
           </>
         }
+      />
+
+      <input
+        ref={importInputRef}
+        type="file"
+        accept="application/json,.json"
+        className="hidden"
+        onChange={handleImportFile}
       />
 
       {/* List */}
@@ -520,15 +346,21 @@ export function MemoryPanel() {
                       >
                         {t(`memory.type.${memory.memory_type}`)}
                       </span>
+                      <span
+                        className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-medium ${
+                          SOURCE_STYLES[memory.source] ?? SOURCE_STYLES.manual
+                        }`}
+                      >
+                        <span
+                          className={`h-1.5 w-1.5 rounded-full ${
+                            SOURCE_DOTS[memory.source] ?? SOURCE_DOTS.manual
+                          }`}
+                        />
+                        {t(`memory.source.${memory.source}`, memory.source)}
+                      </span>
                       <span className="text-[11px] text-[var(--theme-text-secondary)]">
                         {memory.updated_at
-                          ? new Date(memory.updated_at).toLocaleString([], {
-                              year: "numeric",
-                              month: "short",
-                              day: "numeric",
-                              hour: "2-digit",
-                              minute: "2-digit",
-                            })
+                          ? formatDateTimeShort(memory.updated_at)
                           : ""}
                       </span>
                     </div>
@@ -546,12 +378,12 @@ export function MemoryPanel() {
                   {memory.tags.length > 0 && (
                     <div className="my-3 flex flex-wrap gap-1.5">
                       {memory.tags.slice(0, 3).map((tag) => (
-                        <span key={tag} className="glass-tag glass-tag--accent">
+                        <span key={tag} className="es-chip">
                           {tag}
                         </span>
                       ))}
                       {memory.tags.length > 3 && (
-                        <span className="glass-tag glass-tag--overflow">
+                        <span className="es-chip">
                           +{memory.tags.length - 3}
                         </span>
                       )}
@@ -567,6 +399,16 @@ export function MemoryPanel() {
 
                     <div className="ml-auto" />
 
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setEditingMemory(memory);
+                      }}
+                      className="btn-icon inline-flex h-8 w-8 items-center justify-center rounded-lg text-[var(--theme-text-secondary)] transition-colors hover:bg-blue-50 hover:text-blue-600 dark:hover:bg-blue-900/30 dark:hover:text-blue-400"
+                      title={t("common.edit")}
+                    >
+                      <Pencil size={14} />
+                    </button>
                     <button
                       onClick={(e) => {
                         e.stopPropagation();
@@ -603,6 +445,20 @@ export function MemoryPanel() {
           memory={selected}
           onClose={() => setSelected(null)}
           onDelete={setDeleteId}
+          onEdit={(mem) => {
+            setSelected(null);
+            setEditingMemory(mem);
+          }}
+          relativeTime={relativeTime}
+        />
+      )}
+
+      {/* Memory editor (create / edit) */}
+      {editingMemory !== undefined && (
+        <MemoryEditor
+          memory={editingMemory}
+          onClose={() => setEditingMemory(undefined)}
+          onSaved={fetchMemories}
           relativeTime={relativeTime}
         />
       )}

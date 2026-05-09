@@ -12,7 +12,6 @@ import random
 import re
 import uuid
 from collections.abc import Awaitable
-from datetime import datetime, timezone
 from typing import BinaryIO, Callable, Optional, TypeVar
 
 from src.infra.logging import get_logger
@@ -23,6 +22,7 @@ from src.infra.storage.s3.backends import (
 )
 from src.infra.storage.s3.base import S3StorageBackend
 from src.infra.storage.s3.types import S3Config, S3Provider, UploadResult
+from src.infra.utils.datetime import utc_now
 
 logger = get_logger(__name__)
 
@@ -177,7 +177,7 @@ class S3StorageService:
                     f"internal upload limit ({max_mb:.0f}MB)"
                 )
 
-        timestamp = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
+        timestamp = utc_now().strftime("%Y%m%d_%H%M%S")
         safe_filename = self._sanitize_filename(filename)
         unique_suffix = uuid.uuid4().hex[:8]
         key = f"{folder}/{timestamp}_{unique_suffix}_{safe_filename}"
@@ -206,7 +206,7 @@ class S3StorageService:
                 f"internal upload limit ({max_mb:.0f}MB)"
             )
 
-        timestamp = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
+        timestamp = utc_now().strftime("%Y%m%d_%H%M%S")
         safe_filename = self._sanitize_filename(filename)
         unique_suffix = uuid.uuid4().hex[:8]
         key = f"{folder}/{timestamp}_{unique_suffix}_{safe_filename}"

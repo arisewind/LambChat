@@ -15,6 +15,7 @@ import { useTranslation } from "react-i18next";
 import { SkillBaseCard } from "../common/SkillBaseCard";
 import { getCategoryIcon, nameToGradient } from "../common/cardUtils";
 import type { SkillResponse } from "../../types";
+import { formatDate } from "../../utils/datetime";
 
 interface SkillCardProps {
   skill: SkillResponse;
@@ -110,8 +111,7 @@ export function SkillCard({
           </div>
           {skill.updated_at && (
             <div className="skill-meta-pill">
-              {t("skills.card.updated")}:{" "}
-              {new Date(skill.updated_at).toLocaleDateString()}
+              {t("skills.card.updated")}: {formatDate(skill.updated_at)}
             </div>
           )}
           {skill.published_marketplace_name &&

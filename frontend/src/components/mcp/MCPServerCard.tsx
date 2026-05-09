@@ -15,6 +15,7 @@ import { useTranslation } from "react-i18next";
 import toast from "react-hot-toast";
 import { mcpApi } from "../../services/api/mcp";
 import type { MCPServerResponse, MCPToolInfo } from "../../types";
+import { formatDate } from "../../utils/datetime";
 
 interface MCPServerCardProps {
   server: MCPServerResponse;
@@ -167,17 +168,23 @@ export function MCPServerCard({
             >
               {server.is_system ? t("mcp.card.system") : t("mcp.card.user")}
             </span>
-            {server.is_system && server.allowed_roles && server.allowed_roles.length > 0 && (
-              <span
-                className="inline-flex items-center gap-1 rounded-full bg-blue-100 px-2 py-0.5 text-xs font-medium text-blue-700 dark:bg-blue-900/50 dark:text-blue-300"
-                title={t("mcp.card.allowedRolesTooltip", { roles: server.allowed_roles.join(", ") })}
-              >
-                <Shield size={10} />
-                {server.allowed_roles.length === 1
-                  ? server.allowed_roles[0]
-                  : t("mcp.card.roleCount", { count: server.allowed_roles.length })}
-              </span>
-            )}
+            {server.is_system &&
+              server.allowed_roles &&
+              server.allowed_roles.length > 0 && (
+                <span
+                  className="inline-flex items-center gap-1 rounded-full bg-blue-100 px-2 py-0.5 text-xs font-medium text-blue-700 dark:bg-blue-900/50 dark:text-blue-300"
+                  title={t("mcp.card.allowedRolesTooltip", {
+                    roles: server.allowed_roles.join(", "),
+                  })}
+                >
+                  <Shield size={10} />
+                  {server.allowed_roles.length === 1
+                    ? server.allowed_roles[0]
+                    : t("mcp.card.roleCount", {
+                        count: server.allowed_roles.length,
+                      })}
+                </span>
+              )}
             {!server.enabled && (
               <span className="rounded-full bg-stone-100 px-2 py-0.5 text-xs text-stone-500 dark:bg-stone-800 dark:text-stone-500">
                 {t("mcp.card.disabled")}
@@ -221,7 +228,7 @@ export function MCPServerCard({
           {server.updated_at && (
             <div className="mt-2 text-xs text-stone-400 dark:text-stone-500">
               {t("mcp.card.updated", {
-                date: new Date(server.updated_at).toLocaleDateString(),
+                date: formatDate(server.updated_at),
               })}
             </div>
           )}

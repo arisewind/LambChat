@@ -10,6 +10,7 @@ from typing import Any, Optional
 
 from src.infra.auth.password import hash_password, verify_password
 from src.infra.logging import get_logger
+from src.infra.utils.datetime import utc_now
 from src.kernel.config import settings
 from src.kernel.exceptions import NotFoundError, ValidationError
 from src.kernel.schemas.user import User, UserCreate, UserInDB, UserUpdate
@@ -142,7 +143,7 @@ class UserStorage:
         """
         from pymongo.errors import DuplicateKeyError
 
-        now = datetime.now()
+        now = utc_now()
         # For OAuth users, generate a random password if not provided
         password = user_data.password
         is_oauth_user = bool(user_data.oauth_provider and user_data.oauth_id)
@@ -287,7 +288,7 @@ class UserStorage:
         """
         from pymongo.errors import DuplicateKeyError
 
-        update_dict: dict = {"updated_at": datetime.now()}
+        update_dict: dict = {"updated_at": utc_now()}
 
         if user_data.username is not None:
             update_dict["username"] = user_data.username
@@ -495,7 +496,7 @@ class UserStorage:
         if expires is not None:
             if expires.tzinfo is None:
                 expires = expires.replace(tzinfo=timezone.utc)
-            if datetime.now(timezone.utc) > expires:
+            if utc_now() > expires:
                 return None
 
         user_dict["id"] = str(user_dict.pop("_id"))
@@ -516,7 +517,7 @@ class UserStorage:
 
         result = await self.collection.update_one(
             {"_id": ObjectId(user_id)},
-            {"$set": {"email_verified": verified, "updated_at": datetime.now()}},
+            {"$set": {"email_verified": verified, "updated_at": utc_now()}},
         )
         return result.modified_count > 0
 
@@ -540,7 +541,7 @@ class UserStorage:
                 "$set": {
                     "reset_token": token,
                     "reset_token_expires": expires,
-                    "updated_at": datetime.now(),
+                    "updated_at": utc_now(),
                 }
             },
         )
@@ -564,7 +565,7 @@ class UserStorage:
                 "$set": {
                     "reset_token": None,
                     "reset_token_expires": None,
-                    "updated_at": datetime.now(),
+                    "updated_at": utc_now(),
                 }
             },
         )
@@ -598,7 +599,7 @@ class UserStorage:
             {
                 "$set": {
                     "metadata": merged,
-                    "updated_at": datetime.now(),
+                    "updated_at": utc_now(),
                 }
             },
             return_document=True,

@@ -1,10 +1,10 @@
 """Project storage layer for session organization."""
 
-from datetime import datetime
 from typing import Optional
 
 from bson import ObjectId
 
+from src.infra.utils.datetime import utc_now
 from src.kernel.config import settings
 from src.kernel.schemas.project import Project, ProjectCreate, ProjectUpdate
 
@@ -34,7 +34,7 @@ class ProjectStorage:
 
     async def create(self, project_data: ProjectCreate, user_id: str) -> Project:
         """Create a new project."""
-        now = datetime.now()
+        now = utc_now()
 
         project_dict = {
             "name": project_data.name,
@@ -91,7 +91,7 @@ class ProjectStorage:
         self, project_id: str, user_id: str, project_data: ProjectUpdate
     ) -> Optional[Project]:
         """Update a project."""
-        update_dict: dict = {"updated_at": datetime.now()}
+        update_dict: dict = {"updated_at": utc_now()}
 
         if project_data.name is not None:
             update_dict["name"] = project_data.name
@@ -142,7 +142,7 @@ class ProjectStorage:
             return existing
 
         # Create the favorites project
-        now = datetime.now()
+        now = utc_now()
         project_dict = {
             "name": "Favorites",
             "type": "favorites",
@@ -172,7 +172,7 @@ class ProjectStorage:
             project_dict["id"] = str(project_dict.pop("_id"))
             return Project(**project_dict)
 
-        now = datetime.now()
+        now = utc_now()
         project_dict = {
             "name": name,
             "type": project_type,

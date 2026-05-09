@@ -24,6 +24,7 @@ import { ConfirmDialog } from "../common/ConfirmDialog";
 import { Checkbox } from "../common/Checkbox";
 import { roleApi, authApi } from "../../services/api";
 import { useAuth } from "../../hooks/useAuth";
+import { formatDate } from "../../utils/datetime";
 import { Permission } from "../../types";
 import type {
   Role,
@@ -770,12 +771,10 @@ export function RolesPanel() {
                 {/* 时间信息 */}
                 <div className="mt-3 flex items-center gap-4 text-xs text-theme-text-secondary">
                   <span>
-                    {t("roles.created")}:{" "}
-                    {new Date(role.created_at).toLocaleDateString("zh-CN")}
+                    {t("roles.created")}: {formatDate(role.created_at)}
                   </span>
                   <span>
-                    {t("roles.updated")}:{" "}
-                    {new Date(role.updated_at).toLocaleDateString("zh-CN")}
+                    {t("roles.updated")}: {formatDate(role.updated_at)}
                   </span>
                 </div>
               </div>

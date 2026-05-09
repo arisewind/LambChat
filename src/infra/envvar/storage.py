@@ -9,11 +9,11 @@
 """
 
 import asyncio
-from datetime import datetime, timezone
 from typing import Any, Optional
 
 from src.infra.logging import get_logger
 from src.infra.mcp.encryption import decrypt_value, encrypt_value
+from src.infra.utils.datetime import utc_now_iso
 from src.kernel.config import settings
 from src.kernel.schemas.envvar import EnvVarResponse
 
@@ -125,7 +125,7 @@ class EnvVarStorage:
 
     async def set_var(self, user_id: str, key: str, value: str) -> EnvVarResponse:
         """设置（upsert）单个环境变量"""
-        now = datetime.now(timezone.utc).isoformat()
+        now = utc_now_iso()
 
         # 检查数量上限（仅 insert 时）
         existing = await self._coll.find_one({"user_id": user_id, "key": key})
@@ -158,7 +158,7 @@ class EnvVarStorage:
 
     async def set_vars_bulk(self, user_id: str, variables: dict[str, str]) -> int:
         """批量设置环境变量"""
-        now = datetime.now(timezone.utc).isoformat()
+        now = utc_now_iso()
         count = 0
 
         # 检查数量上限

@@ -6,12 +6,12 @@ Model 配置存储层
 - 存储在 MongoDB
 """
 
-from datetime import datetime, timezone
 from typing import Any, Optional
 
 from pymongo import UpdateOne
 
 from src.infra.mcp.encryption import decrypt_value, encrypt_value
+from src.infra.utils.datetime import utc_now, utc_now_iso
 from src.kernel.config import settings
 from src.kernel.schemas.model import ModelConfig
 
@@ -103,7 +103,7 @@ class ModelStorage:
         if not to_encrypt:
             return 0
 
-        now = datetime.now(timezone.utc).isoformat()
+        now = utc_now_iso()
         operations = [
             UpdateOne(
                 {"id": model_id},
@@ -194,7 +194,7 @@ class ModelStorage:
         Returns:
             创建的模型配置
         """
-        now = datetime.now(timezone.utc)
+        now = utc_now()
         model_dict = model.model_dump()
 
         # 如果没有提供 id，生成一个
@@ -225,7 +225,7 @@ class ModelStorage:
         Returns:
             更新后的模型配置，不存在返回 None
         """
-        update["updated_at"] = datetime.now(timezone.utc).isoformat()
+        update["updated_at"] = utc_now_iso()
 
         # 加密 api_key（如果更新中包含）
         if "api_key" in update and update["api_key"] is not None:
@@ -314,7 +314,7 @@ class ModelStorage:
         Returns:
             更新后的所有模型
         """
-        now = datetime.now(timezone.utc).isoformat()
+        now = utc_now_iso()
         operations = [
             UpdateOne(
                 {"id": model_id},
@@ -338,7 +338,7 @@ class ModelStorage:
         existing = await self.get_by_value(model.value)
         if existing:
             update_data = model.model_dump(exclude={"id", "value", "created_at"})
-            update_data["updated_at"] = datetime.now(timezone.utc).isoformat()
+            update_data["updated_at"] = utc_now_iso()
 
             # 加密 api_key
             if update_data.get("api_key"):
@@ -365,7 +365,7 @@ class ModelStorage:
         Returns:
             创建/更新后的模型配置列表
         """
-        now = datetime.now(timezone.utc).isoformat()
+        now = utc_now_iso()
         import uuid
 
         operations = []

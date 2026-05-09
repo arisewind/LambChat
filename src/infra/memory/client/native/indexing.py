@@ -3,11 +3,11 @@
 from __future__ import annotations
 
 import time
-from datetime import datetime, timezone
+from datetime import datetime
 from typing import Any
 
-from src.infra.memory.client.native.models import ensure_aware
 from src.infra.memory.client.types import MemoryType
+from src.infra.utils.datetime import ensure_utc, utc_now
 from src.kernel.config import settings
 
 
@@ -29,7 +29,7 @@ def choose_index_memories(
             else 0.5
         )
         access_score = min(float(doc.get("access_count", 0) or 0), 5.0) * 0.3
-        age_days = (now - ensure_aware(doc.get("updated_at", now))).days
+        age_days = (now - ensure_utc(doc.get("updated_at", now))).days
         freshness_score = max(0.0, 2.0 - (age_days / max(staleness_days, 1)))
         return (source_score + access_score + freshness_score, -age_days)
 
@@ -82,7 +82,7 @@ async def build_memory_index(backend, user_id: str) -> str:
     if not docs:
         return ""
 
-    now = datetime.now(timezone.utc)
+    now = utc_now()
     grouped: dict[str, list[dict[str, Any]]] = {}
     for doc in docs:
         grouped.setdefault(str(doc.get("memory_type", "")), []).append(doc)
@@ -103,7 +103,7 @@ async def build_memory_index(backend, user_id: str) -> str:
             continue
         lines.append(f"\n## [{mtype}]")
         for item in chosen:
-            age_days = (now - ensure_aware(item["updated_at"])).days
+            age_days = (now - ensure_utc(item["updated_at"])).days
             if age_days == 0:
                 age_str = ""
             elif age_days == 1:

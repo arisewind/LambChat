@@ -17,6 +17,7 @@ from langgraph.graph import END, START, StateGraph
 
 from src.infra.agent import AgentEventProcessor
 from src.infra.logging import get_logger
+from src.infra.utils.datetime import utc_now
 from src.infra.writer.present import Presenter, PresenterConfig
 from src.kernel.config import settings
 
@@ -178,7 +179,7 @@ class BaseGraphAgent(ABC):
                     continue
 
                 # 清理 1 小时前的 checkpoint
-                cutoff_time = datetime.now() - timedelta(hours=1)
+                cutoff_time = utc_now() - timedelta(hours=1)
                 to_delete = []
 
                 for thread_id in list(storage.keys()):

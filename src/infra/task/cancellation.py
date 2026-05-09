@@ -8,13 +8,13 @@ Redis-based distributed cancellation, and agent cleanup.
 
 import asyncio
 import time
-from datetime import datetime
 from typing import Any, Dict, Optional
 
 from src.infra.logging import get_logger
 from src.infra.session.storage import SessionStorage
 from src.infra.session.trace_storage import get_trace_storage
 from src.infra.storage.redis import get_redis_client
+from src.infra.utils.datetime import utc_now_iso
 from src.kernel.schemas.session import SessionUpdate
 
 from .constants import CANCEL_CHANNEL, INTERRUPT_PREFIX
@@ -86,7 +86,7 @@ class TaskCancellation:
             redis_client = get_redis_client()
             await redis_client.set(
                 f"{INTERRUPT_PREFIX}{run_id}",
-                datetime.now().isoformat(),
+                utc_now_iso(),
                 ex=300,  # 5 分钟过期
             )
             interrupt_signal_set = True
@@ -126,7 +126,7 @@ class TaskCancellation:
                         data={
                             "user_id": user_id,
                             "run_id": run_id,
-                            "timestamp": datetime.now().isoformat(),
+                            "timestamp": utc_now_iso(),
                         },
                         trace_id=trace_id,
                         run_id=run_id,
@@ -186,7 +186,7 @@ class TaskCancellation:
                             "agent_id": agent_id,
                             "session_id": session_id,
                             "trace_id": trace_id,
-                            "timestamp": datetime.now().isoformat(),
+                            "timestamp": utc_now_iso(),
                         }
                     ),
                 )

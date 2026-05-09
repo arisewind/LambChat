@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import re
-from datetime import datetime, timezone
 
 COLLECTION_NAME = "native_memories"
 
@@ -21,13 +20,6 @@ CJK_STOPWORDS = frozenset(
     "把 被 让 给 对 从 到 向 比 用 以 为 所 之 其 着 过 地 得 很 已 还 "
     "再 又 却 并 因为 所以 如果 但是 而且 或者 虽然 不过".split()
 )
-
-
-def ensure_aware(dt: datetime) -> datetime:
-    """Make a datetime timezone-aware (UTC) if it is naive."""
-    if dt.tzinfo is None:
-        return dt.replace(tzinfo=timezone.utc)
-    return dt
 
 
 def has_cjk(text: str) -> bool:

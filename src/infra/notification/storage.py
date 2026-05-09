@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import timezone
 from enum import Enum
 from typing import Optional
 
@@ -10,6 +10,7 @@ from bson import ObjectId
 
 from src.infra.logging import get_logger
 from src.infra.storage.mongodb import get_mongo_client
+from src.infra.utils.datetime import utc_now
 from src.kernel.config import settings
 from src.kernel.schemas.notification import (
     Notification,
@@ -52,7 +53,7 @@ class NotificationStorage:
         logger.info("Notification indexes created")
 
     async def create(self, data: NotificationCreate, user_id: str) -> Notification:
-        now = datetime.now(timezone.utc)
+        now = utc_now()
         doc = {
             "title_i18n": data.title_i18n.model_dump(),
             "content_i18n": data.content_i18n.model_dump(),
@@ -94,7 +95,7 @@ class NotificationStorage:
         self, notification_id: str, data: NotificationUpdate
     ) -> Optional[Notification]:
         try:
-            update_fields: dict = {"updated_at": datetime.now(timezone.utc)}
+            update_fields: dict = {"updated_at": utc_now()}
             provided = data.model_fields_set
             if "title_i18n" in provided and data.title_i18n is not None:
                 update_fields["title_i18n"] = data.title_i18n.model_dump()
@@ -133,7 +134,7 @@ class NotificationStorage:
 
     async def get_active_notifications(self, user_id: str, limit: int = 5) -> list[Notification]:
         """Get active notifications that the user hasn't dismissed, sorted by created_at desc."""
-        now = datetime.now(timezone.utc)
+        now = utc_now()
 
         dismissed = await self.dismissal_collection.distinct(
             "notification_id", {"user_id": user_id}
@@ -168,7 +169,7 @@ class NotificationStorage:
         try:
             await self.dismissal_collection.update_one(
                 {"notification_id": notification_id, "user_id": user_id},
-                {"$set": {"dismissed_at": datetime.now(timezone.utc)}},
+                {"$set": {"dismissed_at": utc_now()}},
                 upsert=True,
             )
             return True

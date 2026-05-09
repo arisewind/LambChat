@@ -40,6 +40,7 @@ import {
   shouldAutoScrollSubagentPanel,
 } from "./subagentPanelScroll";
 import { shouldAutoOpenSubagentPanel } from "./subagentPanelControl";
+import { formatDateTime } from "../../../utils/datetime";
 
 function useSubagentPanelData(agentId: string): SubagentPanelData | undefined {
   const [, forceRender] = useState(0);
@@ -78,7 +79,7 @@ function buildSubagentPanelState(data: SubagentPanelData) {
             ? "cancelled"
             : "idle";
   const subtitle = [
-    timestamp ? formatTimestamp(timestamp) : undefined,
+    timestamp ? formatDateTime(new Date(timestamp).toISOString()) : undefined,
     elapsed || undefined,
   ]
     .filter(Boolean)
@@ -271,17 +272,6 @@ function getElapsedTime(
   const minutes = Math.floor(totalSeconds / 60);
   const remainingSeconds = totalSeconds % 60;
   return `${minutes}m ${remainingSeconds}s`;
-}
-
-function formatTimestamp(ts: number): string {
-  const d = new Date(ts);
-  const YY = String(d.getFullYear()).padStart(4, "0");
-  const MM = String(d.getMonth() + 1).padStart(2, "0");
-  const DD = String(d.getDate()).padStart(2, "0");
-  const hh = String(d.getHours()).padStart(2, "0");
-  const mm = String(d.getMinutes()).padStart(2, "0");
-  const ss = String(d.getSeconds()).padStart(2, "0");
-  return `${YY}-${MM}-${DD} ${hh}:${mm}:${ss}`;
 }
 
 // Thinking Block - pill button, content in sidebar panel

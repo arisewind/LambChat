@@ -1,10 +1,10 @@
 """Persona preset manager."""
 
-from datetime import datetime
 from typing import Optional
 
 from src.infra.persona_preset.storage import PersonaPresetStorage
 from src.infra.skill.storage import SkillStorage
+from src.infra.utils.datetime import utc_now
 from src.kernel.exceptions import AuthorizationError, NotFoundError
 from src.kernel.schemas.persona_preset import (
     PersonaPreset,
@@ -56,7 +56,7 @@ class PersonaPresetManager:
         if preset_data.scope == PersonaPresetScope.GLOBAL and not is_admin:
             raise AuthorizationError("persona_preset_no_admin_permission")
 
-        now = datetime.now()
+        now = utc_now()
         data = preset_data.model_dump(mode="json")
         data.update(
             {
@@ -81,7 +81,7 @@ class PersonaPresetManager:
         user_id: str,
         is_admin: bool,
     ) -> list[PersonaPreset]:
-        now = datetime.now()
+        now = utc_now()
         docs = []
         for item in items:
             if item.scope == PersonaPresetScope.GLOBAL and not is_admin:
@@ -194,7 +194,7 @@ class PersonaPresetManager:
         is_admin: bool,
     ) -> PersonaPreset:
         source = await self.get_preset(preset_id, user_id=user_id, is_admin=is_admin)
-        now = datetime.now()
+        now = utc_now()
         copied_data = {
             "scope": PersonaPresetScope.USER.value,
             "owner_user_id": user_id,

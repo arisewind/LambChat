@@ -1,9 +1,9 @@
 """File record storage for content-hash based deduplication."""
 
-from datetime import datetime
 from typing import Optional
 
 from src.infra.logging import get_logger
+from src.infra.utils.datetime import utc_now
 from src.kernel.config import settings
 
 
@@ -98,7 +98,7 @@ class FileRecordStorage:
             Document dict with ``id`` field.
         """
         await self.ensure_indexes_if_needed()
-        now = datetime.now()
+        now = utc_now()
         doc = {
             "hash": file_hash,
             "key": key,
@@ -124,7 +124,7 @@ class FileRecordStorage:
         await self.ensure_indexes_if_needed()
         result = await self.collection.update_many(
             {"key": {"$in": unique_keys}},
-            {"$inc": {"reference_count": 1}, "$set": {"updated_at": datetime.now()}},
+            {"$inc": {"reference_count": 1}, "$set": {"updated_at": utc_now()}},
         )
         return result.modified_count
 
@@ -140,7 +140,7 @@ class FileRecordStorage:
                 "key": {"$in": unique_keys},
                 "reference_count": {"$gt": 0},
             },
-            {"$inc": {"reference_count": -1}, "$set": {"updated_at": datetime.now()}},
+            {"$inc": {"reference_count": -1}, "$set": {"updated_at": utc_now()}},
         )
         return result.modified_count
 

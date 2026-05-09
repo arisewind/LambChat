@@ -2,7 +2,7 @@
 
 import asyncio
 import uuid
-from datetime import datetime, timedelta, timezone
+from datetime import timedelta
 from typing import Any, Callable, Optional
 
 from langchain_core.messages import HumanMessage, SystemMessage
@@ -17,6 +17,7 @@ from src.infra.memory.client.native.consolidation import consolidate_memories as
 from src.infra.memory.client.native.content import (
     build_content_fields,
     delete_memory_content,
+    maybe_await,
 )
 from src.infra.memory.client.native.indexing import build_memory_index
 from src.infra.memory.client.native.models import COLLECTION_NAME
@@ -28,6 +29,7 @@ from src.infra.memory.client.native.summaries import (
 )
 from src.infra.memory.client.types import MemoryType
 from src.infra.storage.mongodb import get_mongo_client
+from src.infra.utils.datetime import utc_now
 from src.kernel.config import settings
 
 logger = get_logger(__name__)
@@ -185,7 +187,7 @@ class NativeMemoryBackend(MemoryBackend):
             tags = enriched["tags"]
 
         async def fetch_recent_memories(target_user_id: str) -> list[dict[str, Any]]:
-            seven_days_ago = datetime.now(timezone.utc) - timedelta(days=7)
+            seven_days_ago = utc_now() - timedelta(days=7)
             return await self._collection.find(
                 {"user_id": target_user_id, "updated_at": {"$gte": seven_days_ago}},
                 {"summary": 1, "memory_id": 1, "memory_type": 1},
@@ -223,7 +225,7 @@ class NativeMemoryBackend(MemoryBackend):
                 if full_doc:
                     existing_match.update(full_doc)
 
-        now = datetime.now(timezone.utc)
+        now = utc_now()
         is_update = existing_match is not None
         _existing: dict[str, Any] = existing_match if is_update else {}  # type: ignore[assignment]
         memory_id = _existing["memory_id"] if is_update else uuid.uuid4().hex
@@ -319,7 +321,7 @@ class NativeMemoryBackend(MemoryBackend):
         return {"success": False, "error": "Memory not found"}
 
     # ------------------------------------------------------------------
-    # Memory consolidation (on-demand, triggered by agent via memory_consolidate tool)
+    # Memory consolidation (internal helper retained for native backend compatibility)
     # ------------------------------------------------------------------
 
     async def consolidate_memories(self, user_id: str) -> dict[str, Any]:
@@ -353,7 +355,7 @@ class NativeMemoryBackend(MemoryBackend):
                 )
                 for item in candidates
             )
-            model = (await self._get_memory_model()).bind_tools([memory_retain])
+            model = (await maybe_await(self._get_memory_model())).bind_tools([memory_retain])
             response = await model.ainvoke(
                 [
                     SystemMessage(
@@ -416,6 +418,11 @@ class NativeMemoryBackend(MemoryBackend):
                 existing_memory_id=args.get("existing_memory_id"),
             )
             if result.get("success"):
+                if result.get("memory_id") and self._collection is not None:
+                    await self._collection.update_one(
+                        {"user_id": user_id, "memory_id": result["memory_id"]},
+                        {"$set": {"source": "auto_retained"}},
+                    )
                 stored += 1
         return {"success": True, "stored": stored, "candidates": len(tool_calls)}
 
@@ -446,7 +453,7 @@ class NativeMemoryBackend(MemoryBackend):
         await self._collection.update_many(
             query,
             {
-                "$set": {"accessed_at": datetime.now(timezone.utc)},
+                "$set": {"accessed_at": utc_now()},
                 "$inc": {"access_count": 1},
             },
         )

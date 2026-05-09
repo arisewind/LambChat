@@ -49,6 +49,10 @@ Optional reranking for improved memory relevance.
 | `NATIVE_MEMORY_STALENESS_DAYS` | `30` | No | Days before memory is considered stale. |
 | `NATIVE_MEMORY_PRUNE_THRESHOLD` | `90` | No | Prune threshold percentage. |
 | `NATIVE_MEMORY_RECALL_MIN_SCORE` | `0.3` | No | Minimum relevance score (0.0-1.0) for recalled memories. |
+| `NATIVE_MEMORY_AUTO_COMPACT_ENABLED` | `true` | No | Enable the background memory compaction agent. |
+| `NATIVE_MEMORY_AUTO_COMPACT_THRESHOLD` | `40` | No | Per-user memory count that triggers automatic compaction. |
+| `NATIVE_MEMORY_AUTO_COMPACT_INTERVAL_SECONDS` | `43200` | No | Periodic scan interval for the compaction agent. |
+| `NATIVE_MEMORY_AUTO_COMPACT_MIN_INTERVAL_SECONDS` | `900` | No | Cooldown between compaction attempts for the same user. |
 
 ## Example
 

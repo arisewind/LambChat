@@ -10,6 +10,8 @@ from typing import Optional
 
 from pydantic import BaseModel, Field
 
+from src.infra.utils.datetime import utc_now
+
 
 class ShareType(str, Enum):
     """Share type enum."""
@@ -58,8 +60,8 @@ class SharedSession(BaseModel):
     visibility: ShareVisibility
 
     # Timestamps
-    created_at: datetime = Field(default_factory=datetime.now)
-    updated_at: datetime = Field(default_factory=datetime.now)
+    created_at: datetime = Field(default_factory=utc_now)
+    updated_at: datetime = Field(default_factory=utc_now)
 
     class Config:
         from_attributes = True

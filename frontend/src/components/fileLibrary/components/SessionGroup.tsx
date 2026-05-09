@@ -5,6 +5,7 @@ import type { RevealedFileItem } from "../../../services/api";
 import { RevealedFileCard } from "../RevealedFileCard";
 import { VISIBLE_FILES_PER_SESSION } from "../constants";
 import { getSessionNavigationTarget } from "../utils";
+import { formatDate } from "../../../utils/datetime";
 import type { ViewMode } from "../types";
 
 interface SessionGroupProps {
@@ -35,9 +36,11 @@ export function SessionGroup({
   const hiddenCount = files.length - VISIBLE_FILES_PER_SESSION;
 
   const dateLabel = useMemo(() => {
-    const d = new Date(files[0]?.created_at);
+    const created = files[0]?.created_at;
+    if (!created) return "";
+    const d = new Date(created);
     if (isNaN(d.getTime())) return "";
-    return `${d.getMonth() + 1}/${d.getDate()}`;
+    return formatDate(created);
   }, [files]);
 
   return (

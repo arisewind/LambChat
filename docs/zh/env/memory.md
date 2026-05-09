@@ -49,6 +49,10 @@
 | `NATIVE_MEMORY_STALENESS_DAYS` | `30` | 否 | 记忆被视为过期的天数。 |
 | `NATIVE_MEMORY_PRUNE_THRESHOLD` | `90` | 否 | 裁剪阈值百分比。 |
 | `NATIVE_MEMORY_RECALL_MIN_SCORE` | `0.3` | 否 | 召回记忆的最低相关性分数（0.0-1.0）。 |
+| `NATIVE_MEMORY_AUTO_COMPACT_ENABLED` | `true` | 否 | 启用后台记忆压缩 agent。 |
+| `NATIVE_MEMORY_AUTO_COMPACT_THRESHOLD` | `40` | 否 | 每个用户触发自动压缩的记忆数量阈值。 |
+| `NATIVE_MEMORY_AUTO_COMPACT_INTERVAL_SECONDS` | `43200` | 否 | 压缩 agent 的定时扫描间隔秒数。 |
+| `NATIVE_MEMORY_AUTO_COMPACT_MIN_INTERVAL_SECONDS` | `900` | 否 | 同一用户两次压缩尝试之间的冷却秒数。 |
 
 ## 示例
 

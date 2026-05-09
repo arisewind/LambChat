@@ -6,6 +6,8 @@ from typing import Any, Optional
 
 from pydantic import BaseModel, Field
 
+from src.infra.utils.datetime import utc_now
+
 
 class SessionBase(BaseModel):
     """Base session schema."""
@@ -33,8 +35,8 @@ class Session(SessionBase):
     id: str
     user_id: Optional[str] = None
     agent_id: str = "default"
-    created_at: datetime = Field(default_factory=datetime.now)
-    updated_at: datetime = Field(default_factory=datetime.now)
+    created_at: datetime = Field(default_factory=utc_now)
+    updated_at: datetime = Field(default_factory=utc_now)
     is_active: bool = True
     # Task execution status
     task_status: Optional[str] = None  # pending, running, completed, failed
@@ -52,7 +54,7 @@ class SessionCheckpoint(BaseModel):
     id: str
     message_id: str
     name: str
-    created_at: datetime = Field(default_factory=datetime.now)
+    created_at: datetime = Field(default_factory=utc_now)
     source_run_id: Optional[str] = None
     source_trace_id: Optional[str] = None
     metadata: dict[str, Any] = Field(default_factory=dict)

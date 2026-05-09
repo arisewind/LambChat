@@ -19,7 +19,6 @@ _UNSET = object()
 
 def _redis_pool_kwargs(*, socket_timeout: Any = _UNSET) -> dict[str, Any]:
     kwargs = {
-        "password": settings.REDIS_PASSWORD,
         "encoding": "utf-8",
         "decode_responses": True,
         "max_connections": 50,
@@ -27,6 +26,8 @@ def _redis_pool_kwargs(*, socket_timeout: Any = _UNSET) -> dict[str, Any]:
         "socket_connect_timeout": 5,
         "retry_on_timeout": True,
     }
+    if settings.REDIS_PASSWORD:
+        kwargs["password"] = settings.REDIS_PASSWORD
     if socket_timeout is not _UNSET:
         kwargs["socket_timeout"] = socket_timeout
     return kwargs

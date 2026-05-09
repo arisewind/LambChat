@@ -7,10 +7,11 @@ import gc
 import os
 import tracemalloc
 from collections import Counter, deque
-from datetime import datetime, timezone
+from datetime import datetime
 from typing import Any
 
 from src.infra.logging import get_logger
+from src.infra.utils.datetime import utc_now
 from src.kernel.config import settings
 
 try:
@@ -19,10 +20,6 @@ except ImportError:  # pragma: no cover - dependency is expected to be installed
     psutil = None
 
 logger = get_logger(__name__)
-
-
-def _utc_now() -> datetime:
-    return datetime.now(timezone.utc)
 
 
 def _format_trace_location(trace: tracemalloc.Frame) -> str:
@@ -171,7 +168,7 @@ class MemoryMonitor:
         distributed_snapshot: dict[str, Any] | None = None
         async with self._state_lock:
             sample = await asyncio.to_thread(self._collect_process_sample)
-            sample.setdefault("timestamp", _utc_now())
+            sample.setdefault("timestamp", utc_now())
             self._history.append(sample)
 
             if self._is_suspicious_growth(sample["timestamp"]):
@@ -206,7 +203,7 @@ class MemoryMonitor:
             open_file_count = len(self._process.open_files())
 
         return {
-            "timestamp": _utc_now(),
+            "timestamp": utc_now(),
             "rss_bytes": int(memory.rss),
             "vms_bytes": int(memory.vms),
             "thread_count": int(self._process.num_threads()),
@@ -215,7 +212,7 @@ class MemoryMonitor:
 
     def _capture_diagnostics_snapshot(self) -> dict[str, Any]:
         return {
-            "captured_at": _utc_now().isoformat(),
+            "captured_at": utc_now().isoformat(),
             "heavy_diagnostics_enabled": self.heavy_diagnostics_enabled,
             "top_growth": self._build_growth_stats(),
             "top_allocations": self._build_allocation_stats(),
@@ -227,7 +224,7 @@ class MemoryMonitor:
         distributed_snapshot: dict[str, Any] | None = None
         async with self._state_lock:
             sample = await asyncio.to_thread(self._collect_process_sample)
-            sample.setdefault("timestamp", _utc_now())
+            sample.setdefault("timestamp", utc_now())
 
             if tracemalloc.is_tracing():
                 try:
@@ -379,7 +376,7 @@ class MemoryMonitor:
 
     def _build_disabled_current_snapshot_locked(self) -> dict[str, Any]:
         return {
-            "captured_at": _utc_now().isoformat(),
+            "captured_at": utc_now().isoformat(),
             "heavy_diagnostics_enabled": False,
             "reason": "heavy_diagnostics_disabled",
             "top_growth": [],

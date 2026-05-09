@@ -107,7 +107,7 @@ HIGH_SIGNAL_PATTERNS: dict[str, list[str]] = {
 NATIVE_MEMORY_GUIDE = """
 ## Cross-Session Memory
 
-Tools: `memory_retain`(store), `memory_recall`(search), `memory_delete`(remove), `memory_consolidate`(cleanup)
+Tools: `memory_retain`(store), `memory_recall`(search), `memory_delete`(remove)
 
 ### Memory Index
 The system prompt may contain a `<memory_index>` listing stored memories as `- title (short_id, age)`. Each line is a hint only — use `memory_recall` to fetch full details when relevant. Do not treat the index as ground truth.
@@ -125,8 +125,6 @@ The system prompt may contain a `<memory_index>` listing stored memories as `- t
 **`memory_retain`:** Be selective. Prefer explicit contexts (`user_identity`, `project_constraint`, `feedback_rule`). Update rather than duplicate.
 **`memory_recall`:** When a memory title seems relevant or user references prior work. NOT at every conversation start.
 **`memory_delete`:** Remove inaccurate or outdated memories.
-**`memory_consolidate`:** Merge duplicates and prune stale entries.
-
 ### Caveats
 - Memories older than 30 days may be stale — verify before acting. Trust current observation over recalled memory.
 - If user says to ignore/forget something, do not reference those memories.

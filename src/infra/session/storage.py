@@ -21,6 +21,7 @@ from src.infra.session.search_index import (
     compose_session_search_index,
     merge_search_state,
 )
+from src.infra.utils.datetime import utc_now
 from src.kernel.config import settings
 from src.kernel.schemas.session import Session, SessionCreate, SessionUpdate
 
@@ -141,7 +142,7 @@ class SessionStorage:
     ) -> Session:
         """创建会话"""
         await self.ensure_indexes_if_needed()
-        now = datetime.now()
+        now = utc_now()
 
         # 使用自定义 session_id 或生成新的
         actual_session_id = session_id or None
@@ -208,7 +209,7 @@ class SessionStorage:
         await self.ensure_indexes_if_needed()
         result = await self.collection.update_one(
             {"session_id": session_id, "user_id": None},
-            {"$set": {"user_id": user_id, "updated_at": datetime.now()}},
+            {"$set": {"user_id": user_id, "updated_at": utc_now()}},
         )
         return result.modified_count > 0
 
@@ -228,7 +229,7 @@ class SessionStorage:
     async def update(self, session_id: str, session_data: SessionUpdate) -> Optional[Session]:
         """更新会话（支持自定义 session_id 或 ObjectId）"""
         await self.ensure_indexes_if_needed()
-        update_dict: dict = {"updated_at": datetime.now()}
+        update_dict: dict = {"updated_at": utc_now()}
 
         existing_doc = None
         if session_data.name is not None:
@@ -251,7 +252,7 @@ class SessionStorage:
             update_dict["name_search_terms"] = search_payload.name_search_terms
             update_dict["search_terms"] = search_payload.search_terms
             update_dict["search_index_version"] = SESSION_SEARCH_INDEX_VERSION
-            update_dict["search_index_updated_at"] = datetime.now()
+            update_dict["search_index_updated_at"] = utc_now()
 
         if session_data.metadata is not None:
             # 使用深度合并而非直接覆盖，保留未指定的 metadata 字段
@@ -395,7 +396,7 @@ class SessionStorage:
         await self.ensure_indexes_if_needed()
         result = await self.collection.update_many(
             {"user_id": user_id, "metadata.project_id": project_id},
-            {"$set": {"metadata.project_id": None, "updated_at": datetime.now()}},
+            {"$set": {"metadata.project_id": None, "updated_at": utc_now()}},
         )
         return result.modified_count
 
@@ -404,7 +405,7 @@ class SessionStorage:
         await self.ensure_indexes_if_needed()
         result = await self.collection.update_one(
             {"session_id": session_id},
-            {"$inc": {"unread_count": 1}, "$set": {"updated_at": datetime.now()}},
+            {"$inc": {"unread_count": 1}, "$set": {"updated_at": utc_now()}},
         )
         return result.modified_count > 0
 
@@ -447,7 +448,7 @@ class SessionStorage:
             Updated Session if found and updated, None otherwise
         """
         update_dict = {
-            "updated_at": datetime.now(),
+            "updated_at": utc_now(),
             "metadata.project_id": project_id,
         }
 
@@ -504,7 +505,7 @@ class SessionStorage:
                 "search_text": payload.search_text,
                 "latest_user_message": payload.latest_user_message,
                 "search_index_version": payload.search_index_version,
-                "search_index_updated_at": datetime.now(),
+                "search_index_updated_at": utc_now(),
             }
             cas_field, cas_value = self._get_search_index_cas(existing_doc)
             result = await self._update_doc(
@@ -580,7 +581,7 @@ class SessionStorage:
                 "search_text": merged.search_text,
                 "latest_user_message": merged.latest_user_message,
                 "search_index_version": merged.search_index_version,
-                "search_index_updated_at": datetime.now(),
+                "search_index_updated_at": utc_now(),
             }
             cas_field, cas_value = self._get_search_index_cas(current_doc)
             result = await self._update_doc(
@@ -596,7 +597,7 @@ class SessionStorage:
     async def backfill_search_indexes(self, batch_size: int = 100) -> int:
         """Backfill stale session search indexes in small batches."""
         await self.ensure_indexes_if_needed()
-        cutoff = datetime.now().timestamp() - self.SEARCH_BACKFILL_SKIP_RECENT_SECONDS
+        cutoff = utc_now().timestamp() - self.SEARCH_BACKFILL_SKIP_RECENT_SECONDS
         cutoff_dt = datetime.fromtimestamp(cutoff)
         stale_query = {
             "$and": [
@@ -704,7 +705,7 @@ class SessionStorage:
         )
         next_favorite = not current_favorite
         update_dict: dict[str, Any] = {
-            "updated_at": datetime.now(),
+            "updated_at": utc_now(),
             "metadata.is_favorite": next_favorite,
         }
         if (

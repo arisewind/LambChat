@@ -24,15 +24,74 @@ export interface MemoryListResponse {
   total: number;
 }
 
+export interface MemoryExportItem extends Omit<MemoryItem, "has_full_content"> {
+  context: string;
+  accessed_at: string | null;
+}
+
+export interface MemoryExportResponse {
+  version: number;
+  exported_at: string;
+  memories: MemoryExportItem[];
+}
+
+export interface MemoryImportRequest {
+  version?: number;
+  memories: Array<Partial<MemoryExportItem> & { content: string }>;
+}
+
+export interface MemoryImportResponse {
+  success: boolean;
+  imported: number;
+  created: number;
+  overwritten: number;
+}
+
+export interface MemoryCreateRequest {
+  title?: string;
+  content: string;
+  summary?: string;
+  memory_type?: string;
+  tags?: string[];
+  context?: string;
+}
+
+export interface MemoryUpdateRequest {
+  title?: string;
+  content?: string;
+  summary?: string;
+  memory_type?: string;
+  tags?: string[];
+  source?: string;
+}
+
+export interface MemoryCreateResponse {
+  success: boolean;
+  memory_id: string;
+  title: string;
+  summary: string;
+  memory_type: string;
+  tags: string[];
+  created_at: string;
+  updated_at: string;
+}
+
+export interface MemoryUpdateResponse {
+  success: boolean;
+  memory_id: string;
+}
+
 export const memoryApi = {
   async list(params?: {
     memory_type?: string;
+    source?: string;
     search?: string;
     limit?: number;
     offset?: number;
   }): Promise<MemoryListResponse> {
     const query = new URLSearchParams();
     if (params?.memory_type) query.set("memory_type", params.memory_type);
+    if (params?.source) query.set("source", params.source);
     if (params?.search) query.set("search", params.search);
     if (params?.limit !== undefined) query.set("limit", String(params.limit));
     if (params?.offset !== undefined)
@@ -44,6 +103,23 @@ export const memoryApi = {
 
   async get(memory_id: string): Promise<MemoryItem> {
     return authFetch<MemoryItem>(`${API_BASE}/api/memory/${memory_id}`);
+  },
+
+  async create(data: MemoryCreateRequest): Promise<MemoryCreateResponse> {
+    return authFetch<MemoryCreateResponse>(`${API_BASE}/api/memory/`, {
+      method: "POST",
+      body: JSON.stringify(data),
+    });
+  },
+
+  async update(
+    memory_id: string,
+    data: MemoryUpdateRequest,
+  ): Promise<MemoryUpdateResponse> {
+    return authFetch<MemoryUpdateResponse>(
+      `${API_BASE}/api/memory/${memory_id}`,
+      { method: "PUT", body: JSON.stringify(data) },
+    );
   },
 
   async delete(
@@ -62,5 +138,16 @@ export const memoryApi = {
       `${API_BASE}/api/memory/batch-delete`,
       { method: "POST", body: JSON.stringify({ memory_ids }) },
     );
+  },
+
+  async export(): Promise<MemoryExportResponse> {
+    return authFetch<MemoryExportResponse>(`${API_BASE}/api/memory/export`);
+  },
+
+  async import(data: MemoryImportRequest): Promise<MemoryImportResponse> {
+    return authFetch<MemoryImportResponse>(`${API_BASE}/api/memory/import`, {
+      method: "POST",
+      body: JSON.stringify(data),
+    });
   },
 };

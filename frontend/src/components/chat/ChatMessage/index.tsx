@@ -30,6 +30,7 @@ import {
 import type { RevealPreviewRequest } from "./items/revealPreviewData";
 import type { RevealPreviewOpenSource } from "./items/revealPreviewState";
 import { createMessageAnchorId } from "../../layout/AppContent/messageOutline";
+import { formatDateTime, formatDateTimeShort } from "../../../utils/datetime";
 
 // Skeleton-style loading animation component - refined thin lines
 function ThinkingIndicator() {
@@ -224,14 +225,7 @@ function TokenDetailsButton({
                   {t("chat.message.startTime")}
                 </span>
                 <span className="text-stone-700 dark:text-stone-200 font-medium tabular-nums">
-                  {new Date(timestamp).toLocaleString([], {
-                    year: "numeric",
-                    month: "2-digit",
-                    day: "2-digit",
-                    hour: "2-digit",
-                    minute: "2-digit",
-                    second: "2-digit",
-                  })}
+                  {formatDateTime(timestamp.toISOString())}
                 </span>
               </div>
             )}
@@ -329,13 +323,13 @@ export const ChatMessage = memo(function ChatMessage({
                 className="text-xs ml-2 mt-0.5 tabular-nums opacity-0 group-hover:opacity-100 transition-opacity duration-200"
                 style={{ color: "var(--theme-text-secondary)" }}
               >
-                {new Date(message.timestamp).toLocaleString([], {
-                  year: "numeric",
-                  month: "2-digit",
-                  day: "2-digit",
-                  hour: "2-digit",
-                  minute: "2-digit",
-                })}
+                {message.timestamp
+                  ? formatDateTimeShort(
+                      typeof message.timestamp === "string"
+                        ? message.timestamp
+                        : message.timestamp.toISOString(),
+                    )
+                  : ""}
               </span>
             )}
           </div>

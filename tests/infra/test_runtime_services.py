@@ -47,6 +47,8 @@ async def test_start_runtime_services_starts_all_distributed_listeners(
     channel_pubsub = _FakeAsyncService()
     tool_cache_pubsub = _FakeAsyncService()
     mcp_cache_pubsub = _FakeAsyncService()
+    memory_compaction = SimpleNamespace(start_calls=0)
+    scheduler = SimpleNamespace(start_calls=0)
 
     monkeypatch.setattr(runtime_services, "get_task_manager", lambda: task_manager)
     monkeypatch.setattr(runtime_services, "get_settings_pubsub", lambda: settings_pubsub)
@@ -62,6 +64,20 @@ async def test_start_runtime_services_starts_all_distributed_listeners(
     monkeypatch.setattr(
         runtime_services, "get_mcp_cache_pubsub", lambda: mcp_cache_pubsub, raising=False
     )
+    monkeypatch.setattr(
+        runtime_services,
+        "start_memory_compaction_agent",
+        lambda: setattr(memory_compaction, "start_calls", memory_compaction.start_calls + 1),
+        raising=False,
+    )
+    monkeypatch.setattr(
+        runtime_services,
+        "get_runtime_scheduler",
+        lambda: SimpleNamespace(
+            start=lambda: setattr(scheduler, "start_calls", scheduler.start_calls + 1)
+        ),
+        raising=False,
+    )
 
     await runtime_services.start_runtime_services()
 
@@ -73,6 +89,8 @@ async def test_start_runtime_services_starts_all_distributed_listeners(
     assert channel_pubsub.start_calls == 1
     assert tool_cache_pubsub.start_calls == 1
     assert mcp_cache_pubsub.start_calls == 1
+    assert memory_compaction.start_calls == 1
+    assert scheduler.start_calls == 1
 
 
 @pytest.mark.asyncio
@@ -88,6 +106,7 @@ async def test_stop_runtime_services_stops_all_distributed_listeners(
     tool_cache_pubsub = _FakeAsyncService()
     mcp_cache_pubsub = _FakeAsyncService()
     memory_shutdown = SimpleNamespace(calls=0)
+    scheduler = SimpleNamespace(stop_calls=0)
 
     async def _memory_shutdown() -> None:
         memory_shutdown.calls += 1
@@ -107,6 +126,14 @@ async def test_stop_runtime_services_stops_all_distributed_listeners(
         runtime_services, "get_mcp_cache_pubsub", lambda: mcp_cache_pubsub, raising=False
     )
     monkeypatch.setattr(runtime_services, "memory_shutdown", _memory_shutdown)
+    monkeypatch.setattr(
+        runtime_services,
+        "get_runtime_scheduler",
+        lambda: SimpleNamespace(
+            stop=lambda: _increment_scheduler_stop(scheduler),
+        ),
+        raising=False,
+    )
 
     await runtime_services.stop_runtime_services()
 
@@ -119,3 +146,8 @@ async def test_stop_runtime_services_stops_all_distributed_listeners(
     assert tool_cache_pubsub.stop_calls == 1
     assert mcp_cache_pubsub.stop_calls == 1
     assert memory_shutdown.calls == 1
+    assert scheduler.stop_calls == 1
+
+
+async def _increment_scheduler_stop(scheduler: SimpleNamespace) -> None:
+    scheduler.stop_calls += 1

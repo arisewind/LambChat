@@ -237,12 +237,12 @@ async def delete_model(
     logger.info(f"[Model] Deleted model: {model_value} (id={model_id})")
 
     # 清理所有模型中被删模型作为 fallback_model 的孤儿引用
-    from datetime import datetime, timezone
+    from src.infra.utils.datetime import utc_now_iso
 
     collection = storage._get_collection()
     clear_result = await collection.update_many(
         {"fallback_model": model_id},
-        {"$set": {"fallback_model": None, "updated_at": datetime.now(timezone.utc).isoformat()}},
+        {"$set": {"fallback_model": None, "updated_at": utc_now_iso()}},
     )
     if clear_result.modified_count:
         logger.info(

@@ -4,6 +4,8 @@ from datetime import datetime
 
 from pydantic import BaseModel, Field
 
+from src.infra.utils.datetime import utc_now
+
 
 class FileRecordSchema(BaseModel):
     """Represents a file record in MongoDB, keyed by content hash."""
@@ -16,6 +18,6 @@ class FileRecordSchema(BaseModel):
     size: int
     category: str  # "image", "video", "audio", "document"
     uploaded_by: str  # User ID of first uploader
-    created_at: datetime = Field(default_factory=lambda: datetime.now())
+    created_at: datetime = Field(default_factory=utc_now)
 
     model_config = {"populate_by_name": True}

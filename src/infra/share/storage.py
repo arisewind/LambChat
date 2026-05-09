@@ -3,9 +3,9 @@
 """
 
 import secrets
-from datetime import datetime
 from typing import Optional
 
+from src.infra.utils.datetime import utc_now
 from src.kernel.config import settings
 from src.kernel.schemas.share import (
     ShareCreate,
@@ -53,7 +53,7 @@ class ShareStorage:
         owner_id: str,
     ) -> SharedSession:
         """创建分享记录"""
-        now = datetime.now()
+        now = utc_now()
         share_id = self._generate_share_id()
 
         share_dict = {

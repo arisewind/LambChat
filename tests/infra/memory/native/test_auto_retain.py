@@ -31,7 +31,13 @@ async def test_auto_retain_from_text_executes_llm_tool_call():
     backend = NativeMemoryBackend()
 
     async def fake_retain(
-        user_id, content, context=None, title=None, summary=None, existing_memory_id=None
+        user_id,
+        content,
+        context=None,
+        title=None,
+        summary=None,
+        tags=None,
+        existing_memory_id=None,
     ):
         seen.append((content, context, title, summary))
         return {"success": True, "memory_id": "m1"}
@@ -88,6 +94,7 @@ async def test_auto_retain_from_text_skips_when_llm_makes_no_tool_call():
 @pytest.mark.asyncio
 async def test_auto_retain_from_text_can_target_existing_memory_id():
     seen: list[tuple[str, str | None, str | None, str | None, str | None]] = []
+    updates: list[tuple[dict, dict]] = []
 
     class FakeBoundModel:
         async def ainvoke(self, messages):
@@ -114,6 +121,10 @@ async def test_auto_retain_from_text_can_target_existing_memory_id():
         def bind_tools(self, _tools):
             return FakeBoundModel()
 
+    class FakeCollection:
+        async def update_one(self, query, update):
+            updates.append((query, update))
+
     backend = NativeMemoryBackend()
 
     async def fake_retain(
@@ -122,6 +133,7 @@ async def test_auto_retain_from_text_can_target_existing_memory_id():
         context=None,
         title=None,
         summary=None,
+        tags=None,
         existing_memory_id=None,
     ):
         seen.append((content, context, title, summary, existing_memory_id))
@@ -139,6 +151,7 @@ async def test_auto_retain_from_text_can_target_existing_memory_id():
         ]
 
     backend.retain = fake_retain  # type: ignore[method-assign]
+    backend._collection = FakeCollection()
     backend._get_memory_model = staticmethod(lambda: FakeModel())  # type: ignore[method-assign]
     backend._get_auto_retain_candidates = fake_candidates  # type: ignore[method-assign]
 
@@ -155,6 +168,66 @@ async def test_auto_retain_from_text_can_target_existing_memory_id():
             "DuckDB preference",
             "Prefers DuckDB for offline analytics.",
             "m-existing",
+        )
+    ]
+    assert updates == [
+        (
+            {"user_id": "u1", "memory_id": "m-existing"},
+            {"$set": {"source": "auto_retained"}},
+        )
+    ]
+
+
+@pytest.mark.asyncio
+async def test_auto_retain_from_text_marks_new_memory_as_auto_retained():
+    updates: list[tuple[dict, dict]] = []
+
+    class FakeBoundModel:
+        async def ainvoke(self, _messages):
+            class Response:
+                tool_calls = [
+                    {
+                        "name": "memory_retain",
+                        "args": {
+                            "content": "User prefers compact durable memory.",
+                            "context": "feedback_rule",
+                            "title": "Memory preference",
+                            "summary": "Prefers compact durable memory.",
+                            "tags": ["memory", "preference"],
+                        },
+                    }
+                ]
+
+            return Response()
+
+    class FakeModel:
+        def bind_tools(self, _tools):
+            return FakeBoundModel()
+
+    class FakeCollection:
+        async def update_one(self, query, update):
+            updates.append((query, update))
+
+    backend = NativeMemoryBackend()
+
+    async def fake_retain(*_args, **_kwargs):
+        return {"success": True, "memory_id": "m-new"}
+
+    async def fake_candidates(*_args, **_kwargs):
+        return []
+
+    backend.retain = fake_retain  # type: ignore[method-assign]
+    backend._collection = FakeCollection()
+    backend._get_memory_model = staticmethod(lambda: FakeModel())  # type: ignore[method-assign]
+    backend._get_auto_retain_candidates = fake_candidates  # type: ignore[method-assign]
+
+    result = await backend.auto_retain_from_text("u1", "I prefer compact durable memory.")
+
+    assert result == {"success": True, "stored": 1, "candidates": 1}
+    assert updates == [
+        (
+            {"user_id": "u1", "memory_id": "m-new"},
+            {"$set": {"source": "auto_retained"}},
         )
     ]
 
