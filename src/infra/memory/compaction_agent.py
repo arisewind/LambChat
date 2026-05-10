@@ -33,27 +33,39 @@ _COMPACTION_RECURSION_LIMIT = 200
 _COMPACTION_SYSTEM_PROMPT = (
     "You are a dedicated memory compaction agent for LambChat.\n"
     "Your job is to organize automatic cross-session memories for one user into concise, "
-    "durable, non-duplicative memories.\n\n"
+    "durable, non-duplicative memories. User experience is the priority: favor fewer, "
+    "higher-quality memories that improve future conversations.\n\n"
     "All memories (metadata + full content) are provided in the user message below.\n"
     "You do NOT need to fetch anything — all data is already available.\n\n"
     "Available tools:\n"
-    "- memory_compaction_update: update one existing automatic memory (use memory_id).\n"
-    "- memory_compaction_delete: delete one redundant automatic memory (use memory_id).\n\n"
+    "- memory_compaction_update: update one existing automatic memory. Arguments: "
+    "memory_id, content, optional title, summary, tags, context. Use it on the canonical "
+    "memory after merging durable facts; metadata is optional; omitted fields are filled "
+    "automatically.\n"
+    "- memory_compaction_delete: delete one redundant or low-value automatic memory. "
+    "Arguments: memory_id. Never use it on manual memories.\n\n"
     "Follow these steps:\n\n"
     "Step 1 — Candidate selection (from the inventory below):\n"
     "- Identify groups needing compaction: duplicates, near-duplicates, "
     "vague/stale/temporary/contradicted memories, fragmented details that belong in one "
     "canonical memory.\n"
-    "- If a memory is unique and durable, skip it.\n\n"
+    "- Delete low-value automatic memories that do not help future user experience: "
+    "temporary implementation details, one-off status notes, stale task chatter, vague "
+    "observations, contradicted facts, and memories that only repeat recent conversation "
+    "without durable preference or context.\n"
+    "- If a memory is unique, durable, and likely useful in future conversations, keep it.\n\n"
     "Step 2 — Update & merge:\n"
     "- For each candidate group, pick one canonical memory to keep.\n"
     "- Use memory_compaction_update to merge all durable facts into it.\n"
-    "- Keep content concise but preserve preferences, identity facts, project constraints, "
-    "feedback rules, reference links, and stable user context.\n\n"
+    "- Keep content very concise: one compact paragraph or a short bullet-like sentence. "
+    "Preserve preferences, identity facts, project constraints, feedback rules, reference "
+    "links, and stable user context. Remove wording that only explains where the fact came "
+    "from.\n\n"
     "Step 3 — Delete redundant:\n"
     "- Delete ONLY after durable facts are preserved in the canonical memory, or the memory "
     "is confirmed vague/stale/temporary/contradicted.\n"
-    "- NEVER delete manual memories. NEVER delete a unique durable fact.\n\n"
+    "- Prefer reducing total memory count when facts are already represented elsewhere. "
+    "NEVER delete manual memories. NEVER delete a unique durable fact.\n\n"
     "Step 4 — Finish:\n"
     "- When done, respond with a summary: checked count, updated count, deleted count, "
     "merged topics, unchanged items.\n"
@@ -215,7 +227,10 @@ class MemoryCompactionAgent:
         if current is task:
             self._after_write_tasks_by_user.pop(user_id, None)
         if task.cancelled():
-            logger.info("[MemoryCompactionAgent] after-write background cancelled for %s", user_id)
+            logger.info(
+                "[MemoryCompactionAgent] after-write background cancelled for %s",
+                user_id,
+            )
             return
         try:
             result = task.result()
@@ -393,19 +408,26 @@ class MemoryCompactionAgent:
             """Update one existing automatic memory with compacted durable content."""
             existing = await backend._collection.find_one(
                 {"user_id": user_id, "memory_id": memory_id},
-                {"source": 1},
+                {"source": 1, "title": 1, "summary": 1, "tags": 1},
             )
             if not existing:
                 return {"success": False, "error": "memory_not_found"}
             if existing.get("source") == "manual":
                 return {"success": False, "error": "manual_memory_protected"}
+            filled_title, filled_summary, filled_tags = self._fill_compaction_metadata(
+                content=content,
+                existing=existing,
+                title=title,
+                summary=summary,
+                tags=tags,
+            )
             result = await backend.retain(
                 user_id,
                 content,
                 context=context or "compacted",
-                title=title,
-                summary=summary,
-                tags=tags,
+                title=filled_title,
+                summary=filled_summary,
+                tags=filled_tags,
                 existing_memory_id=memory_id,
             )
             if result.get("success"):
@@ -434,6 +456,31 @@ class MemoryCompactionAgent:
             memory_compaction_update,
             memory_compaction_delete,
         ]
+
+    @staticmethod
+    def _fill_compaction_metadata(
+        *,
+        content: str,
+        existing: dict[str, Any],
+        title: str | None,
+        summary: str | None,
+        tags: list[str] | None,
+    ) -> tuple[str, str, list[str]]:
+        from src.infra.memory.client.native.summaries import (
+            _fallback_tags,
+            build_summary,
+        )
+
+        filled_summary = (summary or existing.get("summary") or build_summary(content)).strip()
+        filled_title = (
+            title or existing.get("title") or build_summary(filled_summary or content, 25)
+        ).strip()
+        raw_tags = tags or existing.get("tags") or _fallback_tags(content)
+        filled_tags = raw_tags if isinstance(raw_tags, list) else []
+        clean_tags = [str(tag).strip()[:20] for tag in filled_tags[:5] if str(tag).strip()]
+        if not clean_tags:
+            clean_tags = _fallback_tags(content) or ["memory"]
+        return filled_title[:25], filled_summary[:100], clean_tags
 
     async def _get_compaction_model(self) -> Any:
         """Get the model used only for memory compaction."""

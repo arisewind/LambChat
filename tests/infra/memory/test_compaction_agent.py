@@ -358,49 +358,48 @@ async def test_maybe_compact_after_write_runs_deepagent_compactor(monkeypatch):
     assert created["model"] == "fake-compaction-model"
     tool_names = {tool.name for tool in created["tools"]}
     assert tool_names == {
-        "memory_compaction_list",
         "memory_compaction_update",
         "memory_compaction_delete",
     }
     assert "80 automatic cross-session memories" in str(created["payload"])
-    assert "User prefers DuckDB" not in str(created["payload"])
+    assert "User prefers DuckDB" in str(created["payload"])
     assert created["config"]["recursion_limit"] > 40
-    assert "every memory has been considered" in str(created["payload"])
+    assert "Proceed directly to update and delete" in str(created["payload"])
 
 
-def test_compaction_prompt_does_not_embed_memory_content():
-    prompt = MemoryCompactionAgent._build_compaction_prompt(memory_count=42)
+def test_compaction_prompt_includes_inventory_content():
+    prompt = MemoryCompactionAgent._build_compaction_prompt(
+        memory_count=42,
+        inventory=[
+            {
+                "memory_id": "m1",
+                "title": "DuckDB",
+                "summary": "Prefers DuckDB.",
+                "tags": ["database"],
+                "memory_type": "user",
+                "context": "preference",
+                "updated_at": "2026-05-10",
+                "access_count": 2,
+                "content": "User prefers DuckDB for local analytics.",
+            }
+        ],
+    )
 
     assert "42 automatic cross-session memories" in prompt
-    assert "memory_compaction_list" in prompt
-    assert "memory_compaction_update" in prompt
-    assert "memory_compaction_delete" in prompt
-    assert "every memory has been considered" in prompt
-    assert "list all memory metadata pages" in prompt
-    assert "identify candidate groups" in prompt
-    assert "fetch candidate content through memory_compaction_list" in prompt
-    assert "update canonical memories" in prompt
-    assert "delete only redundant or non-durable memories" in prompt
-    assert "JSON array below" not in prompt
+    assert "memory_id=m1" in prompt
+    assert "User prefers DuckDB for local analytics." in prompt
+    assert "Proceed directly to update and delete" in prompt
 
 
-def test_compaction_system_prompt_defines_strict_sop():
+def test_compaction_system_prompt_prioritizes_concise_user_facing_memories():
     prompt = _COMPACTION_SYSTEM_PROMPT
 
-    assert "Follow this SOP exactly" in prompt
-    assert "Phase 1: Inventory" in prompt
-    assert "Do not update or delete anything during inventory" in prompt
-    assert (
-        "If metadata is enough to decide something is unique and durable, leave it alone" in prompt
-    )
-    assert "Phase 2: Candidate selection" in prompt
-    assert "Phase 3: Fetch candidate content before mutation" in prompt
-    assert "memory_compaction_list(memory_ids=" in prompt
-    assert "Phase 4: Edit / merge" in prompt
-    assert "Phase 5: Delete" in prompt
-    assert "Phase 6: Stop condition" in prompt
-    assert "memory_compaction_update on the canonical memory" in prompt
-    assert "Only delete a memory after its durable facts are preserved" in prompt
+    assert "favor fewer, higher-quality memories" in prompt
+    assert "User experience is the priority" in prompt
+    assert "Delete low-value automatic memories" in prompt
+    assert "metadata is optional; omitted fields are filled automatically" in prompt
+    assert "memory_id, content, optional title, summary, tags, context" in prompt
+    assert "temporary implementation details" in prompt
 
 
 @pytest.mark.asyncio
@@ -484,66 +483,14 @@ async def test_deepagent_compactor_returns_error_on_recursion_limit(monkeypatch)
     assert events == [("acquire", "u1"), ("release", "u1")]
 
 
-@pytest.mark.asyncio
-async def test_compaction_list_can_include_content_for_candidate_ids():
-    backend = _Backend(
-        {"u1": 80},
-        docs=[
-            {
-                "memory_id": "m1",
-                "user_id": "u1",
-                "content": "User prefers careful memory review before deletion.",
-                "summary": "Prefers careful memory review.",
-                "title": "Memory review",
-                "memory_type": "user",
-                "source": "auto_retained",
-                "tags": ["memory"],
-                "context": "feedback_rule",
-            }
-        ],
-    )
-    metrics = {"updated": 0, "deleted": 0}
-    tools = MemoryCompactionAgent()._build_compaction_tools(backend, "u1", metrics)
-    tool_by_name = {tool.name: tool for tool in tools}
-
-    result = await tool_by_name["memory_compaction_list"].ainvoke(
-        {"memory_ids": ["m1"], "include_content": True}
-    )
-
-    assert result["success"] is True
-    assert result["memories"][0]["memory_id"] == "m1"
-    assert result["memories"][0]["content"] == "User prefers careful memory review before deletion."
-    assert metrics == {"updated": 0, "deleted": 0}
-
-
-@pytest.mark.asyncio
-async def test_compaction_tools_list_metadata_without_full_content():
-    backend = _Backend(
-        {"u1": 80},
-        docs=[
-            {
-                "memory_id": "m1",
-                "user_id": "u1",
-                "content": "Sensitive full content should not appear in list.",
-                "summary": "Safe summary.",
-                "title": "Safe title",
-                "memory_type": "user",
-                "source": "auto_retained",
-                "tags": ["memory"],
-                "context": "feedback_rule",
-            }
-        ],
-    )
+def test_compaction_tools_expose_only_update_and_delete():
+    backend = _Backend({"u1": 80})
     tools = MemoryCompactionAgent()._build_compaction_tools(backend, "u1")
-    tool_by_name = {tool.name: tool for tool in tools}
 
-    result = await tool_by_name["memory_compaction_list"].ainvoke({"offset": 0, "limit": 10})
-
-    assert result["success"] is True
-    assert result["total"] == 80
-    assert result["memories"][0]["memory_id"] == "m1"
-    assert result["memories"][0]["summary"] == "Safe summary."
-    assert "content" not in result["memories"][0]
+    assert {tool.name for tool in tools} == {
+        "memory_compaction_update",
+        "memory_compaction_delete",
+    }
 
 
 @pytest.mark.asyncio
@@ -770,6 +717,81 @@ async def test_deepagent_compactor_reports_successful_tool_counts(monkeypatch):
 
     assert result["updated"] == 1
     assert result["deleted"] == 1
+
+
+@pytest.mark.asyncio
+async def test_compaction_update_fills_metadata_before_retain():
+    backend = _Backend(
+        {"u1": 80},
+        docs=[
+            {
+                "memory_id": "m1",
+                "user_id": "u1",
+                "content": "User prefers compact durable memory.",
+                "source": "auto_retained",
+                "title": "Memory Style",
+                "summary": "Prefers compact durable memory.",
+                "tags": ["memory", "preference"],
+            }
+        ],
+    )
+    retain_calls: list[dict] = []
+
+    async def fake_retain(*_args, **kwargs):
+        retain_calls.append(kwargs)
+        return {"success": True}
+
+    backend.retain = fake_retain  # type: ignore[method-assign]
+    tools = MemoryCompactionAgent()._build_compaction_tools(backend, "u1")
+    tool_by_name = {tool.name: tool for tool in tools}
+
+    result = await tool_by_name["memory_compaction_update"].ainvoke(
+        {
+            "memory_id": "m1",
+            "content": "User prefers compact durable memory with concise summaries.",
+        }
+    )
+
+    assert result["success"] is True
+    assert retain_calls[0]["title"] == "Memory Style"
+    assert retain_calls[0]["summary"] == "Prefers compact durable memory."
+    assert retain_calls[0]["tags"] == ["memory", "preference"]
+
+
+@pytest.mark.asyncio
+async def test_compaction_update_builds_fallback_metadata_before_retain():
+    backend = _Backend(
+        {"u1": 80},
+        docs=[
+            {
+                "memory_id": "m1",
+                "user_id": "u1",
+                "content": "User prefers compact durable memory.",
+                "source": "auto_retained",
+            }
+        ],
+    )
+    retain_calls: list[dict] = []
+
+    async def fake_retain(*_args, **kwargs):
+        retain_calls.append(kwargs)
+        return {"success": True}
+
+    backend.retain = fake_retain  # type: ignore[method-assign]
+    tools = MemoryCompactionAgent()._build_compaction_tools(backend, "u1")
+    tool_by_name = {tool.name: tool for tool in tools}
+
+    result = await tool_by_name["memory_compaction_update"].ainvoke(
+        {
+            "memory_id": "m1",
+            "content": "User prefers compact durable memory with concise summaries.",
+        }
+    )
+
+    assert result["success"] is True
+    assert retain_calls[0]["title"]
+    assert retain_calls[0]["summary"]
+    assert retain_calls[0]["tags"]
 
 
 @pytest.mark.asyncio
