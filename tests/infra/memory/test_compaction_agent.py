@@ -1,4 +1,5 @@
 import asyncio
+import contextvars
 from contextlib import contextmanager
 
 import pytest
@@ -187,6 +188,8 @@ async def test_maybe_compact_after_write_schedules_detached_compaction(monkeypat
     started = asyncio.Event()
     finish = asyncio.Event()
     events: list[tuple[str, object]] = []
+    inherited_trace = contextvars.ContextVar("inherited_trace")
+    reset_token = inherited_trace.set("chat-session")
 
     @contextmanager
     def fake_tracing_context(**kwargs):
@@ -199,6 +202,7 @@ async def test_maybe_compact_after_write_schedules_detached_compaction(monkeypat
 
     async def fake_compact(_backend, user_id: str):
         events.append(("compact_start", user_id))
+        events.append(("inherited_trace", inherited_trace.get(None)))
         started.set()
         await finish.wait()
         events.append(("compact_finish", user_id))
@@ -208,10 +212,13 @@ async def test_maybe_compact_after_write_schedules_detached_compaction(monkeypat
     monkeypatch.setattr(compaction_module, "mark_compaction_cooldown", fake_mark)
     agent.compact_user_memories = fake_compact  # type: ignore[method-assign]
 
-    result = await asyncio.wait_for(
-        agent.maybe_compact_after_write(backend, "u1"),
-        timeout=0.05,
-    )
+    try:
+        result = await asyncio.wait_for(
+            agent.maybe_compact_after_write(backend, "u1"),
+            timeout=0.05,
+        )
+    finally:
+        inherited_trace.reset(reset_token)
 
     assert result == {
         "triggered": True,
@@ -222,6 +229,7 @@ async def test_maybe_compact_after_write_schedules_detached_compaction(monkeypat
 
     await asyncio.wait_for(started.wait(), timeout=1)
     assert ("trace_kwargs", {"parent": False}) in events
+    assert ("inherited_trace", None) in events
 
     finish.set()
     for _ in range(50):

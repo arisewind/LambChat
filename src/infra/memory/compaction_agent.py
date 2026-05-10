@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import contextvars
 import time
 import uuid
 from typing import Annotated, Any
@@ -177,7 +178,11 @@ class MemoryCompactionAgent:
             )
             return False
 
-        task = asyncio.create_task(self._run_after_write_compaction_detached(backend, user_id))
+        context = contextvars.Context()
+        task = asyncio.create_task(
+            context.run(self._run_after_write_compaction_detached, backend, user_id),
+            context=context,
+        )
         self._after_write_tasks_by_user[user_id] = task
         task.add_done_callback(lambda done: self._after_write_compaction_done(user_id, done))
         return True
