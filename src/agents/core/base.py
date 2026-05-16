@@ -417,6 +417,28 @@ class BaseGraphAgent(ABC):
 
             # 创建事件处理器
             event_processor = AgentEventProcessor(presenter, base_url=kwargs.get("base_url", ""))
+            agent_options = kwargs.get("agent_options") or {}
+
+            async def emit_usage_once() -> None:
+                try:
+                    await event_processor.emit_token_usage(
+                        model_id=agent_options.get("model_id"),
+                        model=agent_options.get("model"),
+                    )
+                except Exception as e:
+                    logger.warning(f"Failed to emit token:usage event during cleanup: {e}")
+
+            async def drain_event_queue() -> None:
+                while not event_queue.empty():
+                    try:
+                        item_type, item_data = event_queue.get_nowait()
+                    except asyncio.QueueEmpty:
+                        break
+                    if item_type == "event" and item_data:
+                        try:
+                            await event_processor.process_event(item_data)
+                        except Exception:
+                            pass
 
             try:
                 while True:
@@ -445,6 +467,9 @@ class BaseGraphAgent(ABC):
                     # 使用 AgentEventProcessor 处理事件
                     await event_processor.process_event(item_data)
 
+            except (asyncio.CancelledError, Exception):
+                await drain_event_queue()
+                raise
             finally:
                 # 注销并取消流任务
                 self._stream_tasks.pop(presenter.run_id, None)
@@ -456,43 +481,13 @@ class BaseGraphAgent(ABC):
                         pass
                 # Flush pending chunks and clear event_processor memory
                 await event_processor.finalize()
-
-            # 发送 token 使用统计
-            if event_processor.total_input_tokens > 0 or event_processor.total_output_tokens > 0:
-                agent_options = kwargs.get("agent_options") or {}
-                await presenter.emit(
-                    presenter.present_token_usage(
-                        input_tokens=event_processor.total_input_tokens,
-                        output_tokens=event_processor.total_output_tokens,
-                        total_tokens=event_processor.total_tokens
-                        or event_processor.total_input_tokens + event_processor.total_output_tokens,
-                        cache_creation_tokens=event_processor.total_cache_creation_tokens,
-                        cache_read_tokens=event_processor.total_cache_read_tokens,
-                        model_id=agent_options.get("model_id"),
-                        model=agent_options.get("model"),
-                    )
-                )
+                await emit_usage_once()
 
             # 发送完成
             yield presenter.done()
 
         except asyncio.CancelledError:
             # 任务被取消，yield 队列中剩余的事件（由 manager.py 保存）
-            try:
-                while not event_queue.empty():
-                    try:
-                        item_type, item_data = event_queue.get_nowait()
-                        if item_type == "event" and item_data:
-                            # 使用 AgentEventProcessor 处理剩余事件
-                            try:
-                                await event_processor.process_event(item_data)
-                            except Exception:
-                                pass
-                    except asyncio.QueueEmpty:
-                        break
-            finally:
-                # 确保清理 event_processor 内存
-                await event_processor.finalize()
             raise
 
         # 其他异常（TaskInterruptedError, Exception）直接抛给 manager.py 处理

@@ -102,6 +102,33 @@ class FakePresenter:
             },
         }
 
+    def present_token_usage(
+        self,
+        input_tokens: int = 0,
+        output_tokens: int = 0,
+        total_tokens: int = 0,
+        duration: float = 0.0,
+        cache_creation_tokens: int = 0,
+        cache_read_tokens: int = 0,
+        model_id: str | None = None,
+        model: str | None = None,
+    ) -> dict[str, Any]:
+        data: dict[str, Any] = {
+            "input_tokens": input_tokens,
+            "output_tokens": output_tokens,
+            "total_tokens": total_tokens,
+            "duration": duration,
+        }
+        if cache_creation_tokens:
+            data["cache_creation_tokens"] = cache_creation_tokens
+        if cache_read_tokens:
+            data["cache_read_tokens"] = cache_read_tokens
+        if model_id:
+            data["model_id"] = model_id
+        if model:
+            data["model"] = model
+        return {"event": "token:usage", "data": data}
+
 
 def chat_stream(content: str, chunk_id: str = "chunk-1", metadata: dict[str, Any] | None = None):
     return {
@@ -216,3 +243,38 @@ def test_text_chunk_buffer_consume_ready_flushes_previous_key_without_losing_cur
 
 def test_detect_tool_error_detects_string_error_prefix() -> None:
     assert detect_tool_error(None, "Error: failed to run") == (True, "Error: failed to run")
+
+
+@pytest.mark.asyncio
+async def test_emit_token_usage_flushes_accumulated_totals_once() -> None:
+    presenter = FakePresenter()
+    processor = AgentEventProcessor(presenter)
+    processor.total_input_tokens = 7
+    processor.total_output_tokens = 3
+    processor.total_cache_creation_tokens = 2
+    processor.total_cache_read_tokens = 5
+
+    emitted = await processor.emit_token_usage(
+        duration=1.5,
+        model_id="model-config-1",
+        model="openai/gpt-4.1",
+    )
+    emitted_again = await processor.emit_token_usage(duration=2.0)
+
+    assert emitted is True
+    assert emitted_again is False
+    assert presenter.emitted == [
+        {
+            "event": "token:usage",
+            "data": {
+                "input_tokens": 7,
+                "output_tokens": 3,
+                "total_tokens": 10,
+                "duration": 1.5,
+                "cache_creation_tokens": 2,
+                "cache_read_tokens": 5,
+                "model_id": "model-config-1",
+                "model": "openai/gpt-4.1",
+            },
+        }
+    ]

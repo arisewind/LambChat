@@ -244,29 +244,28 @@ async def fast_agent_node(state: Dict[str, Any], config: RunnableConfig) -> Dict
 
     logger.info("[FastAgent] Starting astream_events")
     # 流式处理事件（不重试，直接调用）
-    async for event in inner_graph.astream_events(
-        {"messages": [new_message]},
-        inner_config,
-        version="v2",
-    ):
-        await event_processor.process_event(event)
-    # Flush any remaining buffered chunks
-    await event_processor.flush()
+    try:
+        async for event in inner_graph.astream_events(
+            {"messages": [new_message]},
+            inner_config,
+            version="v2",
+        ):
+            await event_processor.process_event(event)
+    finally:
+        await event_processor.finalize()
+        await emit_token_usage(
+            event_processor,
+            presenter,
+            start_time,
+            model_id=model_id,
+            model=selected_model,
+        )
     logger.info("[FastAgent] astream_events completed")
 
     if settings.ENABLE_MEMORY and context.user_id:
         from src.infra.memory.tools import schedule_auto_memory_capture
 
         schedule_auto_memory_capture(context.user_id, user_input)
-
-    # 发送 token 使用统计事件
-    await emit_token_usage(
-        event_processor,
-        presenter,
-        start_time,
-        model_id=model_id,
-        model=selected_model,
-    )
 
     # 获取内层 graph 的最终状态
     inner_state = await inner_graph.aget_state(inner_config)

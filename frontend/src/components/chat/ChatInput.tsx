@@ -151,6 +151,8 @@ export interface ChatInputProps {
       | ((prev: MessageAttachment[]) => MessageAttachment[]),
   ) => void;
   onMentionQueryChange?: (query: string | null) => void;
+  pendingInput?: string | null;
+  onPendingInputConsumed?: () => void;
   className?: string;
 }
 
@@ -201,10 +203,27 @@ export const ChatInput = memo(function ChatInput({
   attachments: externalAttachments,
   onAttachmentsChange: externalOnAttachmentsChange,
   onMentionQueryChange,
+  pendingInput,
+  onPendingInputConsumed,
   className,
 }: ChatInputProps) {
   const { t } = useTranslation();
   const [input, setInput] = useState("");
+
+  // Consume external pendingInput: fill textarea and focus
+  useEffect(() => {
+    if (pendingInput) {
+      setInput(pendingInput);
+      onPendingInputConsumed?.();
+      requestAnimationFrame(() => {
+        const textarea = textareaRef.current;
+        if (textarea) {
+          textarea.focus();
+          textarea.selectionStart = textarea.selectionEnd = pendingInput.length;
+        }
+      });
+    }
+  }, [pendingInput, onPendingInputConsumed]);
   const [activePanel, setActivePanel] = useState<FeaturePanel>(null);
   const [internalAttachments, setInternalAttachments] = useState<
     MessageAttachment[]

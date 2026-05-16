@@ -108,6 +108,7 @@ class Presenter:
         self._dual_writer: "DualEventWriter | None" = None
         self._trace_created: bool = False
         self._completed: bool = False
+        self._token_usage_recorded: bool = False
 
     @property
     def trace_id(self) -> str:
@@ -295,8 +296,19 @@ class Presenter:
                     agent_id=self.config.agent_id,
                     run_id=self.run_id,
                 )
+                if event_type == "token:usage":
+                    self._token_usage_recorded = True
         except Exception as e:
             logger.warning("Failed to save event: %s", e)
+
+    async def _ensure_token_usage_event(self) -> None:
+        """Persist a token usage event before terminal trace status, even if usage is zero."""
+        if self._token_usage_recorded or not self.config.enable_storage:
+            return
+        if not self.config.session_id:
+            return
+
+        await self.save_event(self.present_token_usage())
 
     async def complete(self, status: str = "completed") -> None:
         """
@@ -314,6 +326,7 @@ class Presenter:
         dual_writer = await self._get_dual_writer()
         if dual_writer and self.config.session_id:
             try:
+                await self._ensure_token_usage_event()
                 # 先刷新 MongoDB 缓冲，确保所有事件已写入
                 await dual_writer.flush_mongo_buffer()
                 await dual_writer.complete_trace(

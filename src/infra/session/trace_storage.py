@@ -33,7 +33,7 @@ from typing import Any, Dict, List, Optional
 
 from src.infra.logging import get_logger
 from src.infra.storage.mongodb import get_mongo_client
-from src.infra.utils.datetime import utc_now
+from src.infra.utils.datetime import utc_now, utc_now_iso
 from src.kernel.config import settings
 
 logger = get_logger(__name__)
@@ -228,6 +228,36 @@ class TraceStorage:
             logger.error(f"Failed to append event to trace {trace_id}: {e}")
             return False
 
+    async def _ensure_token_usage_event(self, trace_id: str) -> None:
+        """Append a zero token usage event when a trace has no usage event yet."""
+        now = utc_now()
+        try:
+            await self.collection.update_one(
+                {
+                    "trace_id": trace_id,
+                    "events.event_type": {"$ne": "token:usage"},
+                },
+                {
+                    "$push": {
+                        "events": {
+                            "event_type": "token:usage",
+                            "data": {
+                                "input_tokens": 0,
+                                "output_tokens": 0,
+                                "total_tokens": 0,
+                                "duration": 0.0,
+                                "timestamp": utc_now_iso(),
+                            },
+                            "timestamp": now,
+                        }
+                    },
+                    "$inc": {"event_count": 1},
+                    "$set": {"updated_at": now},
+                },
+            )
+        except Exception as e:
+            logger.warning("Failed to ensure token usage event for trace %s: %s", trace_id, e)
+
     async def complete_trace(
         self,
         trace_id: str,
@@ -257,6 +287,7 @@ class TraceStorage:
                 update["$set"][f"metadata.{key}"] = value
 
         try:
+            await self._ensure_token_usage_event(trace_id)
             result = await self.collection.update_one(
                 {"trace_id": trace_id},
                 update,

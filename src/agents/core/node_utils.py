@@ -128,29 +128,12 @@ async def emit_token_usage(
     """发送 token 使用统计事件"""
     import time
 
-    total_input_tokens = event_processor.total_input_tokens
-    total_output_tokens = event_processor.total_output_tokens
-    total_tokens = event_processor.total_tokens
-    cache_creation_tokens = event_processor.total_cache_creation_tokens
-    cache_read_tokens = event_processor.total_cache_read_tokens
-
-    if total_input_tokens > 0 or total_output_tokens > 0 or total_tokens > 0:
-        if total_tokens == 0:
-            total_tokens = total_input_tokens + total_output_tokens
-
-        duration = time.time() - start_time
-        try:
-            await presenter.emit(
-                presenter.present_token_usage(
-                    input_tokens=total_input_tokens,
-                    output_tokens=total_output_tokens,
-                    total_tokens=total_tokens,
-                    duration=duration,
-                    cache_creation_tokens=cache_creation_tokens,
-                    cache_read_tokens=cache_read_tokens,
-                    model_id=model_id,
-                    model=model,
-                )
-            )
-        except Exception as e:
-            logger.warning(f"Failed to emit token:usage event: {e}")
+    duration = time.time() - start_time
+    try:
+        await event_processor.emit_token_usage(
+            duration=duration,
+            model_id=model_id,
+            model=model,
+        )
+    except Exception as e:
+        logger.warning(f"Failed to emit token:usage event: {e}")

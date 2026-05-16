@@ -773,7 +773,6 @@ export function ChatView({
               personaPresetsLoading={personaPresetsLoading}
               personaPresetsMutating={personaPresetsMutating}
               canSendMessage={canSendMessage}
-              onSendMessage={onSendMessage}
               chatInputProps={chatInputProps}
               onUsePersonaPreset={onUsePersonaPreset}
               onClearPersonaPreset={onClearPersonaPreset}

@@ -30,7 +30,6 @@ interface WelcomePageProps {
   personaPresetsLoading?: boolean;
   personaPresetsMutating?: boolean;
   canSendMessage: boolean;
-  onSendMessage: (content: string) => void;
   chatInputProps: ChatInputProps;
   onUsePersonaPreset?: (
     preset: PersonaPreset,
@@ -51,7 +50,6 @@ export const WelcomePage = memo(function WelcomePage({
   personaPresetsLoading = false,
   personaPresetsMutating = false,
   canSendMessage,
-  onSendMessage,
   chatInputProps,
   onUsePersonaPreset,
   onClearPersonaPreset,
@@ -62,6 +60,7 @@ export const WelcomePage = memo(function WelcomePage({
   const [animKey, setAnimKey] = useState(0);
   const [contactAdminOpen, setContactAdminOpen] = useState(false);
   const [mentionQuery, setMentionQuery] = useState<string | null>(null);
+  const [pendingInput, setPendingInput] = useState<string | null>(null);
   const rootRef = useRef<HTMLDivElement>(null);
 
   const promptSources = useMemo(() => {
@@ -138,7 +137,7 @@ export const WelcomePage = memo(function WelcomePage({
       setContactAdminOpen(true);
       return;
     }
-    onSendMessage(text);
+    setPendingInput(text);
   };
 
   const handleRefresh = useCallback(() => {
@@ -210,6 +209,8 @@ export const WelcomePage = memo(function WelcomePage({
         <ChatInput
           {...chatInputProps}
           onMentionQueryChange={handleMentionQueryChange}
+          pendingInput={pendingInput}
+          onPendingInputConsumed={() => setPendingInput(null)}
           className="mx-auto w-full px-2"
         />
       </div>

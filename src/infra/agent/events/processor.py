@@ -52,6 +52,7 @@ class AgentEventProcessor(SubagentEventMixin, StreamEventMixin, ToolEventMixin):
         "total_tokens",
         "total_cache_creation_tokens",
         "total_cache_read_tokens",
+        "_token_usage_emitted",
         "_presenter_emit",
         "_base_url",
         "_chunk_buffer",
@@ -76,6 +77,7 @@ class AgentEventProcessor(SubagentEventMixin, StreamEventMixin, ToolEventMixin):
         self.total_tokens = 0
         self.total_cache_creation_tokens = 0
         self.total_cache_read_tokens = 0
+        self._token_usage_emitted = False
         self._presenter_emit = presenter.emit
         self._chunk_buffer = TextChunkBuffer(self._CHUNK_FLUSH_SIZE)
         self._summary_chunk_buffer = TextChunkBuffer(self._CHUNK_FLUSH_SIZE)
@@ -95,6 +97,37 @@ class AgentEventProcessor(SubagentEventMixin, StreamEventMixin, ToolEventMixin):
         """Flush pending chunks and release session-scoped buffers."""
         await self.flush()
         self.clear()
+
+    async def emit_token_usage(
+        self,
+        *,
+        duration: float = 0.0,
+        model_id: str | None = None,
+        model: str | None = None,
+    ) -> bool:
+        """Emit accumulated token usage once, preserving counters for late cleanup paths."""
+        if self._token_usage_emitted:
+            return False
+
+        if not (
+            self.total_input_tokens > 0 or self.total_output_tokens > 0 or self.total_tokens > 0
+        ):
+            return False
+
+        total_tokens = self.total_tokens or self.total_input_tokens + self.total_output_tokens
+        event = self.presenter.present_token_usage(
+            input_tokens=self.total_input_tokens,
+            output_tokens=self.total_output_tokens,
+            total_tokens=total_tokens,
+            duration=duration,
+            cache_creation_tokens=self.total_cache_creation_tokens,
+            cache_read_tokens=self.total_cache_read_tokens,
+            model_id=model_id,
+            model=model,
+        )
+        await self._presenter_emit(event)
+        self._token_usage_emitted = True
+        return True
 
     def clear(self) -> None:
         """Release memory held by this session while preserving token counters."""
