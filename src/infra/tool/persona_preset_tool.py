@@ -17,6 +17,7 @@ from src.infra.user.storage import UserStorage
 from src.kernel.exceptions import AuthorizationError, NotFoundError
 from src.kernel.schemas.persona_preset import (
     PersonaPresetCreate,
+    PersonaPresetScope,
     PersonaPresetStatus,
     PersonaPresetUpdate,
     PersonaPresetVisibility,
@@ -171,6 +172,9 @@ async def update_persona_preset(
         "and an optional 'icon' (a single emoji, e.g. '🐍', '🧭').",
     ] = None,
     skill_names: Annotated[list[str] | None, "Updated skill/tool names"] = None,
+    scope: Annotated[
+        str | None, "Updated scope: 'user' or 'global'. Global (official) requires admin permission"
+    ] = None,
     visibility: Annotated[str | None, "Updated visibility: 'private' or 'public'"] = None,
     status: Annotated[str | None, "Updated status: 'draft' or 'published'"] = None,
 ) -> str:
@@ -185,6 +189,11 @@ async def update_persona_preset(
     if not user or "persona_preset:write" not in set(user.permissions):
         return _json({"error": "Permission denied: persona_preset:write required"})
 
+    if scope is not None:
+        try:
+            PersonaPresetScope(scope)
+        except ValueError:
+            return _json({"error": "Invalid scope value. Must be 'user' or 'global'"})
     if visibility is not None:
         try:
             PersonaPresetVisibility(visibility)
@@ -232,7 +241,14 @@ async def update_persona_preset(
         fields["starter_prompts"] = starter_prompts
     if skill_names is not None:
         fields["skill_names"] = skill_names
-    if visibility is not None:
+    if scope is not None:
+        fields["scope"] = PersonaPresetScope(scope)
+        if scope == PersonaPresetScope.GLOBAL.value:
+            if visibility is None:
+                fields["visibility"] = PersonaPresetVisibility.PUBLIC
+            if status is None:
+                fields["status"] = PersonaPresetStatus.PUBLISHED
+    if visibility is not None and "visibility" not in fields:
         fields["visibility"] = PersonaPresetVisibility(visibility)
     if status is not None:
         fields["status"] = PersonaPresetStatus(status)
