@@ -67,6 +67,7 @@ STATIC_CACHE_CONTROL_BY_PREFIX = {
 }
 MANIFEST_CACHE_CONTROL = "public, max-age=86400"
 SERVICE_WORKER_CACHE_CONTROL = "no-cache"
+OFFLINE_PAGE_CACHE_CONTROL = "no-cache"
 
 
 def _cache_control_for_static_path(path: str) -> str | None:
@@ -78,6 +79,8 @@ def _cache_control_for_static_path(path: str) -> str | None:
         return MANIFEST_CACHE_CONTROL
     if normalized_path == "sw.js":
         return SERVICE_WORKER_CACHE_CONTROL
+    if normalized_path == "offline.html":
+        return OFFLINE_PAGE_CACHE_CONTROL
     return None
 
 

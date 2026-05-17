@@ -29,6 +29,7 @@ class AuthMiddleware(BaseHTTPMiddleware):
         "/api/auth/permissions",
         "/manifest.json",
         "/sw.js",
+        "/offline.html",
         "/api/version",
         "/robots.txt",
         "/sitemap.xml",
