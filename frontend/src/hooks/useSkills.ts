@@ -20,6 +20,15 @@ import type {
   BinaryFileInfo,
 } from "../types/skill";
 
+export const DEFAULT_SKILL_LIST_LIMIT = 1000;
+
+export function resolveSkillListParams(
+  explicitParams?: SkillListParams,
+  defaultParams?: SkillListParams,
+): SkillListParams {
+  return explicitParams ?? defaultParams ?? { limit: DEFAULT_SKILL_LIST_LIMIT };
+}
+
 // Map installed_from to SkillSource
 function mapInstalledToSource(installed_from: string): SkillSource {
   switch (installed_from) {
@@ -75,7 +84,8 @@ export function useSkills(options?: {
   const listParams = options?.listParams;
   const [skills, setSkills] = useState<SkillResponse[]>([]);
   const [availableTags, setAvailableTags] = useState<string[]>([]);
-  const [total, setTotal] = useState(0);
+  const [totalSkills, setTotalSkills] = useState(0);
+  const [totalEnabledCount, setTotalEnabledCount] = useState(0);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -96,12 +106,15 @@ export function useSkills(options?: {
       setIsLoading(true);
       setError(null);
       try {
-        const response = await skillApi.list(params ?? listParams ?? {});
+        const response = await skillApi.list(
+          resolveSkillListParams(params, listParams),
+        );
         const userSkills: UserSkill[] = response.skills;
         // For list view, we don't fetch full details immediately
         // Components that need details will fetch them on demand
         const composed = userSkills.map((u) => composeSkillResponse(u));
-        setTotal(response.total);
+        setTotalSkills(response.total);
+        setTotalEnabledCount(response.enabled_count ?? 0);
         setAvailableTags(response.available_tags || []);
         // 保留正在 toggle 中的 skill 的乐观状态，避免竞态覆盖
         const pendingToggles = pendingTogglesRef.current;
@@ -597,9 +610,9 @@ export function useSkills(options?: {
     [fetchSkills],
   );
 
-  // Stats
-  const enabledCount = skills.filter((s) => s.enabled).length;
-  const totalCount = skills.length;
+  // Stats (from backend for accurate counts regardless of pagination)
+  const enabledCount = totalEnabledCount;
+  const totalCount = totalSkills;
   const pendingSkillNames = Array.from(pendingTogglesRef.current.keys());
   const isMutating = pendingSkillNames.length > 0;
 
@@ -635,7 +648,7 @@ export function useSkills(options?: {
   return {
     skills,
     availableTags,
-    total,
+    total: totalSkills,
     isLoading,
     error,
     fetchSkills,

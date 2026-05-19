@@ -65,6 +65,19 @@ async def test_list_user_skills_returns_paginated_response(
             assert tags == ["planning"]
             return 37
 
+        async def count_disabled_user_skills(
+            self,
+            user_id: str,
+            disabled_skills,
+            q: str | None = None,
+            tags=None,
+        ):
+            assert user_id == "user-1"
+            assert disabled_skills == ["archived"]
+            assert q == "plan"
+            assert tags == ["planning"]
+            return 0
+
         async def list_user_skill_tags(self, user_id: str):
             assert user_id == "user-1"
             return ["planning"]
@@ -96,5 +109,6 @@ async def test_list_user_skills_returns_paginated_response(
     assert payload["total"] == 37
     assert payload["skip"] == 20
     assert payload["limit"] == 10
+    assert payload["enabled_count"] == 37
     assert payload["available_tags"] == ["planning"]
     assert [skill["skill_name"] for skill in payload["skills"]] == ["planner"]

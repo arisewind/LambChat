@@ -100,7 +100,7 @@ export function SkillsList({
     return () => document.removeEventListener("mousedown", handleClick);
   }, [isFilterOpen, setIsFilterOpen]);
 
-  if (isLoading) {
+  if (isLoading && filteredSkills.length === 0) {
     return embedded ? (
       <div className="[&_.panel-header]:hidden">
         <SkillsPanelSkeleton />

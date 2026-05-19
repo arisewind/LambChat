@@ -34,7 +34,7 @@ import {
   resolveDefaultModelSelection,
 } from "./modelSelection";
 import { getRestoredModelSelection } from "./sessionState";
-import { buildEffectiveSkills, countEnabledSkills } from "./skillAvailability";
+import { buildEffectiveSkills } from "./skillAvailability";
 import { AppShell } from "./AppShell";
 import { ChatView } from "./ChatView";
 import { shouldShowMessageOutline } from "./messageOutline";
@@ -91,6 +91,8 @@ export function ChatAppContent({
     pendingSkillNames,
     isMutating: skillsMutating,
     fetchSkills,
+    enabledCount: totalEnabledSkillCount,
+    totalCount: totalSkillCount,
   } = useSkills({ enabled: enableSkills });
 
   const canReadPersonaPresets = hasPermission(Permission.PERSONA_PRESET_READ);
@@ -770,8 +772,8 @@ export function ChatAppContent({
           skillsLoading={skillsLoading}
           pendingSkillNames={pendingSkillNames}
           skillsMutating={skillsMutating}
-          enabledSkillsCount={countEnabledSkills(effectiveSkills)}
-          totalSkillsCount={effectiveSkills.length}
+          enabledSkillsCount={totalEnabledSkillCount}
+          totalSkillsCount={totalSkillCount}
           enableSkills={enableSkills}
           personaPresets={personaPresets}
           personaPresetsTotal={personaPresetsTotal}

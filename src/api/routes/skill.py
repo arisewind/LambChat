@@ -319,7 +319,7 @@ async def upload_skill_from_zip(
 @router.get("/", response_model=UserSkillListResponse)
 async def list_user_skills(
     skip: int = Query(0, ge=0),
-    limit: int = Query(20, ge=1, le=200),
+    limit: int = Query(20, ge=1, le=1000),
     q: str | None = None,
     tags: list[str] | None = Query(None),
     user: TokenPayload = Depends(require_permissions("skill:read")),
@@ -330,9 +330,9 @@ async def list_user_skills(
     # Get disabled_skills from user metadata
     user_storage = UserStorage()
     user_doc = await user_storage.get_by_id(user.sub)
-    disabled_skills = []
+    disabled_skills: list[str] = []
     if user_doc and user_doc.metadata:
-        disabled_skills = user_doc.metadata.get("disabled_skills", [])
+        disabled_skills = user_doc.metadata.get("disabled_skills", []) or []
     available_tags = await storage.list_user_skill_tags(user.sub)
 
     skills = await storage.list_user_skills(
@@ -344,10 +344,18 @@ async def list_user_skills(
         tags=tags,
     )
     total = await storage.count_user_skills(user.sub, q=q, tags=tags)
+    disabled_count = await storage.count_disabled_user_skills(
+        user.sub,
+        disabled_skills=disabled_skills,
+        q=q,
+        tags=tags,
+    )
+    enabled_count = total - disabled_count
     if not skills:
         return UserSkillListResponse(
             skills=[],
             total=total,
+            enabled_count=max(enabled_count, 0),
             skip=skip,
             limit=limit,
             available_tags=available_tags,
@@ -393,6 +401,7 @@ async def list_user_skills(
     return UserSkillListResponse(
         skills=items,
         total=total,
+        enabled_count=max(enabled_count, 0),
         skip=skip,
         limit=limit,
         available_tags=available_tags,

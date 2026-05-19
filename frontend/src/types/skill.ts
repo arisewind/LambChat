@@ -95,6 +95,7 @@ export interface SkillResponse {
 export interface SkillsResponse {
   skills: UserSkill[];
   total: number;
+  enabled_count: number;
   skip: number;
   limit: number;
   available_tags: string[];

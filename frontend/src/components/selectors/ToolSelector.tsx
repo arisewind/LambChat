@@ -17,6 +17,9 @@ import {
 import { Checkbox } from "../common/Checkbox";
 import type { ToolState, ToolCategory, ToolParamInfo } from "../../types";
 import { useSwipeToClose } from "../../hooks/useSwipeToClose";
+import { useClientPagination } from "../../hooks/useClientPagination";
+import { Pagination } from "../common/Pagination";
+import { createPagedGroups } from "./selectorPagination";
 
 interface ToolSelectorProps {
   tools: ToolState[];
@@ -62,6 +65,10 @@ export function ToolSelector({
     enabled: isOpen,
   });
 
+  const { page, pageSize, setPage, totalPages } = useClientPagination({
+    total: tools.length,
+  });
+
   // 锁定滚动
   useEffect(() => {
     if (isOpen) {
@@ -74,32 +81,18 @@ export function ToolSelector({
     };
   }, [isOpen]);
 
-  // 按类别分组，每组内按工具名称排序 - 使用 useMemo 缓存计算结果
-  const groupedTools = useMemo(
-    () =>
-      tools.reduce(
-        (acc, tool) => {
-          if (!acc[tool.category]) {
-            acc[tool.category] = [];
-          }
-          acc[tool.category].push(tool);
-          return acc;
-        },
-        {} as Record<ToolCategory, ToolState[]>,
-      ),
-    [tools],
-  );
-
-  // Sort tools within each category by name
-  const sortedGroupedTools = useMemo(() => {
-    const sorted: Record<string, ToolState[]> = {};
-    for (const [category, categoryTools] of Object.entries(groupedTools)) {
-      sorted[category] = [...categoryTools].sort((a, b) =>
-        a.name.toLowerCase().localeCompare(b.name.toLowerCase()),
-      );
-    }
-    return sorted;
-  }, [groupedTools]);
+  const { fullGroups: sortedGroupedTools, pagedGroups: pagedGroupedTools } =
+    useMemo(
+      () =>
+        createPagedGroups(tools, {
+          page,
+          pageSize,
+          getGroupKey: (tool) => tool.category,
+          sortItems: (a, b) =>
+            a.name.toLowerCase().localeCompare(b.name.toLowerCase()),
+        }),
+      [tools, page, pageSize],
+    );
 
   const toggleToolExpand = (toolName: string, e: React.MouseEvent) => {
     e.stopPropagation();
@@ -198,14 +191,15 @@ export function ToolSelector({
 
       {/* Categories */}
       <div className="flex-1 overflow-y-auto p-2.5 sm:p-3 space-y-1.5">
-        {Object.entries(sortedGroupedTools).map(
-          ([category, categoryTools]: [string, ToolState[]]) => {
+        {Object.entries(pagedGroupedTools).map(
+          ([category, pagedCategoryTools]: [string, ToolState[]]) => {
             const cat = category as ToolCategory;
             const Icon = categoryIcons[cat];
-            const enabledInCategory = categoryTools.filter(
+            const allCategoryTools = sortedGroupedTools[cat] || [];
+            const enabledInCategory = allCategoryTools.filter(
               (t: ToolState) => t.enabled,
             ).length;
-            const allEnabled = enabledInCategory === categoryTools.length;
+            const allEnabled = enabledInCategory === allCategoryTools.length;
             const isExpanded = expandedCategories.has(cat);
 
             return (
@@ -235,7 +229,7 @@ export function ToolSelector({
                       {t(`tools.categories.${cat}`)}
                     </span>
                     <span className="ml-1.5 sm:ml-2 text-xs sm:text-xs text-stone-400 dark:text-stone-500 tabular-nums">
-                      {enabledInCategory}/{categoryTools.length}
+                      {enabledInCategory}/{allCategoryTools.length}
                     </span>
                   </div>
                   <Checkbox
@@ -248,7 +242,7 @@ export function ToolSelector({
                 {isExpanded && (
                   <div className="animate-[fade-in_150ms_ease-out]">
                     <div className="px-1 sm:px-2 pb-2 pt-1 space-y-0.5">
-                      {categoryTools.map((tool: ToolState) => {
+                      {pagedCategoryTools.map((tool: ToolState) => {
                         const isToolExpanded = expandedTools.has(tool.name);
                         const hasParams =
                           tool.parameters && tool.parameters.length > 0;
@@ -395,6 +389,17 @@ export function ToolSelector({
           },
         )}
       </div>
+
+      {totalPages > 1 && (
+        <div className="px-4 sm:px-5 py-2 border-t border-stone-200/80 dark:border-stone-700/80 bg-stone-50/80 dark:bg-stone-800/50">
+          <Pagination
+            page={page}
+            pageSize={pageSize}
+            total={tools.length}
+            onChange={setPage}
+          />
+        </div>
+      )}
 
       {/* Footer */}
       <div className="px-4 sm:px-5 py-3 sm:py-3.5 border-t border-stone-200 dark:border-stone-700 bg-stone-50/80 dark:bg-stone-800/50 pb-[max(0.75rem,env(safe-area-inset-bottom))]">

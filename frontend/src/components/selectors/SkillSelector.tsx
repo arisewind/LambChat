@@ -17,6 +17,9 @@ import { Checkbox } from "../common/Checkbox";
 import type { SkillResponse, SkillSource } from "../../types";
 import { collectSkillTags, skillMatchesQuery } from "../../utils/skillFilters";
 import { useSwipeToClose } from "../../hooks/useSwipeToClose";
+import { useClientPagination } from "../../hooks/useClientPagination";
+import { Pagination } from "../common/Pagination";
+import { createPagedGroups } from "./selectorPagination";
 
 interface SkillSelectorProps {
   skills: SkillResponse[];
@@ -99,20 +102,21 @@ export function SkillSelector({
     [searchQuery, selectedTags, skills],
   );
 
-  const groupedSkills = useMemo(
-    () =>
-      filteredSkills.reduce(
-        (acc, skill) => {
-          if (!acc[skill.source]) {
-            acc[skill.source] = [];
-          }
-          acc[skill.source].push(skill);
-          return acc;
-        },
-        {} as Record<SkillSource, SkillResponse[]>,
-      ),
-    [filteredSkills],
-  );
+  const { page, pageSize, setPage, totalPages } = useClientPagination({
+    total: filteredSkills.length,
+    resetKey: `${searchQuery}\u0000${selectedTags.join("\u0000")}`,
+  });
+
+  const { fullGroups: groupedSkills, pagedGroups: pagedGroupedSkills } =
+    useMemo(
+      () =>
+        createPagedGroups(filteredSkills, {
+          page,
+          pageSize,
+          getGroupKey: (skill) => skill.source,
+        }),
+      [filteredSkills, page, pageSize],
+    );
 
   const availableTags = useMemo(() => collectSkillTags(skills), [skills]);
   const hasActiveFilters =
@@ -313,20 +317,21 @@ export function SkillSelector({
 
       {/* Categories */}
       <div className="flex-1 overflow-y-auto p-2.5 sm:p-3 space-y-1.5">
-        {Object.entries(groupedSkills).map(
-          ([source, categorySkills]: [string, SkillResponse[]]) => {
+        {Object.entries(pagedGroupedSkills).map(
+          ([source, pagedCategorySkills]: [string, SkillResponse[]]) => {
             const cat = source as SkillSource;
             const Icon = sourceIcons[cat];
-            const enabledInCategory = categorySkills.filter(
+            const allCategorySkills = groupedSkills[cat] || [];
+            const enabledInCategory = allCategorySkills.filter(
               (s: SkillResponse) => s.enabled,
             ).length;
-            const allEnabled = enabledInCategory === categorySkills.length;
+            const allEnabled = enabledInCategory === allCategorySkills.length;
             const isExpanded = expandedCategories.has(cat);
-            const categoryPending = categorySkills.some((skill) =>
+            const categoryPending = allCategorySkills.some((skill) =>
               pendingSet.has(skill.name),
             );
             const categoryTargetEnabled = !allEnabled;
-            const categoryChangedCount = categorySkills.filter(
+            const categoryChangedCount = allCategorySkills.filter(
               (skill) => skill.enabled !== categoryTargetEnabled,
             ).length;
 
@@ -357,7 +362,7 @@ export function SkillSelector({
                       {t(`skillSelector.sources.${cat}`)}
                     </span>
                     <span className="ml-1.5 sm:ml-2 text-xs sm:text-xs text-stone-400 dark:text-stone-500 tabular-nums">
-                      {enabledInCategory}/{categorySkills.length}
+                      {enabledInCategory}/{allCategorySkills.length}
                     </span>
                   </div>
                   <Checkbox
@@ -392,7 +397,7 @@ export function SkillSelector({
                 {isExpanded && (
                   <div className="animate-[fade-in_150ms_ease-out]">
                     <div className="px-1 sm:px-2 pb-2 pt-1 space-y-0.5">
-                      {categorySkills.map((skill: SkillResponse) => (
+                      {pagedCategorySkills.map((skill: SkillResponse) => (
                         <div key={skill.name} className="group">
                           {/* Skill Row */}
                           <button
@@ -462,6 +467,17 @@ export function SkillSelector({
           </div>
         )}
       </div>
+
+      {totalPages > 1 && (
+        <div className="px-4 sm:px-5 py-2 border-t border-stone-200/80 dark:border-stone-700/80 bg-stone-50/80 dark:bg-stone-800/50">
+          <Pagination
+            page={page}
+            pageSize={pageSize}
+            total={filteredSkills.length}
+            onChange={setPage}
+          />
+        </div>
+      )}
 
       {/* Footer */}
       <div className="px-4 sm:px-5 py-3 sm:py-3.5 border-t border-stone-200 dark:border-stone-700 bg-stone-50/80 dark:bg-stone-800/50 pb-[max(0.75rem,env(safe-area-inset-bottom))]">

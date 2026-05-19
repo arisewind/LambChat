@@ -33,6 +33,7 @@ class AuthMiddleware(BaseHTTPMiddleware):
         "/api/version",
         "/robots.txt",
         "/sitemap.xml",
+        "/index.html",
     }
 
     # 不需要认证的路径前缀

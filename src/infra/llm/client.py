@@ -203,6 +203,9 @@ class LLMClient:
         if protocol == "google":
             if thinking and thinking.get("type") == "enabled":
                 thinking_level = thinking.get("level", "medium")
+                # Google only accepts minimal/low/medium/high — map "max" to "high"
+                if thinking_level == "max":
+                    thinking_level = "high"
             else:
                 thinking_level = None
             google_kwargs: dict[str, Any] = {

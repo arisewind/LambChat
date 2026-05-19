@@ -84,6 +84,7 @@ class UserSkillListResponse(BaseModel):
 
     skills: list[UserSkill] = Field(default_factory=list)
     total: int = 0
+    enabled_count: int = 0
     skip: int = 0
     limit: int = 100
     available_tags: list[str] = Field(default_factory=list)

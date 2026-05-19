@@ -426,6 +426,38 @@ class SkillStorage:
             return int(doc.get("total", 0))
         return 0
 
+    async def count_disabled_user_skills(
+        self,
+        user_id: str,
+        disabled_skills: list[str],
+        q: str | None = None,
+        tags: Optional[list[str]] = None,
+    ) -> int:
+        """Count disabled skills that exist in the current list filters."""
+        disabled_set = set(disabled_skills)
+        if not disabled_set:
+            return 0
+
+        if q or tags:
+            matching_names = await self.list_matching_skill_names(user_id, q=q, tags=tags)
+            return len(disabled_set.intersection(matching_names))
+
+        collection = self._get_files_collection()
+        pipeline: list[dict[str, Any]] = [
+            {
+                "$match": {
+                    "user_id": user_id,
+                    "file_path": {"$ne": "__meta__"},
+                    "skill_name": {"$in": list(disabled_set)},
+                }
+            },
+            {"$group": {"_id": "$skill_name"}},
+            {"$count": "total"},
+        ]
+        async for doc in collection.aggregate(pipeline):  # type: ignore[arg-type]
+            return int(doc.get("total", 0))
+        return 0
+
     async def list_user_skill_tags(self, user_id: str) -> list[str]:
         """List all tags used by a user's skills."""
         _, tags = await self._list_matching_skill_names_and_tags(user_id)
