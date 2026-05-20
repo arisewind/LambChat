@@ -4,7 +4,7 @@ import pytest
 
 from src.api.routes.chat import validate_agent_model_access
 from src.kernel.exceptions import AuthorizationError
-from src.kernel.schemas.model import ModelConfig
+from src.kernel.schemas.model import ModelConfig, ModelProfile
 from src.kernel.schemas.user import TokenPayload
 
 
@@ -15,6 +15,16 @@ class _ModelStorage:
                 id=model_id,
                 value="openai/gpt-allowed",
                 label="Allowed",
+                api_key="sk-secret",
+                fallback_model="fallback-enabled",
+                profile=ModelProfile(supports_vision=True),
+                enabled=True,
+            )
+        if model_id == "fallback-enabled":
+            return ModelConfig(
+                id=model_id,
+                value="openai/gpt-fallback",
+                label="Fallback",
                 enabled=True,
             )
         if model_id == "blocked-enabled":
@@ -113,10 +123,15 @@ async def test_validate_agent_model_access_allows_role_model_id(
     )
     user = TokenPayload(sub="user-1", username="tester", roles=["user"])
 
-    await validate_agent_model_access(
-        {"model_id": "allowed-enabled"},
-        user,
-    )
+    agent_options = {"model_id": "allowed-enabled"}
+
+    await validate_agent_model_access(agent_options, user)
+
+    assert agent_options["model"] == "openai/gpt-allowed"
+    assert agent_options["_resolved_model_config"]["id"] == "allowed-enabled"
+    assert agent_options["_resolved_model_config"]["api_key"] is None
+    assert agent_options["_resolved_fallback_model"] == "openai/gpt-fallback"
+    assert agent_options["_resolved_supports_vision"] is True
 
 
 @pytest.mark.asyncio

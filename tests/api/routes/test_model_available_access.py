@@ -3,7 +3,7 @@ from __future__ import annotations
 import pytest
 
 from src.api.routes.agent import model as model_routes
-from src.kernel.schemas.model import ModelConfig
+from src.kernel.schemas.model import ModelConfig, ModelProfile
 from src.kernel.schemas.user import TokenPayload
 
 
@@ -16,6 +16,7 @@ class _ModelStorage:
                 provider="openai",
                 label="Allowed",
                 description="Visible",
+                profile=ModelProfile(supports_vision=True),
                 api_key="sk-secret-allowed",
                 api_base="https://api.example.test",
                 temperature=0.2,
@@ -118,7 +119,7 @@ async def test_list_available_models_returns_public_fields_only(
             "provider": "openai",
             "label": "Allowed",
             "description": "Visible",
-            "profile": None,
+            "profile": {"max_input_tokens": None, "supports_vision": True},
         }
     ]
     assert payload["default_model_id"] == "allowed-model"

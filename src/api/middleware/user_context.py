@@ -25,6 +25,7 @@ class UserContextMiddleware(BaseHTTPMiddleware):
             token = auth_header[7:]  # Remove "Bearer " prefix
             try:
                 payload = verify_token(token)
+                request.state.auth_payload = payload
                 user_id = str(payload.sub) if payload.sub else None
             except Exception:
                 pass  # Token invalid, user_id stays None

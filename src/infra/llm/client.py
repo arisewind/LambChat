@@ -18,6 +18,7 @@ from pydantic import SecretStr
 from src.infra.logging import get_logger
 from src.kernel.config import settings
 from src.kernel.exceptions import AuthorizationError
+from src.kernel.schemas.model import ModelConfig
 
 logger = get_logger(__name__)
 
@@ -255,6 +256,7 @@ class LLMClient:
         api_base: Optional[str] = None,
         thinking: Optional[dict] = None,
         profile: Optional[dict] = None,
+        model_config: Optional[dict[str, Any] | ModelConfig] = None,
         use_model_config: bool = True,
         **kwargs: Any,
     ) -> BaseChatModel:
@@ -278,34 +280,61 @@ class LLMClient:
             use_model_config: If True, look up model config from endpoint/static list
                 and apply per-model overrides. Default True.
         """
-        # ── model_id 优先：直接从 DB 按 ID 查找完整配置 ──
+        # ── 已解析配置优先：聊天入口已做权限校验和 DB 查询，避免重复查库 ──
         explicit_provider: Optional[str] = None
-        if model_id:
+        if model_config is not None:
+            db_model = (
+                model_config
+                if isinstance(model_config, ModelConfig)
+                else ModelConfig(**model_config)
+            )
+            if not db_model.enabled:
+                raise AuthorizationError("model_disabled")
+            model = db_model.value
+            if db_model.id:
+                model_id = db_model.id
+            if db_model.provider:
+                explicit_provider = db_model.provider
+            if not api_key and db_model.api_key:
+                api_key = db_model.api_key
+                from src.infra.llm.models_service import set_cached_api_key
+
+                set_cached_api_key(db_model.value, db_model.api_key)
+            if not api_base and db_model.api_base:
+                api_base = db_model.api_base
+            if db_model.temperature is not None:
+                temperature = db_model.temperature
+            if max_tokens is None and db_model.max_tokens is not None:
+                max_tokens = db_model.max_tokens
+            if profile is None and db_model.profile:
+                profile = db_model.profile.model_dump()
+            use_model_config = False
+        elif model_id:
             try:
                 from src.infra.agent.model_storage import get_model_storage
 
-                db_model = await get_model_storage().get(model_id)
-                if not db_model:
+                stored_model = await get_model_storage().get(model_id)
+                if not stored_model:
                     raise AuthorizationError("model_not_found")
-                if not db_model.enabled:
+                if not stored_model.enabled:
                     raise AuthorizationError("model_disabled")
-                model = db_model.value
-                if db_model.provider:
-                    explicit_provider = db_model.provider
+                model = stored_model.value
+                if stored_model.provider:
+                    explicit_provider = stored_model.provider
                 # 直接从 DB 配置获取所有覆盖参数
-                if not api_key and db_model.api_key:
-                    api_key = db_model.api_key
+                if not api_key and stored_model.api_key:
+                    api_key = stored_model.api_key
                     from src.infra.llm.models_service import set_cached_api_key
 
-                    set_cached_api_key(db_model.value, db_model.api_key)
-                if not api_base and db_model.api_base:
-                    api_base = db_model.api_base
-                if db_model.temperature is not None:
-                    temperature = db_model.temperature
-                if max_tokens is None and db_model.max_tokens is not None:
-                    max_tokens = db_model.max_tokens
-                if profile is None and db_model.profile:
-                    raw = db_model.profile
+                    set_cached_api_key(stored_model.value, stored_model.api_key)
+                if not api_base and stored_model.api_base:
+                    api_base = stored_model.api_base
+                if stored_model.temperature is not None:
+                    temperature = stored_model.temperature
+                if max_tokens is None and stored_model.max_tokens is not None:
+                    max_tokens = stored_model.max_tokens
+                if profile is None and stored_model.profile:
+                    raw = stored_model.profile
                     profile = (
                         raw.model_dump()
                         if hasattr(raw, "model_dump")
@@ -382,10 +411,10 @@ class LLMClient:
                         from src.infra.agent.model_storage import get_model_storage
                         from src.infra.llm.models_service import set_cached_api_key
 
-                        db_model = await get_model_storage().get_by_value(model)
-                        if db_model and db_model.api_key:
-                            api_key = db_model.api_key
-                            set_cached_api_key(model, db_model.api_key)
+                        stored_model = await get_model_storage().get_by_value(model)
+                        if stored_model and stored_model.api_key:
+                            api_key = stored_model.api_key
+                            set_cached_api_key(model, stored_model.api_key)
                     except Exception as e:
                         logger.debug(f"Failed to fetch api_key from DB for model {model}: {e}")
 

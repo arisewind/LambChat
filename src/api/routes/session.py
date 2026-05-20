@@ -368,12 +368,13 @@ async def get_session_runs(
     if trace_id:
         trace = await dual_writer.get_trace(trace_id)
         traces = [trace] if trace and trace.get("session_id") == session_id else []
+        runs = [await build_run_summary(trace) for trace in traces]
     else:
-        traces = await dual_writer.list_traces(session_id=session_id, limit=limit)
-
-    runs = []
-    for trace in traces:
-        runs.append(await build_run_summary(trace))
+        runs = await trace_storage.list_run_summaries(
+            session_id=session_id,
+            limit=limit,
+            trace_id=trace_id,
+        )
 
     return {
         "session_id": session_id,

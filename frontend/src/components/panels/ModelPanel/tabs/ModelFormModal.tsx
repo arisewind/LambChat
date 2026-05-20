@@ -11,6 +11,7 @@ import type {
   ModelConfig,
   ModelConfigCreate,
   ModelConfigUpdate,
+  ModelProfile,
   ProviderType,
 } from "../../../../services/api/model";
 
@@ -46,6 +47,9 @@ export const ModelFormModal = ({
   const [formMaxInputTokens, setFormMaxInputTokens] = useState(
     model?.profile?.max_input_tokens?.toString() || "",
   );
+  const [formSupportsVision, setFormSupportsVision] = useState(
+    Boolean(model?.profile?.supports_vision),
+  );
   const [formProvider, setFormProvider] = useState(model?.provider || "");
   const [formFallbackModel, setFormFallbackModel] = useState(
     model?.fallback_model || "",
@@ -68,6 +72,10 @@ export const ModelFormModal = ({
     const maxInputTokens = formMaxInputTokens
       ? parseInt(formMaxInputTokens, 10)
       : undefined;
+    const profile: ModelProfile = {
+      ...(maxInputTokens ? { max_input_tokens: maxInputTokens } : {}),
+      supports_vision: formSupportsVision,
+    };
 
     if (
       formTemperature &&
@@ -98,9 +106,7 @@ export const ModelFormModal = ({
           api_base: formApiBase.trim() || undefined,
           temperature,
           max_tokens: maxTokens,
-          profile: maxInputTokens
-            ? { max_input_tokens: maxInputTokens }
-            : undefined,
+          profile,
           fallback_model: formFallbackModel.trim() || undefined,
         };
         await modelApi.update(model.id, update);
@@ -115,9 +121,7 @@ export const ModelFormModal = ({
           api_base: formApiBase.trim() || undefined,
           temperature,
           max_tokens: maxTokens,
-          profile: maxInputTokens
-            ? { max_input_tokens: maxInputTokens }
-            : undefined,
+          profile,
           fallback_model: formFallbackModel.trim() || undefined,
           enabled: true,
         };
@@ -139,6 +143,7 @@ export const ModelFormModal = ({
     formTemperature,
     formMaxTokens,
     formMaxInputTokens,
+    formSupportsVision,
     formProvider,
     formFallbackModel,
     isEditing,
@@ -374,6 +379,24 @@ export const ModelFormModal = ({
                   className="glass-input es-input px-3"
                 />
               </div>
+            </div>
+            <div className="es-field">
+              <label className="flex items-start gap-2 text-sm text-theme-text cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={formSupportsVision}
+                  onChange={(e) => setFormSupportsVision(e.target.checked)}
+                  className="mt-1"
+                />
+                <span>
+                  <span className="block font-medium">
+                    {t("agentConfig.supportsVision")}
+                  </span>
+                  <span className="es-hint block">
+                    {t("agentConfig.supportsVisionHint")}
+                  </span>
+                </span>
+              </label>
             </div>
           </div>
         </details>

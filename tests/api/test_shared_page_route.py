@@ -140,6 +140,45 @@ async def test_public_home_route_injects_crawlable_seo(
 
 
 @pytest.mark.asyncio
+async def test_public_home_route_reuses_cached_index_html(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    static_dir = tmp_path / "dist"
+    static_dir.mkdir()
+    index_file = static_dir / "index.html"
+    index_file.write_text("<!doctype html><div id='root'></div>", encoding="utf-8")
+
+    read_count = 0
+    original_read_text = type(index_file).read_text
+
+    def _counting_read_text(self, *args, **kwargs):
+        nonlocal read_count
+        if self == index_file:
+            read_count += 1
+        return original_read_text(self, *args, **kwargs)
+
+    monkeypatch.setattr(type(index_file), "read_text", _counting_read_text)
+    monkeypatch.setattr(
+        api_main,
+        "resolve_frontend_target",
+        lambda _project_root, _frontend_dev_url: ("static", static_dir),
+    )
+    monkeypatch.setattr(api_main.settings, "APP_BASE_URL", "https://lambchat.com")
+
+    app = api_main.create_app()
+    transport = ASGITransport(app=app)
+
+    async with AsyncClient(transport=transport, base_url="https://lambchat.com") as client:
+        first = await client.get("/")
+        second = await client.get("/")
+
+    assert first.status_code == 200
+    assert second.status_code == 200
+    assert read_count == 1
+
+
+@pytest.mark.asyncio
 async def test_auth_spa_routes_are_noindexed_in_initial_html(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,

@@ -27,12 +27,51 @@ from src.infra.task.status import TaskStatus
 from src.kernel.config import settings
 from src.kernel.exceptions import AuthorizationError, NotFoundError
 from src.kernel.schemas.agent import AgentRequest
+from src.kernel.schemas.model import ModelConfig
 from src.kernel.schemas.persona_preset import PersonaPresetSnapshot
-from src.kernel.schemas.session import SessionUpdate
 from src.kernel.schemas.user import TokenPayload
 
 router = APIRouter()
 logger = get_logger(__name__)
+
+
+def _model_profile_dict(model: ModelConfig) -> dict | None:
+    if not model.profile:
+        return None
+    return (
+        model.profile.model_dump() if hasattr(model.profile, "model_dump") else dict(model.profile)
+    )
+
+
+def _safe_model_config_dict(model: ModelConfig) -> dict:
+    return model.model_copy(update={"api_key": None}).model_dump(mode="json")
+
+
+async def _attach_resolved_model_options(agent_options: dict, model: ModelConfig) -> None:
+    """Persist resolved model details in request options to avoid repeated DB lookups."""
+    agent_options["model_id"] = model.id
+    agent_options["model"] = model.value
+    agent_options["_resolved_model_config"] = _safe_model_config_dict(model)
+    agent_options["_resolved_supports_vision"] = bool(
+        getattr(model.profile, "supports_vision", False)
+    )
+    if model.api_key:
+        from src.infra.llm.models_service import set_cached_api_key
+
+        set_cached_api_key(model.value, model.api_key)
+
+    fallback_value = None
+    if model.fallback_model:
+        from src.infra.agent.model_storage import get_model_storage
+
+        try:
+            fallback = await get_model_storage().get(model.fallback_model)
+            if fallback and fallback.enabled:
+                fallback_value = fallback.value
+        except Exception as e:
+            logger.warning("Failed to resolve fallback model %s: %s", model.fallback_model, e)
+    agent_options["_resolved_fallback_model"] = fallback_value
+    agent_options["_resolved_model_profile"] = _model_profile_dict(model)
 
 
 async def validate_agent_model_access(
@@ -61,8 +100,7 @@ async def validate_agent_model_access(
             if not model:
                 model = await storage.get_by_value(allowed_model_id)
             if model and model.enabled:
-                agent_options["model_id"] = model.id or allowed_model_id
-                agent_options["model"] = model.value
+                await _attach_resolved_model_options(agent_options, model)
                 return
         raise AuthorizationError("model_disabled")
 
@@ -81,6 +119,8 @@ async def validate_agent_model_access(
     ):
         raise AuthorizationError("model_not_allowed")
 
+    await _attach_resolved_model_options(agent_options, model)
+
 
 async def _update_session_config(
     session_id: str,
@@ -98,10 +138,7 @@ async def _update_session_config(
         request=request,
         language=language,
     )
-    await session_manager.update_session(
-        session_id,
-        SessionUpdate(metadata=conversation_config),
-    )
+    await session_manager.update_session_metadata(session_id, conversation_config)
 
 
 def _persona_enabled_skills_from_snapshot(

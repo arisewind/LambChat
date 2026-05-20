@@ -146,12 +146,14 @@
     "noModelsConfigured": "利用可能なモデルが設定されていません",
     "noModelsConfiguredHint": "モデル設定タブでモデルを追加してください",
     "noPermission": "エージェント設定を表示する権限がありません",
+    "noProviders": "プロバイダーが見つかりません",
     "off": "オフ",
     "optional": "任意",
     "parameters": "パラメータ",
     "preferenceSaved": "デフォルトエージェントの設定を保存しました",
     "providerAuto": "自動検出",
     "providerHint": "使用するAPIインターフェースを上書きします。空欄の場合はモデルIDのプレフィックスから自動推定します。",
+    "reorderFailed": "モデルの並べ替えに失敗しました",
     "rolesDescription": "各ロールがアクセスできるエージェントを設定します。",
     "rolesTab": "ロール割り当て",
     "saveFailed": "設定の保存に失敗しました",
@@ -164,12 +166,12 @@
     "sharedConfig": "共通設定",
     "sharedConfigHint": "すべてのモデルに一括でAPI URLとキーを設定します。空欄の場合は各モデル個別に設定します。",
     "subtitle": "エージェントの可用性とロール割り当てを管理",
+    "supportsVision": "画像入力に対応",
+    "supportsVisionHint": "アップロードした画像をリンクとしてではなく、マルチモーダル対応モデルに直接送信します。",
     "tempTag": "温度: {{value}}",
     "temperature": "温度",
     "title": "エージェント設定",
-    "valueAndLabelRequired": "値とラベルは必須です",
-    "reorderFailed": "モデルの並べ替えに失敗しました",
-    "noProviders": "プロバイダーが見つかりません"
+    "valueAndLabelRequired": "値とラベルは必須です"
   },
   "agentOptions": {
     "enableCodeInterpreter": {
@@ -205,9 +207,9 @@
     "enterResponse": "返信を入力...",
     "needsConfirmation": "確認が必要です",
     "reject": "拒否",
+    "selectOption": "オプションを選択",
     "send": "送信",
-    "submit": "確定",
-    "selectOption": "オプションを選択"
+    "submit": "確定"
   },
   "auth": {
     "account": "アカウント",
@@ -608,6 +610,7 @@
   "common": {
     "about": "について",
     "accessDenied": "アクセスが拒否されました",
+    "assistant": "アシスタント",
     "back": "戻る",
     "by": "作成者",
     "cancel": "キャンセル",
@@ -674,8 +677,7 @@
     "timeMonthsAgo": "{{count}}ヶ月前",
     "timeWeeksAgo": "{{count}}週間前",
     "user": "ユーザー",
-    "you": "あなた",
-    "assistant": "アシスタント"
+    "you": "あなた"
   },
   "contactAdmin": {
     "emailActivationDesc": "メールアドレスが未認証か、認証リンクの有効期限が切れています。管理者にお問い合わせください。",
@@ -705,15 +707,20 @@
     "copied": "コピーしました",
     "copy": "コピー",
     "copyCode": "コードをコピー",
+    "csv": "CSV",
+    "csvDataFile": "CSVデータファイル",
     "daysAgo": "{{count}}日前",
     "descending": "降順",
     "docConvertHint": "このファイルは旧形式の .doc です。プレビューするには .docx に変換してください、またはファイルを直接ダウンロードしてください。",
     "docNotSupported": "旧形式の Word ドキュメントのプレビューには対応していません",
+    "documentContentPreview": "ドキュメント内容プレビュー",
     "download": "ダウンロード",
     "downloadFile": "ファイルをダウンロード",
     "dwgPreviewHint": "このファイルをダウンロードするか、DXF/PDFに変換してブラウザでプレビューしてください。",
     "dwgPreviewUnsupported": "DWGプレビューには対応していません",
     "error": "ファイルの読み込みに失敗しました",
+    "excalidrawExportFailed": "エクスポート機能の読み込みに失敗しました",
+    "excalidrawRenderFailed": "Excalidrawダイアグラムのレンダリングに失敗しました",
     "excelParseError": "Excelファイルの解析に失敗しました",
     "excelPreviewError": "Excelプレビューエラー",
     "excelReady": "準備完了",
@@ -730,6 +737,7 @@
     "grid": "グリッド",
     "gridView": "グリッド表示",
     "htmlDocument": "HTML 文書",
+    "invalidExcalidrawFormat": "無効なExcalidrawファイル形式",
     "lines": "{{count}}行",
     "list": "リスト",
     "listView": "リスト表示",
@@ -739,6 +747,9 @@
     "loadingImage": "画像を読み込み中...",
     "loadingPresentation": "プレゼンテーションを読み込み中...",
     "loadingVideo": "動画を読み込み中...",
+    "markdown": "Markdown",
+    "markdownDocument": "Markdownドキュメント",
+    "mermaidRenderFailed": "ダイアグラムのレンダリングに失敗しました",
     "modified": "更新日",
     "name": "名前",
     "nextPage": "次のページ",
@@ -758,6 +769,7 @@
     "previewMode": "プレビューモード",
     "previousPage": "前のページ",
     "previousSlide": "前のスライド",
+    "readMore": "続きを読む →",
     "resetZoom": "ズームをリセット",
     "searchHint": "{{cmd}} + Fで検索",
     "searchPlaceholder": "ファイルを検索...",
@@ -784,17 +796,7 @@
     "wordPreviewError": "Wordプレビューエラー",
     "yesterday": "昨日",
     "zoomIn": "拡大",
-    "zoomOut": "縮小",
-    "invalidExcalidrawFormat": "無効なExcalidrawファイル形式",
-    "excalidrawExportFailed": "エクスポート機能の読み込みに失敗しました",
-    "excalidrawRenderFailed": "Excalidrawダイアグラムのレンダリングに失敗しました",
-    "mermaidRenderFailed": "ダイアグラムのレンダリングに失敗しました",
-    "markdownDocument": "Markdownドキュメント",
-    "markdown": "Markdown",
-    "documentContentPreview": "ドキュメント内容プレビュー",
-    "readMore": "続きを読む →",
-    "csvDataFile": "CSVデータファイル",
-    "csv": "CSV"
+    "zoomOut": "縮小"
   },
   "envVars": {
     "addFailed": "追加に失敗しました",
@@ -1052,10 +1054,10 @@
     "uploading": "アップロード中..."
   },
   "footer": {
-    "openSource": "オープンソース",
-    "resources": "リソース",
+    "mit": "MIT",
     "mitLicense": "MIT ライセンス",
-    "mit": "MIT"
+    "openSource": "オープンソース",
+    "resources": "リソース"
   },
   "imageViewer": {
     "download": "ダウンロード",
@@ -1489,6 +1491,22 @@
     "edit": "編集",
     "editMine": "マイペルソナを編集",
     "editOfficial": "公式ペルソナを編集",
+    "emojiAcademic": "学術",
+    "emojiArt": "アート",
+    "emojiChat": "チャット",
+    "emojiCoding": "コーディング",
+    "emojiData": "データ",
+    "emojiGeneral": "一般",
+    "emojiIntelligence": "インテリジェンス",
+    "emojiLiterature": "文学",
+    "emojiMusic": "音楽",
+    "emojiProductivity": "生産性",
+    "emojiRobot": "ロボット",
+    "emojiScience": "科学",
+    "emojiSecurity": "セキュリティ",
+    "emojiSparkles": "スパークル",
+    "emojiStar": "スター",
+    "emojiWriting": "ライティング",
     "empty": "利用可能なペルソナプリセットがありません",
     "emptyHint": "管理者は公式ペルソナプリセットを作成できます",
     "export": "エクスポート",
@@ -1543,23 +1561,7 @@
     "use": "使用",
     "useFailed": "ペルソナプリセットの使用に失敗しました",
     "useSuccess": "ペルソナ「{{name}}」に切り替えました",
-    "using": "使用中",
-    "emojiSparkles": "スパークル",
-    "emojiRobot": "ロボット",
-    "emojiAcademic": "学術",
-    "emojiCoding": "コーディング",
-    "emojiWriting": "ライティング",
-    "emojiSecurity": "セキュリティ",
-    "emojiData": "データ",
-    "emojiProductivity": "生産性",
-    "emojiGeneral": "一般",
-    "emojiArt": "アート",
-    "emojiMusic": "音楽",
-    "emojiLiterature": "文学",
-    "emojiIntelligence": "インテリジェンス",
-    "emojiScience": "科学",
-    "emojiChat": "チャット",
-    "emojiStar": "スター"
+    "using": "使用中"
   },
   "profile": {
     "appearance": "外観",
@@ -1577,6 +1579,7 @@
     "defaultModelSet": "デフォルトモデルを設定しました",
     "defaultThinking": "デフォルト思考強度",
     "deleteAvatar": "アバターを削除",
+    "deleteFailed": "削除に失敗しました",
     "denied": "拒否",
     "email": "メール",
     "enable": "有効にする",
@@ -1630,13 +1633,12 @@
     "toolsTab": "ツール",
     "unpinModel": "ピン留め解除",
     "uploadAvatar": "アバターをアップロード",
+    "uploadFailed": "アップロードに失敗しました",
     "username": "ユーザー名",
     "usernameLengthError": "ユーザー名は3〜50文字である必要があります",
     "usernamePlaceholder": "ユーザー名を入力してください",
     "usernameUpdateFailed": "ユーザー名の更新に失敗しました",
-    "usernameUpdated": "ユーザー名が更新されました",
-    "uploadFailed": "アップロードに失敗しました",
-    "deleteFailed": "削除に失敗しました"
+    "usernameUpdated": "ユーザー名が更新されました"
   },
   "project": {
     "code": "コード",
@@ -1662,11 +1664,11 @@
   "pwaStatus": {
     "backOnline": "オンラインに戻りました",
     "dismiss": "閉じる",
+    "newUpdate": "LambChatの新しいアップデートがあります。",
     "offlineBody": "接続が戻ると、チャット、ファイル、同期が再開されます。",
     "offlineTitle": "オフラインです",
     "updateReadyBody": "新しい LambChat バージョンを適用できます。",
-    "updateReadyTitle": "更新の準備ができました",
-    "newUpdate": "LambChatの新しいアップデートがあります。"
+    "updateReadyTitle": "更新の準備ができました"
   },
   "roles": {
     "concurrentChatsHint": "ユーザーごとの最大同時チャットタスク数（空欄 = 無制限、デフォルト 5）。超過分は順番待ちになります",
@@ -1736,6 +1738,7 @@
       "description": "AIエージェントとインテリジェントな対話。マルチモデル切り替え、リアルタイムストリーミング応答、セッション管理、ファイルアップロード、マルチエージェント連携に対応。",
       "title": "AIチャット"
     },
+    "defaultDescription": "プラグイン可能なマルチテナントAI会話システム。Skills + MCPデュアルエンジン搭載、モジュラー設計。",
     "feedback": {
       "description": "ユーザーフィードバックの表示と管理。機能リクエスト、バグ報告、ユーザー満足度を追跡して製品改善を推進。",
       "title": "ユーザーフィードバック"
@@ -1787,8 +1790,7 @@
     "users": {
       "description": "ユーザーアカウント、ロール、アクセス権限の管理。マルチテナントユーザーライフサイクルとセキュリティ設定の管理。",
       "title": "ユーザー管理"
-    },
-    "defaultDescription": "プラグイン可能なマルチテナントAI会話システム。Skills + MCPデュアルエンジン搭載、モジュラー設計。"
+    }
   },
   "settingDesc": {
     "ACCESS_TOKEN_EXPIRE_HOURS": "アクセストークン有効期限（時間）",
@@ -1991,8 +1993,10 @@
     "existingShares": "既存の共有",
     "fullSession": "セッション全体",
     "goToChat": "チャットを始める",
+    "invalidLink": "無効な共有リンク",
     "lessThanOneMin": "1分未満で読めます",
     "linkCopied": "リンクをクリップボードにコピーしました",
+    "loadFailed": "共有コンテンツの読み込みに失敗しました",
     "loginRequired": "ログインが必要です",
     "loginRequiredDesc": "この共有を表示するにはログインが必要です",
     "messages": "件のメッセージ",
@@ -2004,6 +2008,8 @@
     "notFound": "共有が見つかりません",
     "notFoundDesc": "この共有リンクは無効か削除されました",
     "partialSession": "一部の内容",
+    "platformDescription": "プラグイン可能なマルチテナントAI会話プラットフォーム。Skills + MCPデュアルエンジン搭載、Claude、GPT、Geminiなどに対応。",
+    "platformTitle": "{{appName}} - AIエージェントプラットフォーム",
     "public": "公開リンク",
     "publicDesc": "リンクを知っている人は誰でも閲覧可能",
     "readOnlyNotice": "これは共有されたセッションです。閲覧のみ可能です",
@@ -2023,11 +2029,7 @@
     "taskRunning": "実行中",
     "title": "セッションを共有",
     "userMessage": "（ユーザーメッセージ：{{message}}）",
-    "visibility": "アクセス制御",
-    "invalidLink": "無効な共有リンク",
-    "loadFailed": "共有コンテンツの読み込みに失敗しました",
-    "platformTitle": "{{appName}} - AIエージェントプラットフォーム",
-    "platformDescription": "プラグイン可能なマルチテナントAI会話プラットフォーム。Skills + MCPデュアルエンジン搭載、Claude、GPT、Geminiなどに対応。"
+    "visibility": "アクセス制御"
   },
   "shortcut": {
     "categoryChat": "チャット",

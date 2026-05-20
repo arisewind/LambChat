@@ -88,6 +88,7 @@ class Settings(BaseSettings):
     SESSION_MAX_RUNS_PER_SESSION: int = 100
     ENABLE_MESSAGE_HISTORY: bool = True
     SSE_CACHE_TTL: int = 3600
+    SESSION_SEARCH_BACKFILL_STARTUP_DELAY_SECONDS: float = 30.0
     SESSION_TITLE_MODEL: str = "claude-3-5-haiku-20241022"
     SESSION_TITLE_API_BASE: str = ""
     SESSION_TITLE_API_KEY: str = ""

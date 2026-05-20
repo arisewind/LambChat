@@ -68,6 +68,7 @@ STATIC_CACHE_CONTROL_BY_PREFIX = {
 MANIFEST_CACHE_CONTROL = "public, max-age=86400"
 SERVICE_WORKER_CACHE_CONTROL = "no-cache"
 OFFLINE_PAGE_CACHE_CONTROL = "no-cache"
+_INDEX_HTML_CACHE: dict[Path, tuple[int, int, str]] = {}
 
 
 def _cache_control_for_static_path(path: str) -> str | None:
@@ -90,6 +91,18 @@ def _static_file_response(file_path: Path, request_path: str) -> FileResponse:
     if cache_control:
         headers["Cache-Control"] = cache_control
     return FileResponse(str(file_path), headers=headers)
+
+
+def _read_index_html(index_file: Path) -> str:
+    stat = index_file.stat()
+    cache_key = index_file.resolve()
+    cached = _INDEX_HTML_CACHE.get(cache_key)
+    if cached and cached[0] == stat.st_mtime_ns and cached[1] == stat.st_size:
+        return cached[2]
+
+    html_doc = index_file.read_text(encoding="utf-8")
+    _INDEX_HTML_CACHE[cache_key] = (stat.st_mtime_ns, stat.st_size, html_doc)
+    return html_doc
 
 
 async def _warm_agent_registry() -> None:
@@ -213,6 +226,9 @@ async def lifespan(app: FastAPI):
     async def _backfill_session_search():
         worker = SessionSearchBackfillWorker()
         try:
+            delay = getattr(settings, "SESSION_SEARCH_BACKFILL_STARTUP_DELAY_SECONDS", 30.0)
+            if delay > 0:
+                await asyncio.sleep(delay)
             rebuilt = await worker.run_until_complete()
             logger.info("Session search backfill finished, rebuilt %s sessions", rebuilt)
         except Exception as e:
@@ -491,7 +507,7 @@ def create_app() -> FastAPI:
             base_url = getattr(settings, "APP_BASE_URL", "").rstrip("/") or str(
                 request.base_url
             ).rstrip("/")
-            html_doc = index_file.read_text(encoding="utf-8")
+            html_doc = _read_index_html(index_file)
 
             try:
                 shared_content = await share.get_shared_content(share_id, user=None)
@@ -534,7 +550,7 @@ def create_app() -> FastAPI:
                 ).rstrip("/")
                 path = f"/{full_path}" if full_path else "/"
                 seo = build_public_route_seo(base_url=base_url, path=path)
-                html_doc = index_file.read_text(encoding="utf-8")
+                html_doc = _read_index_html(index_file)
                 rendered = inject_public_route_seo_into_html(html_doc, seo)
                 return HTMLResponse(content=rendered)
             return {"error": "Frontend not built. Run 'npm run build' in frontend directory."}

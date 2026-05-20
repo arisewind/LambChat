@@ -65,33 +65,54 @@ async def resolve_fallback_model(
     return None
 
 
-def build_human_message(text: str, attachments: list[dict] | None) -> HumanMessage:
-    """
-    构建 HumanMessage，将附件信息以文本形式附加到消息中
+async def resolve_model_supports_vision(
+    model_id: str | None,
+    selected_model: str | None,
+    *,
+    log_prefix: str = "",
+) -> bool:
+    """Resolve whether the selected model is configured for image input."""
+    if not model_id and not selected_model:
+        return False
 
-    Args:
-        text: 用户输入的文本
-        attachments: 附件列表，每个附件包含:
-            - url: 文件访问链接
-            - type: 文件类型 (image/video/audio/document)
-            - name: 文件名
-            - mime_type: MIME 类型 (可选)
-            - size: 文件大小 (可选)
+    from src.infra.agent.model_storage import get_model_storage
 
-    Returns:
-        HumanMessage: 包含文本和附件信息的消息
-    """
-    if not attachments:
-        return HumanMessage(content=text)
+    storage = get_model_storage()
+    db_model = None
 
+    try:
+        if model_id:
+            db_model = await storage.get(model_id)
+        elif selected_model:
+            db_model = await storage.get_by_value(selected_model)
+    except Exception as e:
+        logger.warning("%s Failed to lookup model vision capability: %s", log_prefix, e)
+        return False
+
+    if not db_model or not getattr(db_model, "profile", None):
+        return False
+
+    return bool(getattr(db_model.profile, "supports_vision", False))
+
+
+def _is_image_attachment(attachment: dict) -> bool:
+    file_type = str(attachment.get("type", "")).lower()
+    mime_type = str(attachment.get("mime_type") or attachment.get("mimeType") or "").lower()
+    return file_type == "image" or mime_type.startswith("image/")
+
+
+def _format_attachment_summary(text: str, attachments: list[dict]) -> str:
     enhanced_text = text
+    if not attachments:
+        return enhanced_text
+
     enhanced_text += "\n\n---\n**User Uploaded Attachments:**"
 
     for attachment in attachments:
         url = attachment.get("url", "")
         name = attachment.get("name", "未知文件")
         file_type = attachment.get("type", "document")
-        mime_type = attachment.get("mime_type", "")
+        mime_type = attachment.get("mime_type") or attachment.get("mimeType") or ""
         size = attachment.get("size", 0)
 
         if not url:
@@ -114,7 +135,58 @@ def build_human_message(text: str, attachments: list[dict] | None) -> HumanMessa
             enhanced_text += f"\n- 大小: {size_str}"
         enhanced_text += f"\n- 链接: {url}"
 
-    return HumanMessage(content=enhanced_text)
+    return enhanced_text
+
+
+def build_human_message(
+    text: str,
+    attachments: list[dict] | None,
+    *,
+    supports_vision: bool = False,
+) -> HumanMessage:
+    """
+    构建 HumanMessage，将附件信息以文本形式附加到消息中
+
+    Args:
+        text: 用户输入的文本
+        attachments: 附件列表，每个附件包含:
+            - url: 文件访问链接
+            - type: 文件类型 (image/video/audio/document)
+            - name: 文件名
+            - mime_type: MIME 类型 (可选)
+            - size: 文件大小 (可选)
+
+    Returns:
+        HumanMessage: 包含文本和附件信息的消息
+    """
+    if not attachments:
+        return HumanMessage(content=text)
+
+    multimodal_images: list[dict] = []
+    text_summary_attachments: list[dict] = []
+
+    for attachment in attachments:
+        url = attachment.get("url")
+        if supports_vision and _is_image_attachment(attachment) and url:
+            multimodal_images.append(
+                {
+                    "type": "image_url",
+                    "image_url": {"url": url},
+                }
+            )
+        elif url:
+            text_summary_attachments.append(attachment)
+
+    enhanced_text = _format_attachment_summary(text, text_summary_attachments)
+    if not multimodal_images:
+        return HumanMessage(content=enhanced_text)
+
+    return HumanMessage(
+        content=[
+            {"type": "text", "text": enhanced_text},
+            *multimodal_images,
+        ]
+    )
 
 
 async def emit_token_usage(

@@ -282,6 +282,32 @@ class SessionStorage:
 
         return self._build_session(result)
 
+    async def update_metadata_only(self, session_id: str, metadata: dict[str, Any]) -> bool:
+        """Update session metadata without fetching and rebuilding the full document."""
+        await self.ensure_indexes_if_needed()
+        if not metadata:
+            return True
+
+        update_dict: dict[str, Any] = {"updated_at": utc_now()}
+        for key, value in metadata.items():
+            update_dict[f"metadata.{key}"] = value
+
+        result = await self.collection.update_one(
+            {"session_id": session_id},
+            {"$set": update_dict},
+        )
+        if result.matched_count > 0:
+            return True
+
+        try:
+            result = await self.collection.update_one(
+                {"_id": ObjectId(session_id)},
+                {"$set": update_dict},
+            )
+            return result.matched_count > 0
+        except Exception:
+            return False
+
     async def delete(self, session_id: str) -> bool:
         """删除会话（支持自定义 session_id 或 ObjectId）"""
         await self.ensure_indexes_if_needed()

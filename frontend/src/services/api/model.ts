@@ -11,6 +11,7 @@ import { authFetch } from "./fetch";
 
 export interface ModelProfile {
   max_input_tokens?: number;
+  supports_vision?: boolean;
 }
 
 /** LLM API provider type (dynamic, from backend PROVIDER_REGISTRY) */

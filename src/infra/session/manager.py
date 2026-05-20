@@ -99,6 +99,10 @@ class SessionManager:
         """更新会话"""
         return await self.storage.update(session_id, session_data)
 
+    async def update_session_metadata(self, session_id: str, metadata: dict) -> bool:
+        """Update metadata fields without materializing the full session."""
+        return await self.storage.update_metadata_only(session_id, metadata)
+
     async def _collect_user_attachment_keys(self, session_id: str) -> list[str]:
         """Collect unique attachment keys from persisted user messages in a session."""
         events = await self.trace_storage.get_session_events(session_id)

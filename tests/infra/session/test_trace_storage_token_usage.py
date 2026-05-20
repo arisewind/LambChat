@@ -17,6 +17,68 @@ class _FakeTraceCollection:
         return SimpleNamespace(modified_count=1)
 
 
+class _FakeTraceCursor:
+    def __init__(self, docs):
+        self._docs = list(docs)
+        self.sort_args = None
+        self.skip_value = None
+        self.limit_value = None
+
+    def sort(self, *args):
+        self.sort_args = args
+        return self
+
+    def skip(self, value):
+        self.skip_value = value
+        return self
+
+    def limit(self, value):
+        self.limit_value = value
+        return self
+
+    async def to_list(self, length=None):
+        docs = self._docs
+        if self.skip_value:
+            docs = docs[self.skip_value :]
+        cap = self.limit_value if self.limit_value is not None else length
+        if cap is not None:
+            docs = docs[:cap]
+        return docs
+
+
+class _FakeRunSummaryCollection:
+    def __init__(self):
+        self.find_calls = []
+        self.cursor = _FakeTraceCursor(
+            [
+                {"run_id": "skip-1"},
+                {"run_id": "skip-2"},
+                {"run_id": "skip-3"},
+                {"run_id": "skip-4"},
+                {"run_id": "skip-5"},
+                {
+                    "run_id": "run-1",
+                    "trace_id": "trace-1",
+                    "agent_id": "agent-1",
+                    "started_at": "2026-04-25T00:00:00Z",
+                    "completed_at": "2026-04-25T00:01:00Z",
+                    "status": "completed",
+                    "event_count": 3,
+                    "events": [
+                        {
+                            "event_type": "user:message",
+                            "data": {"content": "a message longer than twenty chars"},
+                        }
+                    ],
+                },
+            ]
+        )
+
+    def find(self, query, projection):
+        self.find_calls.append((query, projection))
+        return self.cursor
+
+
 def _usage_event_from_pipeline(update):
     return (
         update[0]["$set"]["events"]["$let"]["vars"].get("usage_event")
@@ -67,3 +129,43 @@ async def test_complete_trace_can_skip_zero_token_usage_placeholder() -> None:
 
     assert len(storage.collection.calls) == 1
     assert storage.collection.calls[0][0] == {"trace_id": "trace-1"}
+
+
+@pytest.mark.asyncio
+async def test_list_run_summaries_projects_first_user_message_only() -> None:
+    storage = TraceStorage()
+    storage._collection = _FakeRunSummaryCollection()
+
+    summaries = await storage.list_run_summaries("session-1", limit=10, skip=5)
+
+    assert summaries == [
+        {
+            "run_id": "run-1",
+            "trace_id": "trace-1",
+            "agent_id": "agent-1",
+            "started_at": "2026-04-25T00:00:00Z",
+            "completed_at": "2026-04-25T00:01:00Z",
+            "status": "completed",
+            "event_count": 3,
+            "user_message": "a message longer ...",
+        }
+    ]
+    assert storage.collection.find_calls == [
+        (
+            {"session_id": "session-1"},
+            {
+                "_id": 0,
+                "run_id": 1,
+                "trace_id": 1,
+                "agent_id": 1,
+                "started_at": 1,
+                "completed_at": 1,
+                "status": 1,
+                "event_count": 1,
+                "events": {"$elemMatch": {"event_type": "user:message"}},
+            },
+        )
+    ]
+    assert storage.collection.cursor.sort_args == ("started_at", -1)
+    assert storage.collection.cursor.skip_value == 5
+    assert storage.collection.cursor.limit_value == 10

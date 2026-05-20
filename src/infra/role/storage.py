@@ -290,6 +290,12 @@ class RoleStorage:
         await self.invalidate_cache(existing.name)
         if role_data.name and role_data.name != existing.name:
             await self.invalidate_cache(role_data.name)
+        try:
+            from src.api.deps import clear_auth_cache
+
+            clear_auth_cache()
+        except Exception:
+            pass
 
         return role
 
@@ -318,6 +324,12 @@ class RoleStorage:
         # 删除后自动失效缓存
         if existing:
             await self.invalidate_cache(existing.name)
+            try:
+                from src.api.deps import clear_auth_cache
+
+                clear_auth_cache()
+            except Exception:
+                pass
 
         return result.deleted_count > 0
 

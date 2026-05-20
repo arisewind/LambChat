@@ -146,12 +146,14 @@
     "noModelsConfigured": "Доступные модели не настроены",
     "noModelsConfiguredHint": "Сначала добавьте модели на вкладке конфигурации моделей",
     "noPermission": "У вас нет прав для просмотра конфигурации агентов",
+    "noProviders": "Провайдеры не найдены",
     "off": "Выкл",
     "optional": "Необязательно",
     "parameters": "Параметры",
     "preferenceSaved": "Настройки агента по умолчанию сохранены",
     "providerAuto": "Авто-определение",
     "providerHint": "Переопределить используемый API-интерфейс. Оставьте авто-определение для вывода из префикса ID модели.",
+    "reorderFailed": "Не удалось изменить порядок моделей",
     "rolesDescription": "Настройте, к каким агентам имеет доступ каждая роль.",
     "rolesTab": "Назначение ролей",
     "saveFailed": "Не удалось сохранить конфигурацию",
@@ -164,12 +166,12 @@
     "sharedConfig": "Общие настройки",
     "sharedConfigHint": "Установить URL и ключ API для всех моделей сразу. Оставьте пустым для индивидуальной настройки каждой модели.",
     "subtitle": "Управление доступностью агентов и назначением ролей",
+    "supportsVision": "Поддержка ввода изображений",
+    "supportsVisionHint": "Отправлять загруженные изображения напрямую в мультимодальные модели, а не только как ссылки.",
     "tempTag": "темп: {{value}}",
     "temperature": "Температура",
     "title": "Конфигурация агентов",
-    "valueAndLabelRequired": "Значение и метка обязательны",
-    "reorderFailed": "Не удалось изменить порядок моделей",
-    "noProviders": "Провайдеры не найдены"
+    "valueAndLabelRequired": "Значение и метка обязательны"
   },
   "agentOptions": {
     "enableCodeInterpreter": {
@@ -205,9 +207,9 @@
     "enterResponse": "Введите ваш ответ...",
     "needsConfirmation": "Требуется подтверждение",
     "reject": "Отклонить",
+    "selectOption": "Выберите параметр",
     "send": "Отправить",
-    "submit": "Отправить",
-    "selectOption": "Выберите параметр"
+    "submit": "Отправить"
   },
   "auth": {
     "account": "Аккаунт",
@@ -610,6 +612,7 @@
   "common": {
     "about": "О программе",
     "accessDenied": "Доступ запрещён",
+    "assistant": "Ассистент",
     "back": "Назад",
     "by": "от",
     "cancel": "Отмена",
@@ -676,8 +679,7 @@
     "timeMonthsAgo": "{{count}}мес назад",
     "timeWeeksAgo": "{{count}}нед назад",
     "user": "Пользователь",
-    "you": "Вы",
-    "assistant": "Ассистент"
+    "you": "Вы"
   },
   "contactAdmin": {
     "emailActivationDesc": "Ваш email не подтверждён или ссылка подтверждения истекла. Обратитесь к администратору за помощью.",
@@ -707,15 +709,20 @@
     "copied": "Скопировано",
     "copy": "Копировать",
     "copyCode": "Копировать код",
+    "csv": "CSV",
+    "csvDataFile": "Файл данных CSV",
     "daysAgo": "{{count}} дн. назад",
     "descending": "По убыванию",
     "docConvertHint": "Этот файл в устаревшем формате .doc. Пожалуйста, преобразуйте его в .docx для предпросмотра или скачайте напрямую.",
     "docNotSupported": "Предпросмотр устаревших документов Word не поддерживается",
+    "documentContentPreview": "Предпросмотр содержимого документа",
     "download": "Скачать",
     "downloadFile": "Скачать файл",
     "dwgPreviewHint": "Пожалуйста, скачайте этот файл или преобразуйте его в DXF/PDF для просмотра в браузере.",
     "dwgPreviewUnsupported": "Предпросмотр DWG не поддерживается",
     "error": "Не удалось загрузить файл",
+    "excalidrawExportFailed": "Не удалось загрузить функцию экспорта",
+    "excalidrawRenderFailed": "Не удалось отрисовать диаграмму Excalidraw",
     "excelParseError": "Не удалось обработать Excel файл",
     "excelPreviewError": "Ошибка предпросмотра Excel",
     "excelReady": "Готово",
@@ -732,6 +739,7 @@
     "grid": "Сетка",
     "gridView": "Вид сеткой",
     "htmlDocument": "HTML документ",
+    "invalidExcalidrawFormat": "Неверный формат файла Excalidraw",
     "lines": "{{count}} строк",
     "list": "Список",
     "listView": "Вид списком",
@@ -741,6 +749,9 @@
     "loadingImage": "Загрузка изображения...",
     "loadingPresentation": "Загрузка презентации...",
     "loadingVideo": "Загрузка видео...",
+    "markdown": "Markdown",
+    "markdownDocument": "Документ Markdown",
+    "mermaidRenderFailed": "Не удалось отрисовать диаграмму",
     "modified": "Изменено",
     "name": "Имя",
     "nextPage": "Следующая страница",
@@ -760,6 +771,7 @@
     "previewMode": "Режим предпросмотра",
     "previousPage": "Предыдущая страница",
     "previousSlide": "Предыдущий слайд",
+    "readMore": "Читать далее →",
     "resetZoom": "Сбросить масштаб",
     "searchHint": "Нажмите {{cmd}} + F для поиска",
     "searchPlaceholder": "Поиск файлов...",
@@ -786,17 +798,7 @@
     "wordPreviewError": "Ошибка предпросмотра Word",
     "yesterday": "Вчера",
     "zoomIn": "Увеличить",
-    "zoomOut": "Уменьшить",
-    "invalidExcalidrawFormat": "Неверный формат файла Excalidraw",
-    "excalidrawExportFailed": "Не удалось загрузить функцию экспорта",
-    "excalidrawRenderFailed": "Не удалось отрисовать диаграмму Excalidraw",
-    "mermaidRenderFailed": "Не удалось отрисовать диаграмму",
-    "markdownDocument": "Документ Markdown",
-    "markdown": "Markdown",
-    "documentContentPreview": "Предпросмотр содержимого документа",
-    "readMore": "Читать далее →",
-    "csvDataFile": "Файл данных CSV",
-    "csv": "CSV"
+    "zoomOut": "Уменьшить"
   },
   "envVars": {
     "addFailed": "Ошибка добавления",
@@ -1054,10 +1056,10 @@
     "uploading": "Загрузка..."
   },
   "footer": {
-    "openSource": "Открытый исходный код",
-    "resources": "Ресурсы",
+    "mit": "MIT",
     "mitLicense": "Лицензия MIT",
-    "mit": "MIT"
+    "openSource": "Открытый исходный код",
+    "resources": "Ресурсы"
   },
   "imageViewer": {
     "download": "Скачать",
@@ -1491,6 +1493,22 @@
     "edit": "Редактировать",
     "editMine": "Редактировать свою персону",
     "editOfficial": "Редактировать официальную персону",
+    "emojiAcademic": "Академический",
+    "emojiArt": "Искусство",
+    "emojiChat": "Чат",
+    "emojiCoding": "Программирование",
+    "emojiData": "Данные",
+    "emojiGeneral": "Общий",
+    "emojiIntelligence": "Интеллект",
+    "emojiLiterature": "Литература",
+    "emojiMusic": "Музыка",
+    "emojiProductivity": "Продуктивность",
+    "emojiRobot": "Робот",
+    "emojiScience": "Наука",
+    "emojiSecurity": "Безопасность",
+    "emojiSparkles": "Искры",
+    "emojiStar": "Звезда",
+    "emojiWriting": "Писательство",
     "empty": "Нет доступных пресетов персон",
     "emptyHint": "Администраторы могут создавать официальные пресеты персон",
     "export": "Экспорт",
@@ -1545,23 +1563,7 @@
     "use": "Использовать",
     "useFailed": "Не удалось использовать пресет персоны",
     "useSuccess": "Переключено на персону \"{{name}}\"",
-    "using": "Используется",
-    "emojiSparkles": "Искры",
-    "emojiRobot": "Робот",
-    "emojiAcademic": "Академический",
-    "emojiCoding": "Программирование",
-    "emojiWriting": "Писательство",
-    "emojiSecurity": "Безопасность",
-    "emojiData": "Данные",
-    "emojiProductivity": "Продуктивность",
-    "emojiGeneral": "Общий",
-    "emojiArt": "Искусство",
-    "emojiMusic": "Музыка",
-    "emojiLiterature": "Литература",
-    "emojiIntelligence": "Интеллект",
-    "emojiScience": "Наука",
-    "emojiChat": "Чат",
-    "emojiStar": "Звезда"
+    "using": "Используется"
   },
   "profile": {
     "appearance": "Внешний вид",
@@ -1579,6 +1581,7 @@
     "defaultModelSet": "Модель по умолчанию установлена",
     "defaultThinking": "Размышление по умолчанию",
     "deleteAvatar": "Удалить аватар",
+    "deleteFailed": "Ошибка удаления",
     "denied": "Запрещено",
     "email": "Эл. почта",
     "enable": "Включить",
@@ -1632,13 +1635,12 @@
     "toolsTab": "Инструменты",
     "unpinModel": "Открепить",
     "uploadAvatar": "Загрузить аватар",
+    "uploadFailed": "Ошибка загрузки",
     "username": "Имя пользователя",
     "usernameLengthError": "Имя пользователя должно быть от 3 до 50 символов",
     "usernamePlaceholder": "Введите имя пользователя",
     "usernameUpdateFailed": "Не удалось обновить имя пользователя",
-    "usernameUpdated": "Имя пользователя успешно обновлено",
-    "uploadFailed": "Ошибка загрузки",
-    "deleteFailed": "Ошибка удаления"
+    "usernameUpdated": "Имя пользователя успешно обновлено"
   },
   "project": {
     "code": "Код",
@@ -1664,11 +1666,11 @@
   "pwaStatus": {
     "backOnline": "Снова онлайн",
     "dismiss": "Закрыть",
+    "newUpdate": "Доступно обновление LambChat.",
     "offlineBody": "Чаты, файлы и синхронизация возобновятся после восстановления подключения.",
     "offlineTitle": "Вы офлайн",
     "updateReadyBody": "Новая версия LambChat готова к применению.",
-    "updateReadyTitle": "Обновление готово",
-    "newUpdate": "Доступно обновление LambChat."
+    "updateReadyTitle": "Обновление готово"
   },
   "roles": {
     "concurrentChatsHint": "Макс. параллельных чат-задач на пользователя (пусто = без ограничений, по умолчанию 5). Лишние задачи попадают в очередь",
@@ -1738,6 +1740,7 @@
       "description": "Ведите интеллектуальные диалоги с AI-агентами. Переключение между моделями, потоковые ответы в реальном времени, управление сессиями, загрузка файлов и мультиагентное сотрудничество.",
       "title": "AI Чат"
     },
+    "defaultDescription": "Расширяемая мультитенантная система AI-диалогов. Двойной движок Skills + MCP, модульная архитектура.",
     "feedback": {
       "description": "Просматривайте и управляйте отзывами пользователей. Отслеживайте запросы функций, отчёты об ошибках и удовлетворённость для улучшения продукта.",
       "title": "Отзывы пользователей"
@@ -1789,8 +1792,7 @@
     "users": {
       "description": "Управляйте учётными записями, ролями и правами доступа. Администрируйте многопользовательский жизненный цикл и настройки безопасности.",
       "title": "Управление пользователями"
-    },
-    "defaultDescription": "Расширяемая мультитенантная система AI-диалогов. Двойной движок Skills + MCP, модульная архитектура."
+    }
   },
   "settingDesc": {
     "ACCESS_TOKEN_EXPIRE_HOURS": "Срок действия access-токена в часах",
@@ -1993,8 +1995,10 @@
     "existingShares": "Существующие ссылки",
     "fullSession": "Полная сессия",
     "goToChat": "Начать чат",
+    "invalidLink": "Недействительная ссылка",
     "lessThanOneMin": "< 1 мин чтения",
     "linkCopied": "Ссылка скопирована в буфер обмена",
+    "loadFailed": "Не удалось загрузить общий контент",
     "loginRequired": "Требуется вход",
     "loginRequiredDesc": "Для просмотра требуется вход в аккаунт",
     "messages": "сообщения",
@@ -2006,6 +2010,8 @@
     "notFound": "Общий доступ не найден",
     "notFoundDesc": "Эта ссылка недействительна или была удалена",
     "partialSession": "Частичный контент",
+    "platformDescription": "Расширяемая мультитенантная платформа AI-диалогов с двойным движком Skills + MCP. Поддержка Claude, GPT, Gemini и др.",
+    "platformTitle": "{{appName}} - Платформа AI-агентов",
     "public": "Публичная ссылка",
     "publicDesc": "Каждый с ссылкой может просматривать",
     "readOnlyNotice": "Это общая сессия, вы можете только просматривать её",
@@ -2025,11 +2031,7 @@
     "taskRunning": "Выполняется",
     "title": "Поделиться сессией",
     "userMessage": "(Сообщение пользователя: {{message}})",
-    "visibility": "Контроль доступа",
-    "invalidLink": "Недействительная ссылка",
-    "loadFailed": "Не удалось загрузить общий контент",
-    "platformTitle": "{{appName}} - Платформа AI-агентов",
-    "platformDescription": "Расширяемая мультитенантная платформа AI-диалогов с двойным движком Skills + MCP. Поддержка Claude, GPT, Gemini и др."
+    "visibility": "Контроль доступа"
   },
   "shortcut": {
     "categoryChat": "Чат",

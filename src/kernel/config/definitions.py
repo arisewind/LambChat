@@ -243,6 +243,13 @@ SETTING_DEFINITIONS: dict[str, dict] = {
         "description": "settingDesc.SSE_CACHE_TTL",
         "default": 3600,
     },
+    "SESSION_SEARCH_BACKFILL_STARTUP_DELAY_SECONDS": {
+        "type": SettingType.NUMBER,
+        "category": SettingCategory.SESSION,
+        "subcategory": "general",
+        "description": "settingDesc.SESSION_SEARCH_BACKFILL_STARTUP_DELAY_SECONDS",
+        "default": 30.0,
+    },
     "SESSION_TITLE_MODEL": {
         "type": SettingType.STRING,
         "category": SettingCategory.SESSION,

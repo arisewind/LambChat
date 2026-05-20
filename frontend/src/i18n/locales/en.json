@@ -146,12 +146,14 @@
     "noModelsConfigured": "No models configured",
     "noModelsConfiguredHint": "Please configure models in Model Config tab first",
     "noPermission": "You don't have permission to view agent configuration",
+    "noProviders": "No providers found",
     "off": "Off",
     "optional": "Optional",
     "parameters": "Parameters",
     "preferenceSaved": "Default agent preference saved",
     "providerAuto": "Auto-detect",
     "providerHint": "Override the API interface used. Leave as Auto-detect to infer from the model ID prefix.",
+    "reorderFailed": "Failed to reorder models",
     "rolesDescription": "Configure which agents each role can access.",
     "rolesTab": "Role Assignments",
     "saveFailed": "Failed to save configuration",
@@ -164,12 +166,12 @@
     "sharedConfig": "Shared Configuration",
     "sharedConfigHint": "Set API URL and key for all models at once. Leave empty to configure each model individually.",
     "subtitle": "Manage agent availability and role assignments",
+    "supportsVision": "Supports image input",
+    "supportsVisionHint": "Send uploaded images directly to multimodal-capable models instead of only as links.",
     "tempTag": "temp: {{value}}",
     "temperature": "Temperature",
     "title": "Agent Configuration",
-    "valueAndLabelRequired": "Value and Label are required",
-    "reorderFailed": "Failed to reorder models",
-    "noProviders": "No providers found"
+    "valueAndLabelRequired": "Value and Label are required"
   },
   "agentOptions": {
     "enableCodeInterpreter": {
@@ -205,9 +207,9 @@
     "enterResponse": "Enter your response...",
     "needsConfirmation": "Needs Confirmation",
     "reject": "Reject",
+    "selectOption": "Select an option",
     "send": "Send",
-    "submit": "Submit",
-    "selectOption": "Select an option"
+    "submit": "Submit"
   },
   "auth": {
     "account": "Account",
@@ -607,6 +609,7 @@
   "common": {
     "about": "About",
     "accessDenied": "Access Denied",
+    "assistant": "Assistant",
     "back": "Back",
     "by": "by",
     "cancel": "Cancel",
@@ -673,8 +676,7 @@
     "timeMonthsAgo": "{{count}}mo ago",
     "timeWeeksAgo": "{{count}}w ago",
     "user": "User",
-    "you": "You",
-    "assistant": "Assistant"
+    "you": "You"
   },
   "contactAdmin": {
     "emailActivationDesc": "Your email has not been verified or the verification link has expired. Please contact the administrator for assistance.",
@@ -704,15 +706,20 @@
     "copied": "Copied",
     "copy": "Copy",
     "copyCode": "Copy code",
+    "csv": "CSV",
+    "csvDataFile": "CSV data file",
     "daysAgo": "{{count}}d ago",
     "descending": "Descending",
     "docConvertHint": "This file is in the legacy .doc format. Please convert it to .docx for preview, or download the file directly.",
     "docNotSupported": "Preview of legacy Word documents is not supported",
+    "documentContentPreview": "Document content preview",
     "download": "Download",
     "downloadFile": "Download File",
     "dwgPreviewHint": "Please download this file or convert it to DXF/PDF for browser preview.",
     "dwgPreviewUnsupported": "DWG preview is not supported",
     "error": "Failed to load file",
+    "excalidrawExportFailed": "Failed to load export function",
+    "excalidrawRenderFailed": "Failed to render Excalidraw diagram",
     "excelParseError": "Failed to parse Excel file",
     "excelPreviewError": "Excel preview error",
     "excelReady": "Ready",
@@ -729,6 +736,7 @@
     "grid": "Grid",
     "gridView": "Grid view",
     "htmlDocument": "HTML Document",
+    "invalidExcalidrawFormat": "Invalid Excalidraw file format",
     "lines": "{{count}} lines",
     "list": "List",
     "listView": "List view",
@@ -738,6 +746,9 @@
     "loadingImage": "Loading image...",
     "loadingPresentation": "Loading presentation...",
     "loadingVideo": "Loading video...",
+    "markdown": "Markdown",
+    "markdownDocument": "Markdown document",
+    "mermaidRenderFailed": "Failed to render diagram",
     "modified": "Modified",
     "name": "Name",
     "nextPage": "Next page",
@@ -756,6 +767,7 @@
     "previewMode": "Preview Mode",
     "previousPage": "Previous page",
     "previousSlide": "Previous slide",
+    "readMore": "Read more →",
     "resetZoom": "Reset zoom",
     "searchHint": "Press {{cmd}} + F to search",
     "searchPlaceholder": "Search files...",
@@ -782,17 +794,7 @@
     "wordPreviewError": "Word preview error",
     "yesterday": "Yesterday",
     "zoomIn": "Zoom in",
-    "zoomOut": "Zoom out",
-    "invalidExcalidrawFormat": "Invalid Excalidraw file format",
-    "excalidrawExportFailed": "Failed to load export function",
-    "excalidrawRenderFailed": "Failed to render Excalidraw diagram",
-    "mermaidRenderFailed": "Failed to render diagram",
-    "markdownDocument": "Markdown document",
-    "markdown": "Markdown",
-    "documentContentPreview": "Document content preview",
-    "readMore": "Read more →",
-    "csvDataFile": "CSV data file",
-    "csv": "CSV"
+    "zoomOut": "Zoom out"
   },
   "envVars": {
     "addFailed": "Failed to add",
@@ -1050,10 +1052,10 @@
     "uploading": "Uploading..."
   },
   "footer": {
-    "openSource": "Open Source",
-    "resources": "Resources",
+    "mit": "MIT",
     "mitLicense": "MIT License",
-    "mit": "MIT"
+    "openSource": "Open Source",
+    "resources": "Resources"
   },
   "imageViewer": {
     "download": "Download",
@@ -1490,6 +1492,22 @@
     "edit": "Edit",
     "editMine": "Edit My Persona",
     "editOfficial": "Edit Official Persona",
+    "emojiAcademic": "Academic",
+    "emojiArt": "Art",
+    "emojiChat": "Chat",
+    "emojiCoding": "Coding",
+    "emojiData": "Data",
+    "emojiGeneral": "General",
+    "emojiIntelligence": "Intelligence",
+    "emojiLiterature": "Literature",
+    "emojiMusic": "Music",
+    "emojiProductivity": "Productivity",
+    "emojiRobot": "Robot",
+    "emojiScience": "Science",
+    "emojiSecurity": "Security",
+    "emojiSparkles": "Sparkles",
+    "emojiStar": "Star",
+    "emojiWriting": "Writing",
     "empty": "No persona presets available",
     "emptyHint": "Admins can create official persona presets",
     "export": "Export",
@@ -1545,23 +1563,7 @@
     "use": "Use",
     "useFailed": "Failed to use persona preset",
     "useSuccess": "Switched to persona \"{{name}}\"",
-    "using": "In Use",
-    "emojiSparkles": "Sparkles",
-    "emojiRobot": "Robot",
-    "emojiAcademic": "Academic",
-    "emojiCoding": "Coding",
-    "emojiWriting": "Writing",
-    "emojiSecurity": "Security",
-    "emojiData": "Data",
-    "emojiProductivity": "Productivity",
-    "emojiGeneral": "General",
-    "emojiArt": "Art",
-    "emojiMusic": "Music",
-    "emojiLiterature": "Literature",
-    "emojiIntelligence": "Intelligence",
-    "emojiScience": "Science",
-    "emojiChat": "Chat",
-    "emojiStar": "Star"
+    "using": "In Use"
   },
   "profile": {
     "appearance": "Appearance",
@@ -1579,6 +1581,7 @@
     "defaultModelSet": "Default model set",
     "defaultThinking": "Default Thinking",
     "deleteAvatar": "Delete Avatar",
+    "deleteFailed": "Delete failed",
     "denied": "Denied",
     "email": "Email",
     "enable": "Enable",
@@ -1632,13 +1635,12 @@
     "toolsTab": "Tools",
     "unpinModel": "Unpin",
     "uploadAvatar": "Upload Avatar",
+    "uploadFailed": "Upload failed",
     "username": "Username",
     "usernameLengthError": "Username must be 3-50 characters",
     "usernamePlaceholder": "Enter username",
     "usernameUpdateFailed": "Failed to update username",
-    "usernameUpdated": "Username updated successfully",
-    "uploadFailed": "Upload failed",
-    "deleteFailed": "Delete failed"
+    "usernameUpdated": "Username updated successfully"
   },
   "project": {
     "code": "Code",
@@ -1664,11 +1666,11 @@
   "pwaStatus": {
     "backOnline": "Back online",
     "dismiss": "Dismiss",
+    "newUpdate": "You have a new LambChat update.",
     "offlineBody": "Chat, files, and sync will resume when the connection returns.",
     "offlineTitle": "You are offline",
     "updateReadyBody": "A fresh LambChat version is ready to apply.",
-    "updateReadyTitle": "Update ready",
-    "newUpdate": "You have a new LambChat update."
+    "updateReadyTitle": "Update ready"
   },
   "roles": {
     "concurrentChatsHint": "Max concurrent chat tasks per user (empty = unlimited, default 5). Excess tasks enter queue",
@@ -1738,6 +1740,7 @@
       "description": "Have intelligent conversations with AI agents. Multi-model switching, real-time streaming responses, session management, file uploads, and multi-agent collaboration.",
       "title": "AI Chat"
     },
+    "defaultDescription": "A pluggable, multi-tenant AI conversation system. Skills + MCP dual-engine driven, modular by design.",
     "feedback": {
       "description": "View and manage user feedback. Track feature requests, bug reports, and user satisfaction to drive product improvements.",
       "title": "User Feedback"
@@ -1789,8 +1792,7 @@
     "users": {
       "description": "Manage user accounts, roles, and access permissions. Administer multi-tenant user lifecycle and security settings.",
       "title": "User Management"
-    },
-    "defaultDescription": "A pluggable, multi-tenant AI conversation system. Skills + MCP dual-engine driven, modular by design."
+    }
   },
   "settingDesc": {
     "ACCESS_TOKEN_EXPIRE_HOURS": "Access token expiration in hours",
@@ -1934,6 +1936,7 @@
     "S3_SECRET_KEY": "S3 secret key",
     "SANDBOX_PLATFORM": "Sandbox platform to use",
     "SESSION_MAX_RUNS_PER_SESSION": "Maximum runs per session",
+    "SESSION_SEARCH_BACKFILL_STARTUP_DELAY_SECONDS": "Delay before session search backfill starts after server startup, in seconds",
     "SESSION_TITLE_API_BASE": "LLM API base URL for title generation (leave empty to use main LLM API)",
     "SESSION_TITLE_API_KEY": "LLM API key for title generation (leave empty to use main LLM API key)",
     "SESSION_TITLE_MODEL": "LLM model identifier (e.g., anthropic/claude-3-5-sonnet)",
@@ -1993,8 +1996,10 @@
     "existingShares": "Existing Shares",
     "fullSession": "Full Session",
     "goToChat": "Start Chat",
+    "invalidLink": "Invalid share link",
     "lessThanOneMin": "< 1 min read",
     "linkCopied": "Link copied to clipboard",
+    "loadFailed": "Failed to load shared content",
     "loginRequired": "Login Required",
     "loginRequiredDesc": "This share requires login to view",
     "messages": "messages",
@@ -2006,6 +2011,8 @@
     "notFound": "Share Not Found",
     "notFoundDesc": "This share link is invalid or has been removed",
     "partialSession": "Partial Content",
+    "platformDescription": "A pluggable, multi-tenant AI conversation platform powered by Skills and MCP dual-engine. Supports Claude, GPT, Gemini and more.",
+    "platformTitle": "{{appName}} - AI Agent Platform",
     "public": "Public Link",
     "publicDesc": "Anyone with the link can view",
     "readOnlyNotice": "This is a shared session, you can only view it",
@@ -2025,11 +2032,7 @@
     "taskRunning": "Running",
     "title": "Share Session",
     "userMessage": "(User Message: {{message}})",
-    "visibility": "Access Control",
-    "invalidLink": "Invalid share link",
-    "loadFailed": "Failed to load shared content",
-    "platformTitle": "{{appName}} - AI Agent Platform",
-    "platformDescription": "A pluggable, multi-tenant AI conversation platform powered by Skills and MCP dual-engine. Supports Claude, GPT, Gemini and more."
+    "visibility": "Access Control"
   },
   "shortcut": {
     "categoryChat": "Chat",

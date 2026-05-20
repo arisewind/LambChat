@@ -104,6 +104,12 @@ class TraceStorage:
                 name="started_at_idx",
                 background=True,
             )
+            # 复合索引：用于列表页 run 摘要查询
+            await self._collection.create_index(
+                [("session_id", 1), ("started_at", -1)],
+                name="session_started_at_desc_idx",
+                background=True,
+            )
             # 索引：用于 EventMerger 查询未合并的已完成 traces
             await self._collection.create_index(
                 [("status", 1), ("metadata.merged", 1)],
@@ -428,6 +434,65 @@ class TraceStorage:
             return await cursor.to_list(length=limit)
         except Exception as e:
             logger.error(f"Failed to list traces: {e}")
+            return []
+
+    async def list_run_summaries(
+        self,
+        session_id: str,
+        limit: int = 50,
+        skip: int = 0,
+        trace_id: Optional[str] = None,
+    ) -> List[Dict[str, Any]]:
+        """列出会话 run 摘要，并只投影第一条用户消息事件。"""
+        query = {"session_id": session_id}
+        if trace_id:
+            query["trace_id"] = trace_id
+
+        projection: Dict[str, Any] = {
+            "_id": 0,
+            "run_id": 1,
+            "trace_id": 1,
+            "agent_id": 1,
+            "started_at": 1,
+            "completed_at": 1,
+            "status": 1,
+            "event_count": 1,
+            "events": {"$elemMatch": {"event_type": "user:message"}},
+        }
+
+        try:
+            cursor = (
+                self.collection.find(query, projection)
+                .sort("started_at", -1)
+                .skip(skip)
+                .limit(limit)
+            )
+            traces = await cursor.to_list(length=limit)
+            summaries: List[Dict[str, Any]] = []
+            for trace in traces:
+                user_message = None
+                events = trace.get("events") or []
+                if events:
+                    data = events[0].get("data", {})
+                    user_message = data.get("content") or data.get("message") or ""
+                    if user_message and len(user_message) > 20:
+                        user_message = user_message[:17] + "..."
+
+                summaries.append(
+                    {
+                        "run_id": trace.get("run_id"),
+                        "trace_id": trace.get("trace_id"),
+                        "agent_id": trace.get("agent_id"),
+                        "started_at": trace.get("started_at"),
+                        "completed_at": trace.get("completed_at"),
+                        "status": trace.get("status"),
+                        "event_count": trace.get("event_count", 0),
+                        "user_message": user_message,
+                    }
+                )
+            return summaries
+        except Exception as e:
+            logger.error(f"Failed to list run summaries: {e}")
             return []
 
     async def get_session_events(

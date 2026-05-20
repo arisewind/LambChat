@@ -1,12 +1,11 @@
-"""
-依赖注入
+"""FastAPI dependencies."""
 
-提供 FastAPI 依赖项。
-"""
+from __future__ import annotations
 
+import time
 from typing import Optional
 
-from fastapi import Depends, HTTPException, status
+from fastapi import Depends, HTTPException, Request, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 
 from src.infra.auth.jwt import verify_token
@@ -19,6 +18,39 @@ from src.kernel.schemas.user import TokenPayload
 security = HTTPBearer(auto_error=False)
 
 logger = get_logger(__name__)
+
+_AUTH_CACHE_TTL_SECONDS = 45.0
+_AUTH_CACHE_MAX_ENTRIES = 2048
+_auth_cache: dict[str, tuple[float, TokenPayload]] = {}
+
+
+def clear_auth_cache() -> None:
+    """Clear per-process authenticated user cache after user/role changes."""
+    _auth_cache.clear()
+
+
+def _get_cached_user(token: str) -> TokenPayload | None:
+    cached = _auth_cache.get(token)
+    if not cached:
+        return None
+
+    expires_at, payload = cached
+    if expires_at <= time.monotonic():
+        _auth_cache.pop(token, None)
+        return None
+    return payload.model_copy(deep=True)
+
+
+def _set_cached_user(token: str, payload: TokenPayload) -> None:
+    if len(_auth_cache) >= _AUTH_CACHE_MAX_ENTRIES:
+        now = time.monotonic()
+        expired = [key for key, (expires_at, _) in _auth_cache.items() if expires_at <= now]
+        for key in expired:
+            _auth_cache.pop(key, None)
+        while len(_auth_cache) >= _AUTH_CACHE_MAX_ENTRIES:
+            _auth_cache.pop(next(iter(_auth_cache)))
+
+    _auth_cache[token] = (time.monotonic() + _AUTH_CACHE_TTL_SECONDS, payload.model_copy(deep=True))
 
 
 async def _get_user_roles_and_permissions(user_roles: list[str]) -> tuple[list[str], list[str]]:
@@ -48,6 +80,7 @@ async def _get_user_roles_and_permissions(user_roles: list[str]) -> tuple[list[s
 
 
 async def get_current_user(
+    request: Request,
     credentials: Optional[HTTPAuthorizationCredentials] = Depends(security),
 ) -> Optional[TokenPayload]:
     """
@@ -59,8 +92,17 @@ async def get_current_user(
         return None
 
     try:
+        cached = getattr(request.state, "current_user", None)
+        if isinstance(cached, TokenPayload):
+            return cached.model_copy(deep=True)
+
         token = credentials.credentials
-        payload = verify_token(token)
+        parsed = getattr(request.state, "auth_payload", None)
+        payload = (
+            parsed.model_copy(deep=True)
+            if isinstance(parsed, TokenPayload)
+            else verify_token(token)
+        )
         return payload
     except Exception:
         return None
@@ -71,6 +113,7 @@ get_current_user_optional = get_current_user
 
 
 async def get_current_user_required(
+    request: Request,
     credentials: Optional[HTTPAuthorizationCredentials] = Depends(security),
 ) -> TokenPayload:
     """
@@ -87,7 +130,21 @@ async def get_current_user_required(
 
     try:
         token = credentials.credentials
-        payload = verify_token(token)
+        cached_user = getattr(request.state, "current_user", None)
+        if isinstance(cached_user, TokenPayload):
+            return cached_user.model_copy(deep=True)
+
+        cached = _get_cached_user(token)
+        if cached is not None:
+            request.state.current_user = cached.model_copy(deep=True)
+            return cached
+
+        parsed = getattr(request.state, "auth_payload", None)
+        payload = (
+            parsed.model_copy(deep=True)
+            if isinstance(parsed, TokenPayload)
+            else verify_token(token)
+        )
         user_id = payload.sub
 
         if not user_id:
@@ -113,6 +170,9 @@ async def get_current_user_required(
         payload.username = user.username
         payload.roles = roles
         payload.permissions = permissions
+
+        _set_cached_user(token, payload)
+        request.state.current_user = payload.model_copy(deep=True)
 
         return payload
     except HTTPException:

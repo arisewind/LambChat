@@ -30,6 +30,68 @@ class _FakeTraceStorage:
         return [{"event_type": "user:message", "data": {"content": "hello world"}}]
 
 
+class _FakeListDualWriter:
+    async def get_trace(self, trace_id: str):
+        raise AssertionError("get_trace should not be used when listing runs")
+
+    async def list_traces(self, **kwargs):
+        return [
+            {
+                "session_id": "session-1",
+                "run_id": "run-1",
+                "trace_id": "trace-1",
+                "agent_id": "agent-1",
+                "started_at": "2026-04-25T00:00:00Z",
+                "completed_at": "2026-04-25T00:01:00Z",
+                "status": "completed",
+                "event_count": 3,
+            },
+            {
+                "session_id": "session-1",
+                "run_id": "run-2",
+                "trace_id": "trace-2",
+                "agent_id": "agent-1",
+                "started_at": "2026-04-25T00:02:00Z",
+                "completed_at": "2026-04-25T00:03:00Z",
+                "status": "completed",
+                "event_count": 4,
+            },
+        ]
+
+
+class _FakeRunSummaryTraceStorage:
+    def __init__(self):
+        self.calls = []
+
+    async def get_trace_events(self, trace_id: str):
+        raise AssertionError("get_trace_events should not be used when listing runs")
+
+    async def list_run_summaries(self, **kwargs):
+        self.calls.append(kwargs)
+        return [
+            {
+                "run_id": "run-1",
+                "trace_id": "trace-1",
+                "agent_id": "agent-1",
+                "started_at": "2026-04-25T00:00:00Z",
+                "completed_at": "2026-04-25T00:01:00Z",
+                "status": "completed",
+                "event_count": 3,
+                "user_message": "hello one",
+            },
+            {
+                "run_id": "run-2",
+                "trace_id": "trace-2",
+                "agent_id": "agent-1",
+                "started_at": "2026-04-25T00:02:00Z",
+                "completed_at": "2026-04-25T00:03:00Z",
+                "status": "completed",
+                "event_count": 4,
+                "user_message": "hello two",
+            },
+        ]
+
+
 def _load_session_routes_module(monkeypatch: pytest.MonkeyPatch):
     class _Logger:
         def debug(self, *args, **kwargs):
@@ -156,3 +218,26 @@ async def test_get_session_runs_can_filter_by_trace_id(monkeypatch: pytest.Monke
     assert response["count"] == 1
     assert response["runs"][0]["run_id"] == "run-2"
     assert response["runs"][0]["trace_id"] == "trace-2"
+
+
+@pytest.mark.asyncio
+async def test_get_session_runs_uses_batch_summaries(monkeypatch: pytest.MonkeyPatch) -> None:
+    session_routes = _load_session_routes_module(monkeypatch)
+    dual_writer_module = sys.modules["src.infra.session.dual_writer"]
+    trace_storage_module = sys.modules["src.infra.session.trace_storage"]
+    trace_storage = _FakeRunSummaryTraceStorage()
+
+    monkeypatch.setattr(session_routes, "SessionManager", lambda: _FakeSessionManager())
+    monkeypatch.setattr(dual_writer_module, "get_dual_writer", lambda: _FakeListDualWriter())
+    monkeypatch.setattr(trace_storage_module, "get_trace_storage", lambda: trace_storage)
+
+    response = await session_routes.get_session_runs(
+        "session-1",
+        limit=2,
+        trace_id=None,
+        user=SimpleNamespace(sub="user-1"),
+    )
+
+    assert response["count"] == 2
+    assert response["runs"][0]["user_message"] == "hello one"
+    assert trace_storage.calls == [{"session_id": "session-1", "limit": 2, "trace_id": None}]

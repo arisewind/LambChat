@@ -17,6 +17,7 @@ from src.agents.core.node_utils import (
     build_human_message,
     emit_token_usage,
     resolve_fallback_model,
+    resolve_model_supports_vision,
 )
 from src.agents.core.persona import build_persona_prompt_sections
 from src.agents.core.subagent_prompts import (
@@ -72,6 +73,7 @@ async def fast_agent_node(state: Dict[str, Any], config: RunnableConfig) -> Dict
     agent_options = configurable.get("agent_options") or {}
     selected_model = agent_options.get("model")  # Per-request model override
     model_id = agent_options.get("model_id")  # Model config ID for specific channel/provider
+    resolved_model_config = agent_options.get("_resolved_model_config")
     thinking_config = build_thinking_config(agent_options)
 
     # 获取附件
@@ -82,15 +84,24 @@ async def fast_agent_node(state: Dict[str, Any], config: RunnableConfig) -> Dict
     llm = await LLMClient.get_model(
         model=selected_model,
         model_id=model_id,
+        model_config=resolved_model_config,
         thinking=thinking_config,
     )
     llm_init_time = time.time() - llm_start
     logger.debug(f"[FastAgent] LLM init: {llm_init_time * 1000:.3f}ms")
 
     # 查询 fallback_model 配置
-    fallback_model_value = await resolve_fallback_model(
-        model_id, selected_model, log_prefix="[FastAgent]"
-    )
+    fallback_model_value = agent_options.get("_resolved_fallback_model")
+    if "_resolved_fallback_model" not in agent_options:
+        fallback_model_value = await resolve_fallback_model(
+            model_id, selected_model, log_prefix="[FastAgent]"
+        )
+    supports_vision = agent_options.get("_resolved_supports_vision")
+    if supports_vision is None:
+        supports_vision = await resolve_model_supports_vision(
+            model_id, selected_model, log_prefix="[FastAgent]"
+        )
+    supports_vision = bool(supports_vision)
 
     # 多租户隔离
     tenant_id = context.user_id or "default"
@@ -247,7 +258,7 @@ async def fast_agent_node(state: Dict[str, Any], config: RunnableConfig) -> Dict
     # 注意：checkpointer + add_messages reducer 会自动维护历史消息，
     # 只需传入新消息，避免与 checkpoint 中的历史消息重复。
     user_input = state.get("input", "")
-    new_message = build_human_message(user_input, attachments)
+    new_message = build_human_message(user_input, attachments, supports_vision=supports_vision)
 
     # 创建事件处理器（使用 AgentEventProcessor 处理 astream_events）
     logger.info("[FastAgent] Creating AgentEventProcessor")

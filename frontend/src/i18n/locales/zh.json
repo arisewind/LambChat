@@ -146,12 +146,14 @@
     "noModelsConfigured": "尚未配置可用模型",
     "noModelsConfiguredHint": "请先在模型配置标签页中添加模型",
     "noPermission": "您没有权限查看助手配置",
+    "noProviders": "未找到提供商",
     "off": "已关闭",
     "optional": "可选",
     "parameters": "参数",
     "preferenceSaved": "默认助手已保存",
     "providerAuto": "自动识别",
     "providerHint": "覆盖使用的 API 接口类型。留空则从模型 ID 前缀自动推断。",
+    "reorderFailed": "模型排序失败",
     "rolesDescription": "配置每个角色可以访问的助手。",
     "rolesTab": "角色分配",
     "saveFailed": "保存配置失败",
@@ -164,12 +166,12 @@
     "sharedConfig": "共享配置",
     "sharedConfigHint": "为所有模型统一设置 API 地址和密钥，留空则各模型单独配置",
     "subtitle": "管理助手可用性和角色分配",
+    "supportsVision": "支持图片输入",
+    "supportsVisionHint": "开启后，上传的图片会直接作为多模态内容发送给支持的模型，而不只是作为链接。",
     "tempTag": "温度: {{value}}",
     "temperature": "温度",
     "title": "助手配置",
-    "valueAndLabelRequired": "值和标签为必填项",
-    "reorderFailed": "模型排序失败",
-    "noProviders": "未找到提供商"
+    "valueAndLabelRequired": "值和标签为必填项"
   },
   "agentOptions": {
     "enableCodeInterpreter": {
@@ -205,9 +207,9 @@
     "enterResponse": "请输入回复...",
     "needsConfirmation": "需要确认",
     "reject": "拒绝",
+    "selectOption": "选择一个选项",
     "send": "发送",
-    "submit": "提交",
-    "selectOption": "选择一个选项"
+    "submit": "提交"
   },
   "auth": {
     "account": "账号",
@@ -607,6 +609,7 @@
   "common": {
     "about": "关于",
     "accessDenied": "访问被拒绝",
+    "assistant": "助手",
     "back": "返回",
     "by": "由",
     "cancel": "取消",
@@ -673,8 +676,7 @@
     "timeMonthsAgo": "{{count}}个月前",
     "timeWeeksAgo": "{{count}}周前",
     "user": "用户",
-    "you": "你",
-    "assistant": "助手"
+    "you": "你"
   },
   "contactAdmin": {
     "emailActivationDesc": "您的邮箱尚未验证或验证链接已过期，请联系管理员获取帮助。",
@@ -704,15 +706,20 @@
     "copied": "已复制",
     "copy": "复制",
     "copyCode": "复制代码",
+    "csv": "CSV",
+    "csvDataFile": "CSV 数据文件",
     "daysAgo": "{{count}}天前",
     "descending": "降序",
     "docConvertHint": "该文件为旧版 .doc 格式，请将其转换为 .docx 格式后预览，或直接下载文件。",
     "docNotSupported": "不支持预览旧版 Word 文档",
+    "documentContentPreview": "文档内容预览",
     "download": "下载",
     "downloadFile": "下载文件",
     "dwgPreviewHint": "请下载此文件，或将其转换为 DXF/PDF 格式后在浏览器中预览。",
     "dwgPreviewUnsupported": "不支持 DWG 文件预览",
     "error": "加载文件失败",
+    "excalidrawExportFailed": "加载导出功能失败",
+    "excalidrawRenderFailed": "渲染 Excalidraw 图表失败",
     "excelParseError": "Excel 文件解析失败",
     "excelPreviewError": "Excel 预览错误",
     "excelReady": "就绪",
@@ -729,6 +736,7 @@
     "grid": "网格",
     "gridView": "网格视图",
     "htmlDocument": "HTML 文档",
+    "invalidExcalidrawFormat": "无效的 Excalidraw 文件格式",
     "lines": "{{count}} 行",
     "list": "列表",
     "listView": "列表视图",
@@ -738,6 +746,9 @@
     "loadingImage": "正在加载图片...",
     "loadingPresentation": "正在加载演示文稿...",
     "loadingVideo": "正在加载视频...",
+    "markdown": "Markdown",
+    "markdownDocument": "Markdown 文档",
+    "mermaidRenderFailed": "渲染图表失败",
     "modified": "修改时间",
     "name": "名称",
     "nextPage": "下一页",
@@ -757,6 +768,7 @@
     "previewMode": "预览模式",
     "previousPage": "上一页",
     "previousSlide": "上一张幻灯片",
+    "readMore": "阅读更多 →",
     "resetZoom": "重置缩放",
     "searchHint": "按 {{cmd}} + F 搜索",
     "searchPlaceholder": "搜索文件...",
@@ -783,17 +795,7 @@
     "wordPreviewError": "Word 预览错误",
     "yesterday": "昨天",
     "zoomIn": "放大",
-    "zoomOut": "缩小",
-    "invalidExcalidrawFormat": "无效的 Excalidraw 文件格式",
-    "excalidrawExportFailed": "加载导出功能失败",
-    "excalidrawRenderFailed": "渲染 Excalidraw 图表失败",
-    "mermaidRenderFailed": "渲染图表失败",
-    "markdownDocument": "Markdown 文档",
-    "markdown": "Markdown",
-    "documentContentPreview": "文档内容预览",
-    "readMore": "阅读更多 →",
-    "csvDataFile": "CSV 数据文件",
-    "csv": "CSV"
+    "zoomOut": "缩小"
   },
   "envVars": {
     "addFailed": "添加失败",
@@ -1051,10 +1053,10 @@
     "uploading": "上传中..."
   },
   "footer": {
-    "openSource": "开源",
-    "resources": "资源",
+    "mit": "MIT",
     "mitLicense": "MIT 许可证",
-    "mit": "MIT"
+    "openSource": "开源",
+    "resources": "资源"
   },
   "imageViewer": {
     "download": "下载",
@@ -1491,6 +1493,22 @@
     "edit": "编辑",
     "editMine": "编辑我的角色",
     "editOfficial": "编辑官方角色",
+    "emojiAcademic": "学术",
+    "emojiArt": "艺术",
+    "emojiChat": "聊天",
+    "emojiCoding": "编程",
+    "emojiData": "数据",
+    "emojiGeneral": "通用",
+    "emojiIntelligence": "智能",
+    "emojiLiterature": "文学",
+    "emojiMusic": "音乐",
+    "emojiProductivity": "效率",
+    "emojiRobot": "机器人",
+    "emojiScience": "科学",
+    "emojiSecurity": "安全",
+    "emojiSparkles": "闪耀",
+    "emojiStar": "星星",
+    "emojiWriting": "写作",
     "empty": "暂无角色预设",
     "emptyHint": "管理员可以创建官方角色预设",
     "export": "导出",
@@ -1546,23 +1564,7 @@
     "use": "使用",
     "useFailed": "使用角色预设失败",
     "useSuccess": "已切换到角色「{{name}}」",
-    "using": "使用中",
-    "emojiSparkles": "闪耀",
-    "emojiRobot": "机器人",
-    "emojiAcademic": "学术",
-    "emojiCoding": "编程",
-    "emojiWriting": "写作",
-    "emojiSecurity": "安全",
-    "emojiData": "数据",
-    "emojiProductivity": "效率",
-    "emojiGeneral": "通用",
-    "emojiArt": "艺术",
-    "emojiMusic": "音乐",
-    "emojiLiterature": "文学",
-    "emojiIntelligence": "智能",
-    "emojiScience": "科学",
-    "emojiChat": "聊天",
-    "emojiStar": "星星"
+    "using": "使用中"
   },
   "profile": {
     "appearance": "外观",
@@ -1580,6 +1582,7 @@
     "defaultModelSet": "默认模型已设置",
     "defaultThinking": "默认思考强度",
     "deleteAvatar": "删除头像",
+    "deleteFailed": "删除失败",
     "denied": "已拒绝",
     "email": "邮箱",
     "enable": "启用",
@@ -1633,13 +1636,12 @@
     "toolsTab": "工具",
     "unpinModel": "取消置顶",
     "uploadAvatar": "上传头像",
+    "uploadFailed": "上传失败",
     "username": "用户名",
     "usernameLengthError": "用户名长度需为 3-50 个字符",
     "usernamePlaceholder": "请输入用户名",
     "usernameUpdateFailed": "用户名修改失败",
-    "usernameUpdated": "用户名修改成功",
-    "uploadFailed": "上传失败",
-    "deleteFailed": "删除失败"
+    "usernameUpdated": "用户名修改成功"
   },
   "project": {
     "code": "代码",
@@ -1665,11 +1667,11 @@
   "pwaStatus": {
     "backOnline": "已恢复在线",
     "dismiss": "关闭",
+    "newUpdate": "LambChat 有新版本可用。",
     "offlineBody": "连接恢复后，聊天、文件和同步将继续。",
     "offlineTitle": "你当前处于离线状态",
     "updateReadyBody": "新版 LambChat 已准备好应用。",
-    "updateReadyTitle": "更新已就绪",
-    "newUpdate": "LambChat 有新版本可用。"
+    "updateReadyTitle": "更新已就绪"
   },
   "roles": {
     "concurrentChatsHint": "每用户最大同时进行的聊天任务数（留空 = 无限制，默认 5），超出部分进入排队",
@@ -1739,6 +1741,7 @@
       "description": "与 AI 智能体进行智能对话。支持多模型切换、实时流式响应、会话管理、文件上传和多智能体协作。",
       "title": "AI 对话"
     },
+    "defaultDescription": "可插拔多租户 AI 对话系统，Skills + MCP 双引擎驱动，模块化设计。",
     "feedback": {
       "description": "查看和管理用户反馈。跟踪功能请求、错误报告和用户满意度，推动产品改进。",
       "title": "用户反馈"
@@ -1790,8 +1793,7 @@
     "users": {
       "description": "管理用户账户、角色和访问权限。管理多租户用户生命周期和安全设置。",
       "title": "用户管理"
-    },
-    "defaultDescription": "可插拔多租户 AI 对话系统，Skills + MCP 双引擎驱动，模块化设计。"
+    }
   },
   "settingDesc": {
     "ACCESS_TOKEN_EXPIRE_HOURS": "访问令牌过期时间（小时）",
@@ -1935,6 +1937,7 @@
     "S3_SECRET_KEY": "S3 秘密密钥",
     "SANDBOX_PLATFORM": "使用的沙箱平台",
     "SESSION_MAX_RUNS_PER_SESSION": "每个会话的最大运行次数",
+    "SESSION_SEARCH_BACKFILL_STARTUP_DELAY_SECONDS": "服务启动后延迟执行会话搜索回填的秒数",
     "SESSION_TITLE_API_BASE": "标题生成的 LLM API 基础 URL（留空使用主 LLM API）",
     "SESSION_TITLE_API_KEY": "标题生成的 LLM API 密钥（留空使用主 LLM API 密钥）",
     "SESSION_TITLE_MODEL": "LLM 模型标识符（如 anthropic/claude-3-5-sonnet）",
@@ -1994,8 +1997,10 @@
     "existingShares": "已有分享",
     "fullSession": "完整会话",
     "goToChat": "开始对话",
+    "invalidLink": "无效的分享链接",
     "lessThanOneMin": "< 1 分钟阅读",
     "linkCopied": "链接已复制到剪贴板",
+    "loadFailed": "加载分享内容失败",
     "loginRequired": "需要登录",
     "loginRequiredDesc": "此分享需要登录后才能查看",
     "messages": "条消息",
@@ -2007,6 +2012,8 @@
     "notFound": "分享不存在",
     "notFoundDesc": "此分享链接无效或已被取消",
     "partialSession": "部分内容",
+    "platformDescription": "可插拔多租户 AI 对话平台，Skills + MCP 双引擎驱动，支持 Claude、GPT、Gemini 等多种模型。",
+    "platformTitle": "{{appName}} - AI 智能体平台",
     "public": "公开链接",
     "publicDesc": "任何拥有链接的人都可以查看",
     "readOnlyNotice": "这是一个分享的会话，您只能查看不能编辑",
@@ -2026,11 +2033,7 @@
     "taskRunning": "运行中",
     "title": "分享会话",
     "userMessage": "（用户消息：{{message}}）",
-    "visibility": "访问权限",
-    "invalidLink": "无效的分享链接",
-    "loadFailed": "加载分享内容失败",
-    "platformTitle": "{{appName}} - AI 智能体平台",
-    "platformDescription": "可插拔多租户 AI 对话平台，Skills + MCP 双引擎驱动，支持 Claude、GPT、Gemini 等多种模型。"
+    "visibility": "访问权限"
   },
   "shortcut": {
     "categoryChat": "对话",

@@ -338,6 +338,12 @@ class UserStorage:
                 raise NotFoundError(f"用户 '{user_id}' 不存在")
 
             result["id"] = str(result.pop("_id"))
+            try:
+                from src.api.deps import clear_auth_cache
+
+                clear_auth_cache()
+            except Exception:
+                pass
             return User(**result)
         except DuplicateKeyError as e:
             # 解析哪个字段重复
@@ -363,6 +369,13 @@ class UserStorage:
         from bson import ObjectId
 
         result = await self.collection.delete_one({"_id": ObjectId(user_id)})
+        if result.deleted_count > 0:
+            try:
+                from src.api.deps import clear_auth_cache
+
+                clear_auth_cache()
+            except Exception:
+                pass
         return result.deleted_count > 0
 
     async def list_users(
@@ -519,6 +532,13 @@ class UserStorage:
             {"_id": ObjectId(user_id)},
             {"$set": {"email_verified": verified, "updated_at": utc_now()}},
         )
+        if result.modified_count > 0:
+            try:
+                from src.api.deps import clear_auth_cache
+
+                clear_auth_cache()
+            except Exception:
+                pass
         return result.modified_count > 0
 
     async def set_reset_token(self, user_id: str, token: str, expires: datetime) -> bool:
@@ -609,4 +629,10 @@ class UserStorage:
             raise NotFoundError(f"用户 '{user_id}' 不存在")
 
         result["id"] = str(result.pop("_id"))
+        try:
+            from src.api.deps import clear_auth_cache
+
+            clear_auth_cache()
+        except Exception:
+            pass
         return User(**result)

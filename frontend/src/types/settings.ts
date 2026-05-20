@@ -99,6 +99,7 @@ export interface SettingResetResponse {
 
 export interface ModelProfile {
   max_input_tokens?: number;
+  supports_vision?: boolean;
 }
 
 export interface AvailableModelConfig {

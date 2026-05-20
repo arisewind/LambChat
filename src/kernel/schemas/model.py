@@ -12,6 +12,10 @@ class ModelProfile(BaseModel):
     model_config = ConfigDict(extra="ignore")
 
     max_input_tokens: Optional[int] = Field(None, description="Max input tokens for this model")
+    supports_vision: Optional[bool] = Field(
+        False,
+        description="Whether this model accepts image input",
+    )
 
 
 class ModelConfig(BaseModel):

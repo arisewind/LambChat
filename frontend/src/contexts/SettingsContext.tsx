@@ -11,6 +11,7 @@ import { useSettings } from "../hooks/useSettings";
 import { useAuth } from "../hooks/useAuth";
 import { modelApi } from "../services/api";
 import type { SettingsResponse } from "../types";
+import type { ModelProfile } from "../services/api/model";
 
 export interface AvailableModel {
   id: string;
@@ -18,6 +19,7 @@ export interface AvailableModel {
   provider?: string;
   label: string;
   description?: string;
+  profile?: ModelProfile;
 }
 
 interface SettingsContextValue {
@@ -85,6 +87,7 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
               provider: m.provider,
               label: m.label,
               description: m.description,
+              profile: m.profile,
             })),
           );
         } else {

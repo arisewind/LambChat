@@ -32,6 +32,9 @@ class _FakeEventProcessor:
     async def flush(self) -> None:
         return None
 
+    async def finalize(self) -> None:
+        return None
+
     def clear(self) -> None:
         return None
 
