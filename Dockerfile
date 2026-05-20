@@ -34,8 +34,10 @@ RUN pip install --no-cache-dir uv
 # Copy dependency files
 COPY pyproject.toml uv.lock* README.md ./
 
-# Install dependencies directly (no venv)
-RUN uv sync --frozen --no-dev --no-cache
+# Install runtime dependencies into the image. Keep uv's download cache during
+# builds so repeated image builds do not re-download unchanged wheels.
+RUN --mount=type=cache,target=/root/.cache/uv \
+    uv sync --frozen --no-dev --no-install-project
 
 # Copy source code
 COPY src/ ./src/
@@ -57,4 +59,4 @@ EXPOSE 8000
 
 ENV UV_PROJECT_ENVIRONMENT=/app/.venv
 
-CMD ["uv", "run", "python", "main.py"]
+CMD ["/app/.venv/bin/python", "main.py"]
