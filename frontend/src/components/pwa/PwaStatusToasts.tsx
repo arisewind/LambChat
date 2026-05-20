@@ -16,63 +16,66 @@ import {
 } from "../../pwaStatus";
 
 function PwaStatusToast({
-  title,
-  body,
+  titleKey,
+  bodyKey,
   tone,
-  action,
-  dismissLabel,
+  actionLabelKey,
+  dismissLabelKey,
+  onAction,
   onDismiss,
 }: {
-  title: string;
-  body: string;
+  titleKey: string;
+  bodyKey: string;
   tone: "update" | "offline";
-  action?: {
-    label: string;
-    onClick: () => void;
-  };
-  dismissLabel?: string;
+  actionLabelKey?: string;
+  dismissLabelKey?: string;
+  onAction?: () => void;
   onDismiss?: () => void;
 }) {
+  const { t } = useTranslation();
+
   return (
     <div className={`pwa-status-toast pwa-status-toast--${tone}`} role="status">
       <div className="pwa-status-toast__icon" aria-hidden="true">
         {tone === "offline" ? (
-          <WifiOff size={18} />
+          <WifiOff size={17} />
         ) : (
-          <img src="/icons/icon.svg" alt="" width={20} height={20} />
+          <img src="/icons/icon.svg" alt="" width={18} height={18} />
         )}
       </div>
       <div className="pwa-status-toast__content">
-        <div className="pwa-status-toast__title">{title}</div>
-        <div className="pwa-status-toast__body">{body}</div>
+        <span className="pwa-status-toast__title">{t(titleKey)}</span>
+        {bodyKey && (
+          <span className="pwa-status-toast__body"> {t(bodyKey)}</span>
+        )}
       </div>
-      {action && (
+      {actionLabelKey && onAction && (
         <button
           className="pwa-status-toast__action"
           type="button"
-          onClick={action.onClick}
+          onClick={onAction}
         >
           <RefreshCw size={14} aria-hidden="true" />
-          <span>{action.label}</span>
+          <span>{t(actionLabelKey)}</span>
         </button>
       )}
-      {onDismiss && (
+      {dismissLabelKey && onDismiss && (
         <button
           className="pwa-status-toast__dismiss"
           type="button"
-          aria-label={dismissLabel}
+          aria-label={t(dismissLabelKey)}
           onClick={onDismiss}
         >
-          <X size={16} aria-hidden="true" />
+          <X size={14} aria-hidden="true" />
         </button>
       )}
     </div>
   );
 }
 
-function showOfflineToast(text: { title: string; body: string }) {
+function showOfflineToast(titleKey: string, bodyKey: string) {
   toast.custom(
-    <PwaStatusToast title={text.title} body={text.body} tone="offline" />,
+    <PwaStatusToast titleKey={titleKey} bodyKey={bodyKey} tone="offline" />,
     {
       id: PWA_OFFLINE_TOAST_ID,
       duration: Infinity,
@@ -98,18 +101,16 @@ export function PwaStatusToasts() {
 
       toast.custom(
         <PwaStatusToast
-          title={t("pwaStatus.updateReadyTitle")}
-          body={t("pwaStatus.updateReadyBody")}
+          titleKey="pwaStatus.updateReadyTitle"
+          bodyKey="pwaStatus.updateReadyBody"
           tone="update"
-          action={{
-            label: t("common.refresh"),
-            onClick: () => {
-              if (activateWaitingLambChatPwaUpdate(registration)) {
-                toast.dismiss(PWA_UPDATE_TOAST_ID);
-              }
-            },
+          actionLabelKey="common.refresh"
+          onAction={() => {
+            if (activateWaitingLambChatPwaUpdate(registration)) {
+              toast.dismiss(PWA_UPDATE_TOAST_ID);
+            }
           }}
-          dismissLabel={t("pwaStatus.dismiss")}
+          dismissLabelKey="pwaStatus.dismiss"
           onDismiss={() => toast.dismiss(PWA_UPDATE_TOAST_ID)}
         />,
         {
@@ -131,19 +132,14 @@ export function PwaStatusToasts() {
   }, [t]);
 
   useEffect(() => {
-    const offlineText = {
-      title: t("pwaStatus.offlineTitle"),
-      body: t("pwaStatus.offlineBody"),
-    };
-
     if (!isOnlineRef.current) {
-      showOfflineToast(offlineText);
+      showOfflineToast("pwaStatus.offlineTitle", "pwaStatus.offlineBody");
     }
 
     const handleOffline = () => {
       isOnlineRef.current = false;
       toast.dismiss(PWA_ONLINE_RESTORED_TOAST_ID);
-      showOfflineToast(offlineText);
+      showOfflineToast("pwaStatus.offlineTitle", "pwaStatus.offlineBody");
     };
 
     const handleOnline = () => {

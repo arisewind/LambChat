@@ -3,7 +3,7 @@ import { ChevronDown, Search } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { ModelIconImg } from "../../../agent/modelIcon.tsx";
 import { modelIconSlugs } from "../../../agent/modelIcon";
-import { PROVIDER_LABELS } from "../../AgentPanel/shared/ProviderSelect";
+import { PROVIDER_LABELS } from "../../AgentPanel/shared/providerLabels";
 
 interface ModelIconSelectProps {
   value: string;

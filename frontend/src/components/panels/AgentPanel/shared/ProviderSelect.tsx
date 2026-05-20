@@ -3,36 +3,7 @@ import { useTranslation } from "react-i18next";
 import { ChevronDown, Search } from "lucide-react";
 import { ModelIconImg } from "../../../agent/modelIcon.tsx";
 import { modelApi } from "../../../../services/api/model";
-
-/** 前端显示名映射（后端只有 slug，显示名在前端维护） */
-export const PROVIDER_LABELS: Record<string, string> = {
-  openai: "OpenAI",
-  anthropic: "Anthropic",
-  google: "Google",
-  deepseek: "DeepSeek",
-  meta: "Meta",
-  mistral: "Mistral",
-  qwen: "Qwen",
-  groq: "Groq",
-  xai: "xAI",
-  cohere: "Cohere",
-  zhipu: "Zhipu",
-  moonshot: "Moonshot",
-  ollama: "Ollama",
-  perplexity: "Perplexity",
-  minimax: "MiniMax",
-  stepfun: "StepFun",
-  doubao: "Doubao",
-  spark: "Spark",
-  yi: "Yi",
-  baichuan: "Baichuan",
-  internlm: "InternLM",
-  tencent: "Tencent",
-  zeroone: "01.AI",
-  gemini: "Gemini",
-  zai: "ZAI",
-  kimi: "Kimi",
-};
+import { PROVIDER_LABELS } from "./providerLabels";
 
 interface ProviderSelectProps {
   value: string;
