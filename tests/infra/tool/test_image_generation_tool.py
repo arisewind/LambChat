@@ -135,7 +135,6 @@ async def test_image_generate_calls_images_api_and_uploads_base64_result(
             prompt="draw a cat",
             size="1024x1024",
             quality="high",
-            n=1,
             output_format="png",
             runtime=_Runtime("user-1"),
         )
@@ -180,7 +179,6 @@ def test_image_generate_schema_describes_supported_parameters() -> None:
         "input_fidelity",
         "size",
         "quality",
-        "n",
         "output_format",
     }
     assert supported_fields.issubset(fields)
@@ -208,6 +206,138 @@ async def test_image_generate_returns_error_when_api_key_missing(
 
 
 @pytest.mark.asyncio
+async def test_image_generate_normalizes_unsupported_portrait_size_for_generations(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from src.infra.tool import image_generation_tool
+
+    captured: dict[str, object] = {}
+    b64_image = base64.b64encode(b"fake-png").decode("ascii")
+
+    class _FakeResponse:
+        def __init__(self, payload: dict[str, object]) -> None:
+            self._payload = payload
+
+        def raise_for_status(self) -> None:
+            return None
+
+        def json(self) -> dict[str, object]:
+            return self._payload
+
+    class _FakeHttpClient:
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, exc_type, exc, tb):
+            return None
+
+        async def post(self, request_url: str, **kwargs):
+            captured["kwargs"] = kwargs
+            return _FakeResponse({"data": [{"b64_json": b64_image}]})
+
+    class _FakeStorage:
+        is_local = False
+
+        async def upload_bytes(self, data: bytes, folder: str, filename: str, content_type: str):
+            return SimpleNamespace(
+                key=f"{folder}/{filename}", url="https://oss.example.com/gen.png"
+            )
+
+    async def fake_get_or_init_storage():
+        return _FakeStorage()
+
+    monkeypatch.setattr(
+        image_generation_tool.httpx, "AsyncClient", lambda **kwargs: _FakeHttpClient()
+    )
+    monkeypatch.setattr(image_generation_tool, "get_or_init_storage", fake_get_or_init_storage)
+    monkeypatch.setattr(image_generation_tool.settings, "IMAGE_GENERATION_API_KEY", "sk-test")
+    monkeypatch.setattr(
+        image_generation_tool.settings,
+        "IMAGE_GENERATION_BASE_URL",
+        "https://api.example.com/v1",
+    )
+    monkeypatch.setattr(image_generation_tool.settings, "IMAGE_GENERATION_MODEL", "gpt-image-2")
+
+    await image_generation_tool.image_generate.coroutine(
+        prompt="draw a cat",
+        size="768x1024",
+        runtime=_Runtime("user-1"),
+    )
+
+    assert captured["kwargs"]["json"]["size"] == "1024x1536"
+
+
+@pytest.mark.asyncio
+async def test_image_generate_normalizes_unsupported_portrait_size_for_edits(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from src.infra.tool import image_generation_tool
+
+    captured: dict[str, object] = {}
+    image_bytes = b"edit-source"
+    b64_image = base64.b64encode(image_bytes).decode("ascii")
+
+    class _FakeResponse:
+        def __init__(self, payload: dict[str, object]) -> None:
+            self._payload = payload
+
+        def raise_for_status(self) -> None:
+            return None
+
+        def json(self) -> dict[str, object]:
+            return self._payload
+
+    class _FakeHttpClient:
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, exc_type, exc, tb):
+            return None
+
+        async def get(self, request_url: str):
+            return SimpleNamespace(
+                content=image_bytes,
+                headers={"content-type": "image/png"},
+                raise_for_status=lambda: None,
+            )
+
+        async def post(self, request_url: str, **kwargs):
+            captured["kwargs"] = kwargs
+            return _FakeResponse({"data": [{"b64_json": b64_image}]})
+
+    class _FakeStorage:
+        is_local = False
+
+        async def upload_bytes(self, data: bytes, folder: str, filename: str, content_type: str):
+            return SimpleNamespace(
+                key=f"{folder}/{filename}", url="https://oss.example.com/edit.png"
+            )
+
+    async def fake_get_or_init_storage():
+        return _FakeStorage()
+
+    monkeypatch.setattr(
+        image_generation_tool.httpx, "AsyncClient", lambda **kwargs: _FakeHttpClient()
+    )
+    monkeypatch.setattr(image_generation_tool, "get_or_init_storage", fake_get_or_init_storage)
+    monkeypatch.setattr(image_generation_tool.settings, "IMAGE_GENERATION_API_KEY", "sk-test")
+    monkeypatch.setattr(
+        image_generation_tool.settings,
+        "IMAGE_GENERATION_BASE_URL",
+        "https://api.example.com/v1",
+    )
+    monkeypatch.setattr(image_generation_tool.settings, "IMAGE_GENERATION_MODEL", "gpt-image-2")
+
+    await image_generation_tool.image_generate.coroutine(
+        prompt="make it brighter",
+        input_images=["/api/upload/file/generated-images/user-1/source.png"],
+        size="768x1024",
+        runtime=_Runtime("user-1"),
+    )
+
+    assert captured["kwargs"]["data"]["size"] == "1024x1536"
+
+
 async def test_image_generate_with_input_images_uses_edits_endpoint(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:

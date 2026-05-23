@@ -7,6 +7,7 @@ import json
 import mimetypes
 import re
 import sys
+from enum import Enum
 from typing import Annotated, Any
 from urllib.parse import urlparse
 
@@ -36,6 +37,36 @@ logger = get_logger(__name__)
 
 DEFAULT_IMAGE_GENERATION_BASE_URL = "https://api.openai.com/v1"
 DEFAULT_IMAGE_GENERATION_MODEL = "gpt-image-2"
+
+
+class ImageBackground(str, Enum):
+    AUTO = "auto"
+    OPAQUE = "opaque"
+    TRANSPARENT = "transparent"
+
+
+class ImageInputFidelity(str, Enum):
+    LOW = "low"
+    HIGH = "high"
+
+
+class ImageSize(str, Enum):
+    SQUARE = "1024x1024"
+    PORTRAIT = "1024x1536"
+    LANDSCAPE = "1536x1024"
+
+
+class ImageQuality(str, Enum):
+    AUTO = "auto"
+    LOW = "low"
+    MEDIUM = "medium"
+    HIGH = "high"
+
+
+class ImageOutputFormat(str, Enum):
+    PNG = "png"
+    JPEG = "jpeg"
+    WEBP = "webp"
 
 
 def _json(data: dict[str, Any]) -> str:
@@ -78,6 +109,35 @@ def _resolve_base_url() -> str:
 def _resolve_model() -> str:
     model = getattr(settings, "IMAGE_GENERATION_MODEL", "") or DEFAULT_IMAGE_GENERATION_MODEL
     return str(model).strip() or DEFAULT_IMAGE_GENERATION_MODEL
+
+
+def _enum_value(value: Any) -> str:
+    return str(getattr(value, "value", value))
+
+
+def _normalize_image_size(size: Any) -> str:
+    value = _enum_value(size).strip()
+    if not value:
+        return "1024x1024"
+    if value in {item.value for item in ImageSize}:
+        return value
+
+    match = re.fullmatch(r"(\d+)x(\d+)", value)
+    if not match:
+        return value
+
+    width = int(match.group(1))
+    height = int(match.group(2))
+    if width <= 0 or height <= 0:
+        return "1024x1024"
+
+    ratio = width / height
+    supported = {
+        "1024x1024": 1.0,
+        "1024x1536": 1024 / 1536,
+        "1536x1024": 1536 / 1024,
+    }
+    return min(supported, key=lambda candidate: abs(supported[candidate] - ratio))
 
 
 async def _download_image_source(
@@ -197,7 +257,6 @@ async def _call_generation_api(
     background: str,
     size: str,
     quality: str,
-    n: int,
     output_format: str,
     runtime: ToolRuntime | None,
 ) -> dict[str, Any]:
@@ -216,11 +275,11 @@ async def _call_generation_api(
     payload: dict[str, Any] = {
         "model": model,
         "prompt": prompt,
-        "background": background,
-        "size": size,
-        "quality": quality,
-        "n": n,
-        "output_format": output_format,
+        "background": _enum_value(background),
+        "size": _normalize_image_size(size),
+        "quality": _enum_value(quality),
+        "n": 1,
+        "output_format": _enum_value(output_format),
     }
 
     async with httpx.AsyncClient(timeout=timeout) as client:
@@ -271,7 +330,6 @@ async def _call_edit_api(
     input_fidelity: str,
     size: str,
     quality: str,
-    n: int,
     output_format: str,
     runtime: ToolRuntime | None,
 ) -> dict[str, Any]:
@@ -296,12 +354,12 @@ async def _call_edit_api(
     data: dict[str, Any] = {
         "model": model,
         "prompt": prompt,
-        "background": background,
-        "input_fidelity": input_fidelity,
-        "size": size,
-        "quality": quality,
-        "n": n,
-        "output_format": output_format,
+        "background": _enum_value(background),
+        "input_fidelity": _enum_value(input_fidelity),
+        "size": _normalize_image_size(size),
+        "quality": _enum_value(quality),
+        "n": 1,
+        "output_format": _enum_value(output_format),
     }
 
     async with httpx.AsyncClient(timeout=timeout) as client:
@@ -353,33 +411,41 @@ async def image_generate(
         "Optional source image URLs or project file URLs. Provide one or more images to switch to image-to-image mode; leave empty for pure text-to-image.",
     ] = None,
     background: Annotated[
-        str,
-        "Background mode. Use auto, opaque, or transparent when supported by the model.",
-    ] = "auto",
+        ImageBackground,
+        "Background handling for the generated image. Choose auto, opaque, or transparent.",
+    ] = ImageBackground.AUTO,
     input_fidelity: Annotated[
-        str,
-        "How closely the result should preserve the input images. Use low or high when supported.",
-    ] = "low",
+        ImageInputFidelity,
+        "How strongly edits should preserve the input image. Choose low or high.",
+    ] = ImageInputFidelity.LOW,
     size: Annotated[
-        str,
-        "Image size, such as 1024x1024, 1024x1536, 1536x1024, or auto depending on the model.",
-    ] = "1024x1024",
+        ImageSize,
+        "Canvas size for the result. Choose square, portrait, or landscape.",
+    ] = ImageSize.SQUARE,
     quality: Annotated[
-        str,
-        "Image quality level. Usually auto, low, medium, or high depending on the model.",
-    ] = "auto",
+        ImageQuality,
+        "Generation quality. Choose auto, low, medium, or high.",
+    ] = ImageQuality.AUTO,
     output_format: Annotated[
-        str,
-        "Output format for the generated image, usually png, jpeg, or webp.",
-    ] = "png",
+        ImageOutputFormat,
+        "Output file format. Choose png, jpeg, or webp.",
+    ] = ImageOutputFormat.PNG,
     runtime: Annotated[ToolRuntime, InjectedToolArg] = None,  # type: ignore[assignment]
 ) -> str:
     """Generate or edit images with an OpenAI-compatible image API.
 
-    Use prompt alone for text-to-image. Add input_images to switch to image-to-image.
+    Use this tool for either:
+    - text-to-image generation when only `prompt` is provided
+    - image-to-image editing when `input_images` is provided
+
+    The tool accepts a small, opinionated set of options for canvas size, edit fidelity,
+    background handling, quality, and output format. Input images can be uploaded files,
+    project file URLs, or other accessible image URLs.
+
+    The response contains uploaded image URLs plus metadata such as the generated file key
+    and any revised prompt returned by the image API.
     """
     try:
-        safe_n = 1
         if input_images:
             result = await _call_edit_api(
                 prompt=prompt,
@@ -388,7 +454,6 @@ async def image_generate(
                 input_fidelity=input_fidelity,
                 size=size,
                 quality=quality,
-                n=safe_n,
                 output_format=output_format,
                 runtime=runtime,
             )
@@ -398,7 +463,6 @@ async def image_generate(
                 background=background,
                 size=size,
                 quality=quality,
-                n=safe_n,
                 output_format=output_format,
                 runtime=runtime,
             )
