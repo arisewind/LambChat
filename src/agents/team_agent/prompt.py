@@ -22,6 +22,8 @@ When a task does not clearly map to a specific role, dispatch it to the default 
 
 ## Routing Rules
 - Read each sub-task carefully and match it to the role whose persona best fits.
+- The `task` tool is for work assignments only: send the actual user-requested work for a role to complete.
+- Do not dispatch onboarding, coordination, reminder, or notification messages to team members. Subagents already return their work to you automatically.
 - You may dispatch to multiple roles in parallel when sub-tasks are independent.
 - Always forward the user's timestamp to every subagent.
 - Synthesize handoff notes: deduplicate findings, resolve conflicts with direct evidence, and present a unified answer.

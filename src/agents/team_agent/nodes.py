@@ -176,7 +176,11 @@ async def team_router_node(state: Dict[str, Any], config: RunnableConfig) -> Dic
     )
 
     # ── 系统提示 ──
-    persona_sections = build_persona_prompt_sections(configurable.get("persona_system_prompt"))
+    # In explicit team mode the main agent is only the router/synthesizer.
+    # Role persona and skills are injected into the matching member subagents.
+    persona_sections = (
+        [] if team else build_persona_prompt_sections(configurable.get("persona_system_prompt"))
+    )
 
     skills_prompt = ""
     if settings.ENABLE_SKILLS and context.skills:
@@ -187,6 +191,7 @@ async def team_router_node(state: Dict[str, Any], config: RunnableConfig) -> Dic
             logger.debug(f"[TeamAgent] Skills prompt init: {skills_init_time * 1000:.3f}ms")
         except Exception as e:
             logger.warning(f"Failed to build skills prompt: {e}")
+    router_skills_prompt = "" if team else skills_prompt
 
     memory_guide = get_memory_guide() if settings.ENABLE_MEMORY else ""
     role_system_prompts: dict[str, str] = {}
@@ -461,7 +466,12 @@ async def team_router_node(state: Dict[str, Any], config: RunnableConfig) -> Dic
     user_middleware.append(ToolResultBinaryMiddleware(base_url=subagent_base_url))
     _prompt_sections = [
         s
-        for s in (*MAIN_AGENT_PROMPT_SECTIONS, *persona_sections, skills_prompt, memory_guide)
+        for s in (
+            *MAIN_AGENT_PROMPT_SECTIONS,
+            *persona_sections,
+            router_skills_prompt,
+            memory_guide,
+        )
         if s
     ]
     if sandbox_backend and sandbox_work_dir:

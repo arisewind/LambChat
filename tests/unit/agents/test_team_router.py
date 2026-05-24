@@ -87,6 +87,30 @@ def test_team_router_prompt_includes_team_instructions():
     assert "Finds evidence." in prompt
 
 
+def test_team_router_prompt_forbids_coordination_notification_tasks():
+    team = TeamResponse(
+        id="t1",
+        owner_user_id="u1",
+        name="Dev Team",
+        members=[
+            TeamMemberResponse(
+                member_id="m1",
+                persona_preset_id="p1",
+                role_name="Writer",
+                enabled=True,
+            ),
+        ],
+    )
+
+    prompt = build_team_router_system_prompt(
+        team,
+        default_role="team-m1-writer",
+    )
+
+    assert "Do not dispatch onboarding, coordination, reminder, or notification messages" in prompt
+    assert "The `task` tool is for work assignments only" in prompt
+
+
 def test_build_team_members_description_skips_disabled():
     team = TeamResponse(
         id="t1",

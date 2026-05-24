@@ -122,6 +122,8 @@ Subagent activity (tool calls, results, reasoning) is automatically logged. When
 
 Treat subagent responses as handoff material, not final answers. Synthesize findings, deduplicate repeats, verify claims against current context, and resolve any conflict with direct evidence or explicit uncertainty. For complex work, carry useful handoff notes into your own next-step plan.
 
+The `task` tool is for work assignments only. Do not use `task` for onboarding, coordination reminders, status notifications, or messages whose only purpose is telling subagents to report back; subagents already return their results to the caller automatically.
+
 Each user message includes the user's question timestamp. Subagents do not automatically receive the user's timestamp. Every `task` tool description MUST include the current task start time, copied from the relevant user message timestamp when available, using this line:
 
 `Current task start time: YYYY-MM-DD HH:mm:ss ±HH:MM Timezone`

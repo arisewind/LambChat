@@ -80,7 +80,7 @@ class OAuthService:
 
     def _get_client(self, provider: OAuthProvider) -> Optional["AsyncOAuth2Client"]:
         """获取 OAuth 客户端"""
-        if provider != OAuthProvider.APPLE and provider.value in self._oauth_clients:
+        if provider.value in self._oauth_clients:
             return self._oauth_clients[provider.value]
 
         client_id, client_secret = self._get_client_credentials(provider)
@@ -94,9 +94,23 @@ class OAuthService:
             client_id=client_id,
             client_secret=client_secret,
         )
-        if provider != OAuthProvider.APPLE:
-            self._oauth_clients[provider.value] = client
+        self._oauth_clients[provider.value] = client
         return client
+
+    async def close(self) -> None:
+        """Close cached OAuth HTTP clients."""
+        clients = list(self._oauth_clients.values())
+        self._oauth_clients.clear()
+        for client in clients:
+            close = getattr(client, "aclose", None) or getattr(client, "close", None)
+            if close is None:
+                continue
+            try:
+                result = close()
+                if asyncio.iscoroutine(result):
+                    await result
+            except Exception as e:
+                logger.warning("Failed to close OAuth client: %s", e)
 
     def _get_client_credentials(self, provider: OAuthProvider) -> tuple[str, str]:
         """获取 OAuth 客户端凭据"""

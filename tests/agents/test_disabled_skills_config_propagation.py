@@ -553,3 +553,89 @@ async def test_team_role_subagent_prompt_includes_role_instructions_and_skills(
     assert "## Skills System" in sections
     assert "xiaohongshu-copy" in sections
     assert "unrelated-skill" not in sections
+
+    router_section_middleware = next(
+        mw for mw in fake_graph.captured_create_kwargs["middleware"] if hasattr(mw, "_sections")
+    )
+    router_sections = "\n\n".join(router_section_middleware._sections)
+    assert "## Persona" not in router_sections
+    assert "## Skills System" not in router_sections
+    assert "xiaohongshu-copy" not in router_sections
+
+
+@pytest.mark.asyncio
+async def test_team_role_subagent_inherits_global_skills_when_role_skills_are_empty(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _reset_fake_event_processor()
+    from src.agents.team_agent import nodes as team_nodes
+    from src.kernel.schemas.team import TeamMemberResponse, TeamResponse
+
+    fake_graph = _FakeDeepAgent()
+    _patch_common(monkeypatch, team_nodes, fake_graph)
+    monkeypatch.setattr(team_nodes.settings, "ENABLE_SANDBOX", False)
+    monkeypatch.setattr(team_nodes.settings, "ENABLE_SKILLS", True)
+    monkeypatch.setattr(team_nodes, "create_persistent_backend_factory", lambda **_kwargs: object())
+
+    team = TeamResponse(
+        id="team-1",
+        owner_user_id="user-1",
+        name="Creative Team",
+        members=[
+            TeamMemberResponse(
+                member_id="m-designer",
+                persona_preset_id="preset-designer",
+                role_name="诗词卡片设计师",
+                enabled=True,
+            )
+        ],
+    )
+
+    async def fake_resolve_runtime_team(**_kwargs):
+        return team
+
+    monkeypatch.setattr(team_nodes, "resolve_runtime_team", fake_resolve_runtime_team)
+
+    class _PresetManager:
+        async def use_preset(self, *_args, **_kwargs):
+            return SimpleNamespace(system_prompt="你是诗词卡片设计师。", skill_names=[])
+
+    import src.infra.persona_preset.manager as persona_manager
+
+    monkeypatch.setattr(persona_manager, "get_persona_preset_manager", lambda: _PresetManager())
+
+    context = SimpleNamespace(
+        user_id="user-1",
+        skills=[{"name": "redbook-publish", "description": "Publish content to Xiaohongshu."}],
+        deferred_manager=None,
+        get_tools=lambda: [],
+        filter_tools=lambda: [],
+    )
+    config = {
+        "configurable": {
+            "context": context,
+            "presenter": object(),
+            "base_url": "",
+            "agent_options": {},
+            "team_id": "team-1",
+        }
+    }
+
+    await team_nodes.team_router_node(
+        {"input": "设计一张诗词卡片", "session_id": "session-1", "attachments": []},
+        config,
+    )
+
+    assert fake_graph.captured_create_kwargs is not None
+    subagent = fake_graph.captured_create_kwargs["subagents"][0]
+    section_middleware = next(mw for mw in subagent["middleware"] if hasattr(mw, "_sections"))
+    sections = "\n\n".join(section_middleware._sections)
+    assert "你是诗词卡片设计师。" in sections
+    assert "## Skills System" in sections
+    assert "redbook-publish" in sections
+
+    router_section_middleware = next(
+        mw for mw in fake_graph.captured_create_kwargs["middleware"] if hasattr(mw, "_sections")
+    )
+    router_sections = "\n\n".join(router_section_middleware._sections)
+    assert "redbook-publish" not in router_sections

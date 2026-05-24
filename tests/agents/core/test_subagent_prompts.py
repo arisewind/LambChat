@@ -252,6 +252,14 @@ def test_subagent_task_guide_passes_relevant_timestamps_to_subagents() -> None:
         assert phrase.lower() in guide
 
 
+def test_subagent_task_guide_forbids_coordination_notification_tasks() -> None:
+    guide = SUBAGENT_TASK_GUIDE.lower()
+
+    assert "work assignments only" in guide
+    assert "do not use `task` for onboarding" in guide
+    assert "coordination reminders" in guide
+
+
 def test_subagent_prompts_require_scope_and_verification_handoff() -> None:
     required_guidance = [
         "stay within the assigned objective",

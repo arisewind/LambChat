@@ -56,3 +56,28 @@ def test_apple_client_secret_is_generated_from_private_key_settings(monkeypatch)
     assert captured["payload"]["iss"] == "TEAM123"
     assert captured["payload"]["sub"] == "com.example.web"
     assert captured["payload"]["aud"] == "https://appleid.apple.com"
+
+
+async def test_oauth_service_closes_cached_clients() -> None:
+    from src.infra.auth.oauth import OAuthService
+
+    class _FakeClient:
+        def __init__(self) -> None:
+            self.close_calls = 0
+
+        async def aclose(self) -> None:
+            self.close_calls += 1
+
+    service = OAuthService()
+    google_client = _FakeClient()
+    apple_client = _FakeClient()
+    service._oauth_clients = {
+        "google": google_client,
+        "apple": apple_client,
+    }
+
+    await service.close()
+
+    assert google_client.close_calls == 1
+    assert apple_client.close_calls == 1
+    assert service._oauth_clients == {}

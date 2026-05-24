@@ -34,11 +34,28 @@ CLEANUP_CHECK_INTERVAL = 20
 # 连接过期时间（秒），默认 30 分钟
 CONNECTION_TTL = 1800
 
+# 最大连接数，防止大量动态 MCP server name 让进程内连接池无限增长
+MAX_CONNECTIONS = 500
+
 
 def _track_background_task(task: asyncio.Task) -> None:
     """追踪后台任务，完成后自动从集合中移除"""
     _background_tasks.add(task)
     task.add_done_callback(_background_tasks.discard)
+
+
+async def _close_client(client: MultiServerMCPClient) -> None:
+    try:
+        if hasattr(client, "close"):
+            result = client.close()
+            if asyncio.iscoroutine(result):
+                await result
+        elif hasattr(client, "__aexit__"):
+            result = client.__aexit__(None, None, None)  # type: ignore[func-returns-value]
+            if asyncio.iscoroutine(result):
+                await result
+    except Exception as e:
+        logger.debug(f"[MCP Pool] Error closing client: {e}")
 
 
 class PooledConnection:
@@ -130,12 +147,14 @@ async def add_pooled_connection(
         client: MCP 客户端
         tools: 工具列表
     """
+    to_close: list[MultiServerMCPClient] = []
     async with _pool_lock:
         # 如果已存在且未过期，不覆盖
         if server_name in _connection_pool:
             pooled = _connection_pool[server_name]
             if not pooled.is_expired():
                 return
+            to_close.append(pooled.client)
 
         _connection_pool[server_name] = PooledConnection(
             server_name=server_name,
@@ -148,6 +167,18 @@ async def add_pooled_connection(
             f"{len(tools)} tools, pool size: {len(_connection_pool)}"
         )
 
+        if len(_connection_pool) > MAX_CONNECTIONS:
+            sorted_entries = sorted(_connection_pool.items(), key=lambda x: x[1].last_access)
+            for oldest_name, oldest in sorted_entries[: len(_connection_pool) - MAX_CONNECTIONS]:
+                if oldest_name == server_name and len(_connection_pool) <= MAX_CONNECTIONS:
+                    continue
+                removed = _connection_pool.pop(oldest_name, None)
+                if removed:
+                    to_close.append(removed.client)
+
+    for stale_client in to_close:
+        await _close_client(stale_client)
+
 
 async def cleanup_expired_connections() -> int:
     """清理过期的连接，返回清理的数量"""
@@ -158,13 +189,8 @@ async def cleanup_expired_connections() -> int:
             pooled = _connection_pool.pop(server_name, None)
             if pooled:
                 try:
-                    if hasattr(pooled.client, "close"):
-                        task = asyncio.create_task(pooled.client.close())
-                        _track_background_task(task)
-                    elif hasattr(pooled.client, "__aexit__"):
-                        coro = pooled.client.__aexit__(None, None, None)  # type: ignore[func-returns-value]
-                        task = asyncio.create_task(coro)  # type: ignore[arg-type]
-                        _track_background_task(task)
+                    task = asyncio.create_task(_close_client(pooled.client))
+                    _track_background_task(task)
                 except Exception as e:
                     logger.debug(f"[MCP Pool] Error cleaning up client for {server_name}: {e}")
 
@@ -204,3 +230,16 @@ async def get_pool_stats() -> dict[str, Any]:
         }
 
         return stats
+
+
+async def close_all_connections() -> None:
+    """Close every pooled MCP connection and clear process-local pool state."""
+    async with _pool_lock:
+        pooled_connections = list(_connection_pool.values())
+        _connection_pool.clear()
+
+    for pooled in pooled_connections:
+        await _close_client(pooled.client)
+
+    if _background_tasks:
+        await asyncio.gather(*list(_background_tasks), return_exceptions=True)

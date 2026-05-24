@@ -363,6 +363,17 @@ async def lifespan(app: FastAPI):
         email_service = await get_email_service()
         await email_service.close()
 
+        # 关闭 OAuth 客户端
+        from src.infra.auth.oauth import get_oauth_service
+
+        oauth_service = get_oauth_service()
+        await oauth_service.close()
+
+        # 关闭 MCP 连接池
+        from src.infra.tool.mcp_pool import close_all_connections
+
+        await close_all_connections()
+
         # 关闭 RateLimiter Redis 连接
         from src.api.routes.auth import get_rate_limiter
 

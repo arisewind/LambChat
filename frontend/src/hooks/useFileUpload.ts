@@ -62,6 +62,18 @@ export function useFileUpload({
   const [uploadLimits, setUploadLimits] = useState<UploadLimits | null>(null);
   const limitsFetched = useRef(false);
   const abortMapRef = useRef<Map<string, () => void>>(new Map());
+  const isMountedRef = useRef(true);
+
+  useEffect(() => {
+    const abortMap = abortMapRef.current;
+    return () => {
+      isMountedRef.current = false;
+      for (const abort of abortMap.values()) {
+        abort();
+      }
+      abortMap.clear();
+    };
+  }, []);
 
   // Fetch upload limits once
   useEffect(() => {
@@ -141,6 +153,9 @@ export function useFileUpload({
           : Promise.resolve(file);
 
       maybeCompress.then((processedFile) => {
+        if (!isMountedRef.current) {
+          return;
+        }
         const tempId = `temp-${uuid()}`;
 
         const tempAttachment: MessageAttachment = {
@@ -159,6 +174,9 @@ export function useFileUpload({
 
         computeFileHash(processedFile)
           .then((hash) => {
+            if (!isMountedRef.current) {
+              throw new Error("Upload was aborted");
+            }
             onAttachmentsChange((prev: MessageAttachment[]) =>
               prev.map((a) =>
                 a.id === tempId ? { ...a, uploadProgress: 1 } : a,
@@ -175,7 +193,10 @@ export function useFileUpload({
           })
           .catch(() => ({ check: { exists: false } }))
           .then(({ check }) => {
-            if (check.exists && 'key' in check) {
+            if (!isMountedRef.current) {
+              return;
+            }
+            if (check.exists && "key" in check) {
               abortMapRef.current.delete(tempId);
               const c = check as FileCheckResult;
               const finalAttachment: MessageAttachment = {
@@ -203,6 +224,9 @@ export function useFileUpload({
 
             const handle = uploadApi.uploadFile(processedFile, {
               onProgress: (progress) => {
+                if (!isMountedRef.current) {
+                  return;
+                }
                 onAttachmentsChange((prev: MessageAttachment[]) =>
                   prev.map((a) =>
                     a.id === tempId
@@ -216,6 +240,9 @@ export function useFileUpload({
             abortMapRef.current.set(tempId, handle.abort);
 
             return handle.promise.then((result) => {
+              if (!isMountedRef.current) {
+                return;
+              }
               abortMapRef.current.delete(tempId);
               const finalAttachment: MessageAttachment = {
                 id: uuid(),
@@ -233,6 +260,9 @@ export function useFileUpload({
           })
           .catch((error) => {
             abortMapRef.current.delete(tempId);
+            if (!isMountedRef.current) {
+              return;
+            }
             if (
               error instanceof Error &&
               error.message === "Upload was aborted"
