@@ -123,6 +123,28 @@ def test_subagent_prompt_requires_path_checks_and_separate_workspaces() -> None:
         assert phrase in prompt
 
 
+def test_subagent_prompts_include_tool_selection_rules() -> None:
+    required_guidance = [
+        "mcp tool search guide",
+        "file transfer",
+        "tool selection rules",
+        "if one of these tools would help",
+        "search_tools",
+        "first to load its full parameter schema",
+        "only searches deferred mcp tools",
+        "does not search sandbox tools",
+        "deferred",
+        "load the matching schema",
+        "sandbox tool",
+        "mcporter list",
+    ]
+
+    for prompt in (DEFAULT_SUBAGENT_PROMPT, DETAILED_SUBAGENT_PROMPT, SUBAGENT_PROMPT):
+        lower_prompt = prompt.lower()
+        for phrase in required_guidance:
+            assert phrase in lower_prompt
+
+
 def test_subagent_prompts_require_file_reveal_before_claiming_completion() -> None:
     required_guidance = [
         "file reveal (required)",

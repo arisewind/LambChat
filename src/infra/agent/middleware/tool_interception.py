@@ -27,9 +27,12 @@ if TYPE_CHECKING:
 
 from src.infra.agent.middleware._helpers import (
     _append_system_text_blocks,
+    _normalize_prompt_text,
+    _system_message_to_blocks,
     _tool_sort_key,
 )
 from src.infra.async_utils import run_blocking_io
+from src.infra.tool.deferred_manager import DEFERRED_TOOL_SEARCH_GUIDE
 from src.kernel.config import settings
 
 logger = logging.getLogger(__name__)
@@ -410,6 +413,23 @@ class ToolSearchMiddleware(AgentMiddleware):
             )
         return self._search_tool
 
+    @staticmethod
+    def _system_message_contains_search_guide(system_message: Any) -> bool:
+        guide = _normalize_prompt_text(DEFERRED_TOOL_SEARCH_GUIDE)
+        if not guide:
+            return False
+
+        text_parts: list[str] = []
+        for block in _system_message_to_blocks(system_message):
+            if not isinstance(block, dict):
+                continue
+            if block.get("type") != "text":
+                continue
+            text = block.get("text", "")
+            if isinstance(text, str):
+                text_parts.append(_normalize_prompt_text(text))
+        return guide in "\n\n".join(text_parts)
+
     async def awrap_model_call(
         self,
         request: ModelRequest[ContextT],
@@ -418,6 +438,8 @@ class ToolSearchMiddleware(AgentMiddleware):
         """Inject deferred tool prompt and dynamic tool schemas."""
         # 1. Inject deferred tool name list + discovered tool state (uses manager's dirty flag cache)
         prompt_sections = self._deferred_manager.get_deferred_prompt_blocks()
+        if prompt_sections and self._system_message_contains_search_guide(request.system_message):
+            prompt_sections = prompt_sections[1:]
         if prompt_sections:
             new_system_message = _append_system_text_blocks(request.system_message, prompt_sections)
             request = request.override(system_message=new_system_message)

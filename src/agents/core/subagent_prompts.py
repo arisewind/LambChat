@@ -9,6 +9,8 @@ fast_agent / search_agent 均从此处导入，避免重复。
 # 共享 Workflow 段（fast_agent / search_agent 共用）
 # ---------------------------------------------------------------------------
 
+from src.infra.tool.deferred_manager import DEFERRED_TOOL_SEARCH_GUIDE
+
 FILE_WORKSPACE_GUIDE = """
 ### File and Workspace Creation
 Before creating files/directories, check whether the target path exists. If work is unrelated to the current project, do not develop inside it; create a clearly named directory under the active writable workspace/work_dir. Only touch an existing project when requested or clearly related.
@@ -50,6 +52,24 @@ Do not perform destructive, irreversible, or external side effect actions unless
 Do not print, log, reveal, or write secrets. If a command or tool output contains tokens, API keys, cookies, credentials, or private values, redact them before presenting or storing the output. Use configured environment variable names without exposing their values.
 """
 
+TOOL_DISCOVERY_GUIDE = """
+### File Transfer
+Backends are routed by path prefix:
+- `/skills/*` → skill store (MongoDB)
+- Other paths → active workspace/work_dir
+
+Tools:
+- `transfer_file(src, dst)` — transfer one text file between backends.
+- `transfer_path(src_dir, prefix)` — batch transfer a directory; the directory name becomes the target sub-path (e.g., `/skills/Foo/` → `/home/user/Foo/`).
+
+Text only. Limits: single file 10MB, batch 100MB/200 files. `/skills/` is virtual storage, not a sandbox directory; never execute `/skills/...` directly from shell. Transfer files into the workspace before running them.
+
+### Tool Selection Rules
+- If the needed tool is already loaded, call it directly.
+- If a relevant MCP tool appears in a deferred section, call `search_tools` to load the matching schema, then call that tool directly.
+- If the capability is a sandbox tool, use `execute` with `mcporter list`, then `mcporter list <service> --schema`, before the first `mcporter call`.
+"""
+
 WORKFLOW_SECTION = (
     """
 ## Workflow
@@ -58,47 +78,15 @@ WORKFLOW_SECTION = (
     + FILE_WORKSPACE_GUIDE
     + FILE_REVEAL_GUIDE
     + SAFETY_AND_VERIFICATION_GUIDE
-    + """
-### File Transfer
-Backends are routed by path prefix:
-- `/skills/*` → skill store (MongoDB)
-- Other paths → active workspace/work_dir
-
-Tools:
-- `transfer_file(src, dst)` — transfer one text file between backends.
-- `transfer_path(src_dir, prefix)` — batch transfer a directory; the directory name becomes the target sub-path (e.g., `/skills/Foo/` → `/home/user/Foo/`).
-
-Text only. Limits: single file 10MB, batch 100MB/200 files. `/skills/` is virtual storage, not a sandbox directory; never execute `/skills/...` directly from shell. Transfer files into the workspace before running them.
-
-### Tool Selection Rules
-- If the needed tool is already loaded, call it directly.
-- If a relevant MCP tool appears in a deferred section, call `search_tools` to load the matching schema, then call that tool directly.
-- If the capability is a sandbox tool, use `execute` with `mcporter list`, then `mcporter list <service> --schema`, before the first `mcporter call`.
-
-"""
+    + TOOL_DISCOVERY_GUIDE
+    + "\n"
 )
 
 MAIN_AGENT_PROMPT_SECTIONS: tuple[str, ...] = (
     FILE_WORKSPACE_GUIDE,
     FILE_REVEAL_GUIDE,
     SAFETY_AND_VERIFICATION_GUIDE,
-    """
-### File Transfer
-Backends are routed by path prefix:
-- `/skills/*` → skill store (MongoDB)
-- Other paths → active workspace/work_dir
-
-Tools:
-- `transfer_file(src, dst)` — transfer one text file between backends.
-- `transfer_path(src_dir, prefix)` — batch transfer a directory; the directory name becomes the target sub-path (e.g., `/skills/Foo/` → `/home/user/Foo/`).
-
-Text only. Limits: single file 10MB, batch 100MB/200 files. `/skills/` is virtual storage, not a sandbox directory; never execute `/skills/...` directly from shell. Transfer files into the workspace before running them.
-
-### Tool Selection Rules
-- If the needed tool is already loaded, call it directly.
-- If a relevant MCP tool appears in a deferred section, call `search_tools` to load the matching schema, then call that tool directly.
-- If the capability is a sandbox tool, use `execute` with `mcporter list`, then `mcporter list <service> --schema`, before the first `mcporter call`.
-""",
+    TOOL_DISCOVERY_GUIDE,
 )
 
 # ---------------------------------------------------------------------------
@@ -145,6 +133,10 @@ DEFAULT_SUBAGENT_PROMPT = (
     + FILE_WORKSPACE_GUIDE
     + FILE_REVEAL_GUIDE
     + SAFETY_AND_VERIFICATION_GUIDE
+    + "\n"
+    + DEFERRED_TOOL_SEARCH_GUIDE
+    + "\n"
+    + TOOL_DISCOVERY_GUIDE
     + """
 
 Stay within the assigned objective. Do not make final promises to the user; return evidence and handoff notes for the main agent to synthesize. Run relevant verification when you change files or make claims that can be checked.
@@ -178,6 +170,10 @@ Your activity (tool calls, results, reasoning) is automatically recorded. Comple
     + FILE_WORKSPACE_GUIDE
     + FILE_REVEAL_GUIDE
     + SAFETY_AND_VERIFICATION_GUIDE
+    + "\n"
+    + DEFERRED_TOOL_SEARCH_GUIDE
+    + "\n"
+    + TOOL_DISCOVERY_GUIDE
     + """
 
 Work like a teammate handing off context to the main agent:

@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import {
   isNearSubagentPanelBottom,
+  startSubagentPanelScrollToBottom,
   shouldAutoScrollSubagentPanel,
 } from "../subagentPanelScroll.ts";
 
@@ -57,4 +58,27 @@ test("does not auto-scroll before the panel scroller mounts", () => {
     }),
     false,
   );
+});
+
+test("keeps scrolling to the subagent panel bottom while content height is settling", async () => {
+  const scroller = {
+    scrollTop: 0,
+    clientHeight: 100,
+    scrollHeight: 500,
+  };
+
+  const stop = startSubagentPanelScrollToBottom({
+    scroller,
+    intervalMs: 5,
+    maxAttempts: 6,
+  });
+
+  assert.equal(scroller.scrollTop, 500);
+
+  scroller.scrollHeight = 900;
+
+  await new Promise((resolve) => setTimeout(resolve, 15));
+  stop();
+
+  assert.equal(scroller.scrollTop, 900);
 });

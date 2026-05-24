@@ -8,7 +8,7 @@ from src.infra.agent.middleware import (
     SectionPromptMiddleware,
     ToolSearchMiddleware,
 )
-from src.infra.tool.deferred_manager import DeferredToolManager
+from src.infra.tool.deferred_manager import DEFERRED_TOOL_SEARCH_GUIDE, DeferredToolManager
 from src.kernel.config import settings
 
 
@@ -499,6 +499,43 @@ async def test_tool_search_middleware_injects_discovered_tools_as_cacheable() ->
     discovered_tool = next(tool for tool in result.tools if tool.name == "alpha:create")
 
     assert "_lambchat_prompt_cache_volatile" not in (discovered_tool.extras or {})
+
+
+async def test_tool_search_middleware_skips_duplicate_search_guide_when_already_present() -> None:
+    manager = DeferredToolManager(
+        all_deferred_tools=[
+            _FakeTool(name="alpha:create", description="alpha create", server="alpha"),
+        ],
+        session_id="session-1",
+    )
+    middleware = ToolSearchMiddleware(deferred_manager=manager, search_limit=5)
+
+    class _Request:
+        def __init__(self) -> None:
+            self.system_message = SystemMessage(
+                content=[
+                    {"type": "text", "text": "base"},
+                    {"type": "text", "text": DEFERRED_TOOL_SEARCH_GUIDE},
+                ]
+            )
+            self.tools = []
+
+        def override(self, **kwargs):
+            clone = _Request()
+            clone.system_message = kwargs.get("system_message", self.system_message)
+            clone.tools = kwargs.get("tools", self.tools)
+            return clone
+
+    async def _handler(request):
+        return request
+
+    result = await middleware.awrap_model_call(_Request(), _handler)
+    system_text = "\n".join(
+        block["text"] for block in result.system_message.content if block.get("type") == "text"
+    )
+
+    assert system_text.count("## MCP Tool Search Guide") == 1
+    assert "## MCP Tools (Deferred)" in system_text
 
 
 def test_deferred_prompt_does_not_repeat_loaded_tool_names() -> None:

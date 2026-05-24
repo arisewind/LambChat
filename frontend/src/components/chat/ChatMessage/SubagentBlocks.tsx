@@ -51,6 +51,7 @@ import {
 } from "./subagentPanelStore";
 import {
   isNearSubagentPanelBottom,
+  startSubagentPanelScrollToBottom,
   shouldAutoScrollSubagentPanel,
 } from "./subagentPanelScroll";
 import {
@@ -313,19 +314,47 @@ function SubagentPanelContent({ agentId }: { agentId: string }) {
   const contentRef = useRef<HTMLDivElement>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
   const userScrolledUpRef = useRef(false);
+  const programmaticScrollRef = useRef(false);
+  const stopAutoScrollRef = useRef<(() => void) | null>(null);
+
+  const markProgrammaticScroll = useCallback(() => {
+    programmaticScrollRef.current = true;
+    window.setTimeout(() => {
+      programmaticScrollRef.current = false;
+    }, 0);
+  }, []);
+
+  const stopAutoScroll = useCallback(() => {
+    stopAutoScrollRef.current?.();
+    stopAutoScrollRef.current = null;
+  }, []);
+
+  const startAutoScroll = useCallback(() => {
+    stopAutoScroll();
+    stopAutoScrollRef.current = startSubagentPanelScrollToBottom({
+      scroller: scrollRef.current,
+      footer: bottomRef.current,
+      shouldAbort: () => userScrolledUpRef.current,
+      onAutoScroll: markProgrammaticScroll,
+    });
+  }, [markProgrammaticScroll, stopAutoScroll]);
+
+  useEffect(() => {
+    return () => stopAutoScroll();
+  }, [stopAutoScroll]);
 
   const scrollToBottom = useCallback(() => {
-    bottomRef.current?.scrollIntoView({ behavior: "auto", block: "end" });
-    if (scrollRef.current) {
-      scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
-    }
-  }, []);
+    startAutoScroll();
+  }, [startAutoScroll]);
 
   const handleScroll = useCallback(() => {
     const scroller = scrollRef.current;
-    if (!scroller) return;
+    if (!scroller || programmaticScrollRef.current) return;
     userScrolledUpRef.current = !isNearSubagentPanelBottom(scroller);
-  }, []);
+    if (userScrolledUpRef.current) {
+      stopAutoScroll();
+    }
+  }, [stopAutoScroll]);
 
   useLayoutEffect(() => {
     if (
@@ -353,7 +382,7 @@ function SubagentPanelContent({ agentId }: { agentId: string }) {
           userScrolledUp: userScrolledUpRef.current,
         })
       ) {
-        scrollToBottom();
+        startAutoScroll();
       }
     });
 
@@ -363,7 +392,7 @@ function SubagentPanelContent({ agentId }: { agentId: string }) {
     }
 
     return () => observer.disconnect();
-  }, [scrollToBottom]);
+  }, [startAutoScroll]);
 
   if (!data) return null;
 
@@ -375,7 +404,7 @@ function SubagentPanelContent({ agentId }: { agentId: string }) {
     <div
       ref={scrollRef}
       onScroll={handleScroll}
-      className="max-h-full overflow-y-auto p-2 sm:p-4"
+      className="h-full min-h-0 overflow-y-auto p-2 sm:p-4"
     >
       <div ref={contentRef} className="space-y-3">
         {data.input && (
