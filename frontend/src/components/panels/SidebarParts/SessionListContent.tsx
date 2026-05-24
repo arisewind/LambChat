@@ -171,7 +171,7 @@ export function SessionListContent({
       <div className="flex flex-col gap-px px-2 py-2 space-y-1">
         <button
           onClick={onNewSession}
-          className="sidebar-nav-btn w-full h-9 rounded-[10px] flex items-center gap-3 px-[9px] text-sm font-medium focus:outline-none transition-colors group"
+          className="sidebar-nav-btn w-full h-9 rounded-[10px] flex items-center gap-3 px-[9px] focus:outline-none transition-colors group"
         >
           <MessageSquarePlus size={20} />
           <span className="flex-1 text-left">{t("sidebar.newChat")}</span>
@@ -182,7 +182,7 @@ export function SessionListContent({
 
         <button
           onClick={onOpenSearch}
-          className="sidebar-nav-btn w-full h-9 rounded-[10px] flex items-center gap-3 px-[9px] text-sm focus:outline-none transition-colors group"
+          className="sidebar-nav-btn w-full h-9 rounded-[10px] flex items-center gap-3 px-[9px] focus:outline-none transition-colors group"
         >
           <Search size={20} />
           <span className="flex-1 text-left">
@@ -198,7 +198,7 @@ export function SessionListContent({
 
         <button
           onClick={() => navigate("/persona")}
-          className="sidebar-nav-btn w-full h-9 rounded-[10px] flex items-center gap-3 px-[9px] text-sm focus:outline-none transition-colors"
+          className="sidebar-nav-btn w-full h-9 rounded-[10px] flex items-center gap-3 px-[9px] focus:outline-none transition-colors"
         >
           <UserRound size={20} />
           <span>{t("personaPresets.title", "角色广场")}</span>
@@ -206,7 +206,7 @@ export function SessionListContent({
 
         <button
           onClick={() => navigate("/team")}
-          className="sidebar-nav-btn w-full h-9 rounded-[10px] flex items-center gap-3 px-[9px] text-sm focus:outline-none transition-colors"
+          className="sidebar-nav-btn w-full h-9 rounded-[10px] flex items-center gap-3 px-[9px] focus:outline-none transition-colors"
         >
           <Users size={20} />
           <span>{t("nav.team", "团队构建")}</span>
@@ -214,7 +214,7 @@ export function SessionListContent({
 
         <button
           onClick={() => navigate("/files")}
-          className="sidebar-nav-btn w-full h-9 rounded-[10px] flex items-center gap-3 px-[9px] text-sm focus:outline-none transition-colors"
+          className="sidebar-nav-btn w-full h-9 rounded-[10px] flex items-center gap-3 px-[9px] focus:outline-none transition-colors"
         >
           <FolderOpen size={20} />
           <span>{t("fileLibrary.title")}</span>
@@ -225,7 +225,7 @@ export function SessionListContent({
             <button
               ref={expandedMoreMenuBtnRef}
               onClick={onToggleMoreMenu}
-              className="sidebar-nav-btn w-full h-9 rounded-[10px] flex items-center gap-3 px-[9px] text-sm focus:outline-none transition-colors"
+              className="sidebar-nav-btn w-full h-9 rounded-[10px] flex items-center gap-3 px-[9px] focus:outline-none transition-colors"
             >
               <MoreHorizontal size={20} />
               <span className="flex-1 text-left">{t("nav.more", "更多")}</span>
@@ -260,7 +260,7 @@ export function SessionListContent({
           {!isProjectsCollapsed && (
             <button
               onClick={projectActions.onOpenNewProjectModal}
-              className="w-full h-9 rounded-[10px] flex items-center gap-3 px-[9px] text-sm text-stone-500 dark:text-stone-400 hover:bg-stone-100 dark:hover:bg-stone-800/60 transition-colors cursor-pointer"
+              className="sidebar-nav-btn w-full h-9 rounded-[10px] flex items-center gap-3 px-[9px] focus:outline-none transition-colors cursor-pointer"
             >
               <FolderPlus size={20} />
               <span>{t("sidebar.newProject")}</span>

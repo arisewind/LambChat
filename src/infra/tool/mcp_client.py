@@ -16,6 +16,7 @@ from langchain_core.tools import BaseTool
 from langchain_mcp_adapters.client import MultiServerMCPClient
 from pydantic import PrivateAttr
 
+from src.infra.async_utils import run_blocking_io
 from src.infra.logging import get_logger
 from src.kernel.schemas.mcp import MCPRoleQuota, MCPToolPolicy
 
@@ -360,8 +361,7 @@ class MCPClientManager:
 
     async def _load_config_from_file(self) -> Optional[dict]:
         """从文件加载 MCP 配置（异步版本）"""
-        loop = asyncio.get_event_loop()
-        return await loop.run_in_executor(None, self._load_config_from_file_sync)
+        return await run_blocking_io(self._load_config_from_file_sync)
 
     def _server_to_config_dict(self, server) -> dict:
         """将服务器对象转换为配置字典"""

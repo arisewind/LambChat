@@ -14,6 +14,14 @@ const chatInputSource = readFileSync(
   new URL("../ChatInput.tsx", import.meta.url),
   "utf8",
 );
+const chatViewSource = readFileSync(
+  new URL("../../layout/AppContent/ChatView.tsx", import.meta.url),
+  "utf8",
+);
+const chatMessageSource = readFileSync(
+  new URL("../ChatMessage/index.tsx", import.meta.url),
+  "utf8",
+);
 const featureMenuSource = readFileSync(
   new URL("../../selectors/FeatureMenu.tsx", import.meta.url),
   "utf8",
@@ -67,4 +75,18 @@ test("team selector uses the persona selector interaction surfaces", () => {
   assert.match(teamPickerSource, /handleSelect\(team\.id\)/);
   assert.match(teamPickerSource, /onSelect\(teamId\)/);
   assert.doesNotMatch(teamPickerSource, /sm:w-\[420px\]/);
+});
+
+test("assistant message header shows the selected team in team mode", () => {
+  assert.match(chatViewSource, /import \{ teamApi \} from/);
+  assert.match(chatViewSource, /function useCurrentTeam/);
+  assert.match(chatViewSource, /function resolveChatAssistantIdentity/);
+  assert.match(chatViewSource, /getTeamFallbackAvatar/);
+  assert.match(chatViewSource, /const assistantIdentity = useMemo\(/);
+  assert.match(chatViewSource, /personaAvatar=\{assistantIdentity\.avatar\}/);
+  assert.match(chatViewSource, /personaName=\{assistantIdentity\.name\}/);
+  assert.match(
+    chatMessageSource,
+    /\{personaName \|\| t\("chat\.message\.assistant"\)\}/,
+  );
 });

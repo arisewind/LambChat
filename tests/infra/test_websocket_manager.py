@@ -269,3 +269,31 @@ async def test_failed_send_cleans_up_empty_connection_bucket_and_refresh_task(
     assert sent == 0
     assert "user-1" not in manager._connections
     assert "user-1" not in manager._route_refresh_tasks
+
+
+@pytest.mark.asyncio
+async def test_route_refresh_task_cleans_itself_up_when_it_exits(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    fake_redis = _FakeRedisClient()
+    monkeypatch.setattr(
+        "src.infra.websocket.create_redis_client",
+        lambda isolated_pool=False: fake_redis,
+    )
+
+    async def _sleep(_: float) -> None:
+        return None
+
+    monkeypatch.setattr("src.infra.websocket.asyncio.sleep", _sleep)
+
+    manager = ConnectionManager()
+    manager._instance_id = "instance-a"
+    websocket = _FakeWebSocket()
+
+    await manager.connect(websocket, "user-1", accept=False)
+    manager._connections["user-1"].clear()
+
+    task = manager._route_refresh_tasks["user-1"]
+    await task
+
+    assert "user-1" not in manager._route_refresh_tasks

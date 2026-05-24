@@ -61,6 +61,9 @@ export interface SharedContentResponse {
     persona_preset_id?: string;
     persona_preset_name?: string;
     persona_avatar?: string;
+    team_id?: string;
+    team_name?: string;
+    team_avatar?: string;
   };
   events: SSEEventRecord[];
   owner: SharedContentOwner;

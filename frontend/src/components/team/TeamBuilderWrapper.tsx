@@ -269,9 +269,11 @@ export function TeamBuilderWrapper() {
   const handleCloneTeam = async (teamId: string) => {
     try {
       await teamApi.clone(teamId);
+      toast.success(t("team.cloneSuccess", "团队已克隆"));
       loadTeams();
     } catch (e) {
       console.error("Failed to clone team:", e);
+      toast.error(t("team.cloneFailed", "克隆失败"));
     }
   };
 
@@ -298,15 +300,18 @@ export function TeamBuilderWrapper() {
     if (!window.confirm(t("team.deleteConfirm"))) return;
     try {
       await teamApi.delete(teamId);
+      toast.success(t("team.deleteSuccess", "团队已删除"));
       setTeams((prev) => prev.filter((t) => t.id !== teamId));
     } catch (e) {
       console.error("Failed to delete team:", e);
+      toast.error(t("team.deleteFailed", "删除失败"));
     }
   };
 
   const handleSave = (team: Team) => {
     setEditingTeamId(team.id);
     loadTeams();
+    setEditorOpen(false);
   };
 
   const handleClose = () => {

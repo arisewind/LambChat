@@ -319,27 +319,27 @@ class BackgroundTaskManager:
                 },
             )
 
-            should_close_pool = False
-            if arq_pool is None:
-                arq_pool = await create_pool(
-                    build_arq_redis_settings(settings),
-                    default_queue_name=settings.ARQ_QUEUE_NAME,
-                )
-                should_close_pool = True
-            try:
-                await arq_pool.enqueue_job("run_agent_task", run_id, _job_id=run_id)
-            finally:
-                if should_close_pool:
-                    close = getattr(arq_pool, "close", None)
-                    if close is not None:
-                        result = close()
-                        if asyncio.iscoroutine(result):
-                            await result
-                    wait_closed = getattr(arq_pool, "wait_closed", None)
-                    if wait_closed is not None:
-                        result = wait_closed()
-                        if asyncio.iscoroutine(result):
-                            await result
+        should_close_pool = False
+        if arq_pool is None:
+            arq_pool = await create_pool(
+                build_arq_redis_settings(settings),
+                default_queue_name=settings.ARQ_QUEUE_NAME,
+            )
+            should_close_pool = True
+        try:
+            await arq_pool.enqueue_job("run_agent_task", run_id, _job_id=run_id)
+        finally:
+            if should_close_pool:
+                close = getattr(arq_pool, "close", None)
+                if close is not None:
+                    result = close()
+                    if asyncio.iscoroutine(result):
+                        await result
+                wait_closed = getattr(arq_pool, "wait_closed", None)
+                if wait_closed is not None:
+                    result = wait_closed()
+                    if asyncio.iscoroutine(result):
+                        await result
 
         logger.info(
             "Task submitted to arq: session=%s, run_id=%s, agent=%s", session_id, run_id, agent_id

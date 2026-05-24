@@ -20,7 +20,6 @@ Transfer File / Transfer Path 工具
 - 目录深度/文件数限制（深度 5 层，1000 文件）
 """
 
-import asyncio
 import json
 import os
 from typing import Annotated, Any, Optional
@@ -28,6 +27,7 @@ from typing import Annotated, Any, Optional
 from langchain.tools import ToolRuntime, tool
 from langchain_core.tools import BaseTool
 
+from src.infra.async_utils import run_blocking_io
 from src.infra.logging import get_logger
 from src.infra.tool.backend_utils import get_backend_from_runtime
 
@@ -200,7 +200,7 @@ async def _download_from_backend(backend: Any, file_path: str) -> Optional[bytes
 
     if hasattr(backend, "download_files"):
         try:
-            responses = await asyncio.to_thread(backend.download_files, [file_path])
+            responses = await run_blocking_io(backend.download_files, [file_path])
             if responses:
                 resp = responses[0]
                 if resp.content:
@@ -228,7 +228,7 @@ async def _upload_to_backend(backend: Any, target_path: str, content: bytes) -> 
 
     if hasattr(backend, "upload_files"):
         try:
-            responses = await asyncio.to_thread(backend.upload_files, [(target_path, content)])
+            responses = await run_blocking_io(backend.upload_files, [(target_path, content)])
             if responses:
                 resp = responses[0]
                 if resp.error:
@@ -369,7 +369,7 @@ async def _list_dir_files(backend: Any, dir_path: str) -> list[str]:
                 result = await backend.als(current_dir)
                 entries = result.entries or []
             elif hasattr(backend, "ls"):
-                result = await asyncio.to_thread(backend.ls, current_dir)
+                result = await run_blocking_io(backend.ls, current_dir)
                 entries = result.entries or []
             else:
                 return

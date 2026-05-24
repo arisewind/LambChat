@@ -14,6 +14,7 @@ import uuid
 from collections.abc import Awaitable
 from typing import BinaryIO, Callable, Optional, TypeVar
 
+from src.infra.async_utils import run_blocking_io
 from src.infra.logging import get_logger
 from src.infra.storage.s3.backends import (
     AliyunOssBackend,
@@ -267,24 +268,22 @@ class S3StorageService:
 
                 avatar_objects = await self.list_files(f"avatars/{user_id}")
                 if avatar_objects:
-                    loop = asyncio.get_running_loop()
 
                     def _remove_avatar_objects():
                         for key in avatar_objects:
                             client.remove_object(bucket_name=bucket, object_name=key)
 
-                    await loop.run_in_executor(None, _remove_avatar_objects)
+                    await run_blocking_io(_remove_avatar_objects)
                     deleted_count += len(avatar_objects)
 
                 user_objects = await self.list_files(user_id)
                 if user_objects:
-                    loop = asyncio.get_running_loop()
 
                     def _remove_user_objects():
                         for key in user_objects:
                             client.remove_object(bucket_name=bucket, object_name=key)
 
-                    await loop.run_in_executor(None, _remove_user_objects)
+                    await run_blocking_io(_remove_user_objects)
                     deleted_count += len(user_objects)
 
                 return deleted_count

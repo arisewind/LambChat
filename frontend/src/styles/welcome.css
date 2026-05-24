@@ -158,7 +158,7 @@
 }
 
 .welcome-persona-card:hover::before {
-  opacity: 0.5;
+  opacity: 0;
 }
 
 .welcome-persona-card:hover {

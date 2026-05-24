@@ -49,6 +49,12 @@ type ToolbarProps = Pick<
   | "setIsFullscreen"
 >;
 
+const toolbarActionButtonClass =
+  "flex items-center justify-center size-8 sm:size-auto sm:gap-1.5 sm:px-2.5 sm:py-2 rounded-lg sm:rounded-xl text-xs sm:text-sm font-medium text-stone-600 dark:text-stone-300 hover:bg-stone-200/80 dark:hover:bg-stone-700/60 active:bg-stone-200 dark:active:bg-stone-600/60 transition-all duration-200 active:scale-95 cursor-pointer";
+
+const desktopToolbarActionButtonClass =
+  "hidden sm:flex items-center justify-center gap-1.5 px-2.5 py-2 rounded-xl text-xs sm:text-sm font-medium text-stone-600 dark:text-stone-300 hover:bg-stone-200/80 dark:hover:bg-stone-700/60 active:bg-stone-200 dark:active:bg-stone-600/60 transition-all duration-200 active:scale-95 cursor-pointer";
+
 export default function DocumentPreviewToolbar({
   t,
   data,
@@ -82,7 +88,10 @@ export default function DocumentPreviewToolbar({
   setIsFullscreen,
 }: ToolbarProps) {
   return (
-    <div className="flex items-center gap-1.5 sm:gap-2.5 px-2 sm:px-4 py-2 sm:py-3 border-b border-[var(--theme-border)] overflow-hidden">
+    <div
+      ref={toolbarRef}
+      className="flex items-center gap-1.5 sm:gap-2.5 px-2 sm:px-4 py-2 sm:py-3 border-b border-[var(--theme-border)] overflow-hidden"
+    >
       {effectiveOnBack && (
         <button
           type="button"
@@ -119,10 +128,7 @@ export default function DocumentPreviewToolbar({
           </span>
         </div>
       </div>
-      <div
-        ref={toolbarRef}
-        className="flex items-center gap-px sm:gap-1 relative z-10 shrink-0"
-      >
+      <div className="flex items-center gap-px sm:gap-1 relative z-10 shrink-0">
         {markdownFile && data?.content && (
           <button
             type="button"
@@ -130,7 +136,7 @@ export default function DocumentPreviewToolbar({
               e.stopPropagation();
               setViewSource(!viewSource);
             }}
-            className="flex items-center justify-center size-8 sm:size-auto sm:gap-1.5 sm:px-2.5 sm:py-2 rounded-lg sm:rounded-xl text-stone-600 dark:text-stone-300 hover:bg-stone-200/80 dark:hover:bg-stone-700/60 active:bg-stone-200 dark:active:bg-stone-600/60 transition-all duration-200 active:scale-95 cursor-pointer"
+            className={toolbarActionButtonClass}
             title={viewSource ? t("documents.preview") : t("documents.source")}
           >
             {viewSource ? (
@@ -166,7 +172,7 @@ export default function DocumentPreviewToolbar({
               if (isFullscreen) setIsFullscreen(false);
             }
           }}
-          className="hidden sm:flex items-center justify-center gap-1.5 px-2.5 py-2 rounded-xl text-xs sm:text-sm font-medium text-stone-600 dark:text-stone-300 hover:bg-stone-200/80 dark:hover:bg-stone-700/60 active:bg-stone-200 dark:active:bg-stone-600/60 transition-all duration-200 active:scale-95 cursor-pointer"
+          className={desktopToolbarActionButtonClass}
           title={
             isSidebar
               ? t("documents.centerView", "Center view")
@@ -197,7 +203,7 @@ export default function DocumentPreviewToolbar({
             }
             setIsFullscreen(!isFullscreen);
           }}
-          className="flex items-center justify-center size-8 sm:size-auto sm:gap-1.5 sm:px-2.5 sm:py-2 rounded-lg sm:rounded-xl text-stone-600 dark:text-stone-300 hover:bg-stone-200/80 dark:hover:bg-stone-700/60 active:bg-stone-200 dark:active:bg-stone-600/60 transition-all duration-200 active:scale-95 cursor-pointer"
+          className={toolbarActionButtonClass}
           title={
             isFullscreen
               ? t("documents.exitFullscreen")
@@ -236,7 +242,7 @@ export default function DocumentPreviewToolbar({
                 e.stopPropagation();
                 handleDownload();
               }}
-              className="flex items-center justify-center size-8 sm:size-auto sm:gap-1.5 sm:px-2.5 sm:py-2 rounded-lg sm:rounded-xl text-stone-600 dark:text-stone-300 hover:bg-stone-200/80 dark:hover:bg-stone-700/60 active:bg-stone-200 dark:active:bg-stone-600/60 transition-all duration-200 active:scale-95 cursor-pointer"
+              className={toolbarActionButtonClass}
               title={t("documents.download")}
             >
               <Download size={16} />
@@ -253,7 +259,7 @@ export default function DocumentPreviewToolbar({
                   e.stopPropagation();
                   handleCopy();
                 }}
-                className="flex items-center justify-center size-8 sm:size-auto sm:gap-1.5 sm:px-2.5 sm:py-2 rounded-lg sm:rounded-xl text-stone-600 dark:text-stone-300 hover:bg-stone-200/80 dark:hover:bg-stone-700/60 active:bg-stone-200 dark:active:bg-stone-600/60 transition-all duration-200 active:scale-95 cursor-pointer"
+                className={toolbarActionButtonClass}
               >
                 {copied ? (
                   <>

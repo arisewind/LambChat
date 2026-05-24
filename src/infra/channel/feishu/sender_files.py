@@ -1,11 +1,11 @@
 """Feishu file, image, resource download, and chat metadata operations."""
 
-import asyncio
 import json
 import mimetypes
 from collections import OrderedDict
 from typing import Any
 
+from src.infra.async_utils import run_blocking_io
 from src.infra.logging import get_logger
 from src.kernel.config import settings
 
@@ -64,8 +64,7 @@ class FeishuFileSenderMixin:
         if not self._client:
             return None
 
-        loop = asyncio.get_running_loop()
-        return await loop.run_in_executor(None, self._upload_file_sync, file_path, file_name)
+        return await run_blocking_io(self._upload_file_sync, file_path, file_name)
 
     def _upload_bytes_sync(self, file_data: bytes, file_name: str) -> str | None:
         """Upload file bytes and return file_key."""
@@ -117,8 +116,7 @@ class FeishuFileSenderMixin:
         if not self._client:
             return None
 
-        loop = asyncio.get_running_loop()
-        return await loop.run_in_executor(None, self._upload_bytes_sync, file_data, file_name)
+        return await run_blocking_io(self._upload_bytes_sync, file_data, file_name)
 
     def _download_image_sync(self, image_key: str, message_id: str) -> bytes | None:
         """Download image from Feishu via GetMessageResourceRequest (sync, runs in executor)."""
@@ -174,9 +172,8 @@ class FeishuFileSenderMixin:
         content_type: str | None = None,
     ) -> dict | None:
         """Download a Feishu resource, upload it to app storage, and return attachment info."""
-        loop = asyncio.get_running_loop()
-        data = await loop.run_in_executor(
-            None, self._download_resource_sync, file_key, message_id, resource_type
+        data = await run_blocking_io(
+            self._download_resource_sync, file_key, message_id, resource_type
         )
         if not data:
             return None
@@ -247,8 +244,7 @@ class FeishuFileSenderMixin:
         if not self._client:
             return None
 
-        loop = asyncio.get_running_loop()
-        return await loop.run_in_executor(None, self._upload_image_sync, image_data)
+        return await run_blocking_io(self._upload_image_sync, image_data)
 
     def _get_chat_mode_sync(self, chat_id: str) -> str:
         """Get chat mode: 'group' (normal) or 'thread' (topic group) via GetChatRequest (sync)."""
@@ -271,8 +267,7 @@ class FeishuFileSenderMixin:
             self._chat_mode_cache.move_to_end(chat_id)
             return self._chat_mode_cache[chat_id]
 
-        loop = asyncio.get_running_loop()
-        mode = await loop.run_in_executor(None, self._get_chat_mode_sync, chat_id)
+        mode = await run_blocking_io(self._get_chat_mode_sync, chat_id)
         self._chat_mode_cache[chat_id] = mode
         # LRU eviction: keep at most 1000 entries
         while len(self._chat_mode_cache) > 1000:
@@ -352,10 +347,7 @@ class FeishuFileSenderMixin:
         if not file_key:
             return False
 
-        loop = asyncio.get_running_loop()
-        return await loop.run_in_executor(
-            None, self._send_file_message_sync, chat_id, file_key, file_name
-        )
+        return await run_blocking_io(self._send_file_message_sync, chat_id, file_key, file_name)
 
     async def send_file_by_key(
         self,
@@ -381,9 +373,7 @@ class FeishuFileSenderMixin:
         ext = file_name.lower().rsplit(".", 1)[-1] if "." in file_name else ""
         msg_type = "audio" if ext == "opus" else "media" if ext == "mp4" else "file"
 
-        loop = asyncio.get_running_loop()
-        return await loop.run_in_executor(
-            None,
+        return await run_blocking_io(
             self._send_file_message_sync,
             chat_id,
             file_key,

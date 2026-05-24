@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import asyncio
 import base64
 import json
 import logging
@@ -30,6 +29,7 @@ from src.infra.agent.middleware._helpers import (
     _append_system_text_blocks,
     _tool_sort_key,
 )
+from src.infra.async_utils import run_blocking_io
 from src.kernel.config import settings
 
 logger = logging.getLogger(__name__)
@@ -263,7 +263,7 @@ class ToolResultBinaryMiddleware(AgentMiddleware):
 
             if file_bytes is None and hasattr(backend, "download_files"):
                 try:
-                    responses = await asyncio.to_thread(backend.download_files, [file_path])
+                    responses = await run_blocking_io(backend.download_files, [file_path])
                     if responses and responses[0].content:
                         file_bytes = responses[0].content
                 except Exception:

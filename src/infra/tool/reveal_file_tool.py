@@ -23,7 +23,6 @@ Reveal File 工具
 - 使用 asyncio.Lock 防止并发初始化
 """
 
-import asyncio
 import json
 import mimetypes
 import os
@@ -34,6 +33,7 @@ from urllib.parse import unquote, urlparse
 from langchain.tools import ToolRuntime, tool
 from langchain_core.tools import BaseTool
 
+from src.infra.async_utils import run_blocking_io
 from src.infra.logging import get_logger
 from src.infra.logging.context import TraceContext
 from src.infra.revealed_file.storage import get_revealed_file_storage
@@ -140,7 +140,7 @@ async def _download_file_from_backend(backend: Any, file_path: str) -> Optional[
 
     if hasattr(backend, "download_files"):
         try:
-            responses = await asyncio.to_thread(backend.download_files, [file_path])
+            responses = await run_blocking_io(backend.download_files, [file_path])
             if responses:
                 resp = responses[0]
                 logger.info(
@@ -160,7 +160,7 @@ async def _read_file_from_filesystem(file_path: str) -> Optional[bytes]:
     """非沙箱模式下的兜底：直接从本地文件系统读取文件内容"""
     try:
         if os.path.isfile(file_path):
-            return await asyncio.to_thread(lambda: open(file_path, "rb").read())
+            return await run_blocking_io(lambda: open(file_path, "rb").read())
         logger.debug(f"[reveal_file] File not found on filesystem: {file_path}")
     except Exception as e:
         logger.warning(f"[reveal_file] Failed to read from filesystem: {file_path}: {e}")

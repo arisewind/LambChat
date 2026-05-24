@@ -36,6 +36,7 @@ from typing import Annotated, Any, Literal, Optional
 from langchain.tools import ToolRuntime, tool
 from langchain_core.tools import BaseTool
 
+from src.infra.async_utils import run_blocking_io
 from src.infra.logging import get_logger
 from src.infra.logging.context import TraceContext
 from src.infra.revealed_file.storage import get_revealed_file_storage
@@ -496,7 +497,7 @@ async def _download_file_from_backend(backend: Any, file_path: str) -> Optional[
 
     if hasattr(backend, "download_files"):
         try:
-            responses = await asyncio.to_thread(backend.download_files, [file_path])
+            responses = await run_blocking_io(backend.download_files, [file_path])
             if responses and responses[0].content is not None:
                 return responses[0].content
         except Exception as e:
@@ -520,7 +521,7 @@ async def _execute_command(backend: Any, command: str) -> Optional[str]:
 
     if hasattr(backend, "execute"):
         try:
-            result = await asyncio.to_thread(backend.execute, command)
+            result = await run_blocking_io(backend.execute, command)
             if hasattr(result, "output"):
                 return result.output
             if isinstance(result, str):
@@ -549,7 +550,7 @@ async def _list_project_files_via_glob(backend: Any, project_path: str) -> list[
 
     if hasattr(backend, "glob"):
         try:
-            result = await asyncio.to_thread(backend.glob, pattern, project_path)
+            result = await run_blocking_io(backend.glob, pattern, project_path)
             entries = result.matches or []
             files = [
                 entry.get("path") if isinstance(entry, dict) else getattr(entry, "path", None)
@@ -587,7 +588,7 @@ async def _list_project_files_via_backend_api(
                 continue
         elif hasattr(backend, "ls"):
             try:
-                result = await asyncio.to_thread(backend.ls, current)
+                result = await run_blocking_io(backend.ls, current)
                 entries = result.entries or []
             except Exception as e:
                 logger.debug(f"ls failed for {current}: {e}")

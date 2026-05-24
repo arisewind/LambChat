@@ -7,6 +7,7 @@ coordinate through shared Redis/Mongo infrastructure.
 
 from __future__ import annotations
 
+from src.infra.async_utils import shutdown_blocking_io_executor
 from src.infra.channel.pubsub import get_channel_config_pubsub
 from src.infra.llm.pubsub import get_model_config_pubsub
 from src.infra.memory.distributed import get_memory_pubsub
@@ -15,6 +16,10 @@ from src.infra.memory.tools import (
 )
 from src.infra.memory.tools import (
     start_memory_compaction_agent,
+)
+from src.infra.monitoring.event_loop import (
+    start_event_loop_lag_monitor,
+    stop_event_loop_lag_monitor,
 )
 from src.infra.scheduler import get_runtime_scheduler
 from src.infra.settings.pubsub import get_settings_pubsub
@@ -27,6 +32,8 @@ from src.infra.websocket import get_connection_manager
 
 async def start_runtime_services() -> None:
     """Start distributed runtime listeners needed by the current process."""
+    await start_event_loop_lag_monitor()
+
     task_manager = get_task_manager()
     await task_manager.start_pubsub_listener()
     await start_arq_runtime()
@@ -57,6 +64,8 @@ async def start_runtime_services() -> None:
 
 async def stop_runtime_services() -> None:
     """Stop distributed runtime listeners in reverse dependency order."""
+    await stop_event_loop_lag_monitor()
+
     websocket_manager = get_connection_manager()
     await websocket_manager.stop_pubsub_listener()
 
@@ -84,3 +93,4 @@ async def stop_runtime_services() -> None:
     task_manager = get_task_manager()
     await stop_arq_runtime()
     await task_manager.stop_pubsub_listener()
+    shutdown_blocking_io_executor()

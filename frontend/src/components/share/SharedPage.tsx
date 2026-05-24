@@ -60,6 +60,26 @@ const LANGUAGES = [
   { code: "ru", nativeName: "Русский" },
 ];
 
+function resolveSharedAssistantIdentity(
+  session: SharedContentResponse["session"] | null | undefined,
+) {
+  if (!session) {
+    return { name: null, avatar: null };
+  }
+
+  if (session.agent_id === "team") {
+    return {
+      name: session.team_name ?? null,
+      avatar: session.team_avatar ?? null,
+    };
+  }
+
+  return {
+    name: session.persona_preset_name ?? null,
+    avatar: session.persona_avatar ?? null,
+  };
+}
+
 /** Local-only language toggle — no backend API calls (safe for unauthenticated shared pages) */
 function SharedPageLanguageToggle() {
   const { i18n, t } = useTranslation();
@@ -314,6 +334,7 @@ export function SharedPage() {
     () => getLatestAutoPreviewTarget(messages),
     [messages],
   );
+  const sharedAssistant = resolveSharedAssistantIdentity(data?.session);
 
   // Reading time estimate (rough: ~200 words per minute)
   const readingTime = useMemo(() => {
@@ -666,6 +687,11 @@ export function SharedPage() {
                     {data.session.persona_preset_name}
                   </span>
                 )}
+                {data.session.team_name && (
+                  <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-stone-100/80 dark:bg-stone-800/60 text-[11px] text-stone-500 dark:text-stone-400 font-medium">
+                    {data.session.team_name}
+                  </span>
+                )}
                 {data.session.model && (
                   <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-stone-100/80 dark:bg-stone-800/60 text-[11px] text-stone-500 dark:text-stone-400 font-medium">
                     {(() => {
@@ -763,8 +789,8 @@ export function SharedPage() {
                     sessionId={data.session.id}
                     runId={data.run_ids?.[0]}
                     isLastMessage={index === messages.length - 1}
-                    personaAvatar={data.session.persona_avatar ?? null}
-                    personaName={data.session.persona_preset_name ?? null}
+                    personaAvatar={sharedAssistant.avatar}
+                    personaName={sharedAssistant.name}
                     activePreview={activePreview}
                     latestAutoPreview={latestAutoPreview}
                     onOpenPreview={handleOpenPreview}

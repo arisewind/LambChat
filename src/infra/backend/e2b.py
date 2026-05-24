@@ -8,7 +8,7 @@
 - Auto-Pause + Auto-Resume：超时自动暂停（保留状态），下次操作自动恢复
 - Commands streaming：支持 on_stdout/on_stderr 回调实时输出
 - Metadata 标记：创建沙箱时传入 user_id 用于可观测性
-- 所有同步 SDK 调用通过 asyncio.to_thread 在线程池中执行，避免阻塞事件循环。
+- 所有同步 SDK 调用通过 run_blocking_io 在线程池中执行，避免阻塞事件循环。
 """
 
 import asyncio
@@ -24,6 +24,7 @@ from deepagents.backends.utils import (
     slice_read_response,
 )
 
+from src.infra.async_utils import run_blocking_io
 from src.infra.backend.protocol_compat import (
     ExecuteResponse,
     FileDownloadResponse,
@@ -78,7 +79,7 @@ class E2BBackend(BaseSandbox):
     """E2B 沙箱后端
 
     使用 e2b Python SDK 执行命令和操作文件。
-    所有同步 SDK 调用通过 asyncio.to_thread 在线程池中执行，避免阻塞事件循环。
+    所有同步 SDK 调用通过 run_blocking_io 在线程池中执行，避免阻塞事件循环。
 
     文件操作 (ls, read, write, glob) 使用 E2B 原生 Filesystem API，
     绕过 shell 命令，性能更好且更安全。
@@ -150,8 +151,8 @@ class E2BBackend(BaseSandbox):
     async def aexecute(self, command: str, *, timeout: int | None = None) -> ExecuteResponse:
         effective_timeout = min(timeout or self._timeout, self._timeout)
         try:
-            return await asyncio.wait_for(
-                asyncio.to_thread(self.execute, command, timeout=timeout),
+            return await run_blocking_io(
+                lambda: self.execute(command, timeout=timeout),
                 timeout=effective_timeout,
             )
         except asyncio.TimeoutError:
@@ -289,7 +290,7 @@ class E2BBackend(BaseSandbox):
             return ls_result.entries or []
 
     async def als_info(self, path: str) -> list[FileInfo]:
-        return await asyncio.to_thread(self.ls_info, path)
+        return await run_blocking_io(self.ls_info, path)
 
     def ls(self, path: str) -> LsResult:
         return LsResult(entries=self.ls_info(path))
@@ -436,7 +437,7 @@ class E2BBackend(BaseSandbox):
             return super().glob_info(pattern, path)
 
     async def aglob_info(self, pattern: str, path: str = "/") -> list[FileInfo]:
-        return await asyncio.to_thread(self.glob_info, pattern, path)
+        return await run_blocking_io(self.glob_info, pattern, path)
 
     def glob(self, pattern: str, path: str = "/", *, _max_depth: int = 10) -> GlobResult:
         return GlobResult(matches=self.glob_info(pattern, path, _max_depth=_max_depth))
@@ -474,7 +475,7 @@ class E2BBackend(BaseSandbox):
         return responses
 
     async def aupload_files(self, files: list[tuple[str, bytes]]) -> list[FileUploadResponse]:
-        return await asyncio.to_thread(self.upload_files, files)
+        return await run_blocking_io(self.upload_files, files)
 
     def download_files(self, paths: list[str]) -> list[FileDownloadResponse]:
         responses: list[FileDownloadResponse] = []
@@ -497,7 +498,7 @@ class E2BBackend(BaseSandbox):
         return responses
 
     async def adownload_files(self, paths: list[str]) -> list[FileDownloadResponse]:
-        return await asyncio.to_thread(self.download_files, paths)
+        return await run_blocking_io(self.download_files, paths)
 
     # =========================================================================
     # Sandbox lifecycle helpers

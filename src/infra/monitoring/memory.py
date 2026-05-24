@@ -10,6 +10,7 @@ from collections import Counter, deque
 from datetime import datetime
 from typing import Any
 
+from src.infra.async_utils import run_blocking_io
 from src.infra.logging import get_logger
 from src.infra.utils.datetime import utc_now
 from src.kernel.config import settings
@@ -167,7 +168,7 @@ class MemoryMonitor:
     async def _sample_once(self) -> None:
         distributed_snapshot: dict[str, Any] | None = None
         async with self._state_lock:
-            sample = await asyncio.to_thread(self._collect_process_sample)
+            sample = await run_blocking_io(self._collect_process_sample)
             sample.setdefault("timestamp", utc_now())
             self._history.append(sample)
 
@@ -176,9 +177,7 @@ class MemoryMonitor:
                 if self._should_emit_alert(now):
                     self._last_alert = None
                     if self.heavy_diagnostics_enabled:
-                        self._last_alert = await asyncio.to_thread(
-                            self._capture_diagnostics_snapshot
-                        )
+                        self._last_alert = await run_blocking_io(self._capture_diagnostics_snapshot)
                     self._last_alert_at = now
                     logger.warning(
                         "[MemoryMonitor] suspicious memory growth detected rss=%s growth=%s top_growth=%s top_allocations=%s top_objects=%s",
@@ -223,12 +222,12 @@ class MemoryMonitor:
         """Re-anchor growth tracking to the current process state."""
         distributed_snapshot: dict[str, Any] | None = None
         async with self._state_lock:
-            sample = await asyncio.to_thread(self._collect_process_sample)
+            sample = await run_blocking_io(self._collect_process_sample)
             sample.setdefault("timestamp", utc_now())
 
             if tracemalloc.is_tracing():
                 try:
-                    self._baseline_snapshot = await asyncio.to_thread(tracemalloc.take_snapshot)
+                    self._baseline_snapshot = await run_blocking_io(tracemalloc.take_snapshot)
                 except RuntimeError:
                     self._baseline_snapshot = None
             else:
@@ -390,7 +389,7 @@ class MemoryMonitor:
         if self._last_alert is not None:
             return self._last_alert
         if self.heavy_diagnostics_enabled:
-            return await asyncio.to_thread(self._capture_diagnostics_snapshot)
+            return await run_blocking_io(self._capture_diagnostics_snapshot)
         return self._build_disabled_current_snapshot_locked()
 
     async def _build_distributed_snapshot_locked(self) -> dict[str, Any] | None:
@@ -435,7 +434,7 @@ class MemoryMonitor:
             summary = self._get_summary_locked()
             current_snapshot = self._last_alert
             if refresh and self._history and self.heavy_diagnostics_enabled:
-                current_snapshot = await asyncio.to_thread(self._capture_diagnostics_snapshot)
+                current_snapshot = await run_blocking_io(self._capture_diagnostics_snapshot)
             elif refresh and self._history and not self.heavy_diagnostics_enabled:
                 current_snapshot = self._build_disabled_current_snapshot_locked()
 

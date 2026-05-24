@@ -273,6 +273,9 @@ html[data-mobile-keyboard="true"] #root {
 /* Sidebar navigation button — theme-aware hover */
 .sidebar-nav-btn {
   color: var(--theme-text-secondary);
+  font-size: 0.875rem;
+  font-weight: 500;
+  line-height: 1.25rem;
 }
 .sidebar-nav-btn:hover {
   background-color: var(

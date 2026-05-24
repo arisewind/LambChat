@@ -14,6 +14,7 @@ import time
 from collections import OrderedDict
 from typing import Any, Callable, Optional
 
+from src.infra.async_utils import run_blocking_io
 from src.infra.channel.base import BaseChannel
 from src.infra.channel.feishu.sender import FeishuSenderMixin
 from src.infra.channel.feishu.state import ConnectionState
@@ -106,7 +107,7 @@ class FeishuChannel(FeishuSenderMixin, BaseChannel):
         self._ws_client: Any = None
         self._ws_thread: threading.Thread | None = None
         self._ws_future: Any = None
-        self._health_check_thread: threading.Thread | None = None
+        self._health_check_future: Any = None
         self._ws_loop_ref: asyncio.AbstractEventLoop | None = None
         self._loop: asyncio.AbstractEventLoop | None = None
         self._processed_message_ids: OrderedDict[str, None] = OrderedDict()
@@ -398,7 +399,7 @@ class FeishuChannel(FeishuSenderMixin, BaseChannel):
             event_handler = builder.build()
             return client, event_handler
 
-        self._client, event_handler = await self._loop.run_in_executor(None, _build_clients)
+        self._client, event_handler = await run_blocking_io(_build_clients)
 
         self._ws_loop_ref = _ensure_feishu_ws_loop()
         self._ws_future = asyncio.run_coroutine_threadsafe(
@@ -406,9 +407,10 @@ class FeishuChannel(FeishuSenderMixin, BaseChannel):
             self._ws_loop_ref,
         )
 
-        # Start health check thread
-        self._health_check_thread = threading.Thread(target=self._health_check_loop, daemon=True)
-        self._health_check_thread.start()
+        self._health_check_future = asyncio.run_coroutine_threadsafe(
+            self._health_check_loop(),
+            self._ws_loop_ref,
+        )
 
         logger.info(
             f"Feishu bot started for user {self.config.user_id} with WebSocket long connection"
@@ -488,10 +490,10 @@ class FeishuChannel(FeishuSenderMixin, BaseChannel):
         """Disconnect through lark-oapi's private WS API."""
         await self._ws_client._disconnect()
 
-    def _health_check_loop(self) -> None:
+    async def _health_check_loop(self) -> None:
         """Health check loop to detect and force-reconnect zombie connections."""
         while self._running:
-            time.sleep(self.HEALTH_CHECK_INTERVAL)
+            await asyncio.sleep(self.HEALTH_CHECK_INTERVAL)
             if not self._running:
                 break
 
@@ -509,9 +511,7 @@ class FeishuChannel(FeishuSenderMixin, BaseChannel):
                     try:
                         if self._ws_loop_ref is None or self._ws_client is None:
                             continue
-                        asyncio.run_coroutine_threadsafe(
-                            self._sdk_ws_disconnect(), self._ws_loop_ref
-                        ).result(timeout=5)
+                        await asyncio.wait_for(self._sdk_ws_disconnect(), timeout=5)
                     except Exception:
                         pass
                 else:
@@ -532,6 +532,8 @@ class FeishuChannel(FeishuSenderMixin, BaseChannel):
                 pass
         if self._ws_future is not None:
             self._ws_future.cancel()
+        if self._health_check_future is not None:
+            self._health_check_future.cancel()
         await self.close_feishu_http_client()
         self._set_connection_state(ConnectionState.DISCONNECTED)
         logger.info(f"Feishu bot stopped for user {self.config.user_id}")

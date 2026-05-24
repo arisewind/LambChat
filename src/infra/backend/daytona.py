@@ -7,7 +7,7 @@
 注意：
 - Daytona SDK process.exec() 的 timeout 仅作为命令参数发给服务端，不控制 HTTP 请求超时。
 - aexecute() 使用 asyncio.wait_for 在客户端侧兜底，确保超时一定能生效。
-- 所有同步 SDK 调用通过 asyncio.to_thread 在线程池中执行，避免阻塞事件循环。
+- 所有同步 SDK 调用通过 run_blocking_io 在线程池中执行，避免阻塞事件循环。
 """
 
 from __future__ import annotations
@@ -28,6 +28,7 @@ from deepagents.backends.protocol import (
 )
 from deepagents.backends.sandbox import BaseSandbox
 
+from src.infra.async_utils import run_blocking_io
 from src.infra.logging import get_logger
 from src.infra.sandbox_grep import (
     build_grep_command,
@@ -63,7 +64,7 @@ class DaytonaBackend(BaseSandbox):
     """Daytona 沙箱后端
 
     仅 execute() 走 shell 命令，使用 Daytona 服务端超时。
-    所有同步 SDK 调用通过 asyncio.to_thread 在线程池中执行，避免阻塞事件循环。
+    所有同步 SDK 调用通过 run_blocking_io 在线程池中执行，避免阻塞事件循环。
     """
 
     def __init__(
@@ -138,8 +139,8 @@ class DaytonaBackend(BaseSandbox):
         """
         effective_timeout = min(timeout or self._timeout, self._timeout)
         try:
-            return await asyncio.wait_for(
-                asyncio.to_thread(self.execute, command, timeout=timeout),
+            return await run_blocking_io(
+                lambda: self.execute(command, timeout=timeout),
                 timeout=effective_timeout,
             )
         except asyncio.TimeoutError:
@@ -269,7 +270,7 @@ class DaytonaBackend(BaseSandbox):
 
     async def adownload_files(self, paths: list[str]) -> list[FileDownloadResponse]:
         """异步下载文件（通过线程池，避免阻塞事件循环）"""
-        return await asyncio.to_thread(self.download_files, paths)
+        return await run_blocking_io(self.download_files, paths)
 
     def upload_files(self, files: list[tuple[str, bytes]]) -> list[FileUploadResponse]:
         """Upload files into the sandbox.
@@ -352,4 +353,4 @@ class DaytonaBackend(BaseSandbox):
 
     async def aupload_files(self, files: list[tuple[str, bytes]]) -> list[FileUploadResponse]:
         """异步上传文件（通过线程池，避免阻塞事件循环）"""
-        return await asyncio.to_thread(self.upload_files, files)
+        return await run_blocking_io(self.upload_files, files)

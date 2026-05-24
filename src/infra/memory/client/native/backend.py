@@ -7,6 +7,7 @@ from typing import Any, Callable, Optional
 
 from langchain_core.messages import HumanMessage, SystemMessage
 
+from src.infra.async_utils import run_blocking_io
 from src.infra.logging import get_logger
 from src.infra.memory.client.base import MemoryBackend
 from src.infra.memory.client.native.classification import (
@@ -481,8 +482,7 @@ class NativeMemoryBackend(MemoryBackend):
 
     async def _create_indexes(self) -> None:
         sync_col = get_mongo_client().delegate[settings.MONGODB_DB][COLLECTION_NAME]
-        loop = asyncio.get_running_loop()
-        await loop.run_in_executor(None, self._create_indexes_sync, sync_col)
+        await run_blocking_io(self._create_indexes_sync, sync_col)
 
     @staticmethod
     def _create_indexes_sync(col: Any) -> None:

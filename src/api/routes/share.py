@@ -14,6 +14,7 @@ from src.infra.logging import get_logger
 from src.infra.session.dual_writer import get_dual_writer
 from src.infra.session.manager import SessionManager
 from src.infra.share.storage import ShareStorage
+from src.infra.team.storage import TeamStorage
 from src.infra.user.storage import UserStorage
 from src.infra.utils.datetime import to_iso
 from src.kernel.schemas.share import (
@@ -45,6 +46,48 @@ def _require_share_permission(user: TokenPayload) -> None:
             status_code=status.HTTP_403_FORBIDDEN,
             detail="没有分享会话的权限",
         )
+
+
+def _resolve_shared_team_avatar(team) -> str | None:
+    if team.avatar:
+        return team.avatar
+
+    default_member = next(
+        (member for member in team.members if member.member_id == team.default_member_id),
+        None,
+    )
+    fallback_member = (
+        default_member
+        or next((member for member in team.members if member.enabled), None)
+        or (team.members[0] if team.members else None)
+    )
+    return fallback_member.role_avatar if fallback_member else None
+
+
+async def _attach_shared_team_metadata(
+    session_info: dict,
+    session,
+    share,
+) -> None:
+    """Attach safe team display metadata for shared team sessions."""
+    metadata = session.metadata or {}
+    team_id = metadata.get("team_id") if session.agent_id == "team" else None
+    if not team_id:
+        return
+
+    session_info["team_id"] = team_id
+    try:
+        team = await TeamStorage().get_team(
+            str(team_id),
+            owner_user_id=session.user_id or share.owner_id,
+        )
+        if team:
+            session_info["team_name"] = team.name
+            team_avatar = _resolve_shared_team_avatar(team)
+            if team_avatar:
+                session_info["team_avatar"] = team_avatar
+    except Exception:
+        logger.warning("Failed to load shared team metadata", exc_info=True)
 
 
 @router.post("", response_model=SharedSessionResponse)
@@ -303,6 +346,7 @@ async def get_shared_content(
         session_info["persona_preset_name"] = persona_preset_name
     if persona_avatar:
         session_info["persona_avatar"] = persona_avatar
+    await _attach_shared_team_metadata(session_info, session, share)
 
     return SharedContentResponse(
         session=session_info,

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from types import SimpleNamespace
+from typing import Any, cast
 
 import pytest
 
@@ -23,6 +24,16 @@ class _FakeArqPool:
     async def enqueue_job(self, function: str, *args, **kwargs) -> SimpleNamespace:
         self.enqueued.append((function, args, kwargs))
         return SimpleNamespace(job_id="job-1")
+
+
+class _LockCheckingArqPool(_FakeArqPool):
+    def __init__(self, manager: BackgroundTaskManager) -> None:
+        super().__init__()
+        self._manager = manager
+
+    async def enqueue_job(self, function: str, *args, **kwargs) -> SimpleNamespace:
+        assert not self._manager._lock.locked()
+        return await super().enqueue_job(function, *args, **kwargs)
 
 
 class _FakeExecutor:
@@ -51,7 +62,7 @@ async def test_submit_arq_persists_payload_and_enqueues_job() -> None:
         message="hello",
         user_id="user-1",
         executor_key="agent_stream",
-        payload_store=payload_store,
+        payload_store=cast(Any, payload_store),
         arq_pool=arq_pool,
         run_id="run-1",
         trace_id="trace-1",
@@ -66,4 +77,26 @@ async def test_submit_arq_persists_payload_and_enqueues_job() -> None:
     assert payload_store.saved[0][1]["executor_key"] == "agent_stream"
     assert payload_store.saved[0][1]["trace_id"] == "trace-1"
     assert payload_store.saved[0][1]["display_message"] == "hello display"
+    assert arq_pool.enqueued == [("run_agent_task", ("run-1",), {"_job_id": "run-1"})]
+
+
+@pytest.mark.asyncio
+async def test_submit_arq_enqueues_after_releasing_manager_lock() -> None:
+    manager = BackgroundTaskManager()
+    fake_executor = _FakeExecutor()
+    payload_store = _FakePayloadStore()
+    arq_pool = _LockCheckingArqPool(manager)
+    manager._executor = fake_executor  # type: ignore[assignment]
+
+    await manager.submit_arq(
+        session_id="session-1",
+        agent_id="search",
+        message="hello",
+        user_id="user-1",
+        executor_key="agent_stream",
+        payload_store=cast(Any, payload_store),
+        arq_pool=arq_pool,
+        run_id="run-1",
+    )
+
     assert arq_pool.enqueued == [("run_agent_task", ("run-1",), {"_job_id": "run-1"})]

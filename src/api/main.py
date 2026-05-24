@@ -46,6 +46,7 @@ from src.api.routes import settings as settings_router
 from src.api.routes.agent import config as agent_config
 from src.api.routes.agent import model as agent_model
 from src.frontend_resolution import resolve_frontend_target
+from src.infra.async_utils import run_blocking_io
 from src.infra.local_filesystem import ensure_local_filesystem_dirs
 from src.infra.logging import get_logger, setup_logging
 from src.infra.monitoring import get_memory_monitor
@@ -111,7 +112,7 @@ async def _warm_agent_registry() -> None:
     try:
         from src.agents import discover_agents
 
-        await asyncio.to_thread(discover_agents)
+        await run_blocking_io(discover_agents)
         logger.info("Agents discovered")
     except Exception as e:
         logger.warning("Agent discovery warm-up failed: %s", e, exc_info=True)
@@ -520,7 +521,7 @@ def create_app() -> FastAPI:
             base_url = getattr(settings, "APP_BASE_URL", "").rstrip("/") or str(
                 request.base_url
             ).rstrip("/")
-            html_doc = _read_index_html(index_file)
+            html_doc = await run_blocking_io(_read_index_html, index_file)
 
             try:
                 shared_content = await share.get_shared_content(share_id, user=None)
@@ -563,7 +564,7 @@ def create_app() -> FastAPI:
                 ).rstrip("/")
                 path = f"/{full_path}" if full_path else "/"
                 seo = build_public_route_seo(base_url=base_url, path=path)
-                html_doc = _read_index_html(index_file)
+                html_doc = await run_blocking_io(_read_index_html, index_file)
                 rendered = inject_public_route_seo_into_html(html_doc, seo)
                 return HTMLResponse(content=rendered)
             return {"error": "Frontend not built. Run 'npm run build' in frontend directory."}

@@ -1279,7 +1279,6 @@
   transition:
     border-color 0.2s ease,
     box-shadow 0.2s ease;
-  max-width: 36rem;
 }
 .list-item-card:hover {
   border-color: color-mix(

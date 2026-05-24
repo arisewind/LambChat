@@ -56,6 +56,8 @@ class TaskHeartbeat:
                 pass
             except Exception as e:
                 logger.warning(f"Heartbeat error for run_id={run_id}: {e}")
+            finally:
+                self._heartbeat_tasks.pop(run_id, None)
 
         self._heartbeat_tasks[run_id] = asyncio.create_task(heartbeat_loop())
 

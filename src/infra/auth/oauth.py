@@ -14,6 +14,7 @@ import httpx
 import jwt
 from pydantic import BaseModel
 
+from src.infra.async_utils import run_blocking_io
 from src.infra.logging import get_logger
 from src.infra.user.storage import UserStorage
 from src.infra.utils.datetime import utc_now
@@ -383,7 +384,7 @@ class OAuthService:
                 logger.error(f"Apple OAuth: No matching public key found for kid={kid}")
                 return None
 
-            claims = await asyncio.to_thread(
+            claims = await run_blocking_io(
                 _decode_apple_identity_token,
                 id_token,
                 jwk,

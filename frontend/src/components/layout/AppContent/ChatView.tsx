@@ -78,9 +78,66 @@ import type { ExternalNavigationTargetFile } from "./externalNavigationState";
 import { isFileLink } from "../../documents/utils";
 import { getFullUrl } from "../../../services/api/config";
 import { sessionApi } from "../../../services/api";
+import { teamApi } from "../../../services/api/team";
+import type { Team } from "../../../types/team";
+import { getTeamFallbackAvatar } from "../../team/teamAvatarUtils";
 import { shouldOpenExternalNavigationPreview } from "./externalNavigationState";
 
 const FLOATING_SCROLL_BUTTON_OFFSET_CLASS = "bottom-full mb-3";
+
+function useCurrentTeam(currentAgent: string, selectedTeamId: string | null) {
+  const [currentTeam, setCurrentTeam] = useState<Team | null>(null);
+
+  useEffect(() => {
+    if (currentAgent !== "team" || !selectedTeamId) {
+      setCurrentTeam(null);
+      return;
+    }
+
+    let cancelled = false;
+    teamApi
+      .get(selectedTeamId)
+      .then((team) => {
+        if (!cancelled) setCurrentTeam(team);
+      })
+      .catch(() => {
+        if (!cancelled) setCurrentTeam(null);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [currentAgent, selectedTeamId]);
+
+  return currentTeam;
+}
+
+function resolveChatAssistantIdentity({
+  currentAgent,
+  currentPersonaAvatar,
+  currentTeam,
+  selectedPersonaName,
+}: {
+  currentAgent: string;
+  currentPersonaAvatar: string | null;
+  currentTeam: Team | null;
+  selectedPersonaName: string | null;
+}) {
+  if (currentAgent === "team") {
+    const fallbackAvatar = currentTeam
+      ? getTeamFallbackAvatar(currentTeam)
+      : null;
+    return {
+      avatar: currentTeam?.avatar ?? fallbackAvatar,
+      name: currentTeam?.name ?? null,
+    };
+  }
+
+  return {
+    avatar: currentPersonaAvatar,
+    name: selectedPersonaName,
+  };
+}
 
 interface ChatViewProps {
   messages: Message[];
@@ -338,6 +395,17 @@ export function ChatView({
     const preset = personaPresets.find((p) => p.id === selectedPersonaPresetId);
     return preset?.avatar ?? null;
   }, [personaPresets, selectedPersonaPresetId]);
+  const currentTeam = useCurrentTeam(currentAgent, selectedTeamId);
+  const assistantIdentity = useMemo(
+    () =>
+      resolveChatAssistantIdentity({
+        currentAgent,
+        currentPersonaAvatar,
+        currentTeam,
+        selectedPersonaName,
+      }),
+    [currentAgent, currentPersonaAvatar, currentTeam, selectedPersonaName],
+  );
 
   const handleOutlineNavigate = useCallback(
     (anchorId: string, messageIndex: number) => {
@@ -377,7 +445,7 @@ export function ChatView({
           items={outlineItems}
           activeId={activeOutlineId}
           onNavigate={handleOutlineNavigate}
-          personaAvatar={currentPersonaAvatar}
+          personaAvatar={assistantIdentity.avatar}
         />
       ),
     });
@@ -386,7 +454,7 @@ export function ChatView({
     activeOutlineId,
     handleOutlineNavigate,
     t,
-    currentPersonaAvatar,
+    assistantIdentity.avatar,
   ]);
 
   useEffect(() => {
@@ -686,8 +754,8 @@ export function ChatView({
         sessionId={sessionId ?? undefined}
         runId={currentRunId ?? undefined}
         isLastMessage={index === messages.length - 1}
-        personaAvatar={currentPersonaAvatar}
-        personaName={selectedPersonaName}
+        personaAvatar={assistantIdentity.avatar}
+        personaName={assistantIdentity.name}
         activePreview={activePreview}
         latestAutoPreview={latestAutoPreview}
         onOpenPreview={handleOpenPreview}
@@ -698,8 +766,8 @@ export function ChatView({
       sessionId,
       currentRunId,
       messages.length,
-      currentPersonaAvatar,
-      selectedPersonaName,
+      assistantIdentity.avatar,
+      assistantIdentity.name,
       activePreview,
       latestAutoPreview,
       handleOpenPreview,

@@ -358,6 +358,8 @@ class FeishuChannelManager(UserChannelManager):
                 pass
             except Exception as e:
                 logger.warning("[Feishu] Lease refresh failed for app_id=%s: %s", app_id, e)
+            finally:
+                self._lease_tasks.pop(app_id, None)
 
         self._lease_tasks[app_id] = asyncio.create_task(_refresh())
 

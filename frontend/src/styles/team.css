@@ -280,7 +280,6 @@
 }
 .team-form-selected__list .list-item-card {
   width: 100%;
-  max-width: none;
 }
 .team-form-empty {
   display: flex;

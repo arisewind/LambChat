@@ -6,12 +6,12 @@ Stores files on disk when S3 is not configured.
 
 from __future__ import annotations
 
-import asyncio
 import io
 import os
 from pathlib import Path
 from typing import BinaryIO, Optional
 
+from src.infra.async_utils import run_blocking_io
 from src.infra.logging import get_logger
 from src.infra.storage.s3.base import S3StorageBackend
 from src.infra.storage.s3.types import S3Config, UploadResult
@@ -46,16 +46,14 @@ class LocalStorageBackend(S3StorageBackend):
         file_path = self._get_file_path(key)
         file_path.parent.mkdir(parents=True, exist_ok=True)
 
-        content = file.read()
+        content = await run_blocking_io(file.read)
         file_size = len(content)
-
-        loop = asyncio.get_running_loop()
 
         def _write():
             with open(file_path, "wb") as f:
                 f.write(content)
 
-        await loop.run_in_executor(None, _write)
+        await run_blocking_io(_write)
 
         return UploadResult(
             key=key,
@@ -76,24 +74,22 @@ class LocalStorageBackend(S3StorageBackend):
 
     async def download(self, key: str) -> bytes:
         file_path = self._get_file_path(key)
-        loop = asyncio.get_running_loop()
 
         def _read():
             with open(file_path, "rb") as f:
                 return f.read()
 
         try:
-            return await loop.run_in_executor(None, _read)
+            return await run_blocking_io(_read)
         except FileNotFoundError:
             raise FileNotFoundError(f"Object {key} not found")
 
     async def get_size(self, key: str) -> int:
         file_path = self._get_file_path(key)
-        return file_path.stat().st_size
+        return await run_blocking_io(lambda: file_path.stat().st_size)
 
     async def delete(self, key: str) -> bool:
         file_path = self._get_file_path(key)
-        loop = asyncio.get_running_loop()
 
         def _delete():
             if file_path.exists():
@@ -108,10 +104,10 @@ class LocalStorageBackend(S3StorageBackend):
                 return True
             return False
 
-        return await loop.run_in_executor(None, _delete)
+        return await run_blocking_io(_delete)
 
     async def exists(self, key: str) -> bool:
-        return self._get_file_path(key).exists()
+        return await run_blocking_io(self._get_file_path(key).exists)
 
     async def get_url(self, key: str) -> str:
         return f"/api/upload/file/{key}"
@@ -125,8 +121,6 @@ class LocalStorageBackend(S3StorageBackend):
         if not prefix_path.exists():
             return []
 
-        loop = asyncio.get_running_loop()
-
         def _list():
             objects = []
             for root, _dirs, files in os.walk(prefix_path):
@@ -136,7 +130,7 @@ class LocalStorageBackend(S3StorageBackend):
                     objects.append(str(rel))
             return objects
 
-        return await loop.run_in_executor(None, _list)
+        return await run_blocking_io(_list)
 
     async def close(self) -> None:
         pass

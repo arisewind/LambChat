@@ -319,6 +319,8 @@ class ConnectionManager:
                     await self._sync_route_registration(user_id, connection_count)
             except asyncio.CancelledError:
                 pass
+            finally:
+                self._route_refresh_tasks.pop(user_id, None)
 
         self._route_refresh_tasks[user_id] = asyncio.create_task(_refresh_loop())
 

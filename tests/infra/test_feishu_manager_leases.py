@@ -66,6 +66,25 @@ class _FakeChannel:
         self._running = False
 
 
+class _FailingRedisClient(_FakeRedisClient):
+    def __init__(self) -> None:
+        super().__init__()
+        self.calls = 0
+
+    async def set(
+        self,
+        key: str,
+        value: str,
+        nx: bool = False,
+        ex: int | None = None,
+        xx: bool = False,
+    ):
+        self.calls += 1
+        if self.calls >= 2:
+            raise RuntimeError("lease refresh failed")
+        return await super().set(key, value, nx=nx, ex=ex, xx=xx)
+
+
 def _config(instance_id: str = "inst-1", app_id: str = "app-1") -> FeishuConfig:
     return FeishuConfig(
         user_id="user-1",
@@ -152,3 +171,30 @@ async def test_stop_releases_owned_leases(
     assert "feishu:lease:app-2" in fake_redis.deleted
     assert fake_redis.closed is True
     assert isolated_pool_flags == [True]
+
+
+@pytest.mark.asyncio
+async def test_lease_refresh_task_cleans_itself_up_when_it_exits(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    fake_redis = _FailingRedisClient()
+    monkeypatch.setattr(
+        "src.infra.channel.feishu.manager.create_redis_client",
+        lambda isolated_pool=False: fake_redis,
+    )
+    monkeypatch.setattr("src.infra.channel.feishu.manager.FeishuChannel", _FakeChannel)
+
+    async def _sleep(_: float) -> None:
+        return None
+
+    monkeypatch.setattr("src.infra.channel.feishu.manager.asyncio.sleep", _sleep)
+
+    manager = FeishuChannelManager()
+    manager._instance_id = "instance-a"
+    manager._active_app_ids["app-1"] = "user-1:inst-1"
+    manager._ensure_lease_refresh_task("app-1")
+
+    task = manager._lease_tasks["app-1"]
+    await task
+
+    assert "app-1" not in manager._lease_tasks

@@ -18,6 +18,7 @@ if TYPE_CHECKING:
 
 from deepagents.backends import CompositeBackend
 
+from src.infra.async_utils import run_blocking_io
 from src.infra.backend.daytona import DaytonaBackend
 from src.infra.backend.skills_store import create_skills_backend
 from src.infra.logging import get_logger
@@ -492,8 +493,8 @@ class SessionSandboxManager:
                 sandbox.stop(timeout=30)
 
             try:
-                await asyncio.wait_for(
-                    asyncio.to_thread(_sync_stop),
+                await run_blocking_io(
+                    _sync_stop,
                     timeout=DEFAULT_DAYTONA_TIMEOUT,
                 )
                 # stop 成功后清除缓存，避免下次 get_or_create cache hit 后对 stopped 沙箱操作失败
@@ -524,8 +525,8 @@ class SessionSandboxManager:
             return str(state).lower() if state else "unknown"
 
         try:
-            return await asyncio.wait_for(
-                asyncio.to_thread(_sync_get_state),
+            return await run_blocking_io(
+                _sync_get_state,
                 timeout=DEFAULT_DAYTONA_TIMEOUT,
             )
         except asyncio.TimeoutError:
@@ -567,8 +568,8 @@ class SessionSandboxManager:
             sandbox = client.get(sandbox_id)
             sandbox.start(timeout=60)
 
-        await asyncio.wait_for(
-            asyncio.to_thread(_sync_start),
+        await run_blocking_io(
+            _sync_start,
             timeout=DEFAULT_DAYTONA_TIMEOUT,
         )
 
@@ -580,8 +581,8 @@ class SessionSandboxManager:
             sandbox = client.get(sandbox_id)
             return sandbox.get_work_dir()
 
-        return await asyncio.wait_for(
-            asyncio.to_thread(_sync_get_work_dir),
+        return await run_blocking_io(
+            _sync_get_work_dir,
             timeout=DEFAULT_DAYTONA_TIMEOUT,
         )
 
@@ -604,8 +605,8 @@ class SessionSandboxManager:
                 },
             )
 
-        return await asyncio.wait_for(
-            asyncio.to_thread(_sync_create_backend),
+        return await run_blocking_io(
+            _sync_create_backend,
             timeout=DEFAULT_DAYTONA_TIMEOUT,
         )
 
@@ -649,8 +650,8 @@ class SessionSandboxManager:
             )
             return composite_backend, sandbox.get_work_dir(), daytona_backend.id
 
-        backend, work_dir, sandbox_id = await asyncio.wait_for(
-            asyncio.to_thread(_sync_create),
+        backend, work_dir, sandbox_id = await run_blocking_io(
+            _sync_create,
             timeout=DEFAULT_DAYTONA_TIMEOUT,
         )
 
@@ -664,7 +665,7 @@ class SessionSandboxManager:
             )
             # 尝试清理孤儿沙箱
             try:
-                await asyncio.to_thread(self._delete_sandbox, sandbox_id)
+                await run_blocking_io(self._delete_sandbox, sandbox_id)
             except Exception as cleanup_err:
                 logger.error(
                     f"[SessionSandboxManager] Failed to clean up orphan sandbox {sandbox_id}: {cleanup_err}"
@@ -696,7 +697,7 @@ class SessionSandboxManager:
             return {}
 
     def _delete_sandbox(self, sandbox_id: str) -> None:
-        """删除沙箱（同步，用于 to_thread）"""
+        """删除沙箱（同步，用于 run_blocking_io）"""
 
         client = self._get_daytona_client()
         sandbox = client.get(sandbox_id)
@@ -727,7 +728,7 @@ class SessionSandboxManager:
             metadata_sandbox_id = binding.get("sandbox_id") if binding else None
             if metadata_sandbox_id:
                 # Sandbox.connect() 会自动恢复暂停的沙箱
-                provider_obj = await asyncio.to_thread(
+                provider_obj = await run_blocking_io(
                     self._e2b_adapter.get_sandbox, metadata_sandbox_id
                 )
                 if provider_obj:
@@ -766,13 +767,13 @@ class SessionSandboxManager:
             composite = CompositeBackend(default=e2b_backend, routes={"/skills/": skills_backend})
             return composite, work_dir, adapter.get_sandbox_id(sandbox), sandbox
 
-        backend, work_dir, sandbox_id, provider_obj = await asyncio.to_thread(_sync_create)
+        backend, work_dir, sandbox_id, provider_obj = await run_blocking_io(_sync_create)
         try:
             await self._save_binding(user_id, sandbox_id, "running", is_new=True)
         except Exception as e:
             logger.error(f"[E2B] Created {sandbox_id} but failed to save binding: {e}")
             try:
-                await asyncio.to_thread(self._e2b_adapter.stop_sandbox, provider_obj)
+                await run_blocking_io(self._e2b_adapter.stop_sandbox, provider_obj)
             except Exception:
                 pass
             raise
@@ -799,7 +800,7 @@ class SessionSandboxManager:
                 sandbox_id, _, provider_obj = self._cache[user_id]
                 try:
                     # stop_sandbox 优先 pause（保留数据），失败则 kill
-                    await asyncio.to_thread(self._e2b_adapter.stop_sandbox, provider_obj)
+                    await run_blocking_io(self._e2b_adapter.stop_sandbox, provider_obj)
                     self._cache.pop(user_id, None)
                     await self._save_binding(user_id, sandbox_id, "paused")
                     logger.info(f"[E2B] Paused sandbox {sandbox_id} for user {user_id}")

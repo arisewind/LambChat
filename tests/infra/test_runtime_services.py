@@ -50,12 +50,19 @@ async def test_start_runtime_services_starts_all_distributed_listeners(
     memory_compaction = SimpleNamespace(start_calls=0)
     scheduler = SimpleNamespace(start_calls=0)
     arq_runtime = SimpleNamespace(start_calls=0)
+    lag_monitor = SimpleNamespace(start_calls=0)
 
     async def _start_arq_runtime() -> None:
         arq_runtime.start_calls += 1
 
+    async def _start_event_loop_lag_monitor() -> None:
+        lag_monitor.start_calls += 1
+
     monkeypatch.setattr(runtime_services, "get_task_manager", lambda: task_manager)
     monkeypatch.setattr(runtime_services, "start_arq_runtime", _start_arq_runtime)
+    monkeypatch.setattr(
+        runtime_services, "start_event_loop_lag_monitor", _start_event_loop_lag_monitor
+    )
     monkeypatch.setattr(runtime_services, "get_settings_pubsub", lambda: settings_pubsub)
     monkeypatch.setattr(runtime_services, "get_model_config_pubsub", lambda: model_config_pubsub)
     monkeypatch.setattr(runtime_services, "get_memory_pubsub", lambda: memory_pubsub)
@@ -87,6 +94,7 @@ async def test_start_runtime_services_starts_all_distributed_listeners(
     await runtime_services.start_runtime_services()
 
     assert task_manager.start_calls == 1
+    assert lag_monitor.start_calls == 1
     assert arq_runtime.start_calls == 1
     assert settings_pubsub.start_calls == 1
     assert model_config_pubsub.start_calls == 1
@@ -114,6 +122,8 @@ async def test_stop_runtime_services_stops_all_distributed_listeners(
     memory_shutdown = SimpleNamespace(calls=0)
     scheduler = SimpleNamespace(stop_calls=0)
     arq_runtime = SimpleNamespace(stop_calls=0)
+    lag_monitor = SimpleNamespace(stop_calls=0)
+    shutdown_calls = SimpleNamespace(count=0)
 
     async def _memory_shutdown() -> None:
         memory_shutdown.calls += 1
@@ -121,8 +131,22 @@ async def test_stop_runtime_services_stops_all_distributed_listeners(
     async def _stop_arq_runtime() -> None:
         arq_runtime.stop_calls += 1
 
+    async def _stop_event_loop_lag_monitor() -> None:
+        lag_monitor.stop_calls += 1
+
+    def _shutdown_blocking_io_executor() -> None:
+        shutdown_calls.count += 1
+
     monkeypatch.setattr(runtime_services, "get_task_manager", lambda: task_manager)
     monkeypatch.setattr(runtime_services, "stop_arq_runtime", _stop_arq_runtime)
+    monkeypatch.setattr(
+        runtime_services, "stop_event_loop_lag_monitor", _stop_event_loop_lag_monitor
+    )
+    monkeypatch.setattr(
+        runtime_services,
+        "shutdown_blocking_io_executor",
+        _shutdown_blocking_io_executor,
+    )
     monkeypatch.setattr(runtime_services, "get_settings_pubsub", lambda: settings_pubsub)
     monkeypatch.setattr(runtime_services, "get_model_config_pubsub", lambda: model_config_pubsub)
     monkeypatch.setattr(runtime_services, "get_memory_pubsub", lambda: memory_pubsub)
@@ -149,6 +173,7 @@ async def test_stop_runtime_services_stops_all_distributed_listeners(
     await runtime_services.stop_runtime_services()
 
     assert task_manager.stop_calls == 1
+    assert lag_monitor.stop_calls == 1
     assert arq_runtime.stop_calls == 1
     assert settings_pubsub.stop_calls == 1
     assert model_config_pubsub.stop_calls == 1
@@ -159,6 +184,7 @@ async def test_stop_runtime_services_stops_all_distributed_listeners(
     assert mcp_cache_pubsub.stop_calls == 1
     assert memory_shutdown.calls == 1
     assert scheduler.stop_calls == 1
+    assert shutdown_calls.count == 1
 
 
 async def _increment_scheduler_stop(scheduler: SimpleNamespace) -> None:

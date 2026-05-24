@@ -28,6 +28,7 @@ import { teamApi } from "../../services/api/team";
 import { personaPresetApi } from "../../services/api/personaPreset";
 import { uploadApi } from "../../services/api";
 import { compressImageFile } from "../../utils/imageCompression";
+import toast from "react-hot-toast";
 import {
   PersonaAvatarIcon,
   PersonaAvatarImage,
@@ -271,9 +272,15 @@ export const TeamBuilder = forwardRef<TeamBuilderHandle, TeamBuilderProps>(
           ? await teamApi.update(existingTeamId, payload)
           : await teamApi.create(payload);
         setExistingTeamId(team.id);
+        toast.success(
+          existingTeamId
+            ? t("team.updateSuccess", "团队已更新")
+            : t("team.createSuccess", "团队已创建"),
+        );
         onSave?.(team);
       } catch (e) {
         console.error("Failed to save team:", e);
+        toast.error(t("team.saveFailed", "保存失败"));
       } finally {
         setSaving(false);
       }
@@ -292,8 +299,10 @@ export const TeamBuilder = forwardRef<TeamBuilderHandle, TeamBuilderProps>(
         setStarterPromptRows(starterPromptsToDraftRows(cloned.starter_prompts));
         setMembers(cloned.members);
         setDefaultMemberId(cloned.default_member_id ?? null);
+        toast.success(t("team.cloneSuccess", "团队已克隆"));
       } catch (e) {
         console.error("Failed to clone team:", e);
+        toast.error(t("team.cloneFailed", "克隆失败"));
       }
     };
 
@@ -318,9 +327,11 @@ export const TeamBuilder = forwardRef<TeamBuilderHandle, TeamBuilderProps>(
       if (!window.confirm(t("team.deleteConfirm"))) return;
       try {
         await teamApi.delete(existingTeamId);
+        toast.success(t("team.deleteSuccess", "团队已删除"));
         onClose?.();
       } catch (e) {
         console.error("Failed to delete team:", e);
+        toast.error(t("team.deleteFailed", "删除失败"));
       }
     };
 

@@ -10,10 +10,10 @@ async def test_agent_discovery_warmup_logs_traceback_on_failure(
     caplog: pytest.LogCaptureFixture,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    async def _raise_from_thread(_func):
+    async def _raise_from_blocking_io(_func):
         raise SystemError("bad argument to internal function")
 
-    monkeypatch.setattr(api_main.asyncio, "to_thread", _raise_from_thread)
+    monkeypatch.setattr(api_main, "run_blocking_io", _raise_from_blocking_io)
 
     with caplog.at_level(logging.WARNING, logger="src.api.main"):
         await api_main._warm_agent_registry()

@@ -6,10 +6,10 @@ Compatible with AWS S3, MinIO, Tencent COS, and any S3-compatible provider.
 
 from __future__ import annotations
 
-import asyncio
 import io
 from typing import TYPE_CHECKING, BinaryIO, Optional
 
+from src.infra.async_utils import run_blocking_io
 from src.infra.logging import get_logger
 from src.infra.storage.s3.base import S3StorageBackend
 from src.infra.storage.s3.types import S3Config, S3Provider, UploadResult
@@ -68,11 +68,10 @@ class MinioS3Backend(S3StorageBackend):
             if not content_type:
                 content_type = "application/octet-stream"
 
-        content = file.read()
+        content = await run_blocking_io(file.read)
         file_size = len(content)
-        file.seek(0)
+        await run_blocking_io(file.seek, 0)
 
-        loop = asyncio.get_running_loop()
         client = self._get_client()
 
         def _put_object():
@@ -86,7 +85,7 @@ class MinioS3Backend(S3StorageBackend):
                 metadata=metadata or {},
             )
 
-        result = await loop.run_in_executor(None, _put_object)
+        result = await run_blocking_io(_put_object)
 
         return UploadResult(
             key=key,
@@ -107,7 +106,6 @@ class MinioS3Backend(S3StorageBackend):
         return await self.upload(io.BytesIO(data), key, content_type, metadata)
 
     async def download(self, key: str) -> bytes:
-        loop = asyncio.get_running_loop()
         client = self._get_client()
 
         def _get_object():
@@ -117,10 +115,9 @@ class MinioS3Backend(S3StorageBackend):
             )
             return response.read()
 
-        return await loop.run_in_executor(None, _get_object)
+        return await run_blocking_io(_get_object)
 
     async def get_size(self, key: str) -> int:
-        loop = asyncio.get_running_loop()
         client = self._get_client()
 
         def _stat():
@@ -130,10 +127,9 @@ class MinioS3Backend(S3StorageBackend):
             )
             return stat.size
 
-        return await loop.run_in_executor(None, _stat)
+        return await run_blocking_io(_stat)
 
     async def download_range(self, key: str, start: int, end: int) -> bytes:
-        loop = asyncio.get_running_loop()
         client = self._get_client()
         length = end - start + 1
 
@@ -146,10 +142,9 @@ class MinioS3Backend(S3StorageBackend):
             )
             return response.read()
 
-        return await loop.run_in_executor(None, _get_range)
+        return await run_blocking_io(_get_range)
 
     async def delete(self, key: str) -> bool:
-        loop = asyncio.get_running_loop()
         client = self._get_client()
 
         def _delete_object():
@@ -159,10 +154,9 @@ class MinioS3Backend(S3StorageBackend):
             )
             return True
 
-        return await loop.run_in_executor(None, _delete_object)
+        return await run_blocking_io(_delete_object)
 
     async def exists(self, key: str) -> bool:
-        loop = asyncio.get_running_loop()
         client = self._get_client()
 
         def _stat_object():
@@ -175,13 +169,12 @@ class MinioS3Backend(S3StorageBackend):
             except Exception:
                 return False
 
-        return await loop.run_in_executor(None, _stat_object)
+        return await run_blocking_io(_stat_object)
 
     async def get_url(self, key: str) -> str:
         return self.config.get_public_url(key)
 
     async def get_presigned_url(self, key: str, expires: int = 3600) -> str:
-        loop = asyncio.get_running_loop()
         client = self._get_client()
 
         def _presigned_url():
@@ -193,10 +186,9 @@ class MinioS3Backend(S3StorageBackend):
                 expires=timedelta(seconds=expires),
             )
 
-        return await loop.run_in_executor(None, _presigned_url)
+        return await run_blocking_io(_presigned_url)
 
     async def list_objects(self, prefix: str = "") -> list[str]:
-        loop = asyncio.get_running_loop()
         client = self._get_client()
 
         def _list_objects():
@@ -209,7 +201,7 @@ class MinioS3Backend(S3StorageBackend):
                 objects.append(obj.object_name)
             return objects
 
-        return await loop.run_in_executor(None, _list_objects)
+        return await run_blocking_io(_list_objects)
 
     async def close(self) -> None:
         self._client = None

@@ -23,3 +23,17 @@ test("shared page hides feedback and share actions on chat messages", () => {
     /showFeedbackAndShareActions &&\s*\(\s*<>\s*\{\/\* Feedback buttons \*\//,
   );
 });
+
+test("shared page shows team identity for shared team sessions", () => {
+  const sharedPageSource = readFileSync(
+    resolve(__dirname, "../SharedPage.tsx"),
+    "utf8",
+  );
+
+  assert.match(sharedPageSource, /resolveSharedAssistantIdentity/);
+  assert.match(sharedPageSource, /sharedAssistant/);
+  assert.match(sharedPageSource, /session\.agent_id === "team"/);
+  assert.match(sharedPageSource, /data\.session\.team_name/);
+  assert.match(sharedPageSource, /personaName=\{sharedAssistant\.name\}/);
+  assert.match(sharedPageSource, /personaAvatar=\{sharedAssistant\.avatar\}/);
+});

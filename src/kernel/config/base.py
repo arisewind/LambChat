@@ -7,7 +7,7 @@ import secrets
 from functools import lru_cache
 from typing import TYPE_CHECKING, Any, Optional
 
-from pydantic import Field
+from pydantic import Field, field_validator
 from pydantic_settings import BaseSettings
 
 from src.infra.logging import get_logger
@@ -347,6 +347,19 @@ class Settings(BaseSettings):
             os.environ["LANGSMITH_API_URL"] = self.LANGSMITH_API_URL
         if self.LANGSMITH_SAMPLE_RATE:
             os.environ["LANGSMITH_SAMPLE_RATE"] = str(self.LANGSMITH_SAMPLE_RATE)
+
+    @field_validator("DEBUG", mode="before")
+    @classmethod
+    def _normalize_debug_mode(cls, value: Any) -> Any:
+        if not isinstance(value, str):
+            return value
+
+        normalized = value.strip().lower()
+        if normalized in {"release", "prod", "production"}:
+            return False
+        if normalized in {"debug", "dev", "development"}:
+            return True
+        return value
 
     def get_s3_config(self) -> "S3Config":
         """Get S3 storage configuration."""
