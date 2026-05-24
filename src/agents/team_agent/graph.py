@@ -133,13 +133,15 @@ class TeamAgent(BaseGraphAgent):
         disabled_skills = kwargs.get("disabled_skills")
         enabled_skills = kwargs.get("enabled_skills")
         disabled_mcp_tools = kwargs.get("disabled_mcp_tools")
+        team_id = kwargs.get("team_id")
+        context_enabled_skills = None if team_id else enabled_skills
         context = TeamAgentContext(
             session_id=session_id,
             agent_id=self.agent_id,
             user_id=user_id,
             disabled_tools=disabled_tools,
             disabled_skills=disabled_skills,
-            enabled_skills=enabled_skills,
+            enabled_skills=context_enabled_skills,
             disabled_mcp_tools=disabled_mcp_tools,
         )
         await context.setup()
@@ -160,11 +162,11 @@ class TeamAgent(BaseGraphAgent):
                 "context": context,
                 "agent_options": agent_options,
                 "disabled_skills": disabled_skills,
-                "enabled_skills": enabled_skills,
+                "enabled_skills": context_enabled_skills,
                 "persona_system_prompt": kwargs.get("persona_system_prompt"),
                 "disabled_mcp_tools": disabled_mcp_tools,
                 "base_url": kwargs.get("base_url", ""),
-                "team_id": kwargs.get("team_id"),
+                "team_id": team_id,
             },
             "metadata": langsmith_metadata,
             "recursion_limit": settings.SESSION_MAX_RUNS_PER_SESSION,

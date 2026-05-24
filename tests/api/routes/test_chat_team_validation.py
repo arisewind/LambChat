@@ -17,6 +17,18 @@ def test_validate_team_agent_request_allows_team_id() -> None:
     validate_team_agent_request("team", request)
 
 
+def test_validate_team_agent_request_strips_enabled_skills_for_explicit_team() -> None:
+    request = AgentRequest(
+        message="hello",
+        team_id="team-1",
+        enabled_skills=["solo-skill"],
+    )
+
+    validate_team_agent_request("team", request)
+
+    assert request.enabled_skills is None
+
+
 def test_validate_team_agent_request_strips_persona_for_explicit_team() -> None:
     request = AgentRequest(
         message="hello",

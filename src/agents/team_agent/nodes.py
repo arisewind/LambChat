@@ -250,6 +250,7 @@ async def team_router_node(state: Dict[str, Any], config: RunnableConfig) -> Dic
         )
     else:
         system_prompt = FAST_SYSTEM_PROMPT
+    runtime_enabled_skills = None if team else configurable.get("enabled_skills")
 
     # 创建 backend
     backend_start = time.time()
@@ -520,7 +521,7 @@ async def team_router_node(state: Dict[str, Any], config: RunnableConfig) -> Dic
             "backend": backend,
             "context": context,
             "disabled_skills": configurable.get("disabled_skills"),
-            "enabled_skills": configurable.get("enabled_skills"),
+            "enabled_skills": runtime_enabled_skills,
             "base_url": configurable.get("base_url", ""),
             "presenter": presenter,
         },

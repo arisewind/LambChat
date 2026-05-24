@@ -534,6 +534,7 @@ async def test_team_role_subagent_prompt_includes_role_instructions_and_skills(
             "base_url": "",
             "agent_options": {},
             "team_id": "team-1",
+            "enabled_skills": ["unrelated-skill"],
         }
     }
 
@@ -553,6 +554,8 @@ async def test_team_role_subagent_prompt_includes_role_instructions_and_skills(
     assert "## Skills System" in sections
     assert "xiaohongshu-copy" in sections
     assert "unrelated-skill" not in sections
+    assert fake_graph.captured_inner_config is not None
+    assert fake_graph.captured_inner_config["configurable"]["enabled_skills"] is None
 
     router_section_middleware = next(
         mw for mw in fake_graph.captured_create_kwargs["middleware"] if hasattr(mw, "_sections")
