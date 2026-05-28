@@ -1,5 +1,5 @@
 import { useRef, useCallback, useState, useEffect } from "react";
-import { ArrowUp, Square, Lock, X, ChevronDown } from "lucide-react";
+import { ArrowUp, Square, Lock } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { FeatureMenu, type FeaturePanel } from "../selectors/FeatureMenu";
 import {
@@ -16,6 +16,7 @@ import {
   getTeamFallbackAvatar,
   getTeamFallbackTag,
 } from "../team/teamAvatarUtils";
+import { ToolbarChip } from "./ToolbarChip";
 
 export interface ChatInputToolbarProps {
   activePanel: FeaturePanel;
@@ -176,93 +177,67 @@ export function ChatInputToolbar({
           agentOptionValues={agentOptionValues}
           onToggleAgentOption={onToggleAgentOption}
         />
+        {hasAgentSelector &&
+          !selectedPersonaName &&
+          !(currentAgent === "team" && onSelectTeam && selectedTeamId) && (
+            <ToolbarChip
+              label={t(`agents.${currentAgent}.name`) || agentName || ""}
+              onClick={() => onActivePanelChange("agent")}
+            />
+          )}
         {selectedPersonaName && currentAgent !== "team" && (
-          <button
-            type="button"
-            className="chat-tool-btn group shrink min-w-0"
-            onClick={() => onActivePanelChange("persona")}
-            title={selectedPersonaName}
-          >
-            <div className="flex flex-row items-center gap-1.5 min-w-0">
-              <span className="relative w-[18px] h-[18px] shrink-0 inline-flex items-center justify-center">
-                {personaAvatar?.avatar &&
-                (personaAvatar.avatar.startsWith("http") ||
-                  personaAvatar.avatar.startsWith("/") ||
-                  isEmojiAvatar(personaAvatar.avatar)) ? (
-                  <PersonaAvatarImage
-                    avatar={
-                      isEmojiAvatar(personaAvatar.avatar)
-                        ? getEmojiAvatarUrl(personaAvatar.avatar)
-                        : personaAvatar.avatar
-                    }
-                    alt=""
-                    className="w-[18px] h-[18px] rounded-full object-cover group-hover:opacity-0 transition-opacity"
-                    onError={(e) => {
-                      (e.target as HTMLImageElement).style.display = "none";
-                    }}
-                  />
-                ) : (
-                  <PersonaAvatarIcon
-                    avatar={personaAvatar?.avatar}
-                    primaryTag={personaAvatar?.primaryTag ?? ""}
-                    size={18}
-                    className="transition-transform duration-200 group-hover:opacity-0"
-                  />
-                )}
-                {onClearPersonaPreset && (
-                  <X
-                    size={18}
-                    className="absolute inset-0 m-auto opacity-0 group-hover:opacity-100 transition-opacity"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      onClearPersonaPreset();
-                    }}
-                  />
-                )}
-              </span>
-              <span className="max-w-40 truncate text-sm font-semibold text-blue-600 dark:text-blue-400">
-                {selectedPersonaName}
-              </span>
-              <ChevronDown size={14} className="opacity-50 shrink-0" />
-            </div>
-          </button>
-        )}
-        {currentAgent === "team" && onSelectTeam && selectedTeamId && (
-          <button
-            type="button"
-            className="chat-tool-btn group shrink min-w-0"
-            onClick={() => onActivePanelChange("team")}
-            title={selectedTeamName ?? t("chat.teamSelected")}
-          >
-            <div className="flex min-w-0 flex-row items-center gap-1.5">
-              <span className="relative h-[18px] w-[18px] shrink-0 inline-flex items-center justify-center">
-                <TeamAvatar
-                  avatar={selectedTeam?.avatar}
-                  fallbackAvatar={
-                    selectedTeam ? getTeamFallbackAvatar(selectedTeam) : null
+          <ToolbarChip
+            icon={
+              personaAvatar?.avatar &&
+              (personaAvatar.avatar.startsWith("http") ||
+                personaAvatar.avatar.startsWith("/") ||
+                isEmojiAvatar(personaAvatar.avatar)) ? (
+                <PersonaAvatarImage
+                  avatar={
+                    isEmojiAvatar(personaAvatar.avatar)
+                      ? getEmojiAvatarUrl(personaAvatar.avatar)
+                      : personaAvatar.avatar
                   }
-                  fallbackTag={
-                    selectedTeam ? getTeamFallbackTag(selectedTeam) : ""
-                  }
-                  label={selectedTeamName ?? t("chat.teamSelected")}
-                  className="team-toolbar-avatar transition-opacity group-hover:opacity-0"
-                  iconSize={18}
-                />
-                <X
-                  size={18}
-                  className="absolute inset-0 m-auto opacity-0 transition-opacity group-hover:opacity-100"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    onSelectTeam?.(null);
+                  alt=""
+                  className="w-[18px] h-[18px] rounded-full object-cover group-hover:opacity-0 transition-opacity"
+                  onError={(e) => {
+                    (e.target as HTMLImageElement).style.display = "none";
                   }}
                 />
-              </span>
-              <span className="max-w-40 truncate text-sm font-semibold text-[var(--theme-primary)]">
-                {selectedTeamName ?? t("chat.teamSelected")}
-              </span>
-              <ChevronDown size={14} className="shrink-0 opacity-50" />
-            </div>
-          </button>
+              ) : (
+                <PersonaAvatarIcon
+                  avatar={personaAvatar?.avatar}
+                  primaryTag={personaAvatar?.primaryTag ?? ""}
+                  size={18}
+                  className="transition-transform duration-200 group-hover:opacity-0"
+                />
+              )
+            }
+            label={selectedPersonaName}
+            onClick={() => onActivePanelChange("persona")}
+            onClear={onClearPersonaPreset}
+          />
+        )}
+        {currentAgent === "team" && onSelectTeam && selectedTeamId && (
+          <ToolbarChip
+            icon={
+              <TeamAvatar
+                avatar={selectedTeam?.avatar}
+                fallbackAvatar={
+                  selectedTeam ? getTeamFallbackAvatar(selectedTeam) : null
+                }
+                fallbackTag={
+                  selectedTeam ? getTeamFallbackTag(selectedTeam) : ""
+                }
+                label={selectedTeamName ?? t("chat.teamSelected")}
+                className="team-toolbar-avatar transition-opacity group-hover:opacity-0"
+                iconSize={18}
+              />
+            }
+            label={selectedTeamName ?? t("chat.teamSelected")}
+            onClick={() => onActivePanelChange("team")}
+            onClear={() => onSelectTeam?.(null)}
+          />
         )}
       </div>
 
