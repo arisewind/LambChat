@@ -37,7 +37,7 @@ export function ToolbarChip({
             )}
           </span>
         )}
-        <span className="max-w-40 truncate text-sm font-semibold text-blue-600 dark:text-blue-400">
+        <span className="max-w-40 truncate text-sm font-semibold text-blue-600 dark:text-blue-400 font-serif">
           {label}
         </span>
         <ChevronDown size={14} className="opacity-50 shrink-0" />
