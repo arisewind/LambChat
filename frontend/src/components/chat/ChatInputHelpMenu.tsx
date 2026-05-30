@@ -1,115 +1,160 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import { CircleHelp, ExternalLink, Keyboard } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { ShortcutDialog } from "./ChatInputShortcuts";
 
+// ── Shared styles ──────────────────────────────────────────
+const theme = {
+  text: "var(--theme-text)",
+  textSecondary: "var(--theme-text-secondary)",
+  bgCard: "var(--theme-bg-card)",
+  border: "var(--theme-border)",
+  bgHover: "var(--theme-bg-hover, rgba(128,128,128,0.08))",
+};
+
+const buttonStyle: React.CSSProperties = {
+  backgroundColor: `color-mix(in srgb, ${theme.bgCard} 85%, transparent)`,
+  border: `1px solid ${theme.border}`,
+  color: theme.textSecondary,
+  minWidth: 0,
+  minHeight: 0,
+};
+
+const panelStyle: React.CSSProperties = {
+  backgroundColor: theme.bgCard,
+  border: `1px solid ${theme.border}`,
+};
+
+const menuItemClass =
+  "flex gap-2 sm:gap-2.5 items-center w-full px-2.5 py-1.5 sm:px-3 sm:py-2 text-[12px] sm:text-[13px] rounded-lg cursor-pointer transition-colors";
+
+const hover: React.DOMAttributes<HTMLElement> = {
+  onMouseEnter: (e) => {
+    e.currentTarget.style.backgroundColor = theme.bgHover;
+  },
+  onMouseLeave: (e) => {
+    e.currentTarget.style.backgroundColor = "transparent";
+  },
+};
+
+// ── Tiny helpers ────────────────────────────────────────────
+function SecondaryIcon({ children }: { children: ReactNode }) {
+  return (
+    <span className="shrink-0" style={{ color: theme.textSecondary }}>
+      {children}
+    </span>
+  );
+}
+
+function MenuLink({
+  href,
+  children,
+  ...props
+}: React.AnchorHTMLAttributes<HTMLAnchorElement>) {
+  return (
+    <a
+      href={href}
+      target="_blank"
+      rel="noopener noreferrer"
+      role="menuitem"
+      className={`${menuItemClass} no-underline`}
+      style={{ color: theme.text }}
+      {...hover}
+      {...props}
+    >
+      {children}
+    </a>
+  );
+}
+
+function MenuButtonItem({
+  children,
+  ...props
+}: React.ButtonHTMLAttributes<HTMLButtonElement>) {
+  return (
+    <button
+      type="button"
+      role="menuitem"
+      className={menuItemClass}
+      style={{ color: theme.text }}
+      {...hover}
+      {...props}
+    >
+      {children}
+    </button>
+  );
+}
+
+// ── Component ───────────────────────────────────────────────
 export function ChatInputHelpMenu() {
   const { t } = useTranslation();
-  const [helpMenuOpen, setHelpMenuOpen] = useState(false);
-  const [shortcutDialogOpen, setShortcutDialogOpen] = useState(false);
-  const helpMenuRef = useRef<HTMLDivElement>(null);
+  const [open, setOpen] = useState(false);
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    if (!helpMenuOpen) return;
-    const handleClickOutside = (e: MouseEvent) => {
-      if (
-        helpMenuRef.current &&
-        !helpMenuRef.current.contains(e.target as Node)
-      ) {
-        setHelpMenuOpen(false);
-      }
+    if (!open) return;
+    const handler = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node))
+        setOpen(false);
     };
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, [helpMenuOpen]);
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, [open]);
+
+  const close = () => setOpen(false);
 
   return createPortal(
     <div
-      ref={helpMenuRef}
-      className="hidden sm:block fixed bottom-2 right-2 z-50"
+      ref={ref}
+      className="fixed bottom-1 right-1 sm:bottom-2 sm:right-2 z-50"
     >
       <button
         type="button"
         aria-label={t("common.help", "帮助")}
-        aria-expanded={helpMenuOpen}
-        onClick={() => setHelpMenuOpen((v) => !v)}
-        className="flex items-center justify-center w-8 h-8 text-sm font-medium rounded-full shadow-md transition-all duration-200 hover:shadow-lg hover:scale-110 active:scale-95"
-        style={{
-          backgroundColor:
-            "color-mix(in srgb, var(--theme-bg-card) 85%, transparent)",
-          border: "1px solid var(--theme-border)",
-          color: "var(--theme-text-secondary)",
-        }}
+        aria-expanded={open}
+        onClick={() => setOpen((v) => !v)}
+        className="flex items-center justify-center w-5 h-5 sm:w-7 sm:h-7 text-xs font-medium rounded-full shadow-md transition-all duration-200 hover:shadow-lg hover:scale-110 active:scale-95"
+        style={buttonStyle}
       >
-        <CircleHelp size={16} />
+        <CircleHelp size={14} className="sm:w-4 sm:h-4" />
       </button>
-      {helpMenuOpen && (
+
+      {open && (
         <div
           role="menu"
-          className="absolute bottom-full right-0 mb-2 w-[200px] rounded-xl p-1 shadow-lg"
-          style={{
-            backgroundColor: "var(--theme-bg-card)",
-            border: "1px solid var(--theme-border)",
-          }}
+          className="absolute bottom-full right-0 mb-1.5 sm:mb-2 w-[170px] sm:w-[200px] rounded-xl p-1 shadow-lg"
+          style={panelStyle}
         >
-          <a
+          <MenuLink
             href="https://yanyutin753.github.io/LambChat/"
-            target="_blank"
-            rel="noopener noreferrer"
-            role="menuitem"
-            onClick={() => setHelpMenuOpen(false)}
-            className="flex gap-2.5 items-center w-full px-3 py-2 text-[13px] rounded-lg cursor-pointer transition-colors no-underline"
-            style={{ color: "var(--theme-text)" }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.backgroundColor =
-                "var(--theme-bg-hover, rgba(128,128,128,0.08))";
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.backgroundColor = "transparent";
-            }}
+            onClick={close}
           >
-            <CircleHelp
-              size={16}
-              className="shrink-0"
-              style={{ color: "var(--theme-text-secondary)" }}
-            />
+            <SecondaryIcon>
+              <CircleHelp size={14} className="sm:w-4 sm:h-4" />
+            </SecondaryIcon>
             <span className="flex-1">{t("chat.helpDocs", "帮助文档")}</span>
-            <ExternalLink
-              size={12}
-              style={{ color: "var(--theme-text-secondary)", opacity: 0.5 }}
-            />
-          </a>
-          <button
-            type="button"
-            role="menuitem"
+            <SecondaryIcon>
+              <ExternalLink size={12} style={{ opacity: 0.5 }} />
+            </SecondaryIcon>
+          </MenuLink>
+
+          <MenuButtonItem
             onClick={() => {
-              setHelpMenuOpen(false);
-              setShortcutDialogOpen(true);
-            }}
-            className="flex gap-2.5 items-center w-full px-3 py-2 text-[13px] rounded-lg cursor-pointer transition-colors"
-            style={{ color: "var(--theme-text)" }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.backgroundColor =
-                "var(--theme-bg-hover, rgba(128,128,128,0.08))";
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.backgroundColor = "transparent";
+              close();
+              setDialogOpen(true);
             }}
           >
-            <Keyboard
-              size={16}
-              className="shrink-0"
-              style={{ color: "var(--theme-text-secondary)" }}
-            />
+            <SecondaryIcon>
+              <Keyboard size={14} className="sm:w-4 sm:h-4" />
+            </SecondaryIcon>
             <span>{t("chat.keyboardShortcuts", "键盘快捷键")}</span>
-          </button>
+          </MenuButtonItem>
         </div>
       )}
-      <ShortcutDialog
-        open={shortcutDialogOpen}
-        onClose={() => setShortcutDialogOpen(false)}
-      />
+
+      <ShortcutDialog open={dialogOpen} onClose={() => setDialogOpen(false)} />
     </div>,
     document.body,
   );

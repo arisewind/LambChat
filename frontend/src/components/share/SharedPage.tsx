@@ -795,6 +795,7 @@ export function SharedPage() {
                     latestAutoPreview={latestAutoPreview}
                     onOpenPreview={handleOpenPreview}
                     showFeedbackAndShareActions={false}
+                    isFirst={index === 0}
                   />
                 </div>
               ))}

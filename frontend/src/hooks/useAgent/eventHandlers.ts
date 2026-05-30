@@ -38,6 +38,12 @@ export interface EventHandlerContext {
   setConnectionStatus: (status: string) => void;
   setIsInitializingSandbox: (loading: boolean) => void;
   setSandboxError: (error: string | null) => void;
+  setActiveGoal: React.Dispatch<
+    React.SetStateAction<import("./types").ActiveGoalSpec | null>
+  >;
+  setGoalsByRunId: React.Dispatch<
+    React.SetStateAction<Record<string, import("./types").ActiveGoalSpec>>
+  >;
 }
 
 /**
@@ -112,6 +118,81 @@ export function handleStreamEvent(
       ) {
         ctx.setSessionId(data.session_id);
       }
+      return;
+    }
+
+    case "goal:start": {
+      ctx.setActiveGoal((prev) => {
+        const goal: import("./types").ActiveGoalSpec = {
+          objective: data.goal?.objective ?? prev?.objective ?? "",
+          rubric: data.goal?.rubric ?? prev?.rubric,
+          started_at: data.started_at ?? prev?.started_at,
+        };
+        if (data.run_id) goal.runId = data.run_id;
+        else if (prev?.runId) goal.runId = prev.runId;
+        if (data.goal?.max_iterations != null)
+          goal.max_iterations = data.goal.max_iterations;
+        else if (prev?.max_iterations != null)
+          goal.max_iterations = prev.max_iterations;
+        return goal;
+      });
+      if (data.run_id) {
+        ctx.setGoalsByRunId((prev) => ({
+          ...prev,
+          [data.run_id!]: {
+            objective:
+              data.goal?.objective ?? prev[data.run_id!]?.objective ?? "",
+            rubric: data.goal?.rubric ?? prev[data.run_id!]?.rubric,
+            ...(data.goal?.max_iterations != null
+              ? { max_iterations: data.goal.max_iterations }
+              : prev[data.run_id!]?.max_iterations != null
+                ? { max_iterations: prev[data.run_id!]!.max_iterations }
+                : {}),
+            runId: data.run_id,
+            started_at: data.started_at ?? prev[data.run_id!]?.started_at,
+          },
+        }));
+      }
+      return;
+    }
+
+    case "goal:end": {
+      ctx.setActiveGoal((prev) => {
+        const goal: import("./types").ActiveGoalSpec = {
+          objective: data.goal?.objective ?? prev?.objective ?? "",
+          rubric: data.goal?.rubric ?? prev?.rubric,
+          started_at: data.started_at ?? prev?.started_at,
+          ended_at: data.ended_at,
+        };
+        if (data.run_id) goal.runId = data.run_id;
+        else if (prev?.runId) goal.runId = prev.runId;
+        if (data.goal?.max_iterations != null)
+          goal.max_iterations = data.goal.max_iterations;
+        else if (prev?.max_iterations != null)
+          goal.max_iterations = prev.max_iterations;
+        return goal;
+      });
+      if (data.run_id) {
+        ctx.setGoalsByRunId((prev) => ({
+          ...prev,
+          [data.run_id!]: {
+            objective:
+              data.goal?.objective ?? prev[data.run_id!]?.objective ?? "",
+            rubric: data.goal?.rubric ?? prev[data.run_id!]?.rubric,
+            ...(data.goal?.max_iterations != null
+              ? { max_iterations: data.goal.max_iterations }
+              : prev[data.run_id!]?.max_iterations != null
+                ? { max_iterations: prev[data.run_id!]!.max_iterations }
+                : {}),
+            runId: data.run_id,
+            started_at: data.started_at ?? prev[data.run_id!]?.started_at,
+            ended_at: data.ended_at ?? prev[data.run_id!]?.ended_at,
+          },
+        }));
+      }
+      // Auto-dismiss the goal chip after a short delay so the user sees
+      // the completed state briefly before it disappears.
+      setTimeout(() => ctx.setActiveGoal(null), 2000);
       return;
     }
 

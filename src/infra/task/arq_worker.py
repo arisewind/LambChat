@@ -113,6 +113,7 @@ async def run_agent_task(ctx: dict[str, Any], run_id: str) -> None:
             disabled_mcp_tools=payload.get("disabled_mcp_tools"),
             display_message=payload.get("display_message"),
             team_id=payload.get("team_id"),
+            active_goal=payload.get("active_goal"),
         )
     except TaskInterruptedError:
         await payload_store.delete(run_id)

@@ -589,6 +589,18 @@
     "noPermission": "No permission to send messages",
     "noPermissionHint": "You don't have permission to send messages",
     "outline": "Outline",
+    "goal": {
+      "active": "Goal",
+      "clear": "Clear goal",
+      "command": "Goal",
+      "completed": "Completed",
+      "duration": "Duration",
+      "required": "Enter a goal",
+      "placeholder": "Enter your goal…",
+      "running": "Running",
+      "runningStatus": "Running",
+      "startedAt": "Started"
+    },
     "placeholder": "Type a message to start, @ to switch persona…",
     "placeholderWithHintCtrl": "Type a message to start, @ to switch persona…  Enter for newline, Ctrl+Enter to send",
     "placeholderWithHintShift": "Type a message to start, @ to switch persona…  Enter to send, Shift+Enter for newline",
@@ -2101,7 +2113,8 @@
     "search": "Search Chats",
     "selectPersona": "Select Persona",
     "selectTeam": "Select Team",
-    "send": "Send Message"
+    "send": "Send Message",
+    "goal": "Set Goal"
   },
   "sidebar": {
     "addToFavorites": "Add to Favorites",

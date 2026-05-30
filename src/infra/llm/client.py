@@ -243,11 +243,26 @@ class LLMClient:
             "max_retries": settings.LLM_MAX_RETRIES,
         }
         # OpenAI 协议: 传递 reasoning_effort 给推理模型
+        # 仅 OpenAI 官方模型 (provider="openai") 支持 reasoning_effort 参数。
+        # 其他 OpenAI 兼容提供商 (DeepSeek、Qwen 等) 有各自的推理机制，
+        # 发送 reasoning_effort 会触发不兼容的"思考模式"导致 API 报错。
         if thinking and thinking.get("type") == "enabled":
-            level = thinking.get("level", "medium")
-            # OpenAI 支持: minimal, low, medium, high
-            openai_effort_map = {"low": "low", "medium": "medium", "high": "high", "max": "high"}
-            openai_kwargs["reasoning_effort"] = openai_effort_map.get(level, "medium")
+            if provider == "openai":
+                level = thinking.get("level", "medium")
+                openai_effort_map = {
+                    "low": "low",
+                    "medium": "medium",
+                    "high": "high",
+                    "max": "high",
+                }
+                openai_kwargs["reasoning_effort"] = openai_effort_map.get(level, "medium")
+            else:
+                logger.debug(
+                    "Thinking requested but reasoning_effort not supported "
+                    "for provider '%s' (model: %s); skipped.",
+                    provider,
+                    model_name,
+                )
         if provider == "openai":
             model_kwargs = dict(openai_kwargs.get("model_kwargs") or kwargs.pop("model_kwargs", {}))
             model_kwargs.setdefault("prompt_cache_key", _prompt_cache_key(provider, model_name))

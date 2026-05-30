@@ -79,7 +79,7 @@ export function SkillFormNormal(a: SkillFormActions) {
                 value={a.description}
                 onChange={(e) => a.setDescription(e.target.value)}
                 placeholder={t("skills.form.descriptionPlaceholder")}
-                rows={3}
+                rows={5}
                 className="w-full resize-none rounded-xl border border-[var(--theme-border)] px-3 py-2 text-sm leading-6 text-[var(--theme-text)] placeholder:text-stone-400 dark:placeholder:text-stone-500 transition-all duration-150 bg-[var(--theme-bg)] hover:border-[var(--skill-border-strong)]"
               />
               {a.errors.description && (

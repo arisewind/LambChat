@@ -473,7 +473,7 @@ export function PersonaEditorModal({
             className="ppe-section ppe-field-animated"
             style={{ animationDelay: "0ms" }}
           >
-            <div className="grid gap-3 sm:grid-cols-2">
+            <div className="grid gap-2 sm:gap-3 sm:grid-cols-2 ppe-admin-grid">
               <div className="ppe-field">
                 <label className="ppe-label">
                   {t("personaPresets.scope", "范围")}

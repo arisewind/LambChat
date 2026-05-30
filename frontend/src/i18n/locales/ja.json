@@ -590,6 +590,18 @@
     "noPermission": "メッセージを送信する権限がありません",
     "noPermissionHint": "メッセージを送信する権限がありません",
     "outline": "アウトライン",
+    "goal": {
+      "active": "目標",
+      "clear": "目標をクリア",
+      "command": "目標",
+      "completed": "完了",
+      "duration": "実行時間",
+      "required": "目標を入力してください",
+      "placeholder": "目標を入力…",
+      "running": "実行中",
+      "runningStatus": "実行中",
+      "startedAt": "開始時間"
+    },
     "placeholder": "メッセージを入力して会話を開始、@ でペルソナを切替…",
     "placeholderWithHintCtrl": "メッセージを入力して会話を開始、@ でペルソナを切替…  Enter で改行、Ctrl+Enter で送信",
     "placeholderWithHintShift": "メッセージを入力して会話を開始、@ でペルソナを切替…  Enter で送信、Shift+Enter で改行",
@@ -2098,7 +2110,8 @@
     "search": "チャットを検索",
     "selectPersona": "ペルソナを選択",
     "selectTeam": "チームを選択",
-    "send": "メッセージを送信"
+    "send": "メッセージを送信",
+    "goal": "目標を設定"
   },
   "sidebar": {
     "addToFavorites": "お気に入りに追加",

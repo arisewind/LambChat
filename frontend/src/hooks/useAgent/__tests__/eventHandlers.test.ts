@@ -3,7 +3,7 @@ import test from "node:test";
 import type { Message } from "../../../types";
 import { handleStreamEvent } from "../eventHandlers.ts";
 import type { EventHandlerContext } from "../eventHandlers.ts";
-import type { StreamEvent } from "../types.ts";
+import type { ActiveGoalSpec, StreamEvent } from "../types.ts";
 import { prepareMessagesForRunningRun } from "../historyLoader.ts";
 
 function createContext(
@@ -12,9 +12,11 @@ function createContext(
 ): EventHandlerContext & {
   connectionStatuses: string[];
   messages: () => Message[];
+  activeGoal: () => ActiveGoalSpec | null;
   setMessagesCalls: () => number;
 } {
   let setMessagesCalls = 0;
+  let activeGoal: ActiveGoalSpec | null = null;
   const connectionStatuses: string[] = [];
 
   return {
@@ -37,9 +39,20 @@ function createContext(
     },
     setIsInitializingSandbox: () => undefined,
     setSandboxError: () => undefined,
+    setActiveGoal: (updater: React.SetStateAction<ActiveGoalSpec | null>) => {
+      activeGoal =
+        typeof updater === "function" ? updater(activeGoal) : updater;
+    },
+    setGoalsByRunId: () => undefined,
     connectionStatuses,
     messages: () => messages,
+    activeGoal: () => activeGoal,
     setMessagesCalls: () => setMessagesCalls,
+  } as EventHandlerContext & {
+    connectionStatuses: string[];
+    messages: () => Message[];
+    activeGoal: () => ActiveGoalSpec | null;
+    setMessagesCalls: () => number;
   };
 }
 
@@ -190,4 +203,90 @@ test("adds recommended questions from SSE events to the streaming assistant", ()
       : [],
     ["如何预防胫骨内侧压力综合征？", "赛前减量期具体怎么做？"],
   );
+});
+
+test("updates active goal runtime from lifecycle SSE events", () => {
+  const ctx = createContext([], null);
+
+  handleStreamEvent(
+    {
+      event: "goal:start",
+      data: JSON.stringify({
+        goal: { objective: "finish docs", rubric: "- docs done" },
+        started_at: "2026-05-30T08:00:00.000Z",
+      }),
+    } as StreamEvent,
+    "assistant-1",
+    "redis-event-goal-start",
+    "2026-05-30T08:00:00.000Z",
+    ctx,
+  );
+
+  assert.deepEqual(ctx.activeGoal(), {
+    objective: "finish docs",
+    rubric: "- docs done",
+    started_at: "2026-05-30T08:00:00.000Z",
+  });
+
+  // goal:end immediately sets ended_at on the goal
+  handleStreamEvent(
+    {
+      event: "goal:end",
+      data: JSON.stringify({
+        goal: { objective: "finish docs", rubric: "- docs done" },
+        started_at: "2026-05-30T08:00:00.000Z",
+        ended_at: "2026-05-30T08:02:03.000Z",
+      }),
+    } as StreamEvent,
+    "assistant-1",
+    "redis-event-goal-end",
+    "2026-05-30T08:02:03.000Z",
+    ctx,
+  );
+
+  assert.deepEqual(ctx.activeGoal(), {
+    objective: "finish docs",
+    rubric: "- docs done",
+    started_at: "2026-05-30T08:00:00.000Z",
+    ended_at: "2026-05-30T08:02:03.000Z",
+  });
+});
+
+test("goal:end auto-clears the active goal after a short delay", () => {
+  // Use real timers so setTimeout fires
+  const ctx = createContext([], null);
+
+  handleStreamEvent(
+    {
+      event: "goal:start",
+      data: JSON.stringify({
+        goal: { objective: "draw something", rubric: "- it looks good" },
+        started_at: "2026-05-30T08:00:00.000Z",
+      }),
+    } as StreamEvent,
+    "assistant-1",
+    "redis-event-goal-start",
+    "2026-05-30T08:00:00.000Z",
+    ctx,
+  );
+
+  assert.ok(ctx.activeGoal() != null, "goal should be set after goal:start");
+
+  handleStreamEvent(
+    {
+      event: "goal:end",
+      data: JSON.stringify({
+        goal: { objective: "draw something" },
+        started_at: "2026-05-30T08:00:00.000Z",
+        ended_at: "2026-05-30T08:00:05.000Z",
+      }),
+    } as StreamEvent,
+    "assistant-1",
+    "redis-event-goal-end",
+    "2026-05-30T08:00:05.000Z",
+    ctx,
+  );
+
+  // Immediately after goal:end, the goal still has ended_at set
+  assert.equal(ctx.activeGoal()?.ended_at, "2026-05-30T08:00:05.000Z");
 });

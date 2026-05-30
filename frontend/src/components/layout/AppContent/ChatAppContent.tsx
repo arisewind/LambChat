@@ -169,7 +169,10 @@ export function ChatAppContent({
     allowedModelIds: agentAllowedModelIds,
     connectionStatus,
     newlyCreatedSession,
+    activeGoal,
+    goalsByRunId,
     sendMessage,
+    clearActiveGoal,
     stopGeneration,
     clearMessages,
     switchAgent,
@@ -841,6 +844,9 @@ export function ChatAppContent({
             void sendMessage(content, undefined, sendAttachments)
           }
           onStopGeneration={stopGeneration}
+          activeGoal={activeGoal}
+          goalsByRunId={goalsByRunId}
+          onClearActiveGoal={clearActiveGoal}
           attachments={pageDragAttachments}
           onAttachmentsChange={setPageDragAttachments}
           externalNavigationToken={externalNavigationToken}

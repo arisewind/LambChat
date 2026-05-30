@@ -57,6 +57,11 @@ from src.infra.backend import (
     create_persistent_backend_factory,
     create_sandbox_backend_factory,
 )
+from src.infra.goal import (
+    build_goal_input,
+    build_goal_prompt_section,
+    create_goal_rubric_middleware,
+)
 from src.infra.llm.client import LLMClient
 from src.infra.logging import get_logger
 from src.infra.sandbox.session_manager import get_session_sandbox_manager
@@ -477,6 +482,10 @@ async def team_router_node(state: Dict[str, Any], config: RunnableConfig) -> Dic
     ]
     if sandbox_backend and sandbox_work_dir:
         _prompt_sections.append(SEARCH_SANDBOX_RUNTIME_SECTION.format(work_dir=sandbox_work_dir))
+    active_goal = configurable.get("active_goal")
+    goal_section = build_goal_prompt_section(active_goal)
+    if goal_section:
+        _prompt_sections.append(goal_section)
     if _prompt_sections:
         user_middleware.append(SectionPromptMiddleware(sections=_prompt_sections))
     if sandbox_backend:
@@ -498,6 +507,10 @@ async def team_router_node(state: Dict[str, Any], config: RunnableConfig) -> Dic
                 search_limit=settings.DEFERRED_TOOL_SEARCH_LIMIT,
             )
         )
+
+    rubric_middleware = create_goal_rubric_middleware(model=llm, goal=active_goal)
+    if rubric_middleware is not None:
+        user_middleware.append(rubric_middleware)
 
     user_middleware.append(PromptCachingMiddleware())
 
@@ -544,8 +557,8 @@ async def team_router_node(state: Dict[str, Any], config: RunnableConfig) -> Dic
 
     logger.info("[TeamAgent] Starting astream_events")
     try:
-        async for event in inner_graph.astream_events(
-            {"messages": [new_message]},
+        async for event in inner_graph.astream_events(  # type: ignore[call-overload]
+            build_goal_input(new_message, active_goal, rubric_middleware=rubric_middleware),
             inner_config,
             version="v2",
         ):

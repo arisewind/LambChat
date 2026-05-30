@@ -589,6 +589,18 @@
     "noPermission": "没有发送消息的权限",
     "noPermissionHint": "您没有发送消息的权限",
     "outline": "大纲",
+    "goal": {
+      "active": "目标",
+      "clear": "清除目标",
+      "command": "目标",
+      "completed": "已完成",
+      "duration": "运行",
+      "required": "请输入目标内容",
+      "placeholder": "输入你的目标…",
+      "running": "运行",
+      "runningStatus": "运行中",
+      "startedAt": "开始时间"
+    },
     "placeholder": "输入消息开始对话，@ 可切换角色…",
     "placeholderWithHintCtrl": "输入消息开始对话，@ 可切换角色…  Enter 换行，Ctrl+Enter 发送",
     "placeholderWithHintShift": "输入消息开始对话，@ 可切换角色…  Enter 发送，Shift+Enter 换行",
@@ -2102,7 +2114,8 @@
     "search": "搜索对话",
     "selectPersona": "选择角色",
     "selectTeam": "选择团队",
-    "send": "发送消息"
+    "send": "发送消息",
+    "goal": "设置目标"
   },
   "sidebar": {
     "addToFavorites": "添加到收藏",

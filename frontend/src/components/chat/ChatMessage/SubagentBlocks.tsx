@@ -12,7 +12,7 @@ import {
   Ban,
   ChevronRight,
   Brain,
-  Users,
+  Bot,
   Box,
   Loader2,
   Palette,
@@ -22,8 +22,10 @@ import {
   PenTool,
   Database,
   ShieldCheck,
+  Star,
   type LucideIcon,
 } from "lucide-react";
+import { FluentEmoji } from "@lobehub/fluent-emoji";
 import { useTranslation } from "react-i18next";
 import { LoadingSpinner, CollapsiblePill, CopyButton } from "../../common";
 import type { CollapsibleStatus } from "../../common";
@@ -88,6 +90,7 @@ type SubagentRoleIconKind =
   | "writing"
   | "data"
   | "review"
+  | "grading"
   | "general";
 
 type SubagentRoleIconMeta = {
@@ -104,50 +107,56 @@ const SUBAGENT_ROLE_ICON_META: Record<
   design: {
     kind: "design",
     icon: Palette,
-    className: "text-fuchsia-600 dark:text-fuchsia-300",
-    bgClassName: "bg-fuchsia-500/10 dark:bg-fuchsia-400/10",
+    className: "text-[var(--theme-primary)]",
+    bgClassName: "bg-[var(--theme-primary-light)]",
   },
   code: {
     kind: "code",
     icon: Code2,
-    className: "text-sky-600 dark:text-sky-300",
-    bgClassName: "bg-sky-500/10 dark:bg-sky-400/10",
+    className: "text-[var(--theme-primary)]",
+    bgClassName: "bg-[var(--theme-primary-light)]",
   },
   test: {
     kind: "test",
     icon: FlaskConical,
-    className: "text-violet-600 dark:text-violet-300",
-    bgClassName: "bg-violet-500/10 dark:bg-violet-400/10",
+    className: "text-[var(--theme-primary)]",
+    bgClassName: "bg-[var(--theme-primary-light)]",
   },
   research: {
     kind: "research",
     icon: Search,
-    className: "text-blue-600 dark:text-blue-300",
-    bgClassName: "bg-blue-500/10 dark:bg-blue-400/10",
+    className: "text-[var(--theme-primary)]",
+    bgClassName: "bg-[var(--theme-primary-light)]",
   },
   writing: {
     kind: "writing",
     icon: PenTool,
-    className: "text-amber-600 dark:text-amber-300",
-    bgClassName: "bg-amber-500/10 dark:bg-amber-400/10",
+    className: "text-[var(--theme-primary)]",
+    bgClassName: "bg-[var(--theme-primary-light)]",
   },
   data: {
     kind: "data",
     icon: Database,
-    className: "text-teal-600 dark:text-teal-300",
-    bgClassName: "bg-teal-500/10 dark:bg-teal-400/10",
+    className: "text-[var(--theme-primary)]",
+    bgClassName: "bg-[var(--theme-primary-light)]",
   },
   review: {
     kind: "review",
     icon: ShieldCheck,
-    className: "text-emerald-600 dark:text-emerald-300",
-    bgClassName: "bg-emerald-500/10 dark:bg-emerald-400/10",
+    className: "text-[var(--theme-primary)]",
+    bgClassName: "bg-[var(--theme-primary-light)]",
+  },
+  grading: {
+    kind: "grading",
+    icon: Star,
+    className: "text-[var(--theme-primary)]",
+    bgClassName: "bg-[var(--theme-primary-light)]",
   },
   general: {
     kind: "general",
-    icon: Users,
-    className: "text-stone-600 dark:text-stone-300",
-    bgClassName: "bg-stone-500/10 dark:bg-stone-400/10",
+    icon: Bot,
+    className: "text-[var(--theme-primary)]",
+    bgClassName: "bg-[var(--theme-primary-light)]",
   },
 };
 
@@ -180,6 +189,9 @@ export function getSubagentRoleIconMeta(
   }
   if (/(review|security|audit|critic|审查|审核|安全)/i.test(name)) {
     return SUBAGENT_ROLE_ICON_META.review;
+  }
+  if (/(rubric|grading|grader|评分|评审)/i.test(name)) {
+    return SUBAGENT_ROLE_ICON_META.grading;
   }
   return SUBAGENT_ROLE_ICON_META.general;
 }
@@ -292,7 +304,7 @@ export function openSubagentPanelByAgentId(agentId: string): boolean {
   resetSubagentPanelAutoOpenDismissal();
   openPersistentToolPanel({
     title: formattedAgentName,
-    icon: <Users size={16} />,
+    icon: <Bot size={16} />,
     status: panelStatus,
     subtitle,
     panelKey,
@@ -706,7 +718,11 @@ export function SubagentBlock({
               : roleIconMeta.bgClassName,
           )}
         >
-          <RoleIcon size={15} className={roleIconMeta.className} />
+          {roleIconMeta.kind === "grading" ? (
+            <FluentEmoji emoji="⭐" size={28} type="3d" />
+          ) : (
+            <RoleIcon size={15} className={roleIconMeta.className} />
+          )}
           {agentAvatarUrl && (
             <img
               src={agentAvatarUrl}

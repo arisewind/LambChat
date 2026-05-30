@@ -10,6 +10,7 @@ import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router-dom";
 import { ChatInput } from "./ChatInput";
 import type { ChatInputProps } from "./ChatInput";
+import type { ActiveGoalSpec } from "../../hooks/useAgent/types";
 import { ContactAdminDialog } from "../common/ContactAdminDialog";
 import {
   getSelectedPersonaStarterPrompts,
@@ -53,6 +54,8 @@ interface WelcomePageProps {
   selectedTeamId?: string | null;
   canSendMessage: boolean;
   chatInputProps: ChatInputProps;
+  activeGoal?: ActiveGoalSpec | null;
+  onClearActiveGoal?: () => void;
   onUsePersonaPreset?: (
     preset: PersonaPreset,
   ) => Promise<PersonaPresetSnapshot | null>;
@@ -96,6 +99,8 @@ export const WelcomePage = memo(function WelcomePage({
   selectedTeamId,
   canSendMessage,
   chatInputProps,
+  activeGoal,
+  onClearActiveGoal,
   onUsePersonaPreset,
   onClearPersonaPreset,
   onSelectTeam,
@@ -381,7 +386,7 @@ export const WelcomePage = memo(function WelcomePage({
       </div>
 
       {/* ChatInput centered — the focal point */}
-      <div className="welcome-input w-full sm:max-w-[44rem] md:max-w-[46rem] lg:max-w-[48rem] xl:max-w-[50rem] 2xl:max-w-[52rem]">
+      <div className="welcome-input flex w-full flex-col sm:max-w-[44rem] md:max-w-[46rem] lg:max-w-[48rem] xl:max-w-[50rem] 2xl:max-w-[52rem]">
         <ChatInput
           {...chatInputProps}
           onMentionQueryChange={
@@ -392,6 +397,11 @@ export const WelcomePage = memo(function WelcomePage({
           pendingInput={pendingInput}
           onPendingInputConsumed={() => setPendingInput(null)}
           className="mx-auto w-full px-2"
+          activeGoal={activeGoal || null}
+          onClearActiveGoal={onClearActiveGoal}
+          goalLabel={t("chat.goal.active", "目标")}
+          goalDurationLabel={t("chat.goal.running", "运行")}
+          goalClearLabel={t("chat.goal.clear", "清除目标")}
         />
       </div>
 

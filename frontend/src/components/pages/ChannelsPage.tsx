@@ -263,11 +263,11 @@ export function ChannelsPage() {
                       bannerOverlay={
                         instanceCount > 0 &&
                         (hasAnyConnected ? (
-                          <span className="rounded-full bg-white/20 backdrop-blur-sm px-2 py-0.5 text-xs font-medium text-white">
+                          <span className="rounded-full bg-green-400/30 backdrop-blur-sm px-2 py-0.5 text-xs font-medium text-green-50 dark:bg-green-400/20 dark:text-green-100">
                             Connected
                           </span>
                         ) : (
-                          <span className="rounded-full bg-white/20 backdrop-blur-sm px-2 py-0.5 text-xs font-medium text-white">
+                          <span className="rounded-full bg-amber-400/30 backdrop-blur-sm px-2 py-0.5 text-xs font-medium text-amber-50 dark:bg-amber-400/20 dark:text-amber-100">
                             Disconnected
                           </span>
                         ))

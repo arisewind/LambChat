@@ -25,11 +25,14 @@ import {
   type SubagentStackItem,
   type HistoryEvent,
   type UseAgentReturn,
+  type ActiveGoalSpec,
 } from "./useAgent/types";
 import {
   reconstructMessagesFromEvents,
   getLastEventTimestamp,
   prepareMessagesForRunningRun,
+  extractGoalFromEvents,
+  extractGoalsByRunFromEvents,
 } from "./useAgent/historyLoader";
 import { clearAllLoadingStates } from "./useAgent/messageParts";
 import { type EventHandlerContext } from "./useAgent/eventHandlers";
@@ -41,6 +44,7 @@ import {
 } from "./useAgent/sseConnection";
 import { createOptimisticMessagesForSend } from "./useAgent/optimisticMessages";
 import { resolvePersonaEnabledSkills } from "./useAgent/personaRequestConfig";
+import { planGoalSubmission } from "./useAgent/goalCommands";
 import { translateBackendError } from "../utils/backendErrors";
 import { dispatchSessionTitleUpdated } from "../utils/sessionTitleEvents";
 import { resolveAvailableAgentId } from "./useAgent/agentSelection";
@@ -71,6 +75,11 @@ export function useAgent(options?: UseAgentOptions): UseAgentReturn {
   const [isInitializingSandbox, setIsInitializingSandbox] = useState(false);
   const [sandboxError, setSandboxError] = useState<string | null>(null);
   const [selectedTeamId, setSelectedTeamId] = useState<string | null>(null);
+  const [activeGoal, setActiveGoal] = useState<ActiveGoalSpec | null>(null);
+  const [goalsByRunId, setGoalsByRunId] = useState<
+    Record<string, ActiveGoalSpec>
+  >({});
+  const [goalModeEnabled, setGoalModeEnabled] = useState(false);
 
   // Refs for connection management
   const abortControllerRef = useRef<AbortController | null>(null);
@@ -134,6 +143,8 @@ export function useAgent(options?: UseAgentOptions): UseAgentReturn {
         setConnectionStatus(status as ConnectionStatus),
       setIsInitializingSandbox,
       setSandboxError,
+      setActiveGoal,
+      setGoalsByRunId,
     }),
     [options],
   );
@@ -342,6 +353,7 @@ export function useAgent(options?: UseAgentOptions): UseAgentReturn {
               undefined,
             team_id: (sessionData.metadata?.team_id as string) || undefined,
           };
+          setGoalModeEnabled(false);
 
           // 并行发起 events、status 和 feedback 请求，减少串行等待时间
           const eventsPromise = sessionApi.getEvents(targetSessionId);
@@ -410,6 +422,15 @@ export function useAgent(options?: UseAgentOptions): UseAgentReturn {
               lastHistoryTimestampRef.current = lastTimestamp;
             }
 
+            // Reconstruct active goal from history events (goal:start / goal:end)
+            const restoredGoal = extractGoalFromEvents(
+              eventsData.events as HistoryEvent[],
+            );
+            setActiveGoal(restoredGoal);
+            setGoalsByRunId(
+              extractGoalsByRunFromEvents(eventsData.events as HistoryEvent[]),
+            );
+
             // When the task is still running, target the assistant message for
             // that same run. If history has the user message but no assistant
             // events yet, append a fresh assistant bubble after the latest user.
@@ -444,6 +465,8 @@ export function useAgent(options?: UseAgentOptions): UseAgentReturn {
             }
           } else {
             setMessages([]);
+            setActiveGoal(null);
+            setGoalsByRunId({});
 
             if (isTaskRunning && currentRunId) {
               setCurrentRunId(currentRunId);
@@ -497,6 +520,21 @@ export function useAgent(options?: UseAgentOptions): UseAgentReturn {
     ) => {
       if (!content.trim()) return;
 
+      const goalPlan = planGoalSubmission(content, goalModeEnabled);
+      if (goalPlan.handledWithoutSend) {
+        if (goalPlan.errorKey) {
+          setError(i18n.t(goalPlan.errorKey, "Please enter a goal"));
+          return;
+        }
+        setGoalModeEnabled(goalPlan.nextGoalModeEnabled);
+        setActiveGoal(goalPlan.nextActiveGoal);
+        setError(null);
+        return;
+      }
+      content = goalPlan.content;
+      setGoalModeEnabled(goalPlan.nextGoalModeEnabled);
+      setActiveGoal(goalPlan.nextActiveGoal);
+
       if (isSendingRef.current) {
         console.log(
           "[sendMessage] Already sending, ignoring duplicate request",
@@ -548,6 +586,7 @@ export function useAgent(options?: UseAgentOptions): UseAgentReturn {
           ...agentOptions,
         };
         const requestTeamId = currentAgent === "team" ? selectedTeamId : null;
+        const goalForRun = goalPlan.goal;
 
         const submitData = (await sessionApi.submitChat(
           currentAgent,
@@ -561,6 +600,7 @@ export function useAgent(options?: UseAgentOptions): UseAgentReturn {
           personaPresetId,
           enabledSkills,
           requestTeamId,
+          goalForRun,
         )) as {
           session_id: string;
           run_id: string;
@@ -572,6 +612,25 @@ export function useAgent(options?: UseAgentOptions): UseAgentReturn {
         const newSessionId = submitData.session_id;
         const newRunId = submitData.run_id;
         const projectId = pendingProjectIdRef.current;
+
+        if (goalForRun) {
+          const goalWithRunId = {
+            ...goalForRun,
+            runId: newRunId,
+          };
+          setActiveGoal((prev) =>
+            prev
+              ? {
+                  ...prev,
+                  runId: newRunId,
+                }
+              : goalWithRunId,
+          );
+          setGoalsByRunId((prev) => ({
+            ...prev,
+            [newRunId]: goalWithRunId,
+          }));
+        }
 
         // Clear pending project ID after use
         pendingProjectIdRef.current = null;
@@ -729,6 +788,7 @@ export function useAgent(options?: UseAgentOptions): UseAgentReturn {
       newlyCreatedSession?.metadata,
       options,
       selectedTeamId,
+      goalModeEnabled,
     ],
   );
 
@@ -776,11 +836,19 @@ export function useAgent(options?: UseAgentOptions): UseAgentReturn {
     sessionIdRef.current = null;
     currentRunIdRef.current = null;
     activeSubagentStackRef.current = [];
+    setGoalModeEnabled(false);
+    setActiveGoal(null);
+    setGoalsByRunId({});
     if (abortControllerRef.current) {
       abortControllerRef.current.abort();
       abortControllerRef.current = null;
     }
     clearReconnectTimeout(reconnectTimeoutRef);
+  }, []);
+
+  const clearActiveGoal = useCallback(() => {
+    setGoalModeEnabled(false);
+    setActiveGoal(null);
   }, []);
 
   const selectAgent = useCallback(
@@ -872,9 +940,12 @@ export function useAgent(options?: UseAgentOptions): UseAgentReturn {
     isReconnecting: connectionStatus === "reconnecting",
     connectionStatus,
     newlyCreatedSession,
+    activeGoal,
+    goalsByRunId,
     isInitializingSandbox,
     sandboxError,
     sendMessage,
+    clearActiveGoal,
     stopGeneration,
     clearMessages,
     selectAgent,

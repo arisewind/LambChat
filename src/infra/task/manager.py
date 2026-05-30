@@ -217,6 +217,7 @@ class BackgroundTaskManager:
         display_message: Optional[str] = None,
         team_id: Optional[str] = None,
         trace_id: Optional[str] = None,
+        active_goal: Optional[Dict[str, Any]] = None,
         user_message_written: bool = False,
         write_user_message_immediately: bool = False,
     ) -> Tuple[str, str]:
@@ -299,6 +300,7 @@ class BackgroundTaskManager:
                     display_message=display_message,
                     team_id=team_id,
                     existing_trace_id=trace_id or None,
+                    active_goal=active_goal,
                     user_message_written=user_message_written,
                 )
             )
@@ -333,6 +335,7 @@ class BackgroundTaskManager:
         payload_store: Optional[TaskArqPayloadStore] = None,
         arq_pool: Any | None = None,
         team_id: Optional[str] = None,
+        active_goal: Optional[Dict[str, Any]] = None,
         write_user_message_immediately: bool = False,
     ) -> Tuple[str, str]:
         """Submit a task to arq after persisting serializable task context."""
@@ -394,6 +397,7 @@ class BackgroundTaskManager:
                     "disabled_mcp_tools": disabled_mcp_tools,
                     "user_message_written": user_message_written,
                     "team_id": team_id,
+                    "active_goal": active_goal,
                 },
             )
 

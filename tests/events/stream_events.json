@@ -1,0 +1,255 @@
+{
+  "description": "Representative SSE stream events currently handled by LambChat.",
+  "recorded_at": "2026-05-30",
+  "stream_events": [
+    {
+      "event": "agent:call",
+      "data": {
+        "step": 1,
+        "agent_name": "Search Agent",
+        "agent_avatar": "search",
+        "input": "Find project context",
+        "timestamp": "2026-05-30T00:00:00Z",
+        "depth": 1,
+        "agent_id": "search-agent"
+      }
+    },
+    {
+      "event": "agent:result",
+      "data": {
+        "result": "Found relevant files.",
+        "success": true,
+        "timestamp": "2026-05-30T00:00:00Z",
+        "depth": 1,
+        "agent_id": "search-agent"
+      }
+    },
+    {
+      "event": "approval_required",
+      "data": {
+        "id": "approval-1",
+        "message": "Confirm the next action",
+        "type": "confirm",
+        "choices": [
+          "yes",
+          "no"
+        ],
+        "default": "yes",
+        "timestamp": "2026-05-30T00:00:00Z",
+        "agent_id": "default"
+      }
+    },
+    {
+      "event": "complete",
+      "data": {
+        "status": "completed",
+        "trace_id": "trace-1",
+        "timestamp": "2026-05-30T00:00:00Z"
+      }
+    },
+    {
+      "event": "done",
+      "data": {
+        "status": "completed",
+        "trace_id": "trace-1",
+        "steps": 1,
+        "tool_calls": 1,
+        "timestamp": "2026-05-30T00:00:00Z",
+        "agent_id": "default"
+      }
+    },
+    {
+      "event": "error",
+      "data": {
+        "error": "Something went wrong",
+        "type": "RuntimeError",
+        "trace_id": "trace-1",
+        "details": {
+          "code": "example"
+        },
+        "timestamp": "2026-05-30T00:00:00Z",
+        "agent_id": "default"
+      }
+    },
+    {
+      "event": "followup:questions",
+      "data": {
+        "questions": [
+          "What should we check next?"
+        ],
+        "timestamp": "2026-05-30T00:00:00Z"
+      }
+    },
+    {
+      "event": "message:chunk",
+      "data": {
+        "content": "Hello from the assistant.",
+        "text_id": "text-1",
+        "timestamp": "2026-05-30T00:00:00Z",
+        "agent_id": "default"
+      }
+    },
+    {
+      "event": "metadata",
+      "data": {
+        "session_id": "session-1",
+        "agent_id": "default",
+        "agent_name": "Agent",
+        "trace_id": "trace-1",
+        "run_id": "run-1",
+        "timestamp": "2026-05-30T00:00:00Z"
+      }
+    },
+    {
+      "event": "queue_update",
+      "data": {
+        "status": "queued",
+        "queue_position": 1,
+        "run_id": "run-1",
+        "timestamp": "2026-05-30T00:00:00Z"
+      }
+    },
+    {
+      "event": "recommend:questions",
+      "data": {
+        "questions": [
+          "What should we do next?",
+          {
+            "content": "Upload another file?",
+            "upload": {
+              "accepted": true
+            }
+          }
+        ],
+        "timestamp": "2026-05-30T00:00:00Z",
+        "agent_id": "default"
+      }
+    },
+    {
+      "event": "sandbox:error",
+      "data": {
+        "error": "Sandbox failed to start",
+        "timestamp": "2026-05-30T00:00:00Z",
+        "agent_id": "default"
+      }
+    },
+    {
+      "event": "sandbox:ready",
+      "data": {
+        "sandbox_id": "sandbox-1",
+        "work_dir": "/workspace",
+        "timestamp": "2026-05-30T00:00:00Z",
+        "agent_id": "default"
+      }
+    },
+    {
+      "event": "sandbox:starting",
+      "data": {
+        "timestamp": "2026-05-30T00:00:00Z",
+        "agent_id": "default"
+      }
+    },
+    {
+      "event": "skills:changed",
+      "data": {
+        "action": "updated",
+        "files_count": 2,
+        "timestamp": "2026-05-30T00:00:00Z",
+        "skill_name": "example-skill",
+        "agent_id": "default"
+      }
+    },
+    {
+      "event": "summary",
+      "data": {
+        "content": "The user wants event fixtures.",
+        "summary_id": "summary-1",
+        "timestamp": "2026-05-30T00:00:00Z",
+        "agent_id": "default"
+      }
+    },
+    {
+      "event": "thinking",
+      "data": {
+        "content": "Reason about the next step.",
+        "thinking_id": "thinking-1",
+        "timestamp": "2026-05-30T00:00:00Z",
+        "agent_id": "default"
+      }
+    },
+    {
+      "event": "todo:updated",
+      "data": {
+        "todos": [
+          {
+            "content": "Record stream events",
+            "activeForm": "Recording stream events",
+            "status": "in_progress"
+          }
+        ],
+        "timestamp": "2026-05-30T00:00:00Z",
+        "agent_id": "default"
+      }
+    },
+    {
+      "event": "token:usage",
+      "data": {
+        "input_tokens": 10,
+        "output_tokens": 20,
+        "total_tokens": 30,
+        "duration": 1.5,
+        "timestamp": "2026-05-30T00:00:00Z",
+        "cache_creation_tokens": 2,
+        "cache_read_tokens": 3,
+        "model_id": "model-config-1",
+        "model": "openai/gpt-4.1",
+        "agent_id": "default"
+      }
+    },
+    {
+      "event": "tool:result",
+      "data": {
+        "tool": "read_file",
+        "result": {
+          "path": "README.md",
+          "content": "example"
+        },
+        "success": true,
+        "timestamp": "2026-05-30T00:00:00Z",
+        "tool_call_id": "tool-call-1",
+        "agent_id": "default"
+      }
+    },
+    {
+      "event": "tool:start",
+      "data": {
+        "tool": "read_file",
+        "args": {
+          "path": "README.md"
+        },
+        "tool_call_id": "tool-call-1",
+        "timestamp": "2026-05-30T00:00:00Z",
+        "agent_id": "default"
+      }
+    },
+    {
+      "event": "user:cancel",
+      "data": {
+        "user_id": "user-1",
+        "run_id": "run-1",
+        "timestamp": "2026-05-30T00:00:00Z"
+      }
+    },
+    {
+      "event": "user:message",
+      "data": {
+        "content": "Please record stream events.",
+        "timestamp": "2026-05-30T00:00:00Z",
+        "message_id": "message-1",
+        "run_id": "run-1",
+        "attachments": [],
+        "agent_id": "default"
+      }
+    }
+  ]
+}

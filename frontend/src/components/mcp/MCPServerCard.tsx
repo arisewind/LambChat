@@ -72,17 +72,17 @@ export function MCPServerCard({
         <div className="absolute inset-0 flex items-center justify-end px-2 z-[3]">
           <div className="flex gap-1.5">
             {server.is_internal && (
-              <span className="pps-card__status-badge">
+              <span className="scb__status-pill scb__status-pill--installed">
                 {t("mcp.card.internal", "Internal")}
               </span>
             )}
             {server.is_system && !server.is_internal && (
-              <span className="pps-card__status-badge">
+              <span className="scb__status-pill scb__status-pill--installed">
                 {t("mcp.card.system")}
               </span>
             )}
             {!server.enabled && (
-              <span className="pps-card__status-badge !text-red-500 dark:!text-red-400">
+              <span className="scb__status-pill scb__status-pill--danger">
                 {t("mcp.card.disabled")}
               </span>
             )}

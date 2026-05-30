@@ -149,7 +149,7 @@ export function CollapsiblePill({
             size={12}
             className={clsx(
               "shrink-0 transition-transform duration-200",
-              "text-stone-500 dark:text-stone-400",
+              statusIconColors[status] || "text-stone-500 dark:text-stone-400",
               isExpanded && "rotate-90",
             )}
           />

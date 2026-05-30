@@ -171,6 +171,10 @@ export function ShortcutDialog({
             keys={["Ctrl", "Enter"]}
             macKeys={["⌘", "Enter"]}
           />
+          <ShortcutRow
+            label={t("shortcut.goal", "设置目标")}
+            keys={["/", "goal"]}
+          />
         </div>
       </div>
     </div>

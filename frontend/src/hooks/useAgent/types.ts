@@ -29,6 +29,8 @@ export type EventType =
   | "token:usage"
   | "skills:changed"
   | "queue_update"
+  | "goal:start"
+  | "goal:end"
   | "complete"
   | "done"
   | "error";
@@ -95,6 +97,14 @@ export interface EventData {
   // queue_update event fields
   status?: string;
   queue_position?: number;
+  // goal:start / goal:end event fields
+  goal?: {
+    objective: string;
+    rubric?: string;
+    max_iterations?: number;
+  };
+  started_at?: string;
+  ended_at?: string;
   // todo event fields
   todos?: Array<{
     content: string;
@@ -139,6 +149,15 @@ export interface UseAgentOptions {
     filesCount: number,
   ) => void;
   onStreamDone?: () => void;
+}
+
+export interface ActiveGoalSpec {
+  objective: string;
+  rubric?: string;
+  max_iterations?: number;
+  runId?: string;
+  started_at?: string;
+  ended_at?: string;
 }
 
 // Subagent tracking item
@@ -218,6 +237,8 @@ export interface UseAgentReturn {
   isReconnecting: boolean;
   connectionStatus: ConnectionStatus;
   newlyCreatedSession: BackendSession | null;
+  activeGoal: ActiveGoalSpec | null;
+  goalsByRunId: Record<string, ActiveGoalSpec>;
   isInitializingSandbox: boolean;
   sandboxError: string | null;
   sendMessage: (
@@ -225,6 +246,7 @@ export interface UseAgentReturn {
     agentOptions?: Record<string, boolean | string | number>,
     attachments?: MessageAttachment[],
   ) => Promise<void>;
+  clearActiveGoal: () => void;
   stopGeneration: () => Promise<void>;
   clearMessages: () => void;
   selectAgent: (agentId: string) => void;

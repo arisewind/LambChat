@@ -137,6 +137,7 @@ async def test_recovery_service_resume_session_submits_localized_recovery_messag
     assert submit_calls[0]["project_id"] == "project-1"
     assert submit_calls[0]["disabled_tools"] == ["bash"]
     assert submit_calls[0]["team_id"] == "team-1"
+    assert "active_goal" not in submit_calls[0]
     assert submit_calls[0]["message"] == "请继续处理当前会话中未完成的内容。"
     assert submit_calls[0]["enabled_skills"] is None
     assert redis.set_calls

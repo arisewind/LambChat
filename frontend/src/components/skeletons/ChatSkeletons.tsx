@@ -91,7 +91,7 @@ function AssistantMessageSkeleton() {
         </div>
         {/* Response content skeleton */}
         <div className="min-w-0 min-h-0 py-1 sm:py-2">
-          <div className="space-y-3 my-2 pl-0.5">
+          <div className="space-y-3 my-2 pl-1">
             <div className="skeleton-line w-full h-2 sm:h-[7px] rounded-full" />
             <div className="flex gap-2 sm:gap-3">
               <div className="skeleton-line flex-1 h-2 sm:h-[7px] rounded-full" />
@@ -101,6 +101,37 @@ function AssistantMessageSkeleton() {
             <div className="flex gap-2 sm:gap-3">
               <div className="skeleton-line flex-1 h-2 sm:h-[7px] rounded-full" />
               <div className="skeleton-line w-1/3 h-2 sm:h-[7px] rounded-full" />
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/** Skeleton for the chat input area (reused in ChatSkeleton) */
+function ChatInputSkeleton() {
+  return (
+    <div className="shrink-0">
+      <div className="mx-auto w-full max-w-3xl lg:max-w-4xl xl:max-w-5xl px-4 sm:px-6 py-3">
+        <div
+          className="flex flex-col w-full rounded-2xl px-1 border"
+          style={{
+            backgroundColor: "var(--theme-bg-card)",
+            borderColor: "var(--theme-border)",
+          }}
+        >
+          {/* Textarea area */}
+          <div className="px-2.5 py-2 flex items-start gap-2">
+            <div className="skeleton-line h-3 w-3/5 rounded flex-1 mt-3 min-h-[30px]" />
+          </div>
+          {/* Toolbar */}
+          <div className="flex justify-between flex-nowrap pt-2 pb-2.5 px-2 mx-0.5">
+            <div className="flex items-center gap-1.5 self-end flex-1 min-w-0">
+              <div className="skeleton-line h-8 w-8 rounded-lg shrink-0" />
+            </div>
+            <div className="self-end flex shrink-0">
+              <div className="skeleton-line size-8 rounded-full" />
             </div>
           </div>
         </div>
@@ -133,6 +164,8 @@ export function ChatSkeleton({ count = 5 }: { count?: number }) {
           );
         })}
       </div>
+      {/* Input area skeleton */}
+      <ChatInputSkeleton />
     </div>
   );
 }

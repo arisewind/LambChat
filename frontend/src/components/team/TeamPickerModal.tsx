@@ -236,7 +236,7 @@ export function TeamPickerModal({
                       }}
                     >
                       {selected && (
-                        <span className="pps-card__status-badge">
+                        <span className="scb__status-pill scb__status-pill--installed absolute top-1.5 right-2">
                           {t("personaPresets.using", "使用中")}
                         </span>
                       )}

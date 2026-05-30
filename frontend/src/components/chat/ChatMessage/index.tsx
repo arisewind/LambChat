@@ -1,7 +1,8 @@
 import { clsx } from "clsx";
 import { useEffect, useRef, useState, memo } from "react";
+import { createPortal } from "react-dom";
 import toast from "react-hot-toast";
-import { Copy, GitBranch, Info, Sparkles } from "lucide-react";
+import { Copy, GitBranch, Info, Sparkles, Target } from "lucide-react";
 import type {
   Message,
   MessagePart,
@@ -30,9 +31,11 @@ import {
 } from "./autoPreviewEligibility";
 import type { RevealPreviewRequest } from "./items/revealPreviewData";
 import type { RevealPreviewOpenSource } from "./items/revealPreviewState";
+import type { ActiveGoalSpec } from "../../../hooks/useAgent/types";
 import { createMessageAnchorId } from "../../layout/AppContent/messageOutline";
 import { formatDateTime, formatDateTimeShort } from "../../../utils/datetime";
 import { copyToClipboard } from "../../../utils/clipboard";
+import { shouldShowGoalDetailsForMessage } from "../goalVisibility";
 
 // Skeleton-style loading animation component - refined thin lines
 function ThinkingIndicator() {
@@ -82,6 +85,8 @@ interface ChatMessageProps {
   onRecommendQuestionClick?: (question: string) => void;
   onRetryCancelledMessage?: (messageId: string) => void | Promise<void>;
   showFeedbackAndShareActions?: boolean;
+  activeGoal?: ActiveGoalSpec | null;
+  isFirst?: boolean;
 }
 
 // Token usage statistics button component - ChatGPT style
@@ -136,7 +141,7 @@ function TokenDetailsButton({
         onClick={() => setShowDetails(!showDetails)}
         className={clsx(
           "p-1.5 rounded-md transition-colors",
-          !isLastMessage && "opacity-0 group-hover:opacity-100",
+          !isLastMessage && "sm:opacity-0 sm:group-hover:opacity-100",
           "hover:bg-stone-200 dark:hover:bg-stone-700",
           "text-stone-400 dark:text-stone-500 hover:text-stone-600 dark:hover:text-stone-300",
         )}
@@ -242,6 +247,178 @@ function TokenDetailsButton({
   );
 }
 
+function GoalDetailsButton({
+  goal,
+  isLastMessage,
+}: {
+  goal: ActiveGoalSpec;
+  isLastMessage?: boolean;
+}) {
+  const { t } = useTranslation();
+  const [showDetails, setShowDetails] = useState(false);
+  const [popupPos, setPopupPos] = useState<{
+    top: number;
+    right: number;
+    flipBelow: boolean;
+  } | null>(null);
+  const buttonRef = useRef<HTMLButtonElement>(null);
+  const popupRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!showDetails) return;
+    const updatePosition = () => {
+      const rect = buttonRef.current?.getBoundingClientRect();
+      if (rect) {
+        const popupHeight = popupRef.current?.offsetHeight ?? 200;
+        const popupWidth = 256;
+        const spaceAbove = rect.top;
+        const spaceBelow = window.innerHeight - rect.bottom;
+        const flipBelow =
+          spaceAbove < popupHeight + 8 && spaceBelow > spaceAbove;
+        const rightAlign = window.innerWidth - rect.right;
+        setPopupPos({
+          top: flipBelow ? rect.bottom + 8 : rect.top - 16,
+          right: Math.min(rightAlign, window.innerWidth - popupWidth - 8),
+          flipBelow,
+        });
+      }
+    };
+    updatePosition();
+    window.addEventListener("scroll", updatePosition, true);
+    window.addEventListener("resize", updatePosition);
+    return () => {
+      window.removeEventListener("scroll", updatePosition, true);
+      window.removeEventListener("resize", updatePosition);
+    };
+  }, [showDetails]);
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (
+        shouldCloseTokenDetailsPopover(
+          event.target as Node | null,
+          buttonRef.current,
+          popupRef.current,
+        )
+      ) {
+        setShowDetails(false);
+      }
+    };
+    if (showDetails) {
+      document.addEventListener("mousedown", handleClickOutside);
+    }
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, [showDetails]);
+
+  const startedAt = goal.started_at
+    ? new Date(goal.started_at).getTime()
+    : null;
+  const endedAt = goal.ended_at
+    ? new Date(goal.ended_at).getTime()
+    : Date.now();
+  const durationText = startedAt
+    ? (() => {
+        const totalSeconds = Math.max(
+          0,
+          Math.floor((endedAt - startedAt) / 1000),
+        );
+        const minutes = Math.floor(totalSeconds / 60);
+        const seconds = totalSeconds % 60;
+        return `${String(minutes).padStart(2, "0")}:${String(seconds).padStart(
+          2,
+          "0",
+        )}`;
+      })()
+    : null;
+
+  const statusLabel = goal.ended_at
+    ? t("chat.goal.completed")
+    : t("chat.goal.runningStatus");
+
+  return (
+    <div className="relative">
+      <button
+        ref={buttonRef}
+        onClick={() => setShowDetails(!showDetails)}
+        className={clsx(
+          "p-1.5 rounded-md transition-colors",
+          !isLastMessage && "sm:opacity-0 sm:group-hover:opacity-100",
+          "hover:bg-stone-200 dark:hover:bg-stone-700",
+          "text-stone-400 dark:text-stone-500 hover:text-stone-600 dark:hover:text-stone-300",
+        )}
+        title={t("chat.goal.active")}
+      >
+        <Target size={16} />
+      </button>
+      {showDetails &&
+        popupPos &&
+        createPortal(
+          <div
+            ref={popupRef}
+            style={{
+              position: "fixed",
+              top: popupPos.top,
+              right: popupPos.right,
+              transform: popupPos.flipBelow
+                ? "translateY(0)"
+                : "translateY(-100%)",
+            }}
+            className={clsx(
+              "z-[100] w-64 p-3 rounded-lg shadow-lg",
+              "bg-white dark:bg-stone-800",
+              "border border-stone-200 dark:border-stone-700",
+            )}
+          >
+            <div className="flex items-start justify-between gap-2 mb-2">
+              <span
+                className="text-xs font-medium"
+                style={{ color: "var(--theme-primary)" }}
+              >
+                {t("chat.goal.active")}
+              </span>
+              <span
+                className="text-xs px-1.5 py-0.5 rounded-full font-medium"
+                style={{
+                  color: "var(--theme-primary)",
+                  backgroundColor:
+                    "var(--theme-primary-bg, rgba(59,130,246,0.08))",
+                }}
+              >
+                {statusLabel}
+              </span>
+            </div>
+            <p className="text-sm text-stone-700 dark:text-stone-200 leading-relaxed break-words">
+              {goal.objective}
+            </p>
+            {durationText && (
+              <div className="flex justify-between gap-4 border-t border-stone-100 dark:border-stone-700 pt-1.5 mt-2">
+                <span className="text-xs text-stone-500 dark:text-stone-400">
+                  {t("chat.goal.duration")}
+                </span>
+                <span className="text-xs text-stone-700 dark:text-stone-200 font-medium tabular-nums">
+                  {durationText}
+                </span>
+              </div>
+            )}
+            {startedAt && (
+              <div className="flex justify-between gap-4 pt-1">
+                <span className="text-xs text-stone-500 dark:text-stone-400">
+                  {t("chat.goal.startedAt")}
+                </span>
+                <span className="text-xs text-stone-700 dark:text-stone-200 font-medium tabular-nums">
+                  {formatDateTimeShort(new Date(goal.started_at!))}
+                </span>
+              </div>
+            )}
+          </div>,
+          document.body,
+        )}
+    </div>
+  );
+}
+
 export const ChatMessage = memo(function ChatMessage({
   message,
   sessionId,
@@ -256,6 +433,8 @@ export const ChatMessage = memo(function ChatMessage({
   onRecommendQuestionClick,
   onRetryCancelledMessage,
   showFeedbackAndShareActions = true,
+  activeGoal,
+  isFirst,
 }: ChatMessageProps) {
   const { t } = useTranslation();
   const { availableModels } = useSettingsContext();
@@ -277,7 +456,10 @@ export const ChatMessage = memo(function ChatMessage({
         id={createMessageAnchorId(message.id)}
         data-outline-anchor="true"
         data-outline-id={createMessageAnchorId(message.id)}
-        className="scroll-mt-6 rounded-2xl transition-[box-shadow] duration-300 data-[external-navigation-highlighted=true]:ring-2 data-[external-navigation-highlighted=true]:ring-amber-500/75 data-[external-navigation-highlighted=true]:shadow-[0_0_20px_rgba(245,158,11,0.2)] dark:data-[external-navigation-highlighted=true]:ring-amber-400/55 dark:data-[external-navigation-highlighted=true]:shadow-[0_0_20px_rgba(251,191,36,0.1)] space-y-3 sm:space-y-4"
+        className={clsx(
+          "scroll-mt-6 rounded-2xl transition-[box-shadow] duration-300 data-[external-navigation-highlighted=true]:ring-2 data-[external-navigation-highlighted=true]:ring-amber-500/75 data-[external-navigation-highlighted=true]:shadow-[0_0_20px_rgba(245,158,11,0.2)] dark:data-[external-navigation-highlighted=true]:ring-amber-400/55 dark:data-[external-navigation-highlighted=true]:shadow-[0_0_20px_rgba(251,191,36,0.1)] space-y-3 sm:space-y-4",
+          !isFirst && "pt-2",
+        )}
       >
         <UserMessageBubble
           content={message.content}
@@ -309,7 +491,10 @@ export const ChatMessage = memo(function ChatMessage({
       id={createMessageAnchorId(message.id)}
       data-outline-anchor="true"
       data-outline-id={createMessageAnchorId(message.id)}
-      className="group w-full animate-[fade-in_0.3s_ease-out] scroll-mt-6 rounded-2xl transition-[background-color,box-shadow] duration-300 data-[external-navigation-highlighted=true]:bg-amber-50/85 data-[external-navigation-highlighted=true]:ring-2 data-[external-navigation-highlighted=true]:ring-amber-500/60 dark:data-[external-navigation-highlighted=true]:bg-amber-500/12 dark:data-[external-navigation-highlighted=true]:ring-amber-400/50"
+      className={clsx(
+        "group w-full animate-[fade-in_0.3s_ease-out] scroll-mt-6 rounded-2xl transition-[background-color,box-shadow] duration-300 data-[external-navigation-highlighted=true]:bg-amber-50/85 data-[external-navigation-highlighted=true]:ring-2 data-[external-navigation-highlighted=true]:ring-amber-500/60 dark:data-[external-navigation-highlighted=true]:bg-amber-500/12 dark:data-[external-navigation-highlighted=true]:ring-amber-400/50",
+        !isFirst && "pt-2",
+      )}
     >
       <div className="mx-auto flex flex-col max-w-3xl lg:max-w-4xl xl:max-w-5xl px-4 sm:px-6">
         {/* Content */}
@@ -342,7 +527,7 @@ export const ChatMessage = memo(function ChatMessage({
           {isStreaming && !hasParts && <ThinkingIndicator />}
 
           {hasParts ? (
-            <div className="space-y-3 my-2 pl-0.5">
+            <div className="space-y-3 my-2 pl-1">
               {message.parts!.map((part: MessagePart, index: number) =>
                 part.type === "recommend_questions" ? null : (
                   <MessagePartRenderer
@@ -412,7 +597,7 @@ export const ChatMessage = memo(function ChatMessage({
           )}
           {/* Streaming indicator - bottom of message (when not showing thinking indicator) */}
           {message.isStreaming && !(isStreaming && !hasParts) && (
-            <div className="mt-3">
+            <div className="mt-3 pl-1">
               <CollapsiblePill
                 status="loading"
                 icon={<Sparkles size={12} className="shrink-0 opacity-50" />}
@@ -426,7 +611,7 @@ export const ChatMessage = memo(function ChatMessage({
         </div>
         {/* Copy button and Token button - same line at bottom, show on message hover (only after message completes) */}
         {!message.isStreaming && (
-          <div className="flex items-center gap-1">
+          <div className="flex items-center gap-1 pb-2">
             <button
               onClick={() => {
                 const textContent = getAssistantTextContent();
@@ -437,7 +622,7 @@ export const ChatMessage = memo(function ChatMessage({
               }}
               className={clsx(
                 "p-1.5 rounded-md transition-colors",
-                !isLastMessage && "opacity-0 group-hover:opacity-100",
+                !isLastMessage && "sm:opacity-0 sm:group-hover:opacity-100",
                 "hover:bg-stone-200 dark:hover:bg-stone-700",
                 "text-stone-400 dark:text-stone-500 hover:text-stone-600 dark:hover:text-stone-300",
               )}
@@ -450,7 +635,7 @@ export const ChatMessage = memo(function ChatMessage({
                 onClick={() => void onForkMessage(message.id)}
                 className={clsx(
                   "p-1.5 rounded-md transition-colors",
-                  !isLastMessage && "opacity-0 group-hover:opacity-100",
+                  !isLastMessage && "sm:opacity-0 sm:group-hover:opacity-100",
                   "hover:bg-stone-200 dark:hover:bg-stone-700",
                   "text-stone-400 dark:text-stone-500 hover:text-stone-600 dark:hover:text-stone-300",
                 )}
@@ -490,12 +675,18 @@ export const ChatMessage = memo(function ChatMessage({
                 )}
               </>
             )}
+            {shouldShowGoalDetailsForMessage(activeGoal, message) && (
+              <GoalDetailsButton
+                goal={activeGoal!}
+                isLastMessage={isLastMessage}
+              />
+            )}
           </div>
         )}
         {!message.isStreaming &&
           isLastMessage &&
           message.parts?.some((p) => p.type === "recommend_questions") && (
-            <div className="space-y-3 my-2 pl-0.5">
+            <div className="space-y-3 my-2 pl-1">
               {message
                 .parts!.filter((p) => p.type === "recommend_questions")
                 .map((part, index) => (

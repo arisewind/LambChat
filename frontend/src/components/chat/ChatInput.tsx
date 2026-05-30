@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect, useCallback, useMemo, memo } from "react";
 import toast from "react-hot-toast";
-import { Ban } from "lucide-react";
+import { Ban, Target } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { ImageViewer } from "../common";
 import { ConfirmDialog } from "../common/ConfirmDialog";
@@ -15,12 +15,18 @@ import { usePasteHandler } from "../../hooks/usePasteHandler";
 import { useAuth } from "../../hooks/useAuth";
 import { MentionPopup } from "./MentionPopup";
 import { TeamMentionPopup } from "./TeamMentionPopup";
+import { ActiveGoalBar } from "./ActiveGoalBar";
 import { ChatInputToolbar } from "./ChatInputToolbar";
 import { ChatInputSelectors } from "./ChatInputSelectors";
 import { ChatInputHelpMenu } from "./ChatInputHelpMenu";
 import { ChatInputAttachments } from "./ChatInputAttachments";
 import { getMentionPopupFixedPlacement } from "./chatInputViewport";
 import { FILE_CATEGORY_PERMISSIONS } from "./chatInputConstants";
+import {
+  applySlashCommandSelection,
+  getMatchingSlashCommands,
+  type ChatInputSlashCommand,
+} from "./chatInputSlashCommands";
 import {
   consumePendingSelectionActionPrompt,
   SELECTION_ACTION_EVENT,
@@ -86,6 +92,11 @@ export const ChatInput = memo(function ChatInput({
   pendingInput,
   onPendingInputConsumed,
   className,
+  activeGoal,
+  onClearActiveGoal,
+  goalLabel,
+  goalDurationLabel,
+  goalClearLabel,
 }: ChatInputProps) {
   const { t } = useTranslation();
   const [input, setInput] = useState("");
@@ -333,6 +344,28 @@ export const ChatInput = memo(function ChatInput({
     };
   }, [selectedPersonaPresetId, personaPresets]);
 
+  const matchingSlashCommands = useMemo(
+    () => getMatchingSlashCommands(input, cursorPosition),
+    [input, cursorPosition],
+  );
+  const slashCommandOpen = matchingSlashCommands.length > 0;
+
+  const applySlashCommand = useCallback(
+    (command: ChatInputSlashCommand) => {
+      const next = applySlashCommandSelection(input, cursorPosition, command);
+      setInput(next.input);
+      setCursorPosition(next.cursorPosition);
+      requestAnimationFrame(() => {
+        const textarea = textareaRef.current;
+        if (!textarea) return;
+        textarea.focus();
+        textarea.selectionStart = textarea.selectionEnd = next.cursorPosition;
+        scheduleTextareaResize();
+      });
+    },
+    [cursorPosition, input, scheduleTextareaResize],
+  );
+
   const applyMentionSelection = useCallback(
     (preset: PersonaPreset) => {
       if (!mention.isActive) return;
@@ -395,6 +428,20 @@ export const ChatInput = memo(function ChatInput({
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (slashCommandOpen) {
+      if (e.key === "Enter" || e.key === "Tab") {
+        e.preventDefault();
+        applySlashCommand(matchingSlashCommands[0]);
+        return;
+      }
+      if (e.key === "Escape") {
+        e.preventDefault();
+        setInput("");
+        setCursorPosition(0);
+        return;
+      }
+    }
+
     if (mention.isActive) {
       if (e.key === "ArrowUp") {
         e.preventDefault();
@@ -554,6 +601,15 @@ export const ChatInput = memo(function ChatInput({
               : "0 2px 12px rgba(0,0,0,0.06)",
           }}
         >
+          <ActiveGoalBar
+            goal={activeGoal ?? null}
+            label={goalLabel}
+            durationLabel={goalDurationLabel}
+            clearLabel={goalClearLabel}
+            onClear={onClearActiveGoal}
+            disabled={isLoading || !canSend}
+            embedded
+          />
           {mention.isActive &&
             !onMentionQueryChange &&
             mentionMode === "persona" && (
@@ -602,6 +658,12 @@ export const ChatInput = memo(function ChatInput({
                   setInput(e.target.value);
                   setCursorPosition(e.target.selectionStart);
                 }}
+                onClick={(e) => {
+                  setCursorPosition(e.currentTarget.selectionStart);
+                }}
+                onKeyUp={(e) => {
+                  setCursorPosition(e.currentTarget.selectionStart);
+                }}
                 onFocus={scheduleTextareaResize}
                 onKeyDown={handleKeyDown}
                 onPaste={handlePaste}
@@ -622,6 +684,51 @@ export const ChatInput = memo(function ChatInput({
               />
             </div>
           </div>
+          {slashCommandOpen && (
+            <div
+              role="listbox"
+              className="absolute bottom-full left-1 z-30 mb-2 w-56 overflow-hidden rounded-xl border shadow-lg"
+              style={{
+                backgroundColor: "var(--theme-bg-card)",
+                borderColor: "var(--theme-border)",
+                color: "var(--theme-text)",
+              }}
+            >
+              {matchingSlashCommands.map((command) => (
+                <button
+                  key={command.id}
+                  type="button"
+                  role="option"
+                  aria-selected="true"
+                  onMouseDown={(e) => {
+                    e.preventDefault();
+                    applySlashCommand(command);
+                  }}
+                  className="flex w-full items-center gap-2.5 px-3 py-2 text-left text-sm transition-colors"
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.backgroundColor =
+                      "var(--theme-bg-hover, rgba(128,128,128,0.08))";
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.backgroundColor = "transparent";
+                  }}
+                >
+                  <Target
+                    size={15}
+                    className="shrink-0"
+                    style={{ color: "var(--theme-primary)" }}
+                  />
+                  <span className="font-mono text-xs">{command.command}</span>
+                  <span
+                    className="min-w-0 flex-1 truncate"
+                    style={{ color: "var(--theme-text-secondary)" }}
+                  >
+                    {t(command.labelKey, command.fallbackLabel)}
+                  </span>
+                </button>
+              ))}
+            </div>
+          )}
 
           <ChatInputToolbar
             activePanel={activePanel}

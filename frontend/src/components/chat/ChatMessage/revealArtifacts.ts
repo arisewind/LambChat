@@ -290,6 +290,13 @@ export function buildRevealArtifactTree(
   };
 
   for (const file of files) {
+    // For HTTP URLs, place the file directly at the root level
+    // to avoid creating a deep tree from the URL path segments
+    if (/^https?:\/\//i.test(file.path)) {
+      root.children.push({ kind: "file", artifact: file });
+      continue;
+    }
+
     const parts = file.path.split("/").filter(Boolean);
     parts.pop();
     let current = root;

@@ -92,6 +92,34 @@ test("includes team_id in the submit chat body when a team is selected", () => {
   );
 });
 
+test("includes a run-scoped goal in the submit chat body", () => {
+  assert.deepEqual(
+    buildSubmitChatBody({
+      message: "continue",
+      goal: {
+        objective: "finish docs",
+        rubric: "- docs updated",
+        max_iterations: 3,
+      },
+    }),
+    {
+      message: "continue",
+      session_id: undefined,
+      agent_options: undefined,
+      attachments: undefined,
+      disabled_skills: undefined,
+      enabled_skills: undefined,
+      persona_preset_id: undefined,
+      disabled_mcp_tools: undefined,
+      goal: {
+        objective: "finish docs",
+        rubric: "- docs updated",
+        max_iterations: 3,
+      },
+    },
+  );
+});
+
 test("builds the message fork url", () => {
   assert.equal(
     buildMessageForkUrl("session-1", "message-1"),

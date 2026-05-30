@@ -8,6 +8,7 @@
 import asyncio
 import json
 import uuid
+from datetime import datetime, timezone
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from fastapi.responses import StreamingResponse
@@ -19,6 +20,7 @@ from src.api.routes.auth.utils import _get_language
 from src.api.routes.chat_validation import validate_team_agent_request
 from src.api.routes.session import verify_session_ownership
 from src.infra.chat.user_message_timestamp import format_user_message_with_timestamp
+from src.infra.goal import GoalSpec, coerce_goal_spec
 from src.infra.logging import get_logger
 from src.infra.persona_preset.manager import PersonaPresetManager
 from src.infra.session.manager import SessionManager
@@ -142,6 +144,17 @@ async def _update_session_config(
     await session_manager.update_session_metadata(session_id, conversation_config)
 
 
+def resolve_goal_for_request(
+    request: AgentRequest,
+    existing_metadata: dict | None,
+) -> tuple[GoalSpec | None, str]:
+    """Resolve the run-scoped goal for this request without session inheritance."""
+    _ = existing_metadata
+    active_goal = coerce_goal_spec(request.goal)
+    request.goal = active_goal
+    return active_goal, request.message
+
+
 def _persona_enabled_skills_from_snapshot(
     snapshot: PersonaPresetSnapshot,
 ) -> list[str] | None:
@@ -221,14 +234,20 @@ async def _execute_agent_stream(
     persona_system_prompt: str | None = None,
     disabled_mcp_tools: list[str] | None = None,
     team_id: str | None = None,
+    active_goal: dict | None = None,
 ):
     """执行 Agent 并流式输出事件（供 TaskManager 调用）"""
     from src.infra.task.manager import TaskInterruptedError
 
-    agent = await AgentFactory.get(agent_id)
     run_id = presenter.run_id if presenter else None
 
+    started_at: str | None = None
+    if active_goal is not None:
+        started_at = datetime.now(timezone.utc).isoformat()
+        yield {"event": "goal:start", "data": {"goal": active_goal, "started_at": started_at}}
+
     try:
+        agent = await AgentFactory.get(agent_id)
         async for event in agent.stream(
             message,
             session_id,
@@ -242,12 +261,23 @@ async def _execute_agent_stream(
             persona_system_prompt=persona_system_prompt,
             disabled_mcp_tools=disabled_mcp_tools,
             team_id=team_id,
+            active_goal=active_goal,
+            goal_started_at=started_at,
         ):
             yield event
+
+        # goal:end 由各 agent 的 _stream() 在 done 之前自行发出
     except (asyncio.CancelledError, TaskInterruptedError):
         # 取消/中断时，调用 agent.close 清理资源
         if run_id:
             await agent.close(run_id)
+        # agent 的 finally 块可能已发 goal:end，此处再 yield 确保不遗漏（Presenter 有去重）
+        if active_goal is not None:
+            ended_at = datetime.now(timezone.utc).isoformat()
+            yield {
+                "event": "goal:end",
+                "data": {"goal": active_goal, "started_at": started_at, "ended_at": ended_at},
+            }
         raise
 
 
@@ -283,18 +313,23 @@ async def chat_stream(
     from src.infra.task.manager import _generate_run_id
 
     session_id = request.session_id or str(uuid.uuid4())
-    formatted_message = format_user_message_with_timestamp(
-        request.message,
-        request.user_timezone,
-    )
     validate_team_agent_request(agent_id, request)
 
     # 如果用户传入了 session_id，验证所有权
+    existing_metadata: dict = {}
     if request.session_id:
         session_manager = SessionManager()
         existing_session = await session_manager.get_session(session_id)
         if existing_session:
             verify_session_ownership(existing_session, user)
+            existing_metadata = existing_session.metadata or {}
+
+    active_goal, agent_message = resolve_goal_for_request(request, existing_metadata)
+    active_goal_data = active_goal.model_dump() if active_goal else None
+    formatted_message = format_user_message_with_timestamp(
+        agent_message,
+        request.user_timezone,
+    )
 
     task_manager = get_task_manager()
     preferred_language = _get_language(http_request)
@@ -348,6 +383,7 @@ async def chat_stream(
         "persona_system_prompt": request.persona_system_prompt,
         "disabled_mcp_tools": request.disabled_mcp_tools,
         "team_id": request.team_id,
+        "active_goal": active_goal_data,
     }
 
     # 检查并发限制
@@ -454,6 +490,7 @@ async def chat_stream(
             display_message=request.message,
             trace_id=trace_id,
             team_id=request.team_id,
+            active_goal=active_goal_data,
             write_user_message_immediately=True,
         )
     else:
@@ -476,6 +513,7 @@ async def chat_stream(
             display_message=request.message,
             team_id=request.team_id,
             trace_id=trace_id,
+            active_goal=active_goal_data,
             write_user_message_immediately=True,
         )
 

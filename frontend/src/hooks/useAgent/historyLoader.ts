@@ -16,6 +16,7 @@ import type {
   SubagentStackItem,
   HistoryEvent,
   HistoryEventData,
+  ActiveGoalSpec,
 } from "./types";
 import { convertAttachments, processMessageEvent } from "./eventProcessor";
 import { clearAllLoadingStates } from "./messageParts";
@@ -94,7 +95,11 @@ function processHistoryEvent(
   }
 
   // Skip events that don't contribute to message content
-  if (eventType === "metadata" || eventType === "done") {
+  if (
+    eventType === "metadata" ||
+    eventType === "done" ||
+    eventType === "goal:updated"
+  ) {
     return currentAssistantMessage;
   }
 
@@ -380,4 +385,96 @@ export function getLastEventTimestamp(events: HistoryEvent[]): Date | null {
     }
   }
   return lastEvent?.timestamp ? parseDate(lastEvent.timestamp) : null;
+}
+
+/**
+ * Extract the latest active goal from history events.
+ *
+ * Scans for the most recent `goal:start` / `goal:end` pair and reconstructs
+ * an `ActiveGoalSpec` so the UI can show the goal indicator after a page
+ * reload or session switch.
+ */
+export function extractGoalFromEvents(
+  events: HistoryEvent[],
+): ActiveGoalSpec | null {
+  let goal: ActiveGoalSpec | null = null;
+
+  for (const event of events) {
+    const eventType = event.event_type;
+    if (eventType !== "goal:start" && eventType !== "goal:end") continue;
+
+    const data = event.data as Record<string, unknown> | null | undefined;
+    if (!data) continue;
+
+    const goalData = data.goal as Record<string, unknown> | undefined;
+    const existing: ActiveGoalSpec = goal ?? {
+      objective: "",
+    };
+
+    const next: ActiveGoalSpec = {
+      objective: (goalData?.objective as string) ?? existing.objective ?? "",
+      rubric: (goalData?.rubric as string) ?? existing.rubric,
+      started_at: (data.started_at as string) ?? existing.started_at,
+    };
+    if (event.run_id) next.runId = event.run_id;
+    else if (existing.runId) next.runId = existing.runId;
+    if (goalData?.max_iterations != null)
+      next.max_iterations = goalData.max_iterations as number;
+    else if (existing.max_iterations != null)
+      next.max_iterations = existing.max_iterations;
+
+    if (eventType === "goal:end") {
+      next.ended_at = (data.ended_at as string) ?? undefined;
+    }
+
+    goal = next;
+  }
+
+  // Don't restore completed goals — only show the bar for still-active ones.
+  if (!goal || !goal.objective || goal.ended_at) return null;
+  return goal;
+}
+
+export function extractGoalsByRunFromEvents(
+  events: HistoryEvent[],
+): Record<string, ActiveGoalSpec> {
+  const goalsByRunId: Record<string, ActiveGoalSpec> = {};
+
+  for (const event of events) {
+    const eventType = event.event_type;
+    if (eventType !== "goal:start" && eventType !== "goal:end") continue;
+    if (!event.run_id) continue;
+
+    const data = event.data as Record<string, unknown> | null | undefined;
+    if (!data) continue;
+
+    const goalData = data.goal as Record<string, unknown> | undefined;
+    const existing: ActiveGoalSpec = goalsByRunId[event.run_id] ?? {
+      objective: "",
+      runId: event.run_id,
+    };
+
+    const next: ActiveGoalSpec = {
+      objective: (goalData?.objective as string) ?? existing.objective ?? "",
+      rubric: (goalData?.rubric as string) ?? existing.rubric,
+      runId: event.run_id,
+      started_at: (data.started_at as string) ?? existing.started_at,
+    };
+    if (goalData?.max_iterations != null)
+      next.max_iterations = goalData.max_iterations as number;
+    else if (existing.max_iterations != null)
+      next.max_iterations = existing.max_iterations;
+
+    if (eventType === "goal:end") {
+      next.ended_at = (data.ended_at as string) ?? existing.ended_at;
+    } else if (existing.ended_at) {
+      next.ended_at = existing.ended_at;
+    }
+
+    if (next.objective) {
+      goalsByRunId[event.run_id] = next;
+    }
+  }
+
+  return goalsByRunId;
 }

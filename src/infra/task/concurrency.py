@@ -465,6 +465,7 @@ class UserConcurrencyLimiter:
                 persona_system_prompt = task_ctx.get("persona_system_prompt")
                 disabled_mcp_tools = task_ctx.get("disabled_mcp_tools")
                 team_id = task_ctx.get("team_id")
+                active_goal = task_ctx.get("active_goal")
             else:
                 # Legacy fallback: context in process memory (single-worker)
                 pending = task_manager.pop_pending_task(run_id)
@@ -484,6 +485,7 @@ class UserConcurrencyLimiter:
                 persona_system_prompt = pending.get("persona_system_prompt")
                 disabled_mcp_tools = pending.get("disabled_mcp_tools")
                 team_id = pending.get("team_id")
+                active_goal = pending.get("active_goal")
 
             # --- Create and run the background task ---
             async with task_manager._lock:
@@ -517,6 +519,7 @@ class UserConcurrencyLimiter:
                         disabled_mcp_tools=disabled_mcp_tools,
                         display_message=task_ctx.get("display_message") if task_ctx else None,
                         team_id=team_id,
+                        active_goal=active_goal,
                     )
                 )
                 task_manager._tasks[run_id] = task

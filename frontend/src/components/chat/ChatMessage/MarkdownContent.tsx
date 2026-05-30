@@ -275,7 +275,7 @@ export const MarkdownContent = memo(function MarkdownContent({
   const sessionImageGallery = useSessionImageGallery();
 
   return (
-    <span className="markdown-preview block my-1">
+    <span className="markdown-preview block my-1 pl-0.5">
       <ReactMarkdown
         remarkPlugins={[remarkGfm, remarkBreaks, remarkMath]}
         rehypePlugins={[rehypeKatex]}

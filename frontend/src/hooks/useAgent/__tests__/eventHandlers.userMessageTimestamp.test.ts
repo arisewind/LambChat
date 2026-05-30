@@ -26,6 +26,8 @@ function createContext(messages: Message[]): {
       setConnectionStatus: () => undefined,
       setIsInitializingSandbox: () => undefined,
       setSandboxError: () => undefined,
+      setActiveGoal: () => undefined,
+      setGoalsByRunId: () => undefined,
     },
     getMessages: () => currentMessages,
   };

@@ -1,9 +1,45 @@
 import { Wrench, Globe } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { CollapsiblePill, CopyButton, LoadingSpinner } from "../../common";
 import type { CollapsibleStatus } from "../../common";
 import { ToolResultContent } from "./items/McpBlockPreview";
 import { openPersistentToolPanel } from "./items/persistentToolPanelState";
+
+/** Returns the number of seconds elapsed since isPending became true, or 0 when not pending. */
+function useElapsedSeconds(isPending?: boolean): number {
+  const [elapsed, setElapsed] = useState(0);
+  const startedAt = useRef<number | null>(null);
+  const raf = useRef<number>(0);
+
+  useEffect(() => {
+    if (isPending) {
+      startedAt.current = Date.now();
+      setElapsed(0);
+      const tick = () => {
+        if (startedAt.current !== null) {
+          setElapsed(Math.floor((Date.now() - startedAt.current) / 1000));
+          raf.current = requestAnimationFrame(tick);
+        }
+      };
+      raf.current = requestAnimationFrame(tick);
+      return () => cancelAnimationFrame(raf.current);
+    } else {
+      startedAt.current = null;
+      setElapsed(0);
+      return () => cancelAnimationFrame(raf.current);
+    }
+  }, [isPending]);
+
+  return elapsed;
+}
+
+function formatElapsed(seconds: number): string {
+  if (seconds < 60) return `${seconds}s`;
+  const m = Math.floor(seconds / 60);
+  const s = seconds % 60;
+  return `${m}m ${s}s`;
+}
 
 // Re-export all sub-components
 export { ReadFileItem } from "./items/ReadFileItem";
@@ -34,6 +70,7 @@ export function ToolCallItem({
 }) {
   const { t } = useTranslation();
   const hasResult = result !== undefined;
+  const elapsedSeconds = useElapsedSeconds(isPending);
 
   // Parse MCP server name from tool name (format: "server_name:tool_name")
   const colonIdx = name.indexOf(":");
@@ -111,6 +148,7 @@ export function ToolCallItem({
         <div className="flex items-center gap-2 text-xs text-amber-600 dark:text-amber-400">
           <LoadingSpinner size="xs" />
           <span>{t("chat.message.running")}</span>
+          <span className="tabular-nums">{formatElapsed(elapsedSeconds)}</span>
         </div>
       )}
     </div>
@@ -187,6 +225,9 @@ export function ToolCallItem({
               <div className="flex items-center gap-2 text-xs text-amber-600 dark:text-amber-400">
                 <LoadingSpinner size="xs" />
                 <span>{t("chat.message.running")}</span>
+                <span className="tabular-nums">
+                  {formatElapsed(elapsedSeconds)}
+                </span>
               </div>
             )}
           </div>

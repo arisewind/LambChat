@@ -6,10 +6,12 @@ import {
   getAutoScrollResumeThresholdPx,
   getAtBottomThresholdPx,
   getAwayFromBottomThresholdPx,
+  getScrollToBottomTimingOptions,
   getMessageListFooterSpacerClass,
   getInitialBottomItemLocation,
   getMessageListSessionKey,
   hasNewOutgoingMessage,
+  shouldIgnoreUnexpectedTopJumpDuringBottomLock,
   shouldStopAutoScrollOnUserScroll,
   shouldAutoScrollForMessageUpdate,
   shouldAutoScrollAfterViewportChange,
@@ -581,6 +583,94 @@ test("keeps history bottom lock alive for late layout shifts after the first set
   assert.equal(completionReason, "settled");
 });
 
+test("keeps default bottom lock alive briefly for post-stream layout shifts", async () => {
+  let resizeCallback: () => void = () => {
+    assert.fail("resize observer was not registered");
+  };
+  let completionReason: "settled" | "aborted" | "max-attempts" | null = null;
+  const scroller = {
+    scrollTop: 400,
+    clientHeight: 100,
+    scrollHeight: 500,
+  };
+  const virtuoso = {
+    scrollTo: () => {
+      scroller.scrollTop = scroller.scrollHeight - scroller.clientHeight;
+    },
+  };
+  const timing = getScrollToBottomTimingOptions({
+    isMobileViewport: false,
+    mode: "default",
+  });
+
+  startVirtuosoScrollToBottom({
+    virtuoso,
+    scroller,
+    intervalMs: 5,
+    maxAttempts: 80,
+    maxDurationMs: 60,
+    settleWindowMs: 10,
+    observeLayoutChanges: true,
+    observeAfterSettleMs: timing.observeAfterSettleMs,
+    onComplete: (reason) => {
+      completionReason = reason;
+    },
+    resizeObserverFactory: (callback) => {
+      resizeCallback = callback;
+      return {
+        observe: () => undefined,
+        disconnect: () => undefined,
+      };
+    },
+  });
+
+  await new Promise((resolve) => setTimeout(resolve, 45));
+  assert.equal(completionReason, null);
+
+  scroller.scrollHeight = 900;
+  resizeCallback();
+
+  assert.equal(scroller.scrollTop, 800);
+  assert.equal(completionReason, null);
+});
+
+test("recovers an unexpected top jump during the post-stream bottom lock", async () => {
+  let completionReason: "settled" | "aborted" | "max-attempts" | null = null;
+  const scroller = {
+    scrollTop: 400,
+    clientHeight: 100,
+    scrollHeight: 500,
+  };
+  const virtuoso = {
+    scrollTo: () => {
+      scroller.scrollTop = scroller.scrollHeight - scroller.clientHeight;
+    },
+  };
+
+  startVirtuosoScrollToBottom({
+    virtuoso,
+    scroller,
+    intervalMs: 5,
+    maxAttempts: 80,
+    maxDurationMs: 60,
+    settleWindowMs: 10,
+    observeLayoutChanges: true,
+    observeAfterSettleMs: 100,
+    onComplete: (reason) => {
+      completionReason = reason;
+    },
+  });
+
+  await new Promise((resolve) => setTimeout(resolve, 45));
+  assert.equal(completionReason, null);
+
+  scroller.scrollTop = 0;
+  await new Promise((resolve) => setTimeout(resolve, 15));
+
+  assert.equal(scroller.scrollTop, 400);
+  assert.equal(completionReason, null);
+});
+
 test("does not pull back to bottom after the user leaves bottom during history settle observation", async () => {
   let resizeCallback: () => void = () => {
     assert.fail("resize observer was not registered");
@@ -823,6 +913,32 @@ test("does not stop auto-scroll for programmatic or tiny upward adjustments", ()
       isAwayFromBottom: false,
       deltaScrollPx: 1,
       scrollTop: 260,
+    }),
+    false,
+  );
+});
+
+test("ignores an unexpected top jump while the bottom lock is still active", () => {
+  assert.equal(
+    shouldIgnoreUnexpectedTopJumpDuringBottomLock({
+      scrollTop: 0,
+      clientHeight: 100,
+      scrollHeight: 500,
+      autoScrollActive: true,
+      userScrolledUp: false,
+      manualDetachActive: false,
+    }),
+    true,
+  );
+
+  assert.equal(
+    shouldIgnoreUnexpectedTopJumpDuringBottomLock({
+      scrollTop: 0,
+      clientHeight: 100,
+      scrollHeight: 500,
+      autoScrollActive: true,
+      userScrolledUp: true,
+      manualDetachActive: false,
     }),
     false,
   );

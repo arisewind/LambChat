@@ -57,8 +57,46 @@ export interface ScrollMessageLike {
   isStreaming?: boolean;
 }
 
+export type ScrollToBottomTimingMode = "default" | "history-finalize";
+
+export interface ScrollToBottomTimingOptions {
+  intervalMs: number;
+  maxAttempts: number;
+  maxDurationMs: number;
+  settleWindowMs: number;
+  observeAfterSettleMs: number;
+}
+
 export function getAtBottomThresholdPx(isMobileViewport: boolean): number {
   return isMobileViewport ? 120 : 4;
+}
+
+export function getScrollToBottomTimingOptions({
+  isMobileViewport,
+  mode,
+}: {
+  isMobileViewport: boolean;
+  mode: ScrollToBottomTimingMode;
+}): ScrollToBottomTimingOptions {
+  const isHistoryFinalizeMode = mode === "history-finalize";
+
+  if (isMobileViewport) {
+    return {
+      intervalMs: isHistoryFinalizeMode ? 24 : 20,
+      maxAttempts: isHistoryFinalizeMode ? 24 : 8,
+      maxDurationMs: isHistoryFinalizeMode ? 1200 : 240,
+      settleWindowMs: isHistoryFinalizeMode ? 140 : 96,
+      observeAfterSettleMs: 3600,
+    };
+  }
+
+  return {
+    intervalMs: 16,
+    maxAttempts: isHistoryFinalizeMode ? 90 : 15,
+    maxDurationMs: isHistoryFinalizeMode ? 1800 : 500,
+    settleWindowMs: isHistoryFinalizeMode ? 180 : 120,
+    observeAfterSettleMs: 2400,
+  };
 }
 
 export function getAutoScrollResumeThresholdPx(
@@ -230,6 +268,30 @@ export function shouldStopAutoScrollOnUserScroll({
   return deltaScrollPx > 6;
 }
 
+export function shouldIgnoreUnexpectedTopJumpDuringBottomLock({
+  scrollTop,
+  clientHeight,
+  scrollHeight,
+  autoScrollActive,
+  userScrolledUp,
+  manualDetachActive,
+}: {
+  scrollTop: number;
+  clientHeight: number;
+  scrollHeight: number;
+  autoScrollActive: boolean;
+  userScrolledUp: boolean;
+  manualDetachActive: boolean;
+}): boolean {
+  return (
+    autoScrollActive &&
+    !userScrolledUp &&
+    !manualDetachActive &&
+    scrollTop <= 1 &&
+    scrollHeight > clientHeight + 1
+  );
+}
+
 export function shouldAutoScrollAfterViewportChange({
   scroller,
   bottomBreathingRoomPx,
@@ -384,6 +446,10 @@ export function startVirtuosoScrollToBottom({
     maxDurationMs ?? Math.max(intervalMs * maxAttempts, stableHeightWindowMs);
   const isAtKnownBottom = () =>
     scroller.scrollTop + scroller.clientHeight >= lastKnownScrollHeight - 1;
+  const isUnexpectedTopJump = () =>
+    postSettleObserveUntil > 0 &&
+    scroller.scrollTop <= 1 &&
+    scroller.scrollHeight > scroller.clientHeight + 1;
   const resetSettleBudget = () => {
     attempts = 0;
     lastKnownScrollHeight = scroller.scrollHeight;
@@ -430,6 +496,12 @@ export function startVirtuosoScrollToBottom({
         }
 
         if (postSettleObserveUntil > 0 && !isAtKnownBottom()) {
+          if (isUnexpectedTopJump()) {
+            noteLayoutChange();
+            scroll();
+            return;
+          }
+
           finish("aborted");
           return;
         }
@@ -480,6 +552,11 @@ export function startVirtuosoScrollToBottom({
 
     if (postSettleObserveUntil > 0) {
       if (!isAtBottom) {
+        if (isUnexpectedTopJump()) {
+          scroll();
+          return;
+        }
+
         if (!heightChanged) {
           finish("aborted");
           return;

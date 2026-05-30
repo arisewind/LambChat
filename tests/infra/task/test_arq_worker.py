@@ -93,6 +93,7 @@ async def test_run_agent_task_loads_payload_and_invokes_executor(
         "user_message_written": True,
         "agent_options": {"model": "test"},
         "team_id": "team-1",
+        "active_goal": {"objective": "finish docs", "rubric": "- docs updated"},
     }
     payload_store = _FakePayloadStore(payload)
     task_executor = _FakeTaskExecutor()
@@ -115,6 +116,10 @@ async def test_run_agent_task_loads_payload_and_invokes_executor(
     assert task_executor.run_calls[0]["existing_trace_id"] == "trace-1"
     assert task_executor.run_calls[0]["executor"] is _executor_fn
     assert task_executor.run_calls[0]["team_id"] == "team-1"
+    assert task_executor.run_calls[0]["active_goal"] == {
+        "objective": "finish docs",
+        "rubric": "- docs updated",
+    }
     assert task_manager._run_info["run-1"]["trace_id"] == "trace-1"
     assert payload_store.deleted == ["run-1"]
 

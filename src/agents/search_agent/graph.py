@@ -17,6 +17,7 @@ Search Agent - 基于 LangGraph 的 Graph Agent
 """
 
 import asyncio
+from datetime import datetime, timezone
 from typing import Any, AsyncGenerator, Dict
 
 from langchain_core.runnables import RunnableConfig
@@ -192,6 +193,7 @@ class SearchAgent(BaseGraphAgent):
                 "persona_system_prompt": kwargs.get("persona_system_prompt"),
                 "disabled_mcp_tools": disabled_mcp_tools,
                 "base_url": kwargs.get("base_url", ""),  # 传递 base_url 给工具使用
+                "active_goal": kwargs.get("active_goal"),
             },
             "metadata": langsmith_metadata,
             "recursion_limit": settings.SESSION_MAX_RUNS_PER_SESSION,
@@ -242,6 +244,19 @@ class SearchAgent(BaseGraphAgent):
             raise
 
         finally:
+            # goal:end 必须在 done 之前发出，保证事件顺序正确
+            # 放在 finally 中确保即使异常也能发出
+            active_goal = kwargs.get("active_goal")
+            goal_started_at = kwargs.get("goal_started_at")
+            if active_goal is not None:
+                yield {
+                    "event": "goal:end",
+                    "data": {
+                        "goal": active_goal,
+                        "started_at": goal_started_at,
+                        "ended_at": datetime.now(timezone.utc).isoformat(),
+                    },
+                }
             self._stream_tasks.pop(presenter.run_id, None)
             await context.close()
 

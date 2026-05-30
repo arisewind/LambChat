@@ -37,6 +37,12 @@ export interface SessionRunsQuery {
   trace_id?: string;
 }
 
+export interface RunGoalSpec {
+  objective: string;
+  rubric?: string;
+  max_iterations?: number;
+}
+
 export function buildMessageForkUrl(
   sessionId: string,
   messageId: string,
@@ -75,6 +81,7 @@ export function buildSubmitChatBody({
   disabledMcpTools,
   userTimezone,
   teamId,
+  goal,
 }: {
   message: string;
   sessionId?: string;
@@ -87,6 +94,7 @@ export function buildSubmitChatBody({
   disabledMcpTools?: string[];
   userTimezone?: string;
   teamId?: string | null;
+  goal?: RunGoalSpec | null;
 }): Record<string, unknown> {
   const body: Record<string, unknown> = {
     message,
@@ -107,6 +115,9 @@ export function buildSubmitChatBody({
   }
   if (teamId) {
     body.team_id = teamId;
+  }
+  if (goal) {
+    body.goal = goal;
   }
   return body;
 }
@@ -302,6 +313,7 @@ export const sessionApi = {
     personaPresetId?: string | null,
     enabledSkills?: string[],
     teamId?: string | null,
+    goal?: RunGoalSpec | null,
   ): Promise<{
     session_id: string;
     run_id: string;
@@ -320,6 +332,7 @@ export const sessionApi = {
       disabledMcpTools,
       userTimezone: getBrowserTimezone(),
       teamId,
+      goal,
     });
     return authFetch(`${API_BASE}/api/chat/stream?agent_id=${agentId}`, {
       method: "POST",

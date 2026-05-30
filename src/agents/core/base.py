@@ -9,7 +9,7 @@ import asyncio
 import uuid
 from abc import ABC, abstractmethod
 from collections.abc import AsyncGenerator
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Any, Callable, Dict, List, Optional, Type
 
 from langchain_core.runnables import RunnableConfig
@@ -303,6 +303,10 @@ class BaseGraphAgent(ABC):
         **kwargs,
     ) -> AsyncGenerator[Dict[str, Any], None]:
         """内部流式执行"""
+        # 提取 goal 相关参数，用于在 done 之前正确发出 goal:end 事件
+        active_goal = kwargs.get("active_goal")
+        goal_started_at = kwargs.get("goal_started_at")
+
         if not self._initialized:
             await self.initialize()
 
@@ -489,8 +493,28 @@ class BaseGraphAgent(ABC):
                 # Flush pending chunks and clear event_processor memory
                 await event_processor.finalize()
                 await emit_usage_once()
+                # goal:end 必须在 done 之前发出，保证事件顺序正确
+                if active_goal is not None:
+                    goal_end_data = {
+                        "goal": active_goal,
+                        "started_at": goal_started_at,
+                        "ended_at": datetime.now(timezone.utc).isoformat(),
+                    }
+                    goal_end_evt = {
+                        "event": "goal:end",
+                        "data": goal_end_data,
+                    }
+                    await presenter.emit(goal_end_evt)
                 await presenter.emit(presenter.done())
 
+            # 先 yield goal:end，再 yield done
+            if active_goal is not None:
+                goal_end_data = {
+                    "goal": active_goal,
+                    "started_at": goal_started_at,
+                    "ended_at": datetime.now(timezone.utc).isoformat(),
+                }
+                yield {"event": "goal:end", "data": goal_end_data}
             # 发送完成
             yield presenter.done()
 

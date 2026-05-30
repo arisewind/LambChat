@@ -279,7 +279,7 @@ export function MessagePartRenderer({
     }
 
     return (
-      <div className="flex flex-col gap-2.5 pt-2">
+      <div className="flex flex-col gap-2.5">
         {part.questions.map((question, index) => (
           <button
             key={`${question.content}-${index}`}

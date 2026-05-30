@@ -6,9 +6,12 @@ import {
   forceScrollerToPhysicalBottom,
   getAutoScrollResumeThresholdPx,
   getAwayFromBottomThresholdPx,
+  getScrollToBottomTimingOptions,
   didLatestStreamingAssistantFinish,
   shouldAutoScrollAfterViewportChange,
+  shouldIgnoreUnexpectedTopJumpDuringBottomLock,
   startVirtuosoScrollToBottom,
+  type ScrollToBottomTimingMode,
 } from "./messageScrollUtils";
 import { createMessageAnchorId } from "./messageOutline";
 import {
@@ -50,8 +53,6 @@ interface UseMessageScrollReturn {
   scrollToBottom: () => void;
   scrollToTop: () => void;
 }
-
-type AutoScrollMode = "default" | "history-finalize";
 
 export function useMessageScroll(
   messages: Pick<Message, "id" | "role" | "isStreaming" | "parts" | "runId">[],
@@ -186,10 +187,13 @@ export function useMessageScroll(
 
   const requestScrollToBottom = useCallback(
     (
-      mode: AutoScrollMode = "default",
+      mode: ScrollToBottomTimingMode = "default",
       options?: { clearManualDetachFromStream?: boolean },
     ) => {
-      const isHistoryFinalizeMode = mode === "history-finalize";
+      const timing = getScrollToBottomTimingOptions({
+        isMobileViewport,
+        mode,
+      });
       const currentFollowState = createMessageScrollFollowState({
         userScrolledUp: userScrolledUpRef.current,
         autoScrollActive: autoScrollActiveRef.current,
@@ -228,37 +232,15 @@ export function useMessageScroll(
         scroller: virtuosoScrollerRef.current,
         footer: messagesEndRef.current,
         preferPhysicalBottom: true,
-        intervalMs: isMobileViewport ? (isHistoryFinalizeMode ? 24 : 20) : 16,
-        maxAttempts: isMobileViewport
-          ? isHistoryFinalizeMode
-            ? 24
-            : 8
-          : isHistoryFinalizeMode
-            ? 90
-            : 15,
+        intervalMs: timing.intervalMs,
+        maxAttempts: timing.maxAttempts,
         observeLayoutChanges: true,
         resizeObserverTarget:
           virtuosoScrollerRef.current?.firstElementChild ??
           virtuosoScrollerRef.current,
-        maxDurationMs: isMobileViewport
-          ? isHistoryFinalizeMode
-            ? 1200
-            : 240
-          : isHistoryFinalizeMode
-            ? 1800
-            : 500,
-        settleWindowMs: isMobileViewport
-          ? isHistoryFinalizeMode
-            ? 140
-            : 96
-          : isHistoryFinalizeMode
-            ? 180
-            : 120,
-        observeAfterSettleMs: isHistoryFinalizeMode
-          ? isMobileViewport
-            ? 3600
-            : 2400
-          : 0,
+        maxDurationMs: timing.maxDurationMs,
+        settleWindowMs: timing.settleWindowMs,
+        observeAfterSettleMs: timing.observeAfterSettleMs,
         keepAliveWhile: () =>
           streamLockActiveRef.current && streamingAssistantActiveRef.current,
         shouldAbort: () => userScrolledUpRef.current,
@@ -353,6 +335,27 @@ export function useMessageScroll(
       const isAwayFromBottom =
         scrollTop + scroller.clientHeight <
         scroller.scrollHeight - awayFromBottomThresholdPx;
+
+      if (
+        shouldIgnoreUnexpectedTopJumpDuringBottomLock({
+          scrollTop,
+          clientHeight: scroller.clientHeight,
+          scrollHeight: scroller.scrollHeight,
+          autoScrollActive: autoScrollActiveRef.current,
+          userScrolledUp: userScrolledUpRef.current,
+          manualDetachActive: manualDetachFromStreamRef.current,
+        })
+      ) {
+        forceScrollerToPhysicalBottom({
+          scroller,
+          footer: messagesEndRef.current,
+        });
+        ignoreProgrammaticScrollUntilRef.current = now + 120;
+        setIsNearTop(false);
+        lastScrollTop.value = scroller.scrollTop;
+        lastScrollTime.value = now;
+        return;
+      }
 
       const nextFollowState = getNextMessageScrollFollowStateForUserScroll({
         state: createMessageScrollFollowState({

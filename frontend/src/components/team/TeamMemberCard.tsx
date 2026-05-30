@@ -92,7 +92,7 @@ export function TeamMemberCard({
               title={isDefault ? t("team.defaultRole") : t("team.setDefault")}
               type="button"
             >
-              <Star size={13} fill={isDefault ? "currentColor" : "none"} />
+              <Star size={14} fill={isDefault ? "currentColor" : "none"} />
             </button>
             <button
               onClick={onRemove}
@@ -100,7 +100,7 @@ export function TeamMemberCard({
               title={t("team.remove")}
               type="button"
             >
-              <Trash2 size={13} />
+              <Trash2 size={14} />
             </button>
           </div>
 

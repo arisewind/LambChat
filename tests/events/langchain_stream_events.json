@@ -1,0 +1,254 @@
+{
+  "description": "All LangChain astream_events(version='v2') event types consumed by LambChat's AgentEventProcessor.",
+  "recorded_at": "2026-05-30",
+  "version": "v2",
+  "note": "These are raw LangChain graph stream events, NOT the SSE events sent to the frontend. Each LangChain event is processed by AgentEventProcessor.process_event() and may emit zero or more SSE events via Presenter.",
+  "stream_events": [
+    {
+      "event": "on_chat_model_start",
+      "lc_type": "StandardStreamEvent",
+      "description": "Emitted when a chat model invocation begins.",
+      "handled_by_processor": false,
+      "note": "Not explicitly handled; falls through _CONTEXT_EVENT_TYPES filter (not in the set)."
+    },
+    {
+      "event": "on_chat_model_stream",
+      "lc_type": "StandardStreamEvent",
+      "description": "Emitted for each token/chunk produced by a chat model during streaming.",
+      "handled_by_processor": true,
+      "handler": "StreamEventMixin._handle_chat_stream / _handle_summary_stream",
+      "emits_sse": [
+        "message:chunk",
+        "thinking",
+        "summary"
+      ],
+      "routing": "Routed by metadata lc_source: if 'summarization' -> _handle_summary_stream, else -> _handle_chat_stream.",
+      "data_shape": {
+        "event": "on_chat_model_stream",
+        "name": "<chat_model_name>",
+        "run_id": "<uuid>",
+        "data": {
+          "chunk": {
+            "content": "<str | list[dict]>",
+            "id": "<run_id>",
+            "additional_kwargs": {
+              "reasoning_content": "<str>"
+            }
+          }
+        },
+        "metadata": {
+          "lc_source": "summarization | <other>",
+          "langgraph_checkpoint_ns": "<checkpoint_ns>"
+        }
+      },
+      "content_variants": {
+        "string_text": "Direct text string -> buffered and emitted as message:chunk",
+        "empty_string_with_reasoning": "Empty content with additional_kwargs.reasoning_content -> emitted as thinking",
+        "list_text_block": "list with {type: 'text', text: '...'} -> buffered as message:chunk",
+        "list_thinking_block": "list with {type: 'thinking', thinking: '...'} -> emitted as thinking",
+        "list_reasoning_block": "list with {type: 'reasoning', reasoning: '...'} -> emitted as thinking"
+      }
+    },
+    {
+      "event": "on_chat_model_end",
+      "lc_type": "StandardStreamEvent",
+      "description": "Emitted when a chat model invocation completes. Used to flush pending chunks and accumulate token usage.",
+      "handled_by_processor": true,
+      "handler": "processor.process_event -> flush() + _handle_token_usage()",
+      "emits_sse": [],
+      "note": "Flushes chunk buffers (may emit pending message:chunk / summary events). Token usage is accumulated but not emitted here — emitted once via emit_token_usage() after stream ends.",
+      "data_shape": {
+        "event": "on_chat_model_end",
+        "name": "<chat_model_name>",
+        "run_id": "<uuid>",
+        "data": {
+          "output": {
+            "usage_metadata": {
+              "input_tokens": 100,
+              "output_tokens": 50,
+              "total_tokens": 150,
+              "input_token_details": {
+                "cache_creation_input_tokens": 10,
+                "cache_read_input_tokens": 20
+              }
+            }
+          }
+        },
+        "metadata": {}
+      },
+      "token_usage_fields": [
+        "usage_metadata.input_tokens / prompt_tokens / prompt_token_count",
+        "usage_metadata.output_tokens / completion_tokens / candidates_token_count",
+        "usage_metadata.total_tokens / total_token_count",
+        "usage_metadata.input_token_details.cache_creation / cache_creation_input_tokens",
+        "usage_metadata.input_token_details.cache_read / cached_tokens / cached_content_token_count"
+      ]
+    },
+    {
+      "event": "on_tool_start",
+      "lc_type": "StandardStreamEvent",
+      "description": "Emitted when a tool invocation begins.",
+      "handled_by_processor": true,
+      "handler": "ToolEventMixin._handle_tool_start (generic) or SubagentEventMixin._handle_task_start (task tool)",
+      "emits_sse": [
+        "tool:start",
+        "agent:call",
+        "todo:updated"
+      ],
+      "routing": "If tool name == 'task' -> _handle_task_start (subagent dispatch). If tool name == 'write_todos' -> present_todo. Otherwise -> present_tool_start.",
+      "data_shape": {
+        "event": "on_tool_start",
+        "name": "<tool_name>",
+        "run_id": "<uuid>",
+        "data": {
+          "input": {
+            "subagent_type": "<str>",
+            "description": "<str>"
+          }
+        },
+        "metadata": {
+          "checkpoint_ns": "<checkpoint_ns>"
+        }
+      },
+      "special_cases": {
+        "task": "_handle_task_start: extracts subagent_type, description from input. Tracks checkpoint_to_agent mapping. Emits agent:call with depth calculated from checkpoint_ns.",
+        "write_todos": "Extracts todos list from input and emits todo:updated. Does NOT emit tool:start."
+      }
+    },
+    {
+      "event": "on_tool_end",
+      "lc_type": "StandardStreamEvent",
+      "description": "Emitted when a tool invocation completes successfully.",
+      "handled_by_processor": true,
+      "handler": "ToolEventMixin._handle_tool_end (generic) or SubagentEventMixin._handle_task_end (task tool)",
+      "emits_sse": [
+        "tool:result",
+        "agent:result"
+      ],
+      "routing": "If tool name == 'task' -> _handle_task_end (subagent result). If tool name == 'write_todos' -> skip. Otherwise -> present_tool_result.",
+      "data_shape": {
+        "event": "on_tool_end",
+        "name": "<tool_name>",
+        "run_id": "<uuid>",
+        "data": {
+          "output": "<str | dict | AIMessage>"
+        },
+        "metadata": {
+          "checkpoint_ns": "<checkpoint_ns>"
+        }
+      },
+      "output_processing": "Raw output is extracted via extract_tool_output(), checked for errors via detect_tool_error(). JSON strings are parsed. Dicts with 'blocks' key trigger binary upload. MCP blocks are handled.",
+      "special_cases": {
+        "task": "_handle_task_end: resolves agent info from checkpoint_to_agent, extracts result from output.update.messages[0].content. Emits agent:result.",
+        "write_todos": "Silently skipped — no SSE event emitted."
+      }
+    },
+    {
+      "event": "on_tool_error",
+      "lc_type": "StandardStreamEvent",
+      "description": "Emitted when a tool invocation fails with an error.",
+      "handled_by_processor": true,
+      "handler": "ToolEventMixin._handle_tool_error (generic) or SubagentEventMixin._handle_task_error (task tool)",
+      "emits_sse": [
+        "tool:start",
+        "tool:result",
+        "agent:result"
+      ],
+      "routing": "If tool name == 'task' -> _handle_task_error. Otherwise -> _handle_tool_error (may emit tool:start if not previously emitted, then tool:result with success=false).",
+      "data_shape": {
+        "event": "on_tool_error",
+        "name": "<tool_name>",
+        "run_id": "<uuid>",
+        "data": {
+          "input": {},
+          "error": "<BaseException | dict | str>"
+        },
+        "metadata": {
+          "checkpoint_ns": "<checkpoint_ns>"
+        }
+      },
+      "special_cases": {
+        "task": "_handle_task_error: resolves agent info, emits agent:result with success=false.",
+        "generic": "If tool_call_id not in _started_tool_call_ids, emits tool:start first. Then emits tool:result with success=false."
+      }
+    },
+    {
+      "event": "on_chain_start",
+      "lc_type": "StandardStreamEvent",
+      "description": "Emitted when a chain (or LangGraph node) starts executing.",
+      "handled_by_processor": true,
+      "handler": "processor.process_event -> rubric_grader chain detection (conditional)",
+      "emits_sse": ["agent:call"],
+      "note": "Only handled when name == 'rubric_grader'; emits agent:call and sets suppression flag. All other on_chain_start events fall through to the _CONTEXT_EVENT_TYPES filter and are silently ignored."
+    },
+    {
+      "event": "on_chain_stream",
+      "lc_type": "StandardStreamEvent",
+      "description": "Emitted for intermediate chain streaming outputs.",
+      "handled_by_processor": false,
+      "note": "Not in _CONTEXT_EVENT_TYPES; silently ignored by processor."
+    },
+    {
+      "event": "on_chain_end",
+      "lc_type": "StandardStreamEvent",
+      "description": "Emitted when a chain (or LangGraph node) finishes executing.",
+      "handled_by_processor": true,
+      "handler": "processor.process_event -> rubric_grader chain detection (conditional)",
+      "emits_sse": ["agent:result"],
+      "note": "Only handled when name == 'rubric_grader'; emits agent:result with structured_response content and clears suppression flag. All other on_chain_end events are silently ignored."
+    },
+    {
+      "event": "on_retriever_start",
+      "lc_type": "StandardStreamEvent",
+      "description": "Emitted when a retriever starts.",
+      "handled_by_processor": false,
+      "note": "Not in _CONTEXT_EVENT_TYPES; silently ignored by processor."
+    },
+    {
+      "event": "on_retriever_end",
+      "lc_type": "StandardStreamEvent",
+      "description": "Emitted when a retriever finishes.",
+      "handled_by_processor": false,
+      "note": "Not in _CONTEXT_EVENT_TYPES; silently ignored by processor."
+    },
+    {
+      "event": "on_parser_start",
+      "lc_type": "StandardStreamEvent",
+      "description": "Emitted when an output parser starts.",
+      "handled_by_processor": false,
+      "note": "Not in _CONTEXT_EVENT_TYPES; silently ignored by processor."
+    },
+    {
+      "event": "on_parser_end",
+      "lc_type": "StandardStreamEvent",
+      "description": "Emitted when an output parser finishes.",
+      "handled_by_processor": false,
+      "note": "Not in _CONTEXT_EVENT_TYPES; silently ignored by processor."
+    }
+  ],
+  "event_flow_summary": {
+    "description": "How LangChain events flow through the system to produce SSE events for the frontend.",
+    "pipeline": [
+      "1. LangGraph graph.astream_events(state, config, version='v2') emits raw LangChain events",
+      "2. Events are placed into asyncio.Queue (base.py) or directly iterated (agent nodes)",
+      "3. AgentEventProcessor.process_event(event) dispatches based on event['event'] and event['name']",
+      "4. Processor calls Presenter.present_*() methods to build SSE event dicts",
+      "5. SSE events are yielded via presenter.emit() -> saved to Redis/MongoDB -> sent to frontend"
+    ],
+    "consumed_by_agents": [
+      "BaseGraphAgent._stream() — uses asyncio.Queue with interrupt checking",
+      "FastAgent nodes.py — direct iteration via inner_graph.astream_events()",
+      "SearchAgent nodes.py — direct iteration via inner_graph.astream_events()",
+      "TeamAgent nodes.py — direct iteration via inner_graph.astream_events()"
+    ]
+  },
+  "context_event_types": [
+    "on_chat_model_stream",
+    "on_tool_start",
+    "on_tool_end",
+    "on_tool_error"
+  ],
+  "additional_processed_types": [
+    "on_chat_model_end"
+  ]
+}

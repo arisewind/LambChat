@@ -39,6 +39,11 @@ from src.infra.agent.middleware import (
 )
 from src.infra.agent.middleware_subagent import SubagentActivityMiddleware
 from src.infra.backend.deepagent import create_persistent_backend_factory
+from src.infra.goal import (
+    build_goal_input,
+    build_goal_prompt_section,
+    create_goal_rubric_middleware,
+)
 from src.infra.llm.client import LLMClient
 from src.infra.logging import get_logger
 from src.infra.skill.loader import build_skills_prompt
@@ -209,6 +214,10 @@ async def fast_agent_node(state: Dict[str, Any], config: RunnableConfig) -> Dict
         for s in (*MAIN_AGENT_PROMPT_SECTIONS, *persona_sections, skills_prompt, memory_guide)
         if s
     ]
+    active_goal = configurable.get("active_goal")
+    goal_section = build_goal_prompt_section(active_goal)
+    if goal_section:
+        _prompt_sections.append(goal_section)
     if _prompt_sections:
         user_middleware.append(SectionPromptMiddleware(sections=_prompt_sections))
     if settings.ENABLE_MEMORY and settings.NATIVE_MEMORY_INDEX_ENABLED and context.user_id:
@@ -227,6 +236,9 @@ async def fast_agent_node(state: Dict[str, Any], config: RunnableConfig) -> Dict
         )
 
     user_middleware.extend(create_code_interpreter_middleware(agent_options))
+    rubric_middleware = create_goal_rubric_middleware(model=llm, goal=active_goal)
+    if rubric_middleware is not None:
+        user_middleware.append(rubric_middleware)
 
     # KV cache: tag final system block + last tool AFTER all dynamic injection
     user_middleware.append(PromptCachingMiddleware())
@@ -273,8 +285,8 @@ async def fast_agent_node(state: Dict[str, Any], config: RunnableConfig) -> Dict
     logger.info("[FastAgent] Starting astream_events")
     # 流式处理事件（不重试，直接调用）
     try:
-        async for event in inner_graph.astream_events(
-            {"messages": [new_message]},
+        async for event in inner_graph.astream_events(  # type: ignore[call-overload]
+            build_goal_input(new_message, active_goal, rubric_middleware=rubric_middleware),
             inner_config,
             version="v2",
         ):

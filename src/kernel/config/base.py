@@ -46,6 +46,9 @@ class Settings(BaseSettings):
     BUILD_TIME: Optional[str] = None
     GITHUB_URL: str = "https://github.com/Yanyutin753/LambChat"
 
+    # Debug (not in SETTING_DEFINITIONS - developer toggle)
+    DEBUG_STREAM_EVENTS: bool = False
+
     # Logging Configuration (not in SETTING_DEFINITIONS - internal use only)
     LOG_LEVELS: str = ""
     LOG_FORMAT: str = (

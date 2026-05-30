@@ -592,6 +592,18 @@
     "noPermission": "Нет прав для отправки сообщений",
     "noPermissionHint": "У вас нет прав для отправки сообщений",
     "outline": "Оглавление",
+    "goal": {
+      "active": "Цель",
+      "clear": "Очистить цель",
+      "command": "Цель",
+      "completed": "Завершено",
+      "duration": "Длительность",
+      "required": "Введите цель",
+      "placeholder": "Введите цель…",
+      "running": "Выполнение",
+      "runningStatus": "Выполняется",
+      "startedAt": "Начало"
+    },
     "placeholder": "Введите сообщение, @ — выбрать персону…",
     "placeholderWithHintCtrl": "Введите сообщение, @ — выбрать персону…  Enter новая строка, Ctrl+Enter отправить",
     "placeholderWithHintShift": "Введите сообщение, @ — выбрать персону…  Enter отправить, Shift+Enter новая строка",
@@ -2100,7 +2112,8 @@
     "search": "Поиск чатов",
     "selectPersona": "Выбрать персону",
     "selectTeam": "Выбрать команду",
-    "send": "Отправить сообщение"
+    "send": "Отправить сообщение",
+    "goal": "Установить цель"
   },
   "sidebar": {
     "addToFavorites": "Добавить в избранное",

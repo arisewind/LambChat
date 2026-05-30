@@ -1,6 +1,5 @@
 import { useMemo, useCallback, useState, useEffect, useRef } from "react";
 import { useTranslation } from "react-i18next";
-import { ListTree } from "lucide-react";
 import toast from "react-hot-toast";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../../../hooks/useAuth";
@@ -8,14 +7,7 @@ import { ChatMessage } from "../../chat/ChatMessage";
 import { AttachmentPreviewHost } from "../../chat/AttachmentPreviewHost";
 import { RevealPreviewHost } from "../../chat/ChatMessage/items/RevealPreviewHost";
 import { SessionImageGalleryProvider } from "../../chat/ChatMessage/sessionImageGallery";
-import {
-  PersistentToolPanelHost,
-  closePersistentToolPanel,
-  openPersistentToolPanel,
-  isPersistentToolPanelOpen,
-  updatePersistentToolPanel,
-  type PersistentToolPanelState,
-} from "../../chat/ChatMessage/items/persistentToolPanelState";
+import { PersistentToolPanelHost } from "../../chat/ChatMessage/items/persistentToolPanelState";
 import { ChatInput } from "../../chat/ChatInput";
 import { WelcomePage } from "../../chat/WelcomePage";
 import { Virtuoso, type ListRange } from "react-virtuoso";
@@ -32,208 +24,20 @@ import {
 } from "./messageScrollUtils";
 import { getNextMessageListSessionKey } from "./useMessageScroll";
 import {
-  createMessageAnchorId,
-  getOutlineActiveAnchorIdForRange,
-  shouldShowMessageOutline,
-  extractMessageOutline,
-} from "./messageOutline";
-import { MessageOutlinePanel } from "./MessageOutlinePanel";
-import {
   isSessionRunning,
   shouldShowStreamingFooterSkeleton,
 } from "./sessionState";
-import type {
-  Message,
-  PendingApproval,
-  ToolState,
-  SkillResponse,
-  SkillSource,
-  ToolCategory,
-  AgentOption,
-  AgentInfo,
-  MessageAttachment,
-  ConnectionStatus,
-  PersonaPreset,
-  PersonaPresetSnapshot,
-} from "../../../types";
-import type { RevealPreviewRequest } from "../../chat/ChatMessage/items/revealPreviewData";
-import { clearFileRevealAutoOpenState } from "../../chat/ChatMessage/items/fileRevealAutoOpen";
-import { clearProjectRevealAutoOpenState } from "../../chat/ChatMessage/items/projectRevealAutoOpen";
-import { getLatestChatAutoPreviewTarget } from "../../chat/ChatMessage/autoPreviewEligibility";
+import type { MessageAttachment } from "../../../types";
+import type { ChatViewProps } from "./ChatViewProps";
+import { useCurrentTeam, resolveChatAssistantIdentity } from "./ChatViewProps";
+import { useChatOutline } from "./useChatOutline";
+import { useRevealPreview } from "./useRevealPreview";
 import { findCancelledRetryTarget } from "../../chat/ChatMessage/cancelledRetry";
 import {
-  createActiveRevealPreviewState,
-  markRevealPreviewInteracted,
-  shouldAcceptRevealPreviewOpen,
-  shouldStabilizeScrollForAutoPreviewOpen,
-  type ActiveRevealPreviewState,
-  type RevealPreviewOpenSource,
-} from "../../chat/ChatMessage/items/revealPreviewState";
-import {
-  getActiveRevealPreviewState,
-  setActiveRevealPreviewState,
-  subscribeActiveRevealPreviewState,
-  updateActiveRevealPreviewState,
-} from "../../chat/ChatMessage/items/activeRevealPreviewStore";
-import { clearSidebarHistory } from "../../chat/ChatMessage/items/sidebarHistoryStore";
-import type { ExternalNavigationTargetFile } from "./externalNavigationState";
-import { isFileLink } from "../../documents/utils";
-import { getFullUrl } from "../../../services/api/config";
+  getGoalForMessage,
+  getVisibleActiveGoalForMessages,
+} from "../../chat/goalVisibility";
 import { sessionApi } from "../../../services/api";
-import { teamApi } from "../../../services/api/team";
-import type { Team } from "../../../types/team";
-import { getTeamFallbackAvatar } from "../../team/teamAvatarUtils";
-import { shouldOpenExternalNavigationPreview } from "./externalNavigationState";
-
-function useCurrentTeam(currentAgent: string, selectedTeamId: string | null) {
-  const [currentTeam, setCurrentTeam] = useState<Team | null>(null);
-
-  useEffect(() => {
-    if (currentAgent !== "team" || !selectedTeamId) {
-      setCurrentTeam(null);
-      return;
-    }
-
-    let cancelled = false;
-    teamApi
-      .get(selectedTeamId)
-      .then((team) => {
-        if (!cancelled) setCurrentTeam(team);
-      })
-      .catch(() => {
-        if (!cancelled) setCurrentTeam(null);
-      });
-
-    return () => {
-      cancelled = true;
-    };
-  }, [currentAgent, selectedTeamId]);
-
-  return currentTeam;
-}
-
-function resolveChatAssistantIdentity({
-  currentAgent,
-  currentPersonaAvatar,
-  currentTeam,
-  selectedPersonaName,
-}: {
-  currentAgent: string;
-  currentPersonaAvatar: string | null;
-  currentTeam: Team | null;
-  selectedPersonaName: string | null;
-}) {
-  if (currentAgent === "team") {
-    const fallbackAvatar = currentTeam
-      ? getTeamFallbackAvatar(currentTeam)
-      : null;
-    return {
-      avatar: currentTeam?.avatar ?? fallbackAvatar,
-      name: currentTeam?.name ?? null,
-    };
-  }
-
-  return {
-    avatar: currentPersonaAvatar,
-    name: selectedPersonaName,
-  };
-}
-
-interface ChatViewProps {
-  messages: Message[];
-  sessionId: string | null;
-  currentRunId: string | null;
-  isLoading: boolean;
-  isLoadingHistory: boolean;
-  connectionStatus?: ConnectionStatus;
-  canSendMessage: boolean;
-  tools: ToolState[];
-  onToggleTool: (name: string) => void;
-  onToggleCategory: (category: ToolCategory, enabled: boolean) => void;
-  onToggleAll: (enabled: boolean) => void;
-  toolsLoading: boolean;
-  enabledToolsCount: number;
-  totalToolsCount: number;
-  skills: SkillResponse[];
-  onToggleSkill: (name: string) => Promise<boolean>;
-  onToggleSkillCategory: (
-    category: SkillSource,
-    enabled: boolean,
-  ) => Promise<boolean>;
-  onToggleAllSkills: (enabled: boolean) => Promise<boolean>;
-  skillsLoading: boolean;
-  pendingSkillNames: string[];
-  skillsMutating: boolean;
-  enabledSkillsCount: number;
-  totalSkillsCount: number;
-  enableSkills: boolean;
-  personaPresets: PersonaPreset[];
-  personaPresetsTotal: number;
-  hasMorePersonaPresets: boolean;
-  isLoadingMorePersonaPresets: boolean;
-  onLoadMorePersonaPresets: () => void;
-  personaPresetsPage: number;
-  onPersonaPresetsPageChange: (page: number) => void;
-  onPersonaPresetsSearchChange: (query: string) => void;
-  onPersonaPresetsTagChange: (tag: string | null) => void;
-  selectedPersonaPresetId: string | null;
-  selectedPersonaName: string | null;
-  selectedPersonaSnapshot: PersonaPresetSnapshot | null;
-  personaSkillsControlled: boolean;
-  personaPresetsLoading: boolean;
-  personaPresetsMutating: boolean;
-  onUsePersonaPreset: (
-    preset: PersonaPreset,
-  ) => Promise<PersonaPresetSnapshot | null>;
-  onTogglePersonaPreference: (
-    preset: PersonaPreset,
-    preference: { is_favorite?: boolean; is_pinned?: boolean },
-  ) => Promise<void>;
-  onCopyPersonaPreset: (preset: PersonaPreset) => Promise<void>;
-  onSavePersonaPreset: (
-    preset: PersonaPreset | null,
-    data: {
-      name: string;
-      description: string;
-      system_prompt: string;
-      tags: string[];
-      skill_names: string[];
-    },
-  ) => Promise<void>;
-  onClearPersonaPreset: () => void;
-  canManagePersonaPresets: boolean;
-  agentOptions: Record<string, AgentOption>;
-  agentOptionValues: Record<string, boolean | string | number>;
-  onToggleAgentOption: (key: string, value: boolean | string | number) => void;
-  // Agent mode selector
-  agents: AgentInfo[];
-  currentAgent: string;
-  onSelectAgent: (id: string) => void;
-  // Team picker
-  selectedTeamId: string | null;
-  onSelectTeam: (teamId: string | null) => void;
-  onOpenTeamBuilder?: () => void;
-  approvals: PendingApproval[];
-  onRespondApproval: (
-    id: string,
-    response: Record<string, unknown>,
-    approved: boolean,
-  ) => void;
-  approvalLoading: boolean;
-  onSendMessage: (content: string, attachments?: MessageAttachment[]) => void;
-  onStopGeneration: () => void;
-  attachments: MessageAttachment[];
-  onAttachmentsChange: React.Dispatch<
-    React.SetStateAction<MessageAttachment[]>
-  >;
-  externalNavigationToken?: string | null;
-  externalNavigationTargetFile?: ExternalNavigationTargetFile | null;
-  externalNavigationPreview?: RevealPreviewRequest | null;
-  externalNavigationTargetRunId?: string | null;
-  externalNavigationTargetRunPending?: boolean;
-  externalScrollToBottom?: boolean;
-  outlineToggleRef?: React.RefObject<(() => void) | null>;
-}
 
 export function ChatView({
   messages,
@@ -295,6 +99,9 @@ export function ChatView({
   approvalLoading,
   onSendMessage,
   onStopGeneration,
+  activeGoal,
+  goalsByRunId,
+  onClearActiveGoal,
   attachments,
   onAttachmentsChange,
   externalNavigationToken,
@@ -331,15 +138,11 @@ export function ChatView({
     ? t(getGreetingKey(), { name: user.username })
     : t(getGreetingKey());
 
-  const showOutline = shouldShowMessageOutline(messages);
-  const outlineItems = useMemo(
-    () => (showOutline ? extractMessageOutline(messages) : []),
-    [messages, showOutline],
-  );
   const previousSessionIdRef = useRef<string | null | undefined>(sessionId);
   const [messageListSessionKey, setMessageListSessionKey] = useState(
     sessionId ?? "__new_session__",
   );
+  const [visibleRange, setVisibleRange] = useState<ListRange | null>(null);
 
   const {
     messagesContainerRef,
@@ -362,7 +165,6 @@ export function ChatView({
     isLoadingHistory,
     messageListSessionKey,
   );
-  const [visibleRange, setVisibleRange] = useState<ListRange | null>(null);
 
   useEffect(() => {
     const previousSessionId = previousSessionIdRef.current;
@@ -378,19 +180,7 @@ export function ChatView({
     });
   }, [messages.length, sessionId]);
 
-  const activeOutlineId = useMemo(() => {
-    const rangeActiveId = getOutlineActiveAnchorIdForRange(
-      messages,
-      visibleRange,
-    );
-    if (rangeActiveId) {
-      return rangeActiveId;
-    }
-
-    const latestMessage = messages[messages.length - 1];
-    return latestMessage ? createMessageAnchorId(latestMessage.id) : null;
-  }, [messages, visibleRange]);
-
+  // --- Assistant identity ---
   const currentPersonaAvatar = useMemo(() => {
     const preset = personaPresets.find((p) => p.id === selectedPersonaPresetId);
     return preset?.avatar ?? null;
@@ -407,278 +197,42 @@ export function ChatView({
     [currentAgent, currentPersonaAvatar, currentTeam, selectedPersonaName],
   );
 
-  const handleOutlineNavigate = useCallback(
-    (anchorId: string, messageIndex: number) => {
-      virtuosoRef.current?.scrollToIndex({
-        index: messageIndex,
-        behavior: "smooth",
-        align: "start",
-      });
-      // After Virtuoso renders the message, scroll to the specific heading anchor
-      requestAnimationFrame(() => {
-        const el = document.getElementById(anchorId);
-        if (el) {
-          el.scrollIntoView({ behavior: "smooth", block: "start" });
-        }
-      });
-      requestAnimationFrame(() => {
-        closePersistentToolPanel();
-      });
-    },
-    [virtuosoRef],
-  );
-
-  const handleOpenOutline = useCallback(() => {
-    if (isPersistentToolPanelOpen("outline")) {
-      closePersistentToolPanel();
-      return;
-    }
-    const isMobile = window.innerWidth < 640;
-    openPersistentToolPanel({
-      title: t("chat.outline"),
-      icon: <ListTree size={18} strokeWidth={2} />,
-      status: "idle",
-      panelKey: "outline",
-      viewMode: isMobile ? "center" : "sidebar",
-      children: (
-        <MessageOutlinePanel
-          items={outlineItems}
-          activeId={activeOutlineId}
-          onNavigate={handleOutlineNavigate}
-          personaAvatar={assistantIdentity.avatar}
-        />
-      ),
-    });
-  }, [
-    outlineItems,
-    activeOutlineId,
-    handleOutlineNavigate,
-    t,
+  // --- Outline panel (side effects managed by hook) ---
+  useChatOutline(
+    messages,
+    visibleRange,
+    virtuosoRef,
     assistantIdentity.avatar,
-  ]);
-
-  useEffect(() => {
-    if (outlineToggleRef) {
-      outlineToggleRef.current = showOutline ? handleOpenOutline : null;
-    }
-  }, [outlineToggleRef, showOutline, handleOpenOutline]);
-
-  useEffect(() => {
-    if (!isPersistentToolPanelOpen("outline")) return;
-    updatePersistentToolPanel(
-      (prev: PersistentToolPanelState) => ({
-        ...prev,
-        children: (
-          <MessageOutlinePanel
-            items={outlineItems}
-            activeId={activeOutlineId}
-            onNavigate={handleOutlineNavigate}
-          />
-        ),
-      }),
-      "outline",
-    );
-  }, [outlineItems, activeOutlineId, handleOutlineNavigate]);
-
-  const [, forcePreviewRender] = useState(0);
-  const activePreviewStateRef = useRef<ActiveRevealPreviewState | null>(
-    getActiveRevealPreviewState(),
-  );
-  const isNearBottomRef = useRef(isNearBottom);
-  const autoPreviewScrollStabilizerRef = useRef<ReturnType<
-    typeof setTimeout
-  > | null>(null);
-  const dismissedPreviewKeysRef = useRef<Set<string>>(new Set());
-  const handledExternalPreviewRef = useRef<{
-    token: string | null;
-    sessionId: string | null;
-  }>({
-    token: null,
-    sessionId: null,
-  });
-  const externalPreviewActiveRef = useRef(false);
-  const activePreview = activePreviewStateRef.current?.request ?? null;
-
-  useEffect(() => {
-    isNearBottomRef.current = isNearBottom;
-  }, [isNearBottom]);
-
-  useEffect(() => {
-    const syncPreviewState = () => {
-      const previousPreview = activePreviewStateRef.current;
-      const nextPreview = getActiveRevealPreviewState();
-      activePreviewStateRef.current = nextPreview;
-      forcePreviewRender((count) => count + 1);
-
-      if (
-        shouldStabilizeScrollForAutoPreviewOpen({
-          previousPreview,
-          nextPreview,
-          isNearBottom: isNearBottomRef.current,
-        })
-      ) {
-        if (autoPreviewScrollStabilizerRef.current) {
-          clearTimeout(autoPreviewScrollStabilizerRef.current);
-        }
-        autoPreviewScrollStabilizerRef.current = setTimeout(() => {
-          autoPreviewScrollStabilizerRef.current = null;
-          scrollToBottom();
-        }, 360);
-      }
-    };
-
-    const unsubscribe = subscribeActiveRevealPreviewState(syncPreviewState);
-    return () => {
-      unsubscribe();
-      if (autoPreviewScrollStabilizerRef.current) {
-        clearTimeout(autoPreviewScrollStabilizerRef.current);
-        autoPreviewScrollStabilizerRef.current = null;
-      }
-    };
-  }, [scrollToBottom]);
-
-  const handleOpenPreview = useCallback(
-    (
-      preview: RevealPreviewRequest,
-      source: RevealPreviewOpenSource = "manual",
-    ) => {
-      // Block auto-open when an external navigation preview is active
-      if (source === "auto" && externalPreviewActiveRef.current) {
-        return false;
-      }
-
-      const shouldOpen = shouldAcceptRevealPreviewOpen({
-        activePreview: activePreviewStateRef.current,
-        nextPreview: preview,
-        source,
-        dismissedPreviewKeys: dismissedPreviewKeysRef.current,
-      });
-
-      if (!shouldOpen) {
-        return false;
-      }
-
-      if (source !== "auto") {
-        dismissedPreviewKeysRef.current.delete(preview.previewKey);
-      }
-
-      setActiveRevealPreviewState(
-        createActiveRevealPreviewState(preview, source),
-      );
-      return true;
-    },
-    [],
+    outlineToggleRef,
+    t,
   );
 
-  const handleClosePreview = useCallback((dismiss = true) => {
-    const currentPreview = activePreviewStateRef.current;
-    if (dismiss && currentPreview) {
-      dismissedPreviewKeysRef.current.add(currentPreview.request.previewKey);
-    }
-    externalPreviewActiveRef.current = false;
-    setActiveRevealPreviewState(null);
-  }, []);
-
-  const handlePreviewInteraction = useCallback(() => {
-    updateActiveRevealPreviewState((current) =>
-      markRevealPreviewInteracted(current),
-    );
-  }, []);
-
-  // Fallback: intercept file links anywhere in the chat area (covers MCP blocks, subagent panels, etc.)
-  useEffect(() => {
-    const container = messagesContainerRef.current;
-    if (!container) return;
-
-    const handleClick = (e: MouseEvent) => {
-      const target = (e.target as HTMLElement).closest("a[href]");
-      if (!target) return;
-      const href = (target as HTMLAnchorElement).getAttribute("href");
-      if (!href) return;
-
-      const fileLinkInfo = isFileLink(href);
-      if (!fileLinkInfo.isFile) return;
-
-      e.preventDefault();
-      e.stopPropagation();
-
-      const fullUrl = getFullUrl(href) || href;
-      setActiveRevealPreviewState(
-        createActiveRevealPreviewState(
-          {
-            kind: "file",
-            previewKey: fullUrl,
-            filePath: fileLinkInfo.fileName,
-            signedUrl: fullUrl,
-          },
-          "manual",
-        ),
-      );
-    };
-
-    container.addEventListener("click", handleClick, true);
-    return () => container.removeEventListener("click", handleClick, true);
-  }, [messagesContainerRef]);
-
-  useEffect(() => {
-    dismissedPreviewKeysRef.current.clear();
-    clearFileRevealAutoOpenState();
-    clearProjectRevealAutoOpenState();
-    clearSidebarHistory();
-    setActiveRevealPreviewState(null);
-    externalPreviewActiveRef.current = false;
-    closePersistentToolPanel();
-  }, [sessionId]);
-
-  useEffect(() => {
-    if (
-      !shouldOpenExternalNavigationPreview({
-        externalNavigationToken,
-        externalNavigationPreview,
-        handledToken: handledExternalPreviewRef.current.token,
-        handledSessionId: handledExternalPreviewRef.current.sessionId,
-        sessionId,
-      })
-    ) {
-      return;
-    }
-
-    if (typeof window !== "undefined" && window.innerWidth < 640) {
-      return;
-    }
-
-    if (!externalNavigationToken || !externalNavigationPreview) {
-      return;
-    }
-
-    const opened = handleOpenPreview(externalNavigationPreview, "external");
-    if (!opened) {
-      return;
-    }
-
-    handledExternalPreviewRef.current = {
-      token: externalNavigationToken,
-      sessionId: sessionId ?? null,
-    };
-    externalPreviewActiveRef.current = true;
-  }, [
+  // --- Reveal preview ---
+  const {
+    activePreview,
+    handleOpenPreview,
+    handleClosePreview,
+    handlePreviewInteraction,
+    latestAutoPreview,
+  } = useRevealPreview(
+    messages,
+    messagesContainerRef,
+    scrollToBottom,
+    isNearBottom,
+    sessionId,
     externalNavigationToken,
     externalNavigationPreview,
-    handleOpenPreview,
-    sessionId,
-  ]);
+  );
 
-  const latestAutoPreview = useMemo(
-    () =>
-      getLatestChatAutoPreviewTarget({
-        messages,
-        suppressAutoPreview: !!externalNavigationPreview,
-      }),
-    [messages, externalNavigationPreview],
+  // --- Goal visibility ---
+  const visibleActiveGoal = useMemo(
+    () => getVisibleActiveGoalForMessages(activeGoal, messages),
+    [activeGoal, messages],
   );
   const isMobileViewport =
     typeof window !== "undefined" ? window.innerWidth < 640 : false;
 
+  // --- Message action handlers ---
   const handleForkMessage = useCallback(
     async (messageId: string) => {
       if (!sessionId) return;
@@ -721,6 +275,7 @@ export function ChatView({
     [canSendMessage, onSendMessage, sessionRunning],
   );
 
+  // --- Virtuoso rendering ---
   const handleVirtuosoRangeChanged = useCallback((range: ListRange) => {
     setVisibleRange((current) =>
       current?.startIndex === range.startIndex &&
@@ -788,6 +343,10 @@ export function ChatView({
         onForkMessage={handleForkMessage}
         onRecommendQuestionClick={handleRecommendQuestionClick}
         onRetryCancelledMessage={handleRetryCancelledMessage}
+        activeGoal={
+          getGoalForMessage(goalsByRunId, message) ?? visibleActiveGoal
+        }
+        isFirst={index === 0}
       />
     ),
     [
@@ -802,6 +361,8 @@ export function ChatView({
       handleForkMessage,
       handleRecommendQuestionClick,
       handleRetryCancelledMessage,
+      visibleActiveGoal,
+      goalsByRunId,
     ],
   );
 
@@ -898,6 +459,8 @@ export function ChatView({
               selectedTeamId={selectedTeamId}
               canSendMessage={canSendMessage}
               chatInputProps={chatInputProps}
+              activeGoal={visibleActiveGoal}
+              onClearActiveGoal={onClearActiveGoal}
               onUsePersonaPreset={onUsePersonaPreset}
               onClearPersonaPreset={onClearPersonaPreset}
               onSelectTeam={onSelectTeam}
@@ -991,8 +554,15 @@ export function ChatView({
 
       {/* ChatInput at bottom (when messages exist, WelcomePage renders its own) */}
       {messages.length > 0 && (
-        <div className="relative">
-          <ChatInput {...chatInputProps} />
+        <div className="relative px-2">
+          <ChatInput
+            {...chatInputProps}
+            activeGoal={visibleActiveGoal}
+            onClearActiveGoal={onClearActiveGoal}
+            goalLabel={t("chat.goal.active", "目标")}
+            goalDurationLabel={t("chat.goal.running", "运行")}
+            goalClearLabel={t("chat.goal.clear", "清除目标")}
+          />
         </div>
       )}
     </SessionImageGalleryProvider>

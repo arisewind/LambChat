@@ -7,9 +7,11 @@ the heavier event-specific work to focused helper modules.
 
 import logging
 from io import StringIO
+from typing import Any
 
 from src.infra.agent.events.binary_uploads import upload_binary_blocks
 from src.infra.agent.events.buffers import TextChunkBuffer
+from src.infra.agent.events.debug_logger import debug_log_event
 from src.infra.agent.events.stream import StreamEventMixin
 from src.infra.agent.events.subagents import SubagentEventMixin
 from src.infra.agent.events.tool_events import ToolEventMixin
@@ -32,6 +34,8 @@ logger = get_logger(__name__)
 _CONTEXT_EVENT_TYPES = frozenset(
     ("on_chat_model_stream", "on_tool_start", "on_tool_end", "on_tool_error")
 )
+
+RUBRIC_GRADER = "rubric_grader"
 
 
 class AgentEventProcessor(SubagentEventMixin, StreamEventMixin, ToolEventMixin):
@@ -63,6 +67,8 @@ class AgentEventProcessor(SubagentEventMixin, StreamEventMixin, ToolEventMixin):
         "_subagent_display_names",
         "_subagent_avatars",
         "_started_tool_call_ids",
+        "_rubric_grader_active",
+        "_rubric_grader_id",
     )
 
     _CHUNK_FLUSH_SIZE = 200
@@ -96,6 +102,8 @@ class AgentEventProcessor(SubagentEventMixin, StreamEventMixin, ToolEventMixin):
         self._subagent_display_names = subagent_display_names or {}
         self._subagent_avatars = subagent_avatars or {}
         self._started_tool_call_ids: set[str] = set()
+        self._rubric_grader_active: bool = False
+        self._rubric_grader_id: str | None = None
 
     @property
     def output_text(self) -> str:
@@ -156,8 +164,49 @@ class AgentEventProcessor(SubagentEventMixin, StreamEventMixin, ToolEventMixin):
 
     async def process_event(self, event: StreamEvent) -> None:
         """Process a single LangChain stream event."""
+        await debug_log_event(event)
         evt_type = event.get("event")
-        tool_name = event.get("name", "")
+        event_name = event.get("name", "")
+
+        # ── Rubric grader chain detection ──
+        # The RubricMiddleware runs a grader sub-agent inside the graph.
+        # Detect its chain start/end so we can emit agent:call / agent:result
+        # and suppress all internal events to avoid polluting the main stream.
+        if event_name == RUBRIC_GRADER:
+            match evt_type:
+                case "on_chain_start":
+                    self._rubric_grader_active = True
+                    run_id = event.get("run_id", "")
+                    self._rubric_grader_id = f"rubric_grader_{run_id[:8]}"
+                    await self._presenter_emit(
+                        self.presenter.present_agent_call(
+                            agent_id=self._rubric_grader_id,
+                            agent_name="Rubric Grader",
+                            input_message="Evaluating against rubric criteria",
+                            depth=1,
+                        )
+                    )
+                    return
+                case "on_chain_end":
+                    sr = self._extract_rubric_result(event)
+                    success = sr.get("result", "completed") != "failed"
+                    result_text = sr.get("result", "completed")
+                    explanation = sr.get("explanation", "")
+                    if explanation:
+                        result_text = f"{result_text}\n{explanation}"
+                    await self._presenter_emit(
+                        self.presenter.present_agent_result(
+                            agent_id=self._rubric_grader_id or "rubric_grader",
+                            result=result_text,
+                            success=success,
+                            depth=1,
+                        )
+                    )
+                    self._rubric_grader_active = False
+                    self._rubric_grader_id = None
+                    return
+
+        tool_name = event_name
 
         if tool_name == TOOL_TASK:
             match evt_type:
@@ -179,9 +228,16 @@ class AgentEventProcessor(SubagentEventMixin, StreamEventMixin, ToolEventMixin):
         if evt_type not in _CONTEXT_EVENT_TYPES:
             return
 
+        # Route rubric grader internal events as sub-agent content (depth=1)
+        # so the frontend renders them inside the SubagentBlock panel.
         metadata = event.get("metadata", {})
-        checkpoint_ns = self._get_checkpoint_ns(metadata)
-        current_agent_id, current_depth = self._get_agent_context(checkpoint_ns)
+        checkpoint_ns = None
+        if self._rubric_grader_active:
+            current_agent_id = self._rubric_grader_id
+            current_depth = 1
+        else:
+            checkpoint_ns = self._get_checkpoint_ns(metadata)
+            current_agent_id, current_depth = self._get_agent_context(checkpoint_ns)
 
         if current_depth and logger.isEnabledFor(logging.DEBUG):
             logger.debug(
@@ -220,6 +276,20 @@ class AgentEventProcessor(SubagentEventMixin, StreamEventMixin, ToolEventMixin):
 
     async def _upload_binary_blocks(self, result: dict) -> None:
         await upload_binary_blocks(result, self._base_url)
+
+    @staticmethod
+    def _extract_rubric_result(event: StreamEvent) -> dict:
+        """Extract the structured rubric evaluation from a grader chain-end event."""
+        output: Any = event.get("data", {}).get("output", {})
+        if not isinstance(output, dict):
+            return {}
+        sr = output.get("structured_response")
+        if sr is None:
+            return {}
+        if isinstance(sr, dict):
+            return sr
+        # Pydantic model or similar object
+        return {k: getattr(sr, k, "") for k in ("result", "explanation", "criteria")}
 
 
 __all__ = ["AgentEventProcessor", "StreamEvent"]

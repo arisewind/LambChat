@@ -5,6 +5,7 @@ from typing import Any, Optional
 
 from pydantic import BaseModel, ConfigDict, Field
 
+from src.infra.goal import GoalSpec
 from src.infra.utils.datetime import utc_now
 from src.kernel.schemas.message import ToolCall
 from src.kernel.schemas.persona_preset import PersonaPresetSnapshot
@@ -60,6 +61,7 @@ class AgentRequest(BaseModel):
     context: dict[str, Any] = Field(default_factory=dict, description="Additional context")
     project_id: Optional[str] = Field(None, description="Project ID to assign to new session")
     team_id: Optional[str] = Field(None, description="Team ID for team agent mode")
+    goal: Optional[GoalSpec] = Field(None, description="Active goal for rubric-guided execution")
 
 
 class AgentStep(BaseModel):

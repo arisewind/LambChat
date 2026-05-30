@@ -27,6 +27,39 @@ test("reconstructMessagesFromEvents preserves backend user message ids", () => {
   assert.equal(messages[0]?.runId, "run-1");
 });
 
+test("reconstructMessagesFromEvents ignores goal update events as message content", () => {
+  const messages = reconstructMessagesFromEvents(
+    [
+      {
+        id: "event-user",
+        event_type: "user:message",
+        run_id: "run-1",
+        timestamp: "2026-05-08T00:00:00.000Z",
+        data: {
+          content: "/goal hi",
+          message_id: "run-1:user",
+          attachments: [],
+        },
+      },
+      {
+        id: "event-goal",
+        event_type: "goal:updated",
+        run_id: "run-1",
+        timestamp: "2026-05-08T00:00:01.000Z",
+        data: {
+          action: "set",
+          goal: { objective: "hi", rubric: "- greet" },
+        },
+      },
+    ] satisfies HistoryEvent[],
+    new Set<string>(),
+    { activeSubagentStack: [] },
+  );
+
+  assert.equal(messages.length, 1);
+  assert.equal(messages[0]?.role, "user");
+});
+
 test("reconstructMessagesFromEvents treats timezone-less backend timestamps as UTC", () => {
   const originalTimezone = process.env.TZ;
   process.env.TZ = "Asia/Shanghai";

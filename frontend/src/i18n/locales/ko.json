@@ -590,6 +590,18 @@
     "noPermission": "메시지를 보낼 권한이 없습니다",
     "noPermissionHint": "메시지를 보낼 권한이 없습니다",
     "outline": "개요",
+    "goal": {
+      "active": "목표",
+      "clear": "목표 지우기",
+      "command": "목표",
+      "completed": "완료",
+      "duration": "실행",
+      "required": "목표를 입력하세요",
+      "placeholder": "목표를 입력…",
+      "running": "실행",
+      "runningStatus": "실행 중",
+      "startedAt": "시작 시간"
+    },
     "placeholder": "메시지를 입력하여 대화를 시작, @ 로 페르소나 전환…",
     "placeholderWithHintCtrl": "메시지를 입력하여 대화를 시작, @ 로 페르소나 전환…  Enter로 줄바꿈, Ctrl+Enter로 전송",
     "placeholderWithHintShift": "메시지를 입력하여 대화를 시작, @ 로 페르소나 전환…  Enter로 전송, Shift+Enter로 줄바꿈",
@@ -2098,7 +2110,8 @@
     "search": "채팅 검색",
     "selectPersona": "페르소나 선택",
     "selectTeam": "팀 선택",
-    "send": "메시지 전송"
+    "send": "메시지 전송",
+    "goal": "목표 설정"
   },
   "sidebar": {
     "addToFavorites": "즐겨찾기에 추가",

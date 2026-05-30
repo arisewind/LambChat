@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { X, ChevronDown } from "lucide-react";
+import { X } from "lucide-react";
 
 interface ToolbarChipProps {
   icon?: ReactNode;
@@ -40,7 +40,6 @@ export function ToolbarChip({
         <span className="max-w-40 truncate text-sm font-semibold text-blue-600 dark:text-blue-400 font-serif">
           {label}
         </span>
-        <ChevronDown size={14} className="opacity-50 shrink-0" />
       </div>
     </button>
   );

@@ -10,6 +10,7 @@ import type {
   PersonaPreset,
   PersonaPresetSnapshot,
 } from "../../types";
+import type { ActiveGoalSpec } from "../../hooks/useAgent/types";
 
 export interface ChatInputProps {
   onSend: (
@@ -88,6 +89,13 @@ export interface ChatInputProps {
   pendingInput?: string | null;
   onPendingInputConsumed?: () => void;
   className?: string;
+
+  /** Active goal — when provided, renders an embedded goal strip inside the input card. */
+  activeGoal?: ActiveGoalSpec | null;
+  onClearActiveGoal?: () => void;
+  goalLabel?: string;
+  goalDurationLabel?: string;
+  goalClearLabel?: string;
 
   /** INTERNAL: panel state lifted from ChatInput for ChatView layout. */
   activePanel?: FeaturePanel;
