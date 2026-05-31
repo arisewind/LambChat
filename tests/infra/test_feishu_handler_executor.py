@@ -117,6 +117,8 @@ class _FakeTaskManager:
             enabled_skills=["planning"],
             persona_system_prompt="Persona prompt",
             disabled_mcp_tools=["mcp.tool"],
+            team_id="team-1",
+            active_goal={"objective": "ship it"},
         ):
             pass
         return "run-1", ""

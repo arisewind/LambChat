@@ -9,6 +9,7 @@ import asyncio
 import json
 import sys
 import time
+from datetime import datetime, timezone
 from typing import Any, AsyncGenerator, Callable, Optional, cast
 
 from src.infra.channel.feishu.channel import FeishuChannel
@@ -475,6 +476,8 @@ async def execute_feishu_agent(
     enabled_skills: list[str] | None = None,
     persona_system_prompt: str | None = None,
     disabled_mcp_tools: list[str] | None = None,
+    team_id: str | None = None,
+    active_goal: dict | None = None,
 ) -> AsyncGenerator[dict[str, Any], None]:
     """执行 Agent 并生成事件流"""
     from src.agents.core.base import AgentFactory
@@ -482,6 +485,11 @@ async def execute_feishu_agent(
 
     agent = await AgentFactory.get(agent_id)
     run_id = presenter.run_id if presenter else None
+
+    started_at: str | None = None
+    if active_goal is not None:
+        started_at = datetime.now(timezone.utc).isoformat()
+        yield {"event": "goal:start", "data": {"goal": active_goal, "started_at": started_at}}
 
     try:
         async for event in agent.stream(
@@ -496,11 +504,20 @@ async def execute_feishu_agent(
             enabled_skills=enabled_skills,
             persona_system_prompt=persona_system_prompt,
             disabled_mcp_tools=disabled_mcp_tools,
+            team_id=team_id,
+            active_goal=active_goal,
+            goal_started_at=started_at,
         ):
             yield event
     except (asyncio.CancelledError, TaskInterruptedError):
         if run_id:
             await agent.close(run_id)
+        if active_goal is not None:
+            ended_at = datetime.now(timezone.utc).isoformat()
+            yield {
+                "event": "goal:end",
+                "data": {"goal": active_goal, "started_at": started_at, "ended_at": ended_at},
+            }
         raise
 
 
@@ -683,6 +700,8 @@ def create_feishu_message_handler(
                 enabled_skills=None,
                 persona_system_prompt=None,
                 disabled_mcp_tools=None,
+                team_id=None,
+                active_goal=None,
             ):
                 async for event in execute_feishu_agent(
                     session_id=session_id,
@@ -697,6 +716,8 @@ def create_feishu_message_handler(
                     enabled_skills=enabled_skills,
                     persona_system_prompt=persona_system_prompt,
                     disabled_mcp_tools=disabled_mcp_tools,
+                    team_id=team_id,
+                    active_goal=active_goal,
                 ):
                     yield event
 
