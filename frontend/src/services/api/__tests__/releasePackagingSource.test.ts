@@ -20,6 +20,10 @@ test("release workflow publishes branded desktop and mobile artifacts", () => {
   assert.match(workflow, /assembleRelease/);
   assert.match(workflow, /softprops\/action-gh-release/);
   assert.match(workflow, /java-version: '21'/);
+  assert.match(workflow, /if: always\(\)/);
+  assert.match(workflow, /continue-on-error: true/);
+  assert.match(workflow, /-workspace App\.xcworkspace/);
+  assert.match(workflow, /CARGO_BUILD_JOBS/);
   assert.doesNotMatch(workflow, /mapfile/);
 });
 
