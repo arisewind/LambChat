@@ -40,6 +40,7 @@ import {
 import type { MessagePart } from "../../../types";
 import { MarkdownContent } from "./MarkdownContent";
 import { MessagePartRenderer } from "./MessagePartRenderer";
+import { getFullUrl } from "../../../services/api/config";
 import {
   createSubagentAnchorOwnerId,
   createSubagentPanelKey,
@@ -209,7 +210,7 @@ export function getSubagentAvatarImageUrl(
     return getEmojiAvatarUrl(avatar);
   }
   if (isPersonaImageAvatar(avatar)) {
-    return avatar;
+    return getFullUrl(avatar) ?? avatar;
   }
   return null;
 }

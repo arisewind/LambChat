@@ -20,6 +20,7 @@ import {
   type MessageOutlineItem,
 } from "./messageOutline";
 import { useAuth } from "../../../hooks/useAuth";
+import { getFullUrl } from "../../../services/api";
 import { AssistantAvatar } from "../../chat/ChatMessage/AssistantAvatar";
 import "./outlineFlow.css";
 
@@ -208,7 +209,9 @@ function OutlineFlowInner({
   const { fitView, setViewport } = useReactFlow();
   const containerRef = useRef<HTMLDivElement>(null);
 
-  const avatarUrl = user?.avatar_url;
+  const avatarUrl = user?.avatar_url
+    ? getFullUrl(user.avatar_url) ?? user.avatar_url
+    : undefined;
   const username = user?.username || t("common.you");
   const flowActiveId = useMemo(
     () => getOutlineFlowActiveAnchorId(items, activeId),

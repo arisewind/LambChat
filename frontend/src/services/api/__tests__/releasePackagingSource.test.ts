@@ -60,3 +60,27 @@ test("mobile package scripts generate and validate branded native images", () =>
   assert.match(assetScript, /scalePngNearest/);
   assert.match(assetScript, /1024/);
 });
+
+test("desktop package script bundles the frontend before Tauri packaging", () => {
+  const script = readRepoFile("frontend/scripts/package-desktop.mjs");
+
+  assert.match(script, /VITE_API_BASE:\s*normalizedAppUrl/);
+  assert.match(script, /spawnSync\(pnpmCommand, \["build"\]/);
+  assert.match(script, /tauriCliPackage = "@tauri-apps\/cli@2\.11\.2"/);
+  assert.match(script, /"icon", "public\/icons\/icon-512\.png"/);
+  assert.match(script, /TAURI_BUNDLES/);
+  assert.doesNotMatch(script, /pake-cli/);
+  assert.doesNotMatch(script, /PAKE_TARGETS/);
+});
+
+test("desktop package uses committed Tauri project and branded icons", () => {
+  const config = readRepoFile("frontend/src-tauri/tauri.conf.json");
+  const cargo = readRepoFile("frontend/src-tauri/Cargo.toml");
+
+  assert.match(config, /"productName": "LambChat"/);
+  assert.match(config, /"frontendDist": "\.\.\/dist"/);
+  assert.match(config, /"icons\/icon\.ico"/);
+  assert.match(config, /"icons\/icon\.icns"/);
+  assert.match(cargo, /tauri = \{ version = "2\.11\.2"/);
+  assert.match(readRepoFile(".gitignore"), /frontend\/src-tauri\/icons\//);
+});

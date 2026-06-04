@@ -16,6 +16,7 @@ import type { PendingApproval, FormField } from "../../types";
 import { Checkbox } from "../common/Checkbox";
 import { GlassSelect } from "../common/GlassSelect";
 import { authFetch } from "../../services/api/fetch";
+import { buildApiUrl } from "../../services/api/config";
 import { parseDate } from "../../utils/datetime";
 
 interface ApprovalPanelProps {
@@ -290,9 +291,14 @@ export function ApprovalPanel({
       const res = await authFetch<{
         status: string;
         expires_at: string | null;
-      }>(`/human/${approvalId}/extend?extra_seconds=${EXTEND_AMOUNT}`, {
-        method: "POST",
-      });
+      }>(
+        buildApiUrl(
+          `/human/${approvalId}/extend?extra_seconds=${EXTEND_AMOUNT}`,
+        ),
+        {
+          method: "POST",
+        },
+      );
       if (res?.status === "success" && res.expires_at) {
         const newDeadline = parseDate(res.expires_at).getTime();
         deadlinesRef.current[approvalId] = newDeadline;

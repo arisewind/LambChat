@@ -16,11 +16,11 @@ import type {
 } from "../types";
 import { sessionApi, type BackendSession } from "../services/api";
 import { authenticatedRequest } from "../services/api/authenticatedRequest";
+import { API_BASE } from "../services/api/config";
 import { feedbackApi } from "../services/api/feedback";
 import { useAuth } from "../hooks/useAuth";
 import { Permission } from "../types/auth";
 import {
-  API_BASE,
   type UseAgentOptions,
   type SubagentStackItem,
   type HistoryEvent,
@@ -174,7 +174,7 @@ export function useAgent(options?: UseAgentOptions): UseAgentReturn {
   const fetchAgents = useCallback(async () => {
     setAgentsLoading(true);
     try {
-      const response = await authenticatedRequest(`${API_BASE}/agents`, {
+      const response = await authenticatedRequest(`${API_BASE}/api/agents`, {
         headers: {
           "Content-Type": "application/json",
         },
@@ -225,7 +225,7 @@ export function useAgent(options?: UseAgentOptions): UseAgentReturn {
       // Fetch fresh agents data
       setAgentsLoading(true);
       try {
-        const response = await authenticatedRequest(`${API_BASE}/agents`, {
+        const response = await authenticatedRequest(`${API_BASE}/api/agents`, {
           headers: {
             "Content-Type": "application/json",
           },
@@ -996,4 +996,3 @@ export type {
   UseAgentReturn,
   BackendSession,
 } from "./useAgent/types";
-export { API_BASE } from "./useAgent/types";

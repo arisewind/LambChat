@@ -10,6 +10,7 @@
 import type { Message, MessagePart, FormField } from "../../types";
 import { uuid } from "../../utils/uuid";
 import { authFetch } from "../../services/api/fetch";
+import { buildApiUrl } from "../../services/api/config";
 import i18n from "../../i18n";
 import type {
   EventData,
@@ -124,7 +125,7 @@ function processHistoryEvent(
         message?: string;
         type?: string;
         fields?: FormField[];
-      }>(`/human/${approvalData.id}`)
+      }>(buildApiUrl(`/human/${approvalData.id}`))
         .then((data) => data ?? null)
         .then((approval) => {
           if (approval?.status === "pending") {

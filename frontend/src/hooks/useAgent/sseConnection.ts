@@ -6,6 +6,7 @@
 import { fetchEventSource } from "@microsoft/fetch-event-source";
 import { uuid } from "../../utils/uuid";
 import { sessionApi } from "../../services/api";
+import { buildApiUrl } from "../../services/api/config";
 import {
   getValidAccessToken,
   refreshAccessToken,
@@ -137,7 +138,9 @@ export async function connectToSSE(
 
   try {
     await fetchEventSource(
-      `/api/chat/sessions/${targetSessionId}/stream?run_id=${targetRunId}`,
+      buildApiUrl(
+        `/api/chat/sessions/${targetSessionId}/stream?run_id=${targetRunId}`,
+      ),
       {
         headers,
         signal: abortControllerRef.current.signal,

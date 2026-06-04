@@ -2,6 +2,7 @@ import { useState, useCallback, useRef, useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import toast from "react-hot-toast";
 import { uploadApi } from "../services/api";
+import { buildApiUrl } from "../services/api/config";
 import type { FileCheckResult } from "../types";
 import { compressImageFile } from "../utils/imageCompression";
 import { uuid } from "../utils/uuid";
@@ -206,7 +207,7 @@ export function useFileUpload({
                 type: c.type as FileCategory,
                 mimeType: c.mimeType ?? processedFile.type,
                 size: c.size ?? processedFile.size,
-                url: c.url || `/api/upload/file/${c.key ?? ""}`,
+                url: buildApiUrl(c.url || `/api/upload/file/${c.key ?? ""}`),
               };
               onAttachmentsChange((prev: MessageAttachment[]) =>
                 prev.map((a) =>
@@ -251,7 +252,7 @@ export function useFileUpload({
                 type: result.type as FileCategory,
                 mimeType: result.mimeType,
                 size: result.size,
-                url: result.url,
+                url: buildApiUrl(result.url),
               };
               onAttachmentsChange((prev: MessageAttachment[]) =>
                 prev.map((a) => (a.id === tempId ? finalAttachment : a)),

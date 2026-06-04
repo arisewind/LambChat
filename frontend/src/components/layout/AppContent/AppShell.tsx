@@ -285,7 +285,10 @@ export function AppShell({
         className="flex w-full overflow-hidden"
         style={{
           backgroundColor: "var(--theme-bg)",
-          height: "var(--app-viewport-height, 100dvh)",
+          boxSizing: "content-box",
+          paddingTop: "var(--app-safe-area-top, 0px)",
+          height:
+            "calc(var(--app-viewport-height, 100dvh) - var(--app-safe-area-top, 0px))",
           transform: "translate3d(0, var(--app-viewport-offset-top, 0px), 0)",
         }}
       >

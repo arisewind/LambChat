@@ -68,14 +68,18 @@ export const AttachmentCard = memo(function AttachmentCard({
     iconColor,
     label,
   } = getAttachmentIconInfo(attachment.mimeType, attachment.name);
-  const isImage = attachment.mimeType?.startsWith("image/") && attachment.url;
+  const attachmentUrl = attachment.url
+    ? getFullUrl(attachment.url) ?? attachment.url
+    : "";
+  const isImage =
+    attachment.mimeType?.startsWith("image/") && Boolean(attachmentUrl);
   const fileExt = useMemo(() => {
     const idx = attachment.name?.lastIndexOf(".");
     return idx != null && idx > 0
       ? attachment.name!.slice(idx + 1).toLowerCase()
       : "";
   }, [attachment.name]);
-  const isExcalidraw = isExcalidrawFile(fileExt) && !!attachment.url;
+  const isExcalidraw = isExcalidrawFile(fileExt) && Boolean(attachmentUrl);
   const isThumbnail = isImage || isExcalidraw;
   const isCompact = size === "compact";
 
@@ -121,16 +125,13 @@ export const AttachmentCard = memo(function AttachmentCard({
             <Loader2 size={18} className={clsx(iconColor, "animate-spin")} />
           ) : isImage ? (
             <ImageWithSkeleton
-              src={attachment.url}
+              src={attachmentUrl}
               alt={attachment.name}
               skipUrlResolve
               inline
             />
           ) : isExcalidraw ? (
-            <ExcalidrawThumbnail
-              url={getFullUrl(attachment.url) ?? attachment.url!}
-              alt={attachment.name}
-            />
+            <ExcalidrawThumbnail url={attachmentUrl} alt={attachment.name} />
           ) : (
             <FileIcon size={18} className={iconColor} />
           )}
@@ -230,7 +231,7 @@ export const AttachmentCard = memo(function AttachmentCard({
         ) : isImage ? (
           <>
             <img
-              src={attachment.url}
+              src={attachmentUrl}
               alt={attachment.name}
               referrerPolicy="no-referrer"
               className="w-full h-full object-cover"
@@ -239,7 +240,7 @@ export const AttachmentCard = memo(function AttachmentCard({
           </>
         ) : isExcalidraw ? (
           <ExcalidrawThumbnail
-            url={getFullUrl(attachment.url) ?? attachment.url!}
+            url={attachmentUrl}
             alt={attachment.name}
             className="w-full h-full object-cover"
           />

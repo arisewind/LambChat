@@ -56,6 +56,8 @@
   --sidebar-width: 16rem;
   --sidebar-rail-width: 3.25rem;
   --sidebar-transition-duration: 150ms;
+  --app-safe-area-top: env(safe-area-inset-top, 0px);
+  --app-safe-area-bottom: env(safe-area-inset-bottom, 0px);
   --app-viewport-offset-top: 0px;
   --app-keyboard-inset: 0px;
 }

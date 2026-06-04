@@ -7,6 +7,7 @@ import {
 } from "../../persona/personaAvatar";
 import { useTranslation } from "react-i18next";
 import { getFluentEmojiCDN } from "@lobehub/fluent-emoji";
+import { getFullUrl } from "../../../services/api/config";
 import {
   Code2,
   Database,
@@ -81,7 +82,7 @@ export function AssistantAvatar({
   if (isPersonaImageAvatar(personaAvatar)) {
     return (
       <img
-        src={personaAvatar}
+        src={getFullUrl(personaAvatar) ?? personaAvatar}
         alt={t("chat.assistant", "助手")}
         width={personaSize + 6}
         height={personaSize + 6}

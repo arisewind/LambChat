@@ -1,6 +1,4 @@
 import { spawnSync } from "node:child_process";
-import { existsSync } from "node:fs";
-import { resolve } from "node:path";
 
 const pnpmCommand = process.platform === "win32" ? "pnpm.cmd" : "pnpm";
 
@@ -21,36 +19,59 @@ if (!appUrl) {
   process.exit(1);
 }
 
+const normalizedAppUrl = appUrl.replace(/\/+$/, "");
+const tauriCliPackage = "@tauri-apps/cli@2.11.2";
+
 if (!hasCommand("rustc") || !hasCommand("cargo")) {
   console.error(
-    "Rust is required for Pake desktop builds. Install Rust and Tauri system prerequisites, then rerun this command.",
+    "Rust is required for Tauri desktop builds. Install Rust and Tauri system prerequisites, then rerun this command.",
   );
   console.error("See: https://tauri.app/start/prerequisites/");
   process.exit(1);
 }
 
-const iconPath = resolve("public/icons/icon-512.png");
-const args = [
-  "dlx",
-  "pake-cli@3.11.7",
-  appUrl,
-  "--name",
-  process.env.LAMBCHAT_APP_NAME || "LambChat",
-  "--width",
-  process.env.LAMBCHAT_APP_WIDTH || "1280",
-  "--height",
-  process.env.LAMBCHAT_APP_HEIGHT || "860",
-];
+const buildResult = spawnSync(pnpmCommand, ["build"], {
+  stdio: "inherit",
+  shell: process.platform === "win32",
+  env: {
+    ...process.env,
+    VITE_API_BASE: normalizedAppUrl,
+  },
+});
 
-if (existsSync(iconPath)) {
-  args.push("--icon", iconPath);
+if (buildResult.error) {
+  console.error(buildResult.error);
 }
 
-if (process.env.PAKE_TARGETS) {
-  args.push("--targets", process.env.PAKE_TARGETS);
+if (buildResult.status !== 0) {
+  process.exit(buildResult.status ?? 1);
 }
 
-if (process.env.PAKE_DEBUG === "1") {
+const iconResult = spawnSync(
+  pnpmCommand,
+  ["dlx", tauriCliPackage, "icon", "public/icons/icon-512.png"],
+  {
+    stdio: "inherit",
+    shell: process.platform === "win32",
+  },
+);
+
+if (iconResult.error) {
+  console.error(iconResult.error);
+}
+
+if (iconResult.status !== 0) {
+  process.exit(iconResult.status ?? 1);
+}
+
+const args = ["dlx", tauriCliPackage, "build", "--ci", "--no-sign"];
+
+const bundles = process.env.TAURI_BUNDLES || process.env.DESKTOP_BUNDLES || "";
+if (bundles) {
+  args.push("--bundles", bundles);
+}
+
+if (process.env.TAURI_DEBUG === "1") {
   args.push("--debug");
 }
 

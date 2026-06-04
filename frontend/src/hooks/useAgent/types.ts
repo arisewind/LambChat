@@ -288,6 +288,3 @@ export interface BackendSession {
   metadata: Record<string, unknown>;
   name?: string;
 }
-
-// Constants
-export const API_BASE = "/api";

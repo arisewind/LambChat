@@ -35,15 +35,15 @@ jobs:
         include:
           - label: Linux
             runner: ubuntu-latest
-            targets: deb
+            bundles: deb
             artifact_slug: linux
           - label: Windows
             runner: windows-2022
-            targets: msi
+            bundles: msi
             artifact_slug: windows
           - label: macOS
             runner: macos-latest
-            targets: dmg
+            bundles: dmg
             artifact_slug: macos
 
     steps:
@@ -103,9 +103,9 @@ jobs:
           "TMP=D:\temp" | Out-File -FilePath $env:GITHUB_ENV -Append
           New-Item -ItemType Directory -Force D:\pnpm-store,D:\npm-cache,D:\temp | Out-Null
 
-      - name: Build desktop package with Pake
+      - name: Build desktop package with Tauri
         env:
-          PAKE_TARGETS: ${{ matrix.targets }}
+          TAURI_BUNDLES: ${{ matrix.bundles }}
           CARGO_BUILD_JOBS: 1
         run: pnpm package:desktop
         working-directory: frontend

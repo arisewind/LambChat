@@ -10,6 +10,7 @@
 import type { Message, MessagePart, FormField } from "../../types";
 import { uuid } from "../../utils/uuid";
 import { authFetch } from "../../services/api/fetch";
+import { buildApiUrl } from "../../services/api/config";
 import { sessionApi } from "../../services/api";
 import i18n from "../../i18n";
 import { translateBackendError } from "../../utils/backendErrors";
@@ -515,7 +516,7 @@ async function handleApprovalRequired(
         type?: string;
         fields?: FormField[];
         expires_at?: string | null;
-      }>(`/human/${data.id}`);
+      }>(buildApiUrl(`/human/${data.id}`));
       if (!approval) return;
       if (approval && approval.status === "pending") {
         ctx.options?.onApprovalRequired?.({

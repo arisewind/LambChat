@@ -6,7 +6,7 @@ import { Mail, ExternalLink } from "lucide-react";
 import { useAuth } from "../../../hooks/useAuth";
 import { useSettings } from "../../../hooks/useSettings";
 import { Permission } from "../../../types";
-import { authApi, uploadApi } from "../../../services/api";
+import { authApi, getFullUrl, uploadApi } from "../../../services/api";
 
 export function ProfileInfoTab() {
   const { t } = useTranslation();
@@ -163,7 +163,7 @@ export function ProfileInfoTab() {
         <div className="relative">
           {user?.avatar_url && !imgError ? (
             <img
-              src={user.avatar_url}
+              src={getFullUrl(user.avatar_url) ?? user.avatar_url}
               alt={t("profile.avatar", "头像")}
               className="size-20 rounded-full object-cover border-4 border-white dark:border-stone-700 shadow-lg ring-2 ring-stone-100 dark:ring-stone-600"
               onError={() => setImgError(true)}

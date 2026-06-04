@@ -23,6 +23,7 @@ test("WebSocket notifications use the configured backend base", () => {
 });
 
 test("hooks with backend requests do not hardcode same-origin API roots", () => {
+  const useAgent = readSource("../../../hooks/useAgent.ts");
   const useMcp = readSource("../../../hooks/useMcp.ts");
   const useTools = readSource("../../../hooks/useTools.ts");
   const useApprovals = readSource("../../../hooks/useApprovals.ts");
@@ -30,10 +31,12 @@ test("hooks with backend requests do not hardcode same-origin API roots", () => 
     "../../../components/profile/tabs/ProfileToolsTab.tsx",
   );
 
+  assert.match(useAgent, /from "\.\.\/services\/api\/config"/);
   assert.match(useMcp, /import \{ API_BASE/);
   assert.match(useTools, /import \{ API_BASE/);
   assert.match(useApprovals, /import \{ API_BASE/);
   assert.match(profileTools, /import \{ API_BASE/);
+  assert.doesNotMatch(useAgent, /API_BASE,\n\s+type UseAgentOptions/);
   assert.doesNotMatch(useMcp, /const API_BASE = "\/api/);
   assert.doesNotMatch(useTools, /const API_BASE = "\/api/);
   assert.doesNotMatch(useApprovals, /const API_BASE =/);
@@ -42,6 +45,73 @@ test("hooks with backend requests do not hardcode same-origin API roots", () => 
   assert.doesNotMatch(useTools, /"\s*\/api/);
   assert.doesNotMatch(useApprovals, /"\s*\/human/);
   assert.doesNotMatch(profileTools, /"\s*\/api/);
+});
+
+test("streaming SSE uses the configured backend base in packaged apps", () => {
+  const source = readSource("../../../hooks/useAgent/sseConnection.ts");
+
+  assert.match(source, /import \{ buildApiUrl \}/);
+  assert.match(
+    source,
+    /buildApiUrl\(\s*`\/api\/chat\/sessions\/\$\{targetSessionId\}\/stream/,
+  );
+  assert.doesNotMatch(source, /fetchEventSource\(\s*`\/api\/chat\/sessions/);
+});
+
+test("upload attachment fallback URLs use the configured backend base", () => {
+  const source = readSource("../../../hooks/useFileUpload.ts");
+
+  assert.match(source, /import \{ buildApiUrl \}/);
+  assert.match(source, /url:\s*buildApiUrl\(c\.url \|\| `\/api\/upload\/file/);
+  assert.match(source, /url:\s*buildApiUrl\(result\.url\)/);
+  assert.doesNotMatch(source, /url:\s*c\.url \|\| `\/api\/upload\/file/);
+});
+
+test("attachment previews resolve backend-relative image URLs", () => {
+  const attachmentPreview = readSource(
+    "../../../components/chat/AttachmentPreview.tsx",
+  );
+  const attachmentCard = readSource(
+    "../../../components/common/AttachmentCard.tsx",
+  );
+
+  assert.match(attachmentPreview, /getFullUrl\(attachment\.url\)/);
+  assert.match(attachmentCard, /getFullUrl\(attachment\.url\)/);
+  assert.doesNotMatch(attachmentPreview, /src=\{attachment\.url\}/);
+  assert.doesNotMatch(attachmentCard, /src=\{attachment\.url\}/);
+});
+
+test("backend-provided avatar URLs are resolved before image rendering", () => {
+  const files = [
+    "../../../components/layout/UserMenu.tsx",
+    "../../../components/profile/tabs/ProfileInfoTab.tsx",
+    "../../../components/panels/UsersPanel.tsx",
+    "../../../components/panels/SidebarParts/SessionListContent.tsx",
+    "../../../components/panels/SidebarParts/SidebarRail.tsx",
+    "../../../components/share/SharedPage.tsx",
+    "../../../components/layout/AppContent/MessageOutlinePanel.tsx",
+    "../../../components/persona/PersonaAvatarIcon.tsx",
+    "../../../components/chat/ChatMessage/AssistantAvatar.tsx",
+    "../../../components/chat/ChatMessage/SubagentBlocks.tsx",
+  ];
+
+  for (const file of files) {
+    const source = readSource(file);
+    assert.match(source, /getFullUrl\(/, file);
+  }
+});
+
+test("approval polling requests use the configured backend base", () => {
+  const historyLoader = readSource("../../../hooks/useAgent/historyLoader.ts");
+  const eventHandlers = readSource("../../../hooks/useAgent/eventHandlers.ts");
+  const approvalPanel = readSource(
+    "../../../components/panels/ApprovalPanel.tsx",
+  );
+
+  for (const source of [historyLoader, eventHandlers, approvalPanel]) {
+    assert.match(source, /import \{ buildApiUrl \}/);
+    assert.doesNotMatch(source, /authFetch<[^>]+>\(\s*`\/human\//);
+  }
 });
 
 test("API modules share the normalized API base configuration", () => {

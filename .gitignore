@@ -57,6 +57,7 @@ htmlcov/
 # MyPy
 .mypy_cache/
 frontend/node_modules/
+frontend/src-tauri/icons/
 mcp.json
 
 # DeepAgent workspace

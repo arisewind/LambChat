@@ -21,6 +21,7 @@ import {
 } from "lucide-react";
 
 import { BackIcon } from "../common/BackIcon";
+import { getFullUrl } from "../../services/api";
 import { shareApi } from "../../services/api/share";
 import type { SharedContentResponse } from "../../types";
 import { ChatMessage } from "../chat/ChatMessage";
@@ -633,7 +634,9 @@ export function SharedPage() {
               <div className="flex items-center gap-3">
                 {data.owner.avatar_url && !imgError ? (
                   <img
-                    src={data.owner.avatar_url}
+                    src={
+                      getFullUrl(data.owner.avatar_url) ?? data.owner.avatar_url
+                    }
                     alt={data.owner.username}
                     className="size-10 rounded-full object-cover grayscale-[20%] dark:grayscale-[10%] flex-shrink-0 ring-2 ring-stone-100 dark:ring-stone-800"
                     onError={() => setImgError(true)}

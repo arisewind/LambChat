@@ -17,6 +17,7 @@ import {
 } from "./personaAvatar";
 import { getFluentEmojiCDN } from "@lobehub/fluent-emoji";
 import { getCategoryIcon } from "../panels/MarketplacePanel/constants";
+import { getFullUrl } from "../../services/api";
 
 const DEFAULT_AVATAR_EMOJI = "🤖";
 const DEFAULT_AVATAR_SRC = getFluentEmojiCDN(DEFAULT_AVATAR_EMOJI, {
@@ -106,9 +107,10 @@ export function PersonaAvatarImage({
   );
 
   if (!isPersonaImageAvatar(avatar)) return null;
+  const resolvedAvatar = getFullUrl(avatar) ?? avatar;
   return (
     <img
-      src={avatar}
+      src={resolvedAvatar}
       alt={alt}
       className={className}
       onLoad={handleLoad}

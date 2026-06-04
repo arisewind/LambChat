@@ -2,6 +2,7 @@ import { memo } from "react";
 import { X, FileText, Image, Video, Music, File } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import type { MessageAttachment } from "../../types";
+import { getFullUrl } from "../../services/api";
 
 interface AttachmentPreviewProps {
   attachments: MessageAttachment[];
@@ -34,6 +35,9 @@ export const AttachmentPreview = memo(function AttachmentPreview({
       {attachments.map((attachment) => {
         const Icon = ICON_MAP[attachment.type] || File;
         const isUploading = !!attachment.isUploading;
+        const previewUrl = attachment.url
+          ? getFullUrl(attachment.url) ?? attachment.url
+          : "";
 
         return (
           <div
@@ -55,7 +59,7 @@ export const AttachmentPreview = memo(function AttachmentPreview({
             attachment.mimeType.startsWith("image/") ? (
               <div className="w-10 h-10 rounded overflow-hidden bg-stone-200 dark:bg-stone-600 flex-shrink-0 relative z-[1]">
                 <img
-                  src={attachment.url}
+                  src={previewUrl}
                   alt={attachment.name}
                   referrerPolicy="no-referrer"
                   className="w-full h-full object-cover"

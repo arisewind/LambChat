@@ -11,8 +11,6 @@ export type {
   BackendSession,
 } from "./types";
 
-export { API_BASE } from "./types";
-
 // Re-export message parts utilities
 export {
   addPartToDepth,

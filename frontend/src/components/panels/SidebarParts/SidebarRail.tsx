@@ -10,6 +10,7 @@ import {
 import { useTranslation } from "react-i18next";
 import { useAuth } from "../../../hooks/useAuth";
 import { Permission } from "../../../types/auth";
+import { getFullUrl } from "../../../services/api";
 import { APP_NAME } from "../../../constants";
 
 const railBtn =
@@ -191,7 +192,7 @@ export function SidebarRail({
           >
             {user?.avatar_url && !imgError ? (
               <img
-                src={user.avatar_url}
+                src={getFullUrl(user.avatar_url) ?? user.avatar_url}
                 alt={user?.username || t("common.user")}
                 className="w-full h-full object-cover rounded-full"
                 onError={onImgError}

@@ -15,7 +15,7 @@ import { useAuth } from "../../../hooks/useAuth";
 import { Permission } from "../../../types/auth";
 import { LoadingSpinner } from "../../common/LoadingSpinner";
 import { BrandWordmark } from "../../common/BrandWordmark";
-import type { BackendSession } from "../../../services/api";
+import { getFullUrl, type BackendSession } from "../../../services/api";
 import type { ProjectItemHandle } from "../../sidebar/ProjectItem";
 import {
   formatUnreadCount,
@@ -466,7 +466,7 @@ export function SessionListContent({
           <div className="shrink-0 w-8 h-8 rounded-full overflow-hidden ring-1 ring-stone-200 dark:ring-stone-700 group-hover:ring-[var(--theme-primary)] transition mr-3">
             {user?.avatar_url && !imgError ? (
               <img
-                src={user.avatar_url}
+                src={getFullUrl(user.avatar_url) ?? user.avatar_url}
                 alt={user?.username || t("common.user")}
                 className="w-full h-full object-cover rounded-full"
                 onError={onImgError}

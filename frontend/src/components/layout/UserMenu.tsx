@@ -16,6 +16,7 @@ import { useAuth } from "../../hooks/useAuth";
 import { Permission } from "../../types";
 import { clearSessionSelectionGuard } from "../../utils/sessionSelectionGuard";
 import { useSwipeToClose } from "../../hooks/useSwipeToClose";
+import { getFullUrl } from "../../services/api";
 
 interface UserMenuProps {
   onShowProfile: () => void;
@@ -263,7 +264,7 @@ export function UserMenu({ onShowProfile }: UserMenuProps) {
         >
           {user?.avatar_url && !imgError ? (
             <img
-              src={user.avatar_url}
+              src={getFullUrl(user.avatar_url) ?? user.avatar_url}
               alt={user?.username || t("common.user")}
               className="size-5 object-cover rounded-full"
               onError={() => setImgError(true)}

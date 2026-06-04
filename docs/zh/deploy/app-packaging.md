@@ -18,7 +18,7 @@ APP_BASE_URL=https://lambchat.example.com
 
 ## 桌面端
 
-桌面端使用 Pake 打包远程 Web 地址：
+桌面端使用 Tauri 直接打包。脚本会先构建前端静态资源，再把 `frontend/dist` 作为本地前端资源打进桌面安装包。接口地址通过 `VITE_API_BASE` 固化为 `LAMBCHAT_APP_URL`，所以安装后的桌面 App 会连接已部署的 LambChat 服务，不依赖远程网页壳。
 
 ```bash
 cd frontend
@@ -28,11 +28,11 @@ LAMBCHAT_APP_URL=https://lambchat.example.com pnpm package:desktop
 可选参数：
 
 ```bash
-PAKE_TARGETS=deb LAMBCHAT_APP_URL=https://lambchat.example.com pnpm package:desktop
-PAKE_DEBUG=1 LAMBCHAT_APP_URL=https://lambchat.example.com pnpm package:desktop
+TAURI_BUNDLES=deb LAMBCHAT_APP_URL=https://lambchat.example.com pnpm package:desktop
+TAURI_DEBUG=1 LAMBCHAT_APP_URL=https://lambchat.example.com pnpm package:desktop
 ```
 
-Pake 依赖 Rust 和 Tauri 系统依赖。Windows、macOS、Linux 安装包最好分别在对应系统或 CI runner 上构建。
+Tauri 依赖 Rust 和对应系统依赖。Windows、macOS、Linux 安装包最好分别在对应系统或 CI runner 上构建。
 
 ## 品牌资源
 

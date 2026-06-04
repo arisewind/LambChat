@@ -23,6 +23,7 @@ import { LoadingSpinner } from "../common/LoadingSpinner";
 import { PanelLoadingState } from "../common/PanelLoadingState";
 import { EditorSidebar } from "../common/EditorSidebar";
 import { ConfirmDialog } from "../common/ConfirmDialog";
+import { getFullUrl } from "../../services/api";
 import { Checkbox } from "../common/Checkbox";
 import { Pagination } from "../common/Pagination";
 import { userApi, roleApi } from "../../services/api";
@@ -49,7 +50,7 @@ function UserAvatar({ user, size = "sm" }: UserAvatarProps) {
   if (user.avatar_url && !imgError) {
     return (
       <img
-        src={user.avatar_url}
+        src={getFullUrl(user.avatar_url) ?? user.avatar_url}
         alt={user.username}
         className={`rounded-full object-cover ${sizeClasses}`}
         onError={() => setImgError(true)}
