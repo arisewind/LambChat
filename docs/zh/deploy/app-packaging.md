@@ -100,9 +100,10 @@ Android 构建需要 JDK 和 Android SDK。iOS 构建需要 macOS、Xcode 和 Co
 
 Release 里只上传有实际发布意义的文件：
 
-- Windows：`.msi`
-- macOS：`.dmg`
-- Linux：`.deb`
+- Windows：`.msi` 安装包、`-Portable.zip` 绿色版
+- macOS：`.dmg` 安装包、`.zip` 解压版
+- Linux x86_64：`.AppImage`、`.deb`、`.rpm`
+- Linux ARM64：`.AppImage`、`.deb`、`.rpm`
 - Android：配置签名后上传 signed `.apk`；未配置签名时上传 debug `.apk`
 - iOS：上传一个新版 iOS unsigned `.xcarchive.zip` 供签名或后续导出使用，使用当前 Capacitor 7，最低 iOS 14
 
@@ -124,7 +125,8 @@ ANDROID_KEY_PASSWORD
 发布完成后进入 GitHub 仓库的 `Releases` 页面，下载名称类似下面的文件：
 
 ```text
-LambChat-windows-v2.5.0-app-*.msi
+LambChat-v2.5.0-app-Windows.msi
+LambChat-v2.5.0-app-Windows-Portable.zip
 ```
 
-这个 `.msi` 就是 Windows 安装包。其他平台文件无需下载。
+Windows 用户通常下载 `.msi` 安装包；如果想免安装使用，下载 `-Portable.zip`。

@@ -27,9 +27,28 @@ test("release workflow publishes branded desktop and mobile artifacts", () => {
   assert.match(workflow, /pnpm config set store-dir D:\\pnpm-store/);
   assert.match(workflow, /npm_config_cache=D:\\npm-cache/);
   assert.doesNotMatch(workflow, /CARGO_TARGET_DIR:/);
-  assert.match(workflow, /timeout-minutes: 45/);
+  assert.match(workflow, /timeout-minutes: 60/);
   assert.match(workflow, /runner: windows-2022/);
+  assert.match(workflow, /label: Linux x86_64/);
+  assert.match(workflow, /label: Linux ARM64/);
+  assert.match(workflow, /runner: ubuntu-24\.04-arm/);
+  assert.match(workflow, /bundles: appimage,deb,rpm/);
+  assert.match(workflow, /target: universal-apple-darwin/);
+  assert.match(
+    workflow,
+    /rustup target add aarch64-apple-darwin x86_64-apple-darwin/,
+  );
   assert.match(workflow, /frontend\/src-tauri\/target\/release\/bundle/);
+  assert.match(
+    workflow,
+    /LambChat-\$\{RELEASE_TAG\}-Linux-\$\{arch\}\.AppImage/,
+  );
+  assert.match(workflow, /LambChat-\$\{RELEASE_TAG\}-Linux-\$\{arch\}\.deb/);
+  assert.match(workflow, /LambChat-\$\{RELEASE_TAG\}-Linux-\$\{arch\}\.rpm/);
+  assert.match(workflow, /LambChat-\$env:RELEASE_TAG-Windows\.msi/);
+  assert.match(workflow, /LambChat-\$env:RELEASE_TAG-Windows-Portable\.zip/);
+  assert.match(workflow, /LambChat-\$\{RELEASE_TAG\}-macOS\.zip/);
+  assert.match(workflow, /LambChat-\$\{RELEASE_TAG\}-macOS\.dmg/);
   assert.doesNotMatch(workflow, /find frontend -type f/);
   assert.doesNotMatch(workflow, /-name '\*\.exe'/);
   assert.doesNotMatch(workflow, /mapfile/);
@@ -134,6 +153,8 @@ test("desktop package script bundles the frontend before Tauri packaging", () =>
   assert.doesNotMatch(script, /spawnSync\(pnpmCommand, \["packaged:build"\]/);
   assert.match(script, /tauriCliPackage = "@tauri-apps\/cli@2\.11\.2"/);
   assert.match(script, /"icon", "public\/icons\/icon-512\.png"/);
+  assert.match(script, /TAURI_TARGET/);
+  assert.match(script, /"--target", target/);
   assert.match(script, /TAURI_BUNDLES/);
   assert.doesNotMatch(script, /pake-cli/);
   assert.doesNotMatch(script, /PAKE_TARGETS/);
