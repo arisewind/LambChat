@@ -81,8 +81,8 @@ const statusConfig: Record<
   { bg: string; color: string; icon: React.ReactNode }
 > = {
   idle: {
-    bg: "bg-stone-100 dark:bg-stone-800",
-    color: "text-stone-500 dark:text-stone-400",
+    bg: "bg-theme-bg-subtle",
+    color: "text-theme-text-tertiary",
     icon: null,
   },
   loading: {
@@ -268,7 +268,7 @@ export function ToolResultPanel({
 
   const content = (
     <div
-      className={`w-full flex flex-col bg-white dark:bg-[#1e1e1e] pointer-events-auto ${
+      className={`w-full flex flex-col bg-theme-bg-card pointer-events-auto ${
         panelClass
           ? panelClass
           : isFullscreen
@@ -354,7 +354,7 @@ export function ToolResultPanel({
           className={`flex flex-col shrink-0 ${
             isFullscreen
               ? ""
-              : "bg-gradient-to-r from-stone-50 to-white dark:from-stone-800 dark:to-[#292524]"
+              : "bg-gradient-to-r from-theme-bg-subtle to-theme-bg-card"
           }`}
         >
           {/* Mobile drag handle */}
@@ -366,7 +366,7 @@ export function ToolResultPanel({
           {hasCustomHeader ? (
             customHeader
           ) : (
-            <div className="flex items-center gap-2 px-2 sm:px-4 py-1.5 sm:py-2 border-b border-stone-200 dark:border-stone-700 shrink-0 overflow-hidden">
+            <div className="flex items-center gap-2 px-2 sm:px-4 py-1.5 sm:py-2 border-b border-theme-border shrink-0 overflow-hidden">
               {/* Back button */}
               {effectiveOnBack && (
                 <ToolbarIconButton
@@ -400,20 +400,20 @@ export function ToolResultPanel({
 
               {/* Title */}
               {title && (
-                <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2 min-w-0 flex-1">
                   <h3
-                    className="font-medium text-sm text-stone-900 dark:text-stone-100 truncate"
+                    className="font-medium text-sm text-theme-text truncate"
                     title={title}
                   >
                     {title}
                   </h3>
                   {subtitle && (
-                    <p
-                      className="text-xs text-stone-500 dark:text-stone-400 truncate"
+                    <span
+                      className="shrink-0 inline-flex items-center justify-center h-5 min-w-[20px] rounded-full bg-theme-bg-subtle px-1.5 text-[10px] font-semibold leading-none text-theme-text-secondary"
                       title={subtitle}
                     >
                       {subtitle}
-                    </p>
+                    </span>
                   )}
                 </div>
               )}

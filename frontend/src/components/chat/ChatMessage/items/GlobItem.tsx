@@ -48,7 +48,7 @@ const GlobItem = memo(function GlobItem({
         : "error";
 
   const detailContent = canExpand && (
-    <div className="p-4 sm:p-5 space-y-3">
+    <div className="p-4 sm:p-5 space-y-4">
       <ToolArgsBlock size="detail" wrap>
         <span className="text-emerald-600 dark:text-emerald-400 font-semibold">
           {pattern}

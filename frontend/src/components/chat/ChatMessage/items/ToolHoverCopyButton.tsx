@@ -11,21 +11,21 @@ type ToolHoverCopyPosition =
   | "resultCompact";
 
 const positionClasses: Record<ToolHoverCopyPosition, string> = {
-  args: "absolute top-1.5 right-1.5 opacity-0 group-hover/args:opacity-100 transition-opacity",
+  args: "absolute top-1.5 right-1.5 sm:opacity-0 sm:group-hover/args:opacity-100 transition-opacity",
   argsCompact:
-    "absolute top-0.5 right-0.5 opacity-0 group-hover/args:opacity-100 transition-opacity",
+    "absolute top-0.5 right-0.5 sm:opacity-0 sm:group-hover/args:opacity-100 transition-opacity",
   panel:
-    "absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity",
+    "absolute top-2 right-2 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity",
   panelRaised:
-    "absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity z-10",
+    "absolute top-2 right-2 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity z-10",
   panelCompact:
-    "absolute top-1 right-1 opacity-0 group-hover:opacity-100 transition-opacity",
+    "absolute top-1 right-1 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity",
   panelCompactRaised:
-    "absolute top-1 right-1 opacity-0 group-hover:opacity-100 transition-opacity z-10",
+    "absolute top-1 right-1 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity z-10",
   result:
-    "absolute top-1.5 right-1.5 opacity-0 group-hover/result:opacity-100 transition-opacity",
+    "absolute top-1.5 right-1.5 sm:opacity-0 sm:group-hover/result:opacity-100 transition-opacity",
   resultCompact:
-    "absolute top-0.5 right-0.5 opacity-0 group-hover/result:opacity-100 transition-opacity",
+    "absolute top-0.5 right-0.5 sm:opacity-0 sm:group-hover/result:opacity-100 transition-opacity",
 };
 
 export function ToolHoverCopyButton({

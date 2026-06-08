@@ -1,6 +1,5 @@
 import { memo, useMemo } from "react";
-import { clsx } from "clsx";
-import { KeyRound } from "lucide-react";
+import { KeyRound, ShieldCheck } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { CollapsiblePill } from "../../../common";
 import { extractText } from "./toolUtils";
@@ -53,6 +52,13 @@ const EnvVarItem = memo(function EnvVarItem({
     if (!text) return [];
     try {
       const parsed = JSON.parse(text);
+      // env_var_list returns {variables: [{key, masked_value}, ...], count}
+      if (parsed?.variables && Array.isArray(parsed.variables)) {
+        return parsed.variables
+          .map((v: Record<string, unknown>) => v.key)
+          .filter(Boolean) as string[];
+      }
+      // Direct array of keys
       if (Array.isArray(parsed)) {
         return parsed
           .map((item: unknown) =>
@@ -94,31 +100,42 @@ const EnvVarItem = memo(function EnvVarItem({
 
   const labelSuffix = key || (allKeys.length > 0 ? `${allKeys.length}` : "");
 
+  // ── Panel detail content ──
+
   const detailContent = canExpand && (
-    <div className="p-4 sm:p-5 space-y-3">
+    <div className="p-4 sm:p-5 space-y-4">
       {allKeys.length > 0 && (
-        <div>
-          <div className="text-xs text-theme-text-tertiary mb-2">
-            {t("chat.message.toolVarCount", { count: allKeys.length })}
+        <div className="rounded-xl border border-theme-border overflow-hidden">
+          {/* Header */}
+          <div className="flex items-center gap-2 px-3 py-2.5 bg-emerald-50/60 dark:bg-emerald-950/20 border-b border-theme-border">
+            <ShieldCheck
+              size={13}
+              className="text-emerald-500 dark:text-emerald-400 shrink-0"
+            />
+            <span className="text-xs font-medium text-emerald-700 dark:text-emerald-300">
+              {t("chat.message.toolVarCount", { count: allKeys.length })}
+            </span>
+            <span className="text-[10px] text-emerald-600/60 dark:text-emerald-400/50 ml-auto">
+              {t("chat.message.envMasked", "Values masked")}
+            </span>
           </div>
-          <div className="space-y-1">
+          {/* Key list */}
+          <div className="divide-y divide-theme-border/40 bg-theme-bg">
             {allKeys.map((k, i) => (
               <div
                 key={i}
-                className={clsx(
-                  "flex items-center gap-2.5 px-3 py-2 rounded-lg",
-                  "bg-theme-bg border border-theme-border",
-                  "hover:bg-emerald-50/40 dark:hover:bg-emerald-950/10 hover:border-emerald-200 dark:hover:border-emerald-800/50 transition-colors",
-                )}
+                className="flex items-center gap-2.5 px-3 py-2.5 hover:bg-emerald-50/40 dark:hover:bg-emerald-950/10 transition-colors"
               >
-                <KeyRound
-                  size={14}
-                  className="shrink-0 text-emerald-500 dark:text-emerald-400"
-                />
-                <span className="text-sm font-mono text-theme-text truncate">
+                <div className="w-6 h-6 rounded-md flex items-center justify-center shrink-0 bg-emerald-100/70 dark:bg-emerald-900/20">
+                  <KeyRound
+                    size={11}
+                    className="text-emerald-500 dark:text-emerald-400"
+                  />
+                </div>
+                <span className="text-sm font-mono text-theme-text truncate flex-1">
                   {k}
                 </span>
-                <span className="ml-auto text-[10px] text-theme-text-tertiary font-mono shrink-0">
+                <span className="text-[11px] text-theme-text-tertiary font-mono shrink-0 tracking-widest">
                   ••••••••
                 </span>
               </div>
@@ -142,6 +159,8 @@ const EnvVarItem = memo(function EnvVarItem({
       )}
     </div>
   );
+
+  // ── Inline (compact) view ──
 
   return (
     <>

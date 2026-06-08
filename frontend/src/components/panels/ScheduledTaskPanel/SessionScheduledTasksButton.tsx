@@ -149,13 +149,15 @@ function SessionScheduledTaskPanelBody({
                   <span className="truncate">{task.agent_id}</span>
                 </span>
                 {task.last_run_at ? (
-                  <span className="scheduled-task-mini-card__pill">
-                    <Clock size={12} />
-                    <span>{formatDateTimeShort(task.last_run_at)}</span>
+                  <>
+                    <span className="scheduled-task-mini-card__pill">
+                      <Clock size={12} />
+                      <span>{formatDateTimeShort(task.last_run_at)}</span>
+                    </span>
                     {task.last_run_status && (
                       <RunStatusBadge status={task.last_run_status} />
                     )}
-                  </span>
+                  </>
                 ) : (
                   <span className="scheduled-task-mini-card__pill scheduled-task-mini-card__pill--muted">
                     {t("scheduledTask.neverRun")}

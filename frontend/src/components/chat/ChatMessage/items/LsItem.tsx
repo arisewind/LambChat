@@ -49,7 +49,7 @@ const LsItem = memo(function LsItem({
         : "error";
 
   const detailContent = canExpand && (
-    <div className="p-4 sm:p-5 space-y-3">
+    <div className="p-4 sm:p-5 space-y-4">
       <ToolArgsBlock size="detail">
         <FolderOpen size={14} className="shrink-0 opacity-60" />
         <span className="truncate">{dirPath}</span>

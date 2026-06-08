@@ -48,7 +48,7 @@ const AudioTranscribeItem = memo(function AudioTranscribeItem({
         : "error";
 
   const detailContent = canExpand && (
-    <div className="p-4 sm:p-5 space-y-3">
+    <div className="p-4 sm:p-5 space-y-4">
       {url && (
         <ToolArgsBlock size="detail" wrap>
           <Mic

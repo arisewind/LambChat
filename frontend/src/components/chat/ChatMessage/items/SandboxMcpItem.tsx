@@ -1,4 +1,5 @@
 import { memo, useMemo } from "react";
+import { clsx } from "clsx";
 import { KeyRound, Server, Terminal } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { CollapsiblePill } from "../../../common";
@@ -58,6 +59,20 @@ const SandboxMcpItem = memo(function SandboxMcpItem({
       .filter(Boolean);
   }, [envKeys]);
 
+  // Parse result for structured display
+  const parsedResult = useMemo(() => {
+    const text = extractText(result);
+    if (!text) return null;
+    try {
+      return JSON.parse(text);
+    } catch {
+      return null;
+    }
+  }, [result]);
+
+  const resultStatus = parsedResult?.status || parsedResult?.success;
+  const resultMessage = parsedResult?.message || "";
+
   const canExpand = !!serverName || !!command || !!result;
   const pillStatus = isPending
     ? "loading"
@@ -69,46 +84,70 @@ const SandboxMcpItem = memo(function SandboxMcpItem({
 
   const labelSuffix = serverName || command || "";
 
-  const detailContent = canExpand && (
-    <div className="p-4 sm:p-5 space-y-3">
-      {serverName && (
-        <ToolArgsBlock size="detail">
-          <Server
-            size={14}
-            className="shrink-0 text-teal-500 dark:text-teal-400"
-          />
-          <span className="truncate text-theme-text font-medium font-mono">
-            {serverName}
-          </span>
-          <ToolHoverCopyButton text={serverName} position="args" />
-        </ToolArgsBlock>
-      )}
+  // ── Panel detail content ──
 
-      {command && (
-        <div className="group/cmd relative overflow-hidden rounded-lg bg-teal-950 px-3 py-2.5 text-sm font-mono border border-teal-500/20 shadow-sm">
-          <div className="flex items-center gap-2 text-teal-100">
-            <Terminal size={13} className="shrink-0 text-teal-300" />
-            <span className="text-teal-300 font-semibold">$</span>
-            <span className="break-all min-w-0">{command}</span>
+  const detailContent = canExpand && (
+    <div className="p-4 sm:p-5 space-y-4">
+      {/* Server info card */}
+      {serverName && (
+        <div className="rounded-xl border border-theme-border overflow-hidden">
+          <div className="flex items-center gap-2.5 px-3 py-2.5 bg-teal-50/60 dark:bg-teal-900/10 border-b border-theme-border">
+            <div className="w-7 h-7 rounded-lg flex items-center justify-center shrink-0 bg-teal-100/70 dark:bg-teal-900/20">
+              <Server size={14} className="text-teal-500 dark:text-teal-400" />
+            </div>
+            <div className="min-w-0 flex-1">
+              <span className="text-sm font-mono text-theme-text font-medium truncate block">
+                {serverName}
+              </span>
+            </div>
+            <ToolHoverCopyButton
+              text={serverName}
+              position="args"
+              copyButtonClassName="!bg-theme-bg/80 !rounded-md !border !border-theme-border"
+            />
           </div>
-          <ToolHoverCopyButton
-            text={command}
-            position="args"
-            copyButtonClassName="!bg-white/10 hover:!bg-white/20 !text-teal-100 !border !border-teal-500/30"
-          />
+
+          {/* Command block */}
+          {command && (
+            <div className="px-3 py-2.5 bg-theme-bg">
+              <div className="group/cmd relative overflow-hidden rounded-lg bg-teal-950 px-3 py-2.5 text-sm font-mono border border-teal-500/20 shadow-sm">
+                <div className="flex items-center gap-2 text-teal-100">
+                  <Terminal size={13} className="shrink-0 text-teal-300" />
+                  <span className="text-teal-300 font-semibold">$</span>
+                  <span className="break-all min-w-0">{command}</span>
+                </div>
+                <ToolHoverCopyButton
+                  text={command}
+                  position="args"
+                  copyButtonClassName="!bg-white/10 hover:!bg-white/20 !text-teal-100 !border !border-teal-500/30"
+                />
+              </div>
+            </div>
+          )}
         </div>
       )}
 
+      {/* Env keys */}
       {envKeyList.length > 0 && (
-        <div>
-          <div className="text-xs text-theme-text-tertiary mb-1.5">
-            Env Keys
+        <div className="rounded-xl border border-theme-border bg-theme-bg">
+          <div className="flex items-center gap-2 px-3 py-2 border-b border-theme-border/50">
+            <KeyRound size={11} className="text-teal-500 dark:text-teal-400" />
+            <span className="text-xs font-medium text-theme-text-secondary">
+              Env Keys
+            </span>
+            <span className="text-[10px] text-theme-text-tertiary ml-auto">
+              {envKeyList.length}
+            </span>
           </div>
-          <div className="flex flex-wrap gap-1.5">
+          <div className="flex flex-wrap gap-1.5 px-3 py-2">
             {envKeyList.map((k, i) => (
               <span
                 key={i}
-                className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-theme-bg border border-theme-border text-xs text-theme-text-secondary font-mono"
+                className={clsx(
+                  "inline-flex items-center gap-1 px-2 py-1 rounded-lg",
+                  "bg-teal-50/60 dark:bg-teal-900/10 border border-teal-200/50 dark:border-teal-800/30",
+                  "text-xs text-teal-700 dark:text-teal-300 font-mono",
+                )}
               >
                 <KeyRound
                   size={10}
@@ -121,7 +160,8 @@ const SandboxMcpItem = memo(function SandboxMcpItem({
         </div>
       )}
 
-      {result && (
+      {/* Structured result */}
+      {result && !parsedResult && (
         <pre className="group/result relative text-xs text-theme-text-tertiary whitespace-pre-wrap break-words p-3 rounded-lg bg-theme-bg border border-theme-border">
           {(() => {
             const text = extractText(result);
@@ -134,8 +174,26 @@ const SandboxMcpItem = memo(function SandboxMcpItem({
           />
         </pre>
       )}
+
+      {/* Parsed result message */}
+      {parsedResult && resultMessage && (
+        <div
+          className={clsx(
+            "rounded-xl border px-3 py-2.5 text-xs",
+            resultStatus === true || resultStatus === "active"
+              ? "bg-emerald-50/60 dark:bg-emerald-900/10 border-emerald-200/50 dark:border-emerald-800/30 text-emerald-700 dark:text-emerald-300"
+              : resultStatus === false
+                ? "bg-red-50/60 dark:bg-red-900/10 border-red-200/50 dark:border-red-800/30 text-red-700 dark:text-red-300"
+                : "bg-theme-bg border-theme-border text-theme-text-secondary",
+          )}
+        >
+          {resultMessage}
+        </div>
+      )}
     </div>
   );
+
+  // ── Inline (compact) view ──
 
   return (
     <>

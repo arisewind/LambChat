@@ -83,16 +83,20 @@ const GrepItem = memo(function GrepItem({
         : "error";
 
   const detailContent = canExpand && (
-    <div className="p-4 sm:p-5 space-y-3">
+    <div className="p-4 sm:p-5 space-y-4">
       <ToolArgsBlock size="detail" wrap>
-        <span className="text-violet-600 dark:text-violet-400 font-semibold">
+        <Search
+          size={14}
+          className="shrink-0 text-violet-500 dark:text-violet-400"
+        />
+        <span className="text-violet-600 dark:text-violet-400 font-semibold font-mono">
           {pattern}
         </span>
         {searchPath && (
           <span className="text-theme-text-tertiary">in {searchPath}</span>
         )}
         {glob && (
-          <span className="shrink-0 px-2 py-0.5 rounded-md bg-theme-bg-subtle text-theme-text-secondary text-xs">
+          <span className="shrink-0 px-2 py-0.5 rounded-md bg-theme-bg-subtle text-theme-text-secondary text-xs ring-1 ring-theme-border/50">
             {glob}
           </span>
         )}

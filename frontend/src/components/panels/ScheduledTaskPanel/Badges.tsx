@@ -1,4 +1,4 @@
-import { useTranslation } from "react-i18next";
+import { useTranslation, Trans } from "react-i18next";
 import { StatusBadge, type StatusColor } from "../../common/StatusBadge";
 
 const STATUS_COLOR_MAP: Record<string, StatusColor> = {
@@ -28,7 +28,10 @@ const RUN_STATUS_COLOR_MAP: Record<string, StatusColor> = {
 
 /** Run status badge */
 export function RunStatusBadge({ status }: { status: string }) {
+  const { t } = useTranslation();
   const color = RUN_STATUS_COLOR_MAP[status] ?? "stone";
 
-  return <StatusBadge color={color} label={status} size="sm" />;
+  return (
+    <StatusBadge color={color} label={t(`scheduledTask.${status}`)} size="sm" />
+  );
 }

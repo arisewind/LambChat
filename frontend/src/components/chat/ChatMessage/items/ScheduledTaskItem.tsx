@@ -16,6 +16,7 @@ import { ToolArgsBlock } from "./ToolArgsBlock";
 import { ToolInlineDetails } from "./ToolInlineDetails";
 import { ToolHoverCopyButton } from "./ToolHoverCopyButton";
 import { ToolDurationFooter } from "./ToolDurationFooter";
+import { DetailSection } from "./DetailSection";
 
 // ── helpers ──────────────────────────────────────────────────────────
 
@@ -32,7 +33,13 @@ function getActionLabel(
   return t(map[toolName] || "chat.message.toolScheduledTask");
 }
 
-function TriggerBadge({ type }: { type: string }) {
+function TriggerBadge({
+  type,
+  t,
+}: {
+  type: string;
+  t: (key: string, opts?: Record<string, unknown>) => string;
+}) {
   const styles: Record<string, string> = {
     date: "bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-300",
     interval: "bg-sky-100 dark:bg-sky-900/30 text-sky-700 dark:text-sky-300",
@@ -41,12 +48,12 @@ function TriggerBadge({ type }: { type: string }) {
   return (
     <span
       className={clsx(
-        "inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-xs font-medium",
+        "inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md text-xs font-medium",
         styles[type] || styles.date,
       )}
     >
       <Clock size={10} className="opacity-70" />
-      {type}
+      {t(`scheduledTask.${type}`)}
     </span>
   );
 }
@@ -54,15 +61,17 @@ function TriggerBadge({ type }: { type: string }) {
 function StatusBadge({
   status,
   enabled,
+  t,
 }: {
   status?: string;
   enabled?: boolean;
+  t: (key: string, opts?: Record<string, unknown>) => string;
 }) {
   if (!enabled) {
     return (
       <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-theme-bg-subtle text-theme-text-tertiary text-xs">
         <AlertCircle size={10} />
-        disabled
+        {t("scheduledTask.paused")}
       </span>
     );
   }
@@ -82,24 +91,27 @@ function StatusBadge({
           isActive ? "bg-emerald-500" : "bg-stone-400",
         )}
       />
-      {status || "unknown"}
+      {t(`scheduledTask.${status || "statusUnknown"}`)}
     </span>
   );
 }
 
 function formatSchedule(
   preview: Record<string, unknown> | null | undefined,
+  t: (key: string, opts?: Record<string, unknown>) => string,
 ): string {
   if (!preview) return "";
-  if (typeof preview.schedule === "string") return preview.schedule;
   const trigger = preview.trigger_type as string | undefined;
   const config = preview.trigger_config as Record<string, unknown> | undefined;
   if (trigger === "interval" && config?.seconds) {
     const s = Number(config.seconds);
-    if (s >= 86400) return `every ${Math.round(s / 86400)} day(s)`;
-    if (s >= 3600) return `every ${Math.round(s / 3600)} hour(s)`;
-    if (s >= 60) return `every ${Math.round(s / 60)} minute(s)`;
-    return `every ${s}s`;
+    if (s >= 86400)
+      return t("scheduledTask.everyDays", { count: Math.round(s / 86400) });
+    if (s >= 3600)
+      return t("scheduledTask.everyHours", { count: Math.round(s / 3600) });
+    if (s >= 60)
+      return t("scheduledTask.everyMinutes", { count: Math.round(s / 60) });
+    return t("scheduledTask.everySeconds", { count: s });
   }
   if (trigger === "cron" && config) {
     const parts = [
@@ -110,12 +122,13 @@ function formatSchedule(
     ]
       .filter(Boolean)
       .map(String);
-    return `cron: ${parts.join(" ")}`;
+    return t("scheduledTask.cronExpr", { expr: parts.join(" ") });
   }
   if (trigger === "date") {
     if (preview.run_at) return String(preview.run_at);
-    if (config?.seconds) return `in ${Number(config.seconds)}s`;
-    return "once";
+    if (config?.seconds)
+      return t("scheduledTask.inSeconds", { seconds: Number(config.seconds) });
+    return t("scheduledTask.once");
   }
   return "";
 }
@@ -230,7 +243,7 @@ const ScheduledTaskItem = memo(function ScheduledTaskItem({
   const trigger = String(
     task?.trigger_type || triggerType || preview?.trigger_type || "",
   );
-  const schedule = formatSchedule(preview) || formatSchedule(parsed.task);
+  const schedule = formatSchedule(preview, t) || formatSchedule(parsed.task, t);
   const taskMessage = String(
     preview?.message ||
       (task?.input_payload as Record<string, unknown> | undefined)?.message ||
@@ -273,23 +286,23 @@ const ScheduledTaskItem = memo(function ScheduledTaskItem({
               className="text-amber-600 dark:text-amber-400"
             />
           </div>
-          <div className="min-w-0 flex-1 space-y-1">
+          <div className="min-w-0 flex-1 space-y-1.5">
             <div className="text-sm text-theme-text font-semibold truncate">
               {displayName}
             </div>
             <div className="flex flex-wrap gap-1.5">
-              {trigger && <TriggerBadge type={trigger} />}
+              {trigger && <TriggerBadge type={trigger} t={t} />}
               {schedule && (
-                <span className="px-2 py-0.5 rounded-md bg-theme-bg-subtle text-theme-text-tertiary text-xs font-mono">
+                <span className="px-2 py-0.5 rounded-md bg-theme-bg-subtle text-theme-text-tertiary text-xs font-mono leading-relaxed">
                   {schedule}
                 </span>
               )}
               {typeof enabled === "boolean" && (
-                <StatusBadge status={status} enabled={enabled} />
+                <StatusBadge status={status} enabled={enabled} t={t} />
               )}
               {typeof totalRuns === "number" && totalRuns > 0 && (
                 <span className="px-2 py-0.5 rounded-md bg-theme-bg-subtle text-theme-text-tertiary text-xs tabular-nums">
-                  {totalRuns} runs
+                  {t("scheduledTask.runsCount", { count: totalRuns })}
                 </span>
               )}
             </div>
@@ -306,19 +319,15 @@ const ScheduledTaskItem = memo(function ScheduledTaskItem({
 
       {/* Message prompt */}
       {taskMessage && !isList && (
-        <div
-          className={clsx(
-            "rounded-lg border border-theme-border overflow-hidden",
-          )}
+        <DetailSection
+          title={t("chat.message.toolTaskName")}
+          icon={<MessageSquare size={12} />}
+          defaultExpanded={true}
         >
-          <div className="flex items-center gap-1.5 px-3 py-1.5 bg-theme-bg-subtle text-theme-text-tertiary text-xs">
-            <MessageSquare size={10} className="opacity-60" />
-            {t("chat.message.toolTaskName")}
-          </div>
-          <div className="px-3 py-2 text-sm text-theme-text-secondary whitespace-pre-wrap break-words">
+          <div className="text-sm text-theme-text-secondary whitespace-pre-wrap break-words leading-relaxed">
             {taskMessage}
           </div>
-        </div>
+        </DetailSection>
       )}
 
       {/* Effect description */}
@@ -347,44 +356,56 @@ const ScheduledTaskItem = memo(function ScheduledTaskItem({
 
       {/* List of tasks */}
       {isList && tasks.length > 0 && (
-        <div className="space-y-1.5">
-          <div className="text-xs text-theme-text-tertiary mb-1">
-            {t("chat.message.toolScheduledTaskList")} — {tasks.length}
-          </div>
-          {tasks.map((tk, i) => {
-            const tkName = String(tk.name || `Task ${i + 1}`);
-            const tkTrigger = tk.trigger_type as string | undefined;
-            const tkStatus = tk.status as string | undefined;
-            const tkEnabled = tk.enabled as boolean | undefined;
-            const tkId = tk.id as string | undefined;
-            return (
-              <div
-                key={tkId || i}
-                className={clsx(
-                  "flex items-center gap-2.5 px-3 py-2 rounded-lg transition-colors",
-                  "bg-theme-bg border border-theme-border",
-                  "hover:border-amber-200 dark:hover:border-amber-800/50",
-                )}
-              >
-                <CalendarClock
-                  size={14}
-                  className="shrink-0 text-amber-500 dark:text-amber-400"
-                />
-                <div className="min-w-0 flex-1">
-                  <div className="text-sm text-theme-text font-medium truncate">
-                    {tkName}
+        <DetailSection
+          title={t("chat.message.toolScheduledTaskList")}
+          icon={<CalendarClock size={12} />}
+          defaultExpanded={true}
+          badge={
+            <span className="text-[10px] text-theme-text-tertiary tabular-nums">
+              {tasks.length}
+            </span>
+          }
+        >
+          <div className="space-y-1.5">
+            {tasks.map((tk, i) => {
+              const tkName = String(tk.name || `Task ${i + 1}`);
+              const tkTrigger = tk.trigger_type as string | undefined;
+              const tkStatus = tk.status as string | undefined;
+              const tkEnabled = tk.enabled as boolean | undefined;
+              const tkId = tk.id as string | undefined;
+              return (
+                <div
+                  key={tkId || i}
+                  className={clsx(
+                    "flex items-center gap-2.5 px-3 py-2 rounded-lg transition-colors",
+                    "bg-theme-bg border border-theme-border",
+                    "hover:border-amber-200 dark:hover:border-amber-800/50",
+                  )}
+                >
+                  <CalendarClock
+                    size={14}
+                    className="shrink-0 text-amber-500 dark:text-amber-400"
+                  />
+                  <div className="min-w-0 flex-1">
+                    <div className="text-sm text-theme-text font-medium truncate">
+                      {tkName}
+                    </div>
                   </div>
+                  {tkTrigger && (
+                    <span className="shrink-0 px-1.5 py-0.5 rounded bg-theme-bg-subtle text-[10px] text-theme-text-tertiary">
+                      {t(`scheduledTask.${tkTrigger}`)}
+                    </span>
+                  )}
+                  <StatusBadge
+                    status={tkStatus}
+                    enabled={tkEnabled !== false}
+                    t={t}
+                  />
                 </div>
-                {tkTrigger && (
-                  <span className="shrink-0 px-1.5 py-0.5 rounded bg-theme-bg-subtle text-[10px] text-theme-text-tertiary">
-                    {tkTrigger}
-                  </span>
-                )}
-                <StatusBadge status={tkStatus} enabled={tkEnabled !== false} />
-              </div>
-            );
-          })}
-        </div>
+              );
+            })}
+          </div>
+        </DetailSection>
       )}
 
       {/* Pure text fallback (no structured data parsed) */}
@@ -422,7 +443,7 @@ const ScheduledTaskItem = memo(function ScheduledTaskItem({
         {trigger && (
           <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-amber-100/60 dark:bg-amber-900/20 text-amber-700 dark:text-amber-300 text-[10px] font-medium">
             <Clock size={8} className="opacity-70" />
-            {trigger}
+            {t(`scheduledTask.${trigger}`)}
           </span>
         )}
         {schedule && (
@@ -445,7 +466,11 @@ const ScheduledTaskItem = memo(function ScheduledTaskItem({
                 enabled ? "bg-emerald-500" : "bg-stone-400",
               )}
             />
-            {status || (enabled ? "active" : "off")}
+            {status
+              ? t(`scheduledTask.${status}`)
+              : enabled
+                ? t("scheduledTask.active")
+                : t("scheduledTask.statusOff")}
           </span>
         )}
       </div>
@@ -485,7 +510,7 @@ const ScheduledTaskItem = memo(function ScheduledTaskItem({
                 </span>
                 {tkTrigger && (
                   <span className="shrink-0 text-[9px] text-theme-text-tertiary">
-                    {tkTrigger}
+                    {t(`scheduledTask.${tkTrigger}`)}
                   </span>
                 )}
               </div>

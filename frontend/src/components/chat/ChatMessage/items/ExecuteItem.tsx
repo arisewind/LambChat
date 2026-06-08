@@ -5,6 +5,7 @@ import { useTranslation } from "react-i18next";
 import { CollapsiblePill } from "../../../common";
 import { extractText } from "./toolUtils";
 import { openPersistentToolPanel } from "./persistentToolPanelState";
+import { ToolInlineDetails } from "./ToolInlineDetails";
 import { ToolHoverCopyButton } from "./ToolHoverCopyButton";
 import { ToolDurationFooter } from "./ToolDurationFooter";
 
@@ -72,12 +73,13 @@ const ExecuteItem = memo(function ExecuteItem({
         : "error";
 
   const detailContent = canExpand && (
-    <div className="p-4 sm:p-5 space-y-3">
-      <div className="group/args relative px-3 py-2.5 rounded-lg bg-stone-900 dark:bg-stone-950 text-sm font-mono flex items-center gap-2 flex-wrap">
+    <div className="p-4 sm:p-5 space-y-4">
+      <div className="group/args relative px-3.5 py-3 rounded-xl bg-stone-900 dark:bg-stone-950 text-sm font-mono flex items-center gap-2.5 flex-wrap shadow-sm ring-1 ring-stone-700/30 dark:ring-stone-800/40">
+        <Terminal size={13} className="shrink-0 text-stone-500" />
         <span className="text-emerald-400 font-semibold">$</span>
         <span className="text-stone-200 break-all min-w-0">{command}</span>
         {timeout && (
-          <span className="shrink-0 px-2 py-0.5 rounded-md bg-stone-700 text-stone-300 text-xs">
+          <span className="shrink-0 px-2 py-0.5 rounded-md bg-stone-700/80 text-stone-300 text-xs ring-1 ring-stone-600/30">
             {timeout}s
           </span>
         )}
@@ -92,7 +94,7 @@ const ExecuteItem = memo(function ExecuteItem({
         <div className="relative group">
           <pre
             className={clsx(
-              "text-sm rounded-lg p-4 min-w-0",
+              "text-sm rounded-xl p-4 min-w-0",
               "bg-theme-bg border border-theme-border",
               "text-theme-text-secondary whitespace-pre-wrap break-words font-mono",
             )}
@@ -103,7 +105,7 @@ const ExecuteItem = memo(function ExecuteItem({
             text={parsed.output}
             size={14}
             position="panel"
-            copyButtonClassName="!bg-theme-bg-card/80 !rounded-md !border !border-theme-border"
+            copyButtonClassName="!bg-theme-bg-card/80 !rounded-lg !border !border-theme-border"
           />
         </div>
       )}
@@ -111,10 +113,10 @@ const ExecuteItem = memo(function ExecuteItem({
       {!isPending && result && (
         <div
           className={clsx(
-            "flex items-center gap-1.5 text-sm px-3 py-2 rounded-lg",
+            "flex items-center gap-2 text-sm px-3.5 py-2.5 rounded-xl ring-1",
             parsed.exitCode === 0
-              ? "text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/30"
-              : "text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-950/30",
+              ? "text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/30 ring-emerald-200/40 dark:ring-emerald-800/30"
+              : "text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-950/30 ring-red-200/40 dark:ring-red-800/30",
           )}
         >
           {parsed.exitCode === 0 ? (
@@ -122,7 +124,7 @@ const ExecuteItem = memo(function ExecuteItem({
           ) : (
             <XCircle size={14} className="shrink-0" />
           )}
-          <span>
+          <span className="font-medium">
             {parsed.exitCode !== null
               ? t("chat.message.toolExitCode", { code: parsed.exitCode })
               : success
@@ -165,7 +167,7 @@ const ExecuteItem = memo(function ExecuteItem({
         }}
       >
         {canExpand && (
-          <div className="mt-2 ml-4 pl-3 border-l-2 border-theme-border space-y-2 max-h-80 overflow-y-auto min-w-0">
+          <ToolInlineDetails>
             <div className="group/args relative px-2 py-1.5 rounded-md bg-theme-bg-subtle text-xs text-theme-text-tertiary font-mono flex items-center gap-2 flex-wrap">
               <span className="text-theme-text">$</span>
               <span className="text-emerald-600 dark:text-emerald-400 break-all min-w-0">
@@ -227,7 +229,7 @@ const ExecuteItem = memo(function ExecuteItem({
                 )}
               </div>
             )}
-          </div>
+          </ToolInlineDetails>
         )}
       </CollapsiblePill>
     </>
