@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import asyncio
+
 import pytest
 
 from src.infra.tool import mcp_cache
@@ -61,6 +63,24 @@ async def test_cleanup_expired_cache_drains_scheduled_client_closes(
 
     assert removed == 1
     assert client.close_calls == 1
+    assert not mcp_cache._background_tasks
+
+
+@pytest.mark.asyncio
+async def test_drain_background_tasks_cancels_tasks_that_exceed_timeout() -> None:
+    started = asyncio.Event()
+
+    async def _never_finishes() -> None:
+        started.set()
+        await asyncio.Event().wait()
+
+    task = asyncio.create_task(_never_finishes())
+    mcp_cache._track_background_task(task)
+    await asyncio.wait_for(started.wait(), timeout=1)
+
+    await mcp_cache.drain_background_tasks(timeout=0.01)
+
+    assert task.cancelled() is True
     assert not mcp_cache._background_tasks
 
 
