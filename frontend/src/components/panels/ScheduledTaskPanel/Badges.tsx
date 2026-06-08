@@ -1,4 +1,4 @@
-import { useTranslation, Trans } from "react-i18next";
+import { useTranslation } from "react-i18next";
 import { StatusBadge, type StatusColor } from "../../common/StatusBadge";
 
 const STATUS_COLOR_MAP: Record<string, StatusColor> = {
