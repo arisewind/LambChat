@@ -617,7 +617,7 @@ export function TaskSessionListSkeleton() {
           {Array.from({ length: 8 }).map((_, i) => (
             <div
               key={i}
-              className="glass-card scheduled-task-session-card w-full text-left"
+              className="glass-card scheduled-task-session-card w-full text-left border border-[var(--theme-border)]"
             >
               {/* Left indicator — matches .scheduled-task-session-card__indicator (2.5rem × 2.5rem) */}
               <div className="scheduled-task-session-card__indicator">

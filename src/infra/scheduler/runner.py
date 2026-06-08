@@ -266,9 +266,9 @@ class ScheduledTaskRunner:
 
         if trigger_type == TriggerType.INTERVAL.value and task.trigger_type == TriggerType.INTERVAL:
             seconds = max(1, int(task.trigger_config.get("seconds", 1)))
-            anchor = task.last_run_at or task.created_at
-            if anchor is not None:
-                due_at = ensure_utc(anchor) + timedelta(seconds=seconds)
+            interval_anchor = task.last_run_at or task.created_at
+            if interval_anchor is not None:
+                due_at = ensure_utc(interval_anchor) + timedelta(seconds=seconds)
                 return f"interval:{int(due_at.timestamp())}", max(seconds * 2, 60), due_at
             bucket = int(now.timestamp()) // seconds
             return f"interval:{bucket}", max(seconds * 2, 60), None
