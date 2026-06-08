@@ -770,13 +770,13 @@ export function SubagentBlock({
         effectiveStatus === "running" &&
           "ring-amber-200/60 dark:ring-amber-800/30 bg-amber-50/80 dark:bg-amber-950/15",
         effectiveStatus === "complete" &&
-          "ring-stone-200/60 dark:ring-stone-700/80 bg-theme-bg-card dark:bg-theme-bg-card",
+          "ring-stone-200 dark:ring-stone-700/80 bg-stone-50/80 dark:bg-stone-800/40",
         effectiveStatus === "error" &&
           "ring-red-200/60 dark:ring-red-900/40 bg-gradient-to-r from-red-50/60 to-transparent dark:from-red-950/20",
         effectiveStatus === "cancelled" &&
-          "ring-stone-200/60 dark:ring-stone-700/80 bg-theme-bg-card dark:bg-theme-bg-card",
+          "ring-stone-200 dark:ring-stone-700/80 bg-stone-50/80 dark:bg-stone-800/40",
         (!effectiveStatus || effectiveStatus === "pending") &&
-          "ring-stone-200/50 dark:ring-stone-700/60",
+          "ring-stone-200 dark:ring-stone-700/80 bg-stone-50/80 dark:bg-stone-800/40",
       )}
       style={
         effectiveStatus === "running"
