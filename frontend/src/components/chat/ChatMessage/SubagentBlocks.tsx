@@ -766,17 +766,17 @@ export function SubagentBlock({
     <div
       className={clsx(
         "my-1.5 rounded-xl overflow-hidden min-w-0 group relative",
-        "border transition-all duration-250",
+        "ring-1 transition-all duration-250",
         effectiveStatus === "running" &&
-          "border-amber-200/60 dark:border-amber-800/30 bg-amber-50/80 dark:bg-amber-950/15",
+          "ring-amber-200/60 dark:ring-amber-800/30 bg-amber-50/80 dark:bg-amber-950/15",
         effectiveStatus === "complete" &&
-          "border-theme-border/60 bg-theme-bg-card dark:bg-theme-bg-card",
+          "ring-stone-200/60 dark:ring-stone-700/80 bg-theme-bg-card dark:bg-theme-bg-card",
         effectiveStatus === "error" &&
-          "border-red-200/60 dark:border-red-900/40 bg-gradient-to-r from-red-50/60 to-transparent dark:from-red-950/20",
+          "ring-red-200/60 dark:ring-red-900/40 bg-gradient-to-r from-red-50/60 to-transparent dark:from-red-950/20",
         effectiveStatus === "cancelled" &&
-          "border-theme-border/60 bg-theme-bg-card dark:bg-theme-bg-card",
+          "ring-stone-200/60 dark:ring-stone-700/80 bg-theme-bg-card dark:bg-theme-bg-card",
         (!effectiveStatus || effectiveStatus === "pending") &&
-          "border-theme-border/50",
+          "ring-stone-200/50 dark:ring-stone-700/60",
       )}
       style={
         effectiveStatus === "running"
