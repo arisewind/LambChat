@@ -35,6 +35,15 @@ test("does not reuse the Virtuoso remount key as a bottom-lock token", () => {
   );
 });
 
+test("lets Virtuoso follow output only when it is already at the bottom", () => {
+  assert.match(
+    chatViewSource,
+    /const handleVirtuosoFollowOutput = useCallback\(\s*\(isAtBottom: boolean\) => \(isAtBottom \? "smooth" : false\),\s*\[\],\s*\);/,
+  );
+  assert.match(chatViewSource, /followOutput=\{handleVirtuosoFollowOutput\}/);
+  assert.doesNotMatch(chatViewSource, /followOutput=\{"smooth"\}/);
+});
+
 test("anchors floating scroll buttons to the chat input", () => {
   assert.match(
     chatViewSource,
@@ -42,7 +51,7 @@ test("anchors floating scroll buttons to the chat input", () => {
   );
   assert.equal(
     chatViewSource.match(/\$\{FLOATING_SCROLL_BUTTON_OFFSET_CLASS\}/g)?.length,
-    2,
+    1,
   );
   assert.match(
     chatViewSource,
