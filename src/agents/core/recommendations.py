@@ -1,4 +1,4 @@
-"""Simple LangGraph node for emitting recommended next-step suggestions."""
+"""Simple LangGraph node for emitting likely next user questions."""
 
 from __future__ import annotations
 
@@ -18,6 +18,10 @@ from src.infra.logging import get_logger
 from src.kernel.config import settings
 
 _CJK_RE = re.compile(r"[\u3400-\u9fff]")
+_CHANGE_REQUEST_RE = re.compile(
+    r"(修复|修改|改一下|调整|优化|提示词|测试|验证|跑一下|fix|change|update|prompt|test|verify)",
+    re.IGNORECASE,
+)
 logger = get_logger(__name__)
 MAX_RECOMMEND_PROMPT_TOKENS = 10000
 _CHARS_PER_TOKEN_ESTIMATE = 4
@@ -28,11 +32,14 @@ _CURRENT_OUTPUT_MAX_CHARS = 4000
 _HISTORY_MAX_CHARS = 32000
 _DEFAULT_RECOMMEND_BACKGROUND_TASKS = 8
 _RECOMMEND_SYSTEM_PROMPT = (
-    "You generate next-step suggestions only, not questions.\n"
-    "Generate exactly 3 concise next-step suggestions for a chat UI.\n"
-    "Each suggestion must be an actionable imperative or task phrase the user can run next.\n"
-    "Do not ask for confirmation, clarification, preferences, or missing details.\n"
-    "Do not end suggestions with question marks.\n"
+    "You generate likely next user questions from the user's perspective.\n"
+    "Generate exactly 3 concise likely next user questions for a chat UI.\n"
+    "Each item must sound like something the user might naturally send as their next message.\n"
+    "Use first-person user wording when it fits, such as '我该...' or '能帮我...'.\n"
+    "Do not summarize or reuse the assistant answer as next steps.\n"
+    "Do not produce assistant-perspective tasks, imperatives, titles, or action-plan bullets.\n"
+    "Do not ask the assistant's own clarification questions.\n"
+    "Prefer questions that end with a question mark.\n"
     "Use the same language as the current user message.\n"
     "Prioritize the current user message and current assistant answer. Use recent "
     "conversation history only as background when it helps.\n"
@@ -123,27 +130,40 @@ def _compact_topic(user_input: str, max_len: int = 24) -> str:
 
 
 def build_recommend_questions(user_input: str) -> list[str]:
-    """Build lightweight fallback next-step suggestions."""
+    """Build lightweight fallback next user questions."""
     topic = _compact_topic(user_input)
+    if _CHANGE_REQUEST_RE.search(user_input):
+        if _CJK_RE.search(user_input):
+            return [
+                "改完后会返回什么样？",
+                "能帮我跑一下验证吗？",
+                "还需要调整哪些地方？",
+            ]
+        return [
+            "What will it return after the change?",
+            "Can you run a verification for me?",
+            "What else needs adjusting?",
+        ]
+
     if _CJK_RE.search(user_input):
         if topic:
             return [
-                f"梳理{topic}的关键步骤",
-                f"列出{topic}的常见误区",
-                "生成下一步执行方案",
+                "接下来我该重点关注什么？",
+                f"能展开说说{topic}吗？",
+                "有没有更具体的例子？",
             ]
-        return ["梳理关键步骤", "列出常见误区", "生成下一步执行方案"]
+        return ["接下来我该重点关注什么？", "能再讲具体一点吗？", "有没有更具体的例子？"]
 
     if topic:
         return [
-            f"Outline the key next steps for {topic}",
-            f"List common mistakes with {topic}",
-            "Generate the next execution plan",
+            "What should I focus on next?",
+            f"Can you expand on {topic}?",
+            "Can you give me a more specific example?",
         ]
     return [
-        "Outline the key next steps",
-        "List common mistakes",
-        "Generate the next execution plan",
+        "What should I focus on next?",
+        "Can you explain that more concretely?",
+        "Can you give me a more specific example?",
     ]
 
 
@@ -433,12 +453,7 @@ async def _parse_questions(raw_text: str) -> list[str]:
     else:
         questions = [line.strip(" -0123456789.、") for line in text.splitlines() if line.strip()]
 
-    suggestions = [
-        question
-        for question in questions
-        if not question.endswith(("?", "？")) and "?" not in question and "？" not in question
-    ]
-    return suggestions[:3]
+    return questions[:3]
 
 
 async def _ainvoke_with_retry(model: Any, prompt: Any, max_retries: int | None = None) -> Any:
@@ -468,7 +483,7 @@ async def generate_recommend_questions(
     output_text: str = "",
     history_context: str = "",
 ) -> list[str]:
-    """Generate next-step suggestions using the same model config as session titles."""
+    """Generate likely next user questions using the same model config as session titles."""
     from src.infra.llm.client import LLMClient
 
     prompt = await run_blocking_io(
@@ -506,7 +521,7 @@ async def recommendation_node(
     state: dict[str, Any],
     config: RunnableConfig,
 ) -> dict[str, Any]:
-    """Emit recommended next-step suggestions as the final graph node."""
+    """Emit recommended next user questions as the final graph node."""
     presenter = get_presenter(config)
     if getattr(presenter, "recommend_questions_recorded", False):
         return {}

@@ -24,10 +24,14 @@ test("drives the Virtuoso session key through state so session switches remount 
   );
 });
 
-test("passes the message list session key into the scroll hook as a bottom-lock token", () => {
-  assert.match(
+test("does not reuse the Virtuoso remount key as a bottom-lock token", () => {
+  assert.doesNotMatch(
     chatViewSource,
     /useMessageScroll\([\s\S]*isLoadingHistory,\s*messageListSessionKey,\s*\)/,
+  );
+  assert.match(
+    chatViewSource,
+    /useMessageScroll\([\s\S]*isLoadingHistory,\s*null,\s*\)/,
   );
 });
 
@@ -42,7 +46,7 @@ test("anchors floating scroll buttons to the chat input", () => {
   );
   assert.match(
     chatViewSource,
-    /\{messages\.length > 0 && \(\s*<div className="relative">[\s\S]*<ChatInput \{\.\.\.chatInputProps\} \/>[\s\S]*<\/div>\s*\)\}/,
+    /\{messages\.length > 0 && \(\s*<div className="relative">[\s\S]*<ChatInput\s+[\s\S]*\{\.\.\.chatInputProps\}[\s\S]*<\/div>\s*\)\}/,
   );
   assert.doesNotMatch(chatViewSource, /bottom-\d+/);
 });

@@ -26,6 +26,7 @@ import {
   subscribeActiveRevealPreviewState,
   updateActiveRevealPreviewState,
 } from "../../chat/ChatMessage/items/activeRevealPreviewStore";
+import { shouldInterceptFilePreviewLink } from "../../chat/ChatMessage/items/revealPreviewLinks";
 import { shouldOpenExternalNavigationPreview } from "./externalNavigationState";
 
 export interface RevealPreviewReturn {
@@ -175,6 +176,7 @@ export function useRevealPreview(
 
       const fileLinkInfo = isFileLink(href);
       if (!fileLinkInfo.isFile) return;
+      if (!shouldInterceptFilePreviewLink(href)) return;
 
       e.preventDefault();
       e.stopPropagation();

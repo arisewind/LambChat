@@ -16,6 +16,7 @@ import { createHeadingAnchorId } from "../../layout/AppContent/messageOutline";
 import { getFileLinkInfo } from "../../documents/utils";
 import { setActiveRevealPreviewState } from "./items/activeRevealPreviewStore";
 import { createActiveRevealPreviewState } from "./items/revealPreviewState";
+import { shouldInterceptFilePreviewLink } from "./items/revealPreviewLinks";
 import { copyToClipboard } from "../../../utils/clipboard";
 import { useSessionImageGallery } from "./sessionImageGallery";
 import { ImageWithSkeleton } from "./ImageWithSkeleton";
@@ -394,7 +395,7 @@ export const MarkdownContent = memo(function MarkdownContent({
                 href,
                 extractNodeText(children),
               );
-              if (fileLinkInfo.isFile) {
+              if (fileLinkInfo.isFile && shouldInterceptFilePreviewLink(href)) {
                 return (
                   <a
                     href={href}
