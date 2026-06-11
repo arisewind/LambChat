@@ -769,20 +769,20 @@ class SkillsStoreBackend(BackendProtocol):
     # Glob 操作
     # ==========================================
 
-    def glob(self, pattern: str, path: str = "/") -> GlobResult:
+    def glob(self, pattern: str, path: str | None = None) -> GlobResult:
         return _run_async(self.aglob(pattern, path))
 
-    def glob_info(self, pattern: str, path: str = "/") -> list[FileInfo]:
+    def glob_info(self, pattern: str, path: str | None = None) -> list[FileInfo]:
         result = self.glob(pattern, path)
         return result.matches or []
 
-    async def aglob_info(self, pattern: str, path: str = "/") -> list[FileInfo]:
+    async def aglob_info(self, pattern: str, path: str | None = None) -> list[FileInfo]:
         result = await self.aglob(pattern, path)
         return result.matches or []
 
-    async def aglob(self, pattern: str, path: str = "/") -> GlobResult:
+    async def aglob(self, pattern: str, path: str | None = None) -> GlobResult:
         """异步版本"""
-        normalized_path = normalize_path(path)
+        normalized_path = normalize_path(path or "/")
         storage = await self._get_storage()
 
         try:

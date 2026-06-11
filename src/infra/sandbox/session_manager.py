@@ -11,10 +11,11 @@ User-Sandbox 绑定管理器
 import asyncio
 import threading
 from collections import OrderedDict
-from typing import TYPE_CHECKING, Any, Optional
+from typing import TYPE_CHECKING, Any, Optional, cast
 
 if TYPE_CHECKING:
     from daytona import Daytona
+    from e2b import Sandbox as E2BSandbox
 
 from deepagents.backends import CompositeBackend
 
@@ -798,7 +799,7 @@ class SessionSandboxManager:
             sandbox, work_dir = adapter.create_sandbox(
                 user_id=user_id, envs=user_envs if user_envs else None
             )
-            e2b_backend = E2BBackend(sandbox=sandbox)
+            e2b_backend = E2BBackend(sandbox=cast("E2BSandbox", sandbox))
             skills_backend = create_skills_backend(user_id=user_id)
             composite = CompositeBackend(default=e2b_backend, routes={"/skills/": skills_backend})
             return composite, work_dir, adapter.get_sandbox_id(sandbox), sandbox
@@ -824,7 +825,7 @@ class SessionSandboxManager:
         from src.infra.backend.e2b import E2BBackend
 
         return CompositeBackend(
-            default=E2BBackend(sandbox=provider_obj),
+            default=E2BBackend(sandbox=cast("E2BSandbox", provider_obj)),
             routes={"/skills/": create_skills_backend(user_id=user_id)},
         )
 

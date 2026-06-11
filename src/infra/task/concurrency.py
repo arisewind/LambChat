@@ -630,7 +630,7 @@ class UserConcurrencyLimiter:
                         agent_id=agent_id,
                         message=message,
                         user_id=dispatch_user_id,
-                        executor=executor_fn,
+                        executor=executor_fn,  # type: ignore[arg-type]
                         disabled_tools=disabled_tools,
                         agent_options=agent_options,
                         attachments=attachments,

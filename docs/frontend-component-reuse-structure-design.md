@@ -95,7 +95,7 @@ Responsibilities:
 - Render the repeated rounded modal container.
 - Preserve exact class names currently used by selector modals:
   `sm:rounded-2xl rounded-t-2xl shadow-2xl w-full sm:w-[40%] sm:min-w-[600px] min-h-[40vh] sm:max-h-[80vh] max-h-[85vh] max-h-[85dvh] flex flex-col overflow-hidden`
-- Preserve `style={{ background: "var(--theme-bg-card)" }}`.
+- Preserve the inline style `background: var(--theme-bg-card)` on the container.
 - Stop propagation on container click.
 - Accept `ref`, `children`, optional `className`, and optional `style`.
 

@@ -357,7 +357,7 @@ class E2BBackend(BaseSandbox):
             # 二进制检测：null bytes 或高比例不可打印字符
             if "\x00" in content:
                 raw = self._sandbox.files.read(path=file_path, format="bytes")
-                return self._read_as_data_uri(file_path, raw)
+                return self._read_as_data_uri(file_path, bytes(raw))
 
             # 长文本且几乎全是 base64 字符 → 可能是裸 base64 的二进制文件
             stripped = content.strip()
@@ -366,7 +366,7 @@ class E2BBackend(BaseSandbox):
                 non_text = sum(1 for c in sample if ord(c) < 32 and c not in "\t\n\r")
                 if non_text / len(sample) > 0.3:
                     raw = self._sandbox.files.read(path=file_path, format="bytes")
-                    return self._read_as_data_uri(file_path, raw)
+                    return self._read_as_data_uri(file_path, bytes(raw))
 
             sliced_content = _slice_text_content(content, offset, limit)
             if is_read_result(sliced_content):
@@ -460,11 +460,11 @@ class E2BBackend(BaseSandbox):
     async def aglob_info(self, pattern: str, path: str = "/") -> list[FileInfo]:
         return await run_blocking_io(self.glob_info, pattern, path)
 
-    def glob(self, pattern: str, path: str = "/", *, _max_depth: int = 10) -> GlobResult:
-        return GlobResult(matches=self.glob_info(pattern, path, _max_depth=_max_depth))
+    def glob(self, pattern: str, path: str | None = None, *, _max_depth: int = 10) -> GlobResult:
+        return GlobResult(matches=self.glob_info(pattern, path or "/", _max_depth=_max_depth))
 
-    async def aglob(self, pattern: str, path: str = "/") -> GlobResult:
-        return GlobResult(matches=await self.aglob_info(pattern, path))
+    async def aglob(self, pattern: str, path: str | None = None) -> GlobResult:
+        return GlobResult(matches=await self.aglob_info(pattern, path or "/"))
 
     # =========================================================================
     # File upload / download (already native, no change needed to logic)
@@ -609,7 +609,7 @@ class E2BBackend(BaseSandbox):
         Returns:
             snapshot_id
         """
-        result = self._sandbox.snapshot()
+        result = self._sandbox.create_snapshot()
         return result.snapshot_id
 
     def pause(self) -> None:
