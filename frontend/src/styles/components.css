@@ -1535,17 +1535,17 @@
     var(--theme-bg-card) 96%,
     var(--theme-primary-light)
   );
-  padding: 0.625rem 1rem;
+  padding: 0.75rem 1rem;
   padding-bottom: max(
-    0.625rem,
+    0.75rem,
     var(--app-safe-area-bottom-active, var(--app-safe-area-bottom, 0px))
   );
 }
 
 @media (min-width: 640px) {
   .editor-sidebar-footer {
-    padding: 0.875rem 1.5rem;
-    padding-bottom: 0.875rem;
+    padding: 1rem 1.5rem;
+    padding-bottom: 1rem;
   }
 }
 

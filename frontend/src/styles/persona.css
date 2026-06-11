@@ -1468,14 +1468,17 @@
 .pps-card__action {
   display: inline-flex;
   align-items: center;
-  gap: 0.3rem;
-  border-radius: 0.5rem;
-  padding: 0.375rem 0.75rem;
-  font-size: 0.6875rem;
+  justify-content: center;
+  gap: 0.4rem;
+  border-radius: 0.625rem;
+  padding: 0.625rem 1rem;
+  font-size: 0.8125rem;
   font-weight: 500;
   cursor: pointer;
-  transition: all 0.15s ease;
+  transition: all 0.2s ease;
   border: none;
+  min-height: 2.5rem;
+  letter-spacing: 0.01em;
 }
 
 .pps-card__action--primary {
@@ -1484,8 +1487,10 @@
 }
 
 .pps-card__action--primary:hover {
-  opacity: 0.9;
+  opacity: 0.92;
   transform: translateY(-1px);
+  box-shadow: 0 2px 8px
+    color-mix(in srgb, var(--theme-primary) 30%, transparent);
 }
 
 .pps-card__action--active {
@@ -1497,6 +1502,7 @@
   background: transparent;
   color: var(--theme-text-secondary);
   border: 1px solid var(--theme-border);
+  min-height: 2.5rem;
 }
 
 .pps-card__action--ghost:hover {

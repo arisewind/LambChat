@@ -47,7 +47,7 @@ def build_index_label(title: str, summary: str, content: str) -> str:
     seed = (title or summary or content).strip()
     if not seed:
         return ""
-    return build_summary(seed, 12)
+    return build_summary(seed, 25)
 
 
 def _fallback_tags(content: str) -> list[str]:

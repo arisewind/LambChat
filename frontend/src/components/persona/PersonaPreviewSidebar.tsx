@@ -1,6 +1,18 @@
-import { Sparkles, Copy, Tag, FileText, Zap, Loader2 } from "lucide-react";
+import { useState } from "react";
+import {
+  Sparkles,
+  Copy,
+  Tag,
+  FileText,
+  Zap,
+  Loader2,
+  Eye,
+  Code2,
+} from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { EditorSidebar } from "../common/EditorSidebar";
+import { CopyButton } from "../common/CopyButton";
+import { MarkdownContent } from "../chat/ChatMessage/MarkdownContent";
 import { PersonaAvatarIcon, PersonaAvatarImage } from "./PersonaAvatarIcon";
 import {
   isPersonaImageAvatar,
@@ -30,6 +42,7 @@ export function PersonaPreviewSidebar({
   onCopyPreset,
 }: PersonaPreviewSidebarProps) {
   const { t } = useTranslation();
+  const [viewSource, setViewSource] = useState(false);
   const gradient = nameToGradient(preset.name);
   const primaryTag = preset.tags[0];
 
@@ -85,7 +98,7 @@ export function PersonaPreviewSidebar({
             disabled={isMutating || isSelected || isUsingPreset}
             aria-busy={isUsingPreset}
             onClick={() => onUsePreset(preset)}
-            className={`pps-card__action flex-1 justify-center py-2.5 text-xs font-semibold ${
+            className={`pps-card__action flex-1 ${
               isSelected
                 ? "pps-card__action--active"
                 : "pps-card__action--primary"
@@ -107,7 +120,7 @@ export function PersonaPreviewSidebar({
               type="button"
               disabled={isMutating}
               onClick={() => onCopyPreset(preset)}
-              className="pps-card__action pps-card__action--ghost flex-1 justify-center py-2.5 text-xs font-semibold"
+              className="pps-card__action pps-card__action--ghost flex-1"
             >
               <Copy size={14} />
               {t("personaPresets.copy", "复制")}
@@ -194,12 +207,38 @@ export function PersonaPreviewSidebar({
           <div className="es-section-title">
             <FileText />
             {t("personaPresets.systemPrompt", "系统提示词")}
+            <div className="ml-auto flex items-center gap-1">
+              <button
+                type="button"
+                onClick={() => setViewSource(!viewSource)}
+                className="rounded-md p-1 transition-colors hover:bg-[var(--theme-bg)]/80"
+                style={{ color: "var(--theme-text-secondary)" }}
+                title={
+                  viewSource
+                    ? t("personaPresets.previewMarkdown", "预览 Markdown")
+                    : t("personaPresets.viewSource", "查看原文")
+                }
+              >
+                {viewSource ? <Eye size={14} /> : <Code2 size={14} />}
+              </button>
+              <CopyButton
+                text={preset.system_prompt}
+                size={14}
+                className="rounded-md p-1 transition-colors hover:bg-[var(--theme-bg)]/80"
+              />
+            </div>
           </div>
           <div
-            className="rounded-lg bg-[var(--theme-bg)]/60 p-3 text-[13px] leading-[1.7] whitespace-pre-wrap break-words max-h-72 overflow-y-auto font-mono text-[12px]"
+            className="rounded-lg bg-[var(--theme-bg)]/60 p-2 overflow-y-auto max-h-[40rem] text-[13px]"
             style={{ color: "var(--theme-text)" }}
           >
-            {preset.system_prompt}
+            {viewSource ? (
+              <pre className="font-mono text-[12px] leading-[1.6]">
+                {preset.system_prompt}
+              </pre>
+            ) : (
+              <MarkdownContent content={preset.system_prompt} />
+            )}
           </div>
         </div>
 
