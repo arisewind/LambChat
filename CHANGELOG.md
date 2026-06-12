@@ -1,5 +1,61 @@
 # Changelog
 
+## v2.5.1 (2026-06-13)
+
+### ✨ New Features
+
+- **Mobile Support** — Capacitor integration for Android/iOS, native safe area support, file proxy streaming, pptx preview
+- **Desktop Auto-Update** — One-click auto-update for Tauri (desktop) and Capacitor (mobile)
+- **Native Notifications** — Push notification support for Android and Tauri
+- **Memory Components** — Memory recall and store components with detailed UI
+- **Scheduled Tasks** — Scheduler module with permission management and execution (#155)
+- **Session Sidebar** — Full refactor with actions, effects hooks, channel delivery, and tool items (#156, #158)
+- **Subagent Panel** — Footer with timestamp rendering, status indication styles
+- **Shared UI Components** — Input component with leading icons, collapsible DetailSection, panel header improvements
+- **Persona Preview** — Source view toggle, button style enhancements
+- **Mark All Read** — Batch read with project and scheduled task filtering
+- **Feishu** — Add recommendation_input to message handler
+- **Image URL Conversion** — Support image_url to base64 in model profiles and middleware
+- **File Preview** — Link interception logic, Virtuoso follow output
+- **Distributed Runtime** — Validation and improved secret management
+- **New Tool Items** — Sandbox MCP, Scheduled Tasks, Teams
+
+### 🐛 Bug Fixes
+
+- Fix 404 on shared page
+- Fix chat scroll bottom lock
+- Dedupe scheduled task fire slots and memory backend reset tasks
+- Accept future awaitables in background scheduling and cleanup hooks
+- Release background task references on shutdown
+- Fix team list count awaitable handling
+- Enhance ZIP member path validation
+- Bound GitHub skill preview downloads
+- Harden packaged app and CI release builds
+- Share packaged frontend build correctly
+
+### ♻️ Refactors
+
+- Streamline skill handling by removing unused effectiveSkills computation
+- Implement file streaming proxy for native app environments
+- Optimize scheduler and improve OAuth reliability
+- Improve panel dropdown accessibility and mobile responsiveness
+- Consolidate panel header mobile density and overflow menu
+- Enhance file type acceptance for images, videos, and audio
+
+### 🧪 Tests
+
+- Unit test for effective skills in chat skill selector
+- Test stable skill list params prevent refetch loops
+- Virtuoso follow output tests
+- File preview link interception tests
+- Subagent panel footer and style tests
+
+### 📖 Documentation
+
+- Update README and README_CN with scheduled tasks and task runtime details
+
+---
+
 ## v2.5.0 (2026-06-04)
 
 ### ✨ New Features
