@@ -13,12 +13,14 @@ import {
   useRef,
   useCallback,
   useMemo,
+  useEffect,
   forwardRef,
   useImperativeHandle,
 } from "react";
 import { useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import type { BackendSession } from "../../services/api";
+import { authApi } from "../../services/api/auth";
 import { useAuth } from "../../hooks/useAuth";
 import { useProjectSessionList } from "../../hooks/useSession";
 import { useProjectManager } from "../../hooks/useProjectManager";
@@ -26,6 +28,11 @@ import { useTouchDrag } from "../../hooks/useTouchDrag";
 import { useSessionSidebarActions } from "../../hooks/useSessionSidebarActions";
 import { useMoreMenu } from "../../hooks/useMoreMenu";
 import { useSessionSidebarEffects } from "../../hooks/useSessionSidebarEffects";
+import {
+  PROJECTS_COLLAPSED_STORAGE_KEY,
+  CHATS_COLLAPSED_STORAGE_KEY,
+  SCHEDULED_TASKS_COLLAPSED_STORAGE_KEY,
+} from "../../hooks/userMetadataPreferences";
 import { ConfirmDialog } from "../common/ConfirmDialog";
 import { DeleteProjectDialog } from "../common/DeleteProjectDialog";
 import { RecentChatsDialog } from "../sidebar/RecentChatsDialog";
@@ -109,11 +116,21 @@ export const SessionSidebar = forwardRef<
   const [isRecentChatsOpen, setIsRecentChatsOpen] = useState(false);
   const [imgError, setImgError] = useState(false);
   const [internalCollapsed, setInternalCollapsed] = useState(true);
-  const [isProjectsCollapsed, setIsProjectsCollapsed] = useState(false);
-  const [isScheduledTasksCollapsed, setIsScheduledTasksCollapsed] =
-    useState(false);
+  const [isProjectsCollapsed, setIsProjectsCollapsed] = useState(() => {
+    const saved = localStorage.getItem(PROJECTS_COLLAPSED_STORAGE_KEY);
+    return saved === "true";
+  });
+  const [isScheduledTasksCollapsed, setIsScheduledTasksCollapsed] = useState(
+    () => {
+      const saved = localStorage.getItem(SCHEDULED_TASKS_COLLAPSED_STORAGE_KEY);
+      return saved === "true";
+    },
+  );
   const [isNavCollapsed, setIsNavCollapsed] = useState(false);
-  const [isChatsCollapsed, setIsChatsCollapsed] = useState(false);
+  const [isChatsCollapsed, setIsChatsCollapsed] = useState(() => {
+    const saved = localStorage.getItem(CHATS_COLLAPSED_STORAGE_KEY);
+    return saved === "true";
+  });
   const [scrollEl, setScrollEl] = useState<HTMLDivElement | null>(null);
   const [unreadBySession, setUnreadBySession] = useState<UnreadBySession>(
     () => new Map(),
@@ -121,6 +138,35 @@ export const SessionSidebar = forwardRef<
   const [isMobile, setIsMobile] = useState(
     () => window.matchMedia("(max-width: 639px)").matches,
   );
+
+  // Sync scheduledTasksCollapsed from other tabs / metadata sync on login
+  useEffect(() => {
+    const handler = (e: Event) => {
+      setIsScheduledTasksCollapsed((e as CustomEvent).detail);
+    };
+    window.addEventListener("scheduled-tasks-collapsed-changed", handler);
+    return () =>
+      window.removeEventListener("scheduled-tasks-collapsed-changed", handler);
+  }, []);
+
+  // Sync projectsCollapsed from other tabs / metadata sync on login
+  useEffect(() => {
+    const handler = (e: Event) => {
+      setIsProjectsCollapsed((e as CustomEvent).detail);
+    };
+    window.addEventListener("projects-collapsed-changed", handler);
+    return () =>
+      window.removeEventListener("projects-collapsed-changed", handler);
+  }, []);
+
+  // Sync chatsCollapsed from other tabs / metadata sync on login
+  useEffect(() => {
+    const handler = (e: Event) => {
+      setIsChatsCollapsed((e as CustomEvent).detail);
+    };
+    window.addEventListener("chats-collapsed-changed", handler);
+    return () => window.removeEventListener("chats-collapsed-changed", handler);
+  }, []);
 
   // Delete project confirmation (uses projectManager, stays here)
   const [deleteProjectConfirm, setDeleteProjectConfirm] = useState<{
@@ -349,12 +395,38 @@ export const SessionSidebar = forwardRef<
     projectActions,
     scheduledTaskActions,
     isProjectsCollapsed,
-    onToggleProjectsCollapsed: () => setIsProjectsCollapsed((v) => !v),
+    onToggleProjectsCollapsed: () =>
+      setIsProjectsCollapsed((prev) => {
+        const next = !prev;
+        localStorage.setItem(PROJECTS_COLLAPSED_STORAGE_KEY, String(next));
+        authApi
+          .updateMetadata({ projectsCollapsed: String(next) })
+          .catch(() => {});
+        return next;
+      }),
     isScheduledTasksCollapsed,
     onToggleScheduledTasksCollapsed: () =>
-      setIsScheduledTasksCollapsed((v) => !v),
+      setIsScheduledTasksCollapsed((prev) => {
+        const next = !prev;
+        localStorage.setItem(
+          SCHEDULED_TASKS_COLLAPSED_STORAGE_KEY,
+          String(next),
+        );
+        authApi
+          .updateMetadata({ scheduledTasksCollapsed: String(next) })
+          .catch(() => {});
+        return next;
+      }),
     isChatsCollapsed,
-    onToggleChatsCollapsed: () => setIsChatsCollapsed((v) => !v),
+    onToggleChatsCollapsed: () =>
+      setIsChatsCollapsed((prev) => {
+        const next = !prev;
+        localStorage.setItem(CHATS_COLLAPSED_STORAGE_KEY, String(next));
+        authApi
+          .updateMetadata({ chatsCollapsed: String(next) })
+          .catch(() => {});
+        return next;
+      }),
     isNavCollapsed,
     onToggleNavCollapsed: () => setIsNavCollapsed((v) => !v),
     autoExpandProjectId: autoExpandProjectId ?? null,

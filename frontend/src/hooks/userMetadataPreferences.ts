@@ -1,6 +1,10 @@
 import { DEFAULT_THINKING_LEVEL_STORAGE_KEY } from "../components/layout/AppContent/useAgentOptions";
 
 export const SIDEBAR_COLLAPSED_STORAGE_KEY = "lamb-sidebar-collapsed";
+export const PROJECTS_COLLAPSED_STORAGE_KEY = "lamb-projects-collapsed";
+export const CHATS_COLLAPSED_STORAGE_KEY = "lamb-chats-collapsed";
+export const SCHEDULED_TASKS_COLLAPSED_STORAGE_KEY =
+  "lamb-scheduled-tasks-collapsed";
 export const NEWLINE_MODIFIER_STORAGE_KEY = "newlineModifier";
 export const DEFAULT_MODEL_ID_STORAGE_KEY = "defaultModelId";
 export const DEFAULT_MODEL_STORAGE_KEY = "defaultModel";
@@ -11,6 +15,9 @@ type UserMetadataPreferences = {
   newlineModifier?: unknown;
   defaultThinkingLevel?: unknown;
   sidebarCollapsed?: unknown;
+  projectsCollapsed?: unknown;
+  chatsCollapsed?: unknown;
+  scheduledTasksCollapsed?: unknown;
   defaultModelId?: unknown;
   defaultModel?: unknown;
 };
@@ -72,6 +79,39 @@ export function applyUserMetadataPreferences({
     dispatchEvent(
       new CustomEvent("sidebar-collapsed-changed", {
         detail: sidebarCollapsed === "true",
+      }),
+    );
+  }
+
+  if (metadata.projectsCollapsed !== undefined) {
+    const projectsCollapsed = String(metadata.projectsCollapsed);
+    localStorage.setItem(PROJECTS_COLLAPSED_STORAGE_KEY, projectsCollapsed);
+    dispatchEvent(
+      new CustomEvent("projects-collapsed-changed", {
+        detail: projectsCollapsed === "true",
+      }),
+    );
+  }
+
+  if (metadata.chatsCollapsed !== undefined) {
+    const chatsCollapsed = String(metadata.chatsCollapsed);
+    localStorage.setItem(CHATS_COLLAPSED_STORAGE_KEY, chatsCollapsed);
+    dispatchEvent(
+      new CustomEvent("chats-collapsed-changed", {
+        detail: chatsCollapsed === "true",
+      }),
+    );
+  }
+
+  if (metadata.scheduledTasksCollapsed !== undefined) {
+    const scheduledTasksCollapsed = String(metadata.scheduledTasksCollapsed);
+    localStorage.setItem(
+      SCHEDULED_TASKS_COLLAPSED_STORAGE_KEY,
+      scheduledTasksCollapsed,
+    );
+    dispatchEvent(
+      new CustomEvent("scheduled-tasks-collapsed-changed", {
+        detail: scheduledTasksCollapsed === "true",
       }),
     );
   }
