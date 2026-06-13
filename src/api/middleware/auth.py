@@ -27,6 +27,7 @@ class AuthMiddleware(BaseHTTPMiddleware):
         "/docs",
         "/openapi.json",
         "/api/auth/permissions",
+        "/api/push/vapid-public-key",
         "/manifest.json",
         "/sw.js",
         "/offline.html",
