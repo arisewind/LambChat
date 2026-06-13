@@ -1303,6 +1303,9 @@
     "clearFilters": "清除筛选",
     "confirmDelete": "删除「{{name}}」？",
     "confirmDeleteMessage": "将从技能商店中永久移除此技能。已安装此技能的用户不受影响。",
+    "filterActive": "已激活",
+    "filterAll": "全部",
+    "filterInactive": "未激活",
     "confirmInstall": "安装技能",
     "confirmInstallMessage": "确定要安装此技能吗？",
     "confirmUpdate": "更新技能",
@@ -1909,7 +1912,7 @@
     "date": "执行一次",
     "delete": "删除",
     "deleteConfirm": "确认删除此定时任务？",
-    "deleteWarning": "此操作将停止并永久移除该任务。",
+    "deleteWarning": "此操作将停止并永久移除该任务。历史运行会话不会出现在普通会话列表中，删除后将无法再从定时任务入口查看。",
     "deletedSuccess": "任务删除成功",
     "description": "描述",
     "descriptionPlaceholder": "可选描述...",
@@ -2502,6 +2505,7 @@
     "exportToJSON": "导出为 JSON",
     "exportZip": "导出 ZIP",
     "featureDisabled": "技能功能已禁用，请联系管理员启用。",
+    "filter": "筛选",
     "form": {
       "addFile": "添加文件",
       "content": "内容（支持 Markdown 和可选的 YAML frontmatter）",
@@ -2593,7 +2597,10 @@
     "uploadZip": "ZIP 上传",
     "uploadZipTitle": "上传技能 ZIP",
     "uploading": "上传中...",
-    "userSkillVisible": "用户技能（仅对自己可见）"
+    "userSkillVisible": "用户技能（仅对自己可见）",
+    "filterAll": "全部",
+    "filterEnabled": "已启用",
+    "filterDisabled": "已禁用"
   },
   "skillsHub": {
     "subtitle": "管理本地技能并浏览技能商店",

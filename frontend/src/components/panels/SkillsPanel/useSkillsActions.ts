@@ -28,7 +28,9 @@ export function useSkillsActions() {
   // Search & filter
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
-  const [isFilterOpen, setIsFilterOpen] = useState(false);
+  const [enabledFilter, setEnabledFilter] = useState<
+    "all" | "enabled" | "disabled"
+  >("all");
 
   // Pagination
   const [page, setPage] = useState(1);
@@ -65,11 +67,18 @@ export function useSkillsActions() {
     publishToMarketplace,
     clearError,
   } = useSkills({ listParams });
-  const filteredSkills = skills;
+
+  // Client-side enabled/disabled filter on top of server results
+  const filteredSkills = useMemo(() => {
+    if (enabledFilter === "all") return skills;
+    return skills.filter((s) =>
+      enabledFilter === "enabled" ? s.enabled : !s.enabled,
+    );
+  }, [skills, enabledFilter]);
 
   useEffect(() => {
     setPage(1);
-  }, [searchQuery, selectedTags]);
+  }, [searchQuery, selectedTags, enabledFilter]);
 
   useEffect(() => {
     const prefillSearch = (
@@ -93,6 +102,7 @@ export function useSkillsActions() {
   const clearFilters = () => {
     setSearchQuery("");
     setSelectedTags([]);
+    setEnabledFilter("all");
   };
 
   // Form modal state
@@ -526,8 +536,8 @@ export function useSkillsActions() {
     searchQuery,
     setSearchQuery,
     selectedTags,
-    isFilterOpen,
-    setIsFilterOpen,
+    enabledFilter,
+    setEnabledFilter,
     toggleTag,
     clearFilters,
     setPage,

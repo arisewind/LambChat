@@ -168,8 +168,8 @@ class ModelFallbackMiddleware(AgentMiddleware):
     """Middleware that falls back to an alternate model when the primary model fails.
 
     Wraps the inner retry stack. When all retries on the primary model are exhausted
-    (ModelRetryMiddleware gives up via ``on_failure="continue"``) and the inner
-    handler raises a retryable error, this middleware creates a fallback LLM and
+    (ModelRetryMiddleware gives up via ``on_failure="error"``) and the inner
+    handler raises an error, this middleware creates a fallback LLM and
     replays the request once.
     """
 

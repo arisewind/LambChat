@@ -1290,6 +1290,9 @@
     "clearFilters": "필터 지우기",
     "confirmDelete": "\"{{name}}\"을(를) 삭제하시겠습니까?",
     "confirmDeleteMessage": "마켓플레이스에서 이 스킬을 영구적으로 삭제합니다. 이미 설치한 사용자에게는 영향을 주지 않습니다.",
+    "filterActive": "활성화됨",
+    "filterAll": "전체",
+    "filterInactive": "비활성화됨",
     "confirmInstall": "스킬 설치",
     "confirmInstallMessage": "이 스킬을 설치하시겠습니까?",
     "confirmUpdate": "스킬 업데이트",
@@ -1896,7 +1899,7 @@
     "date": "한 번",
     "delete": "삭제",
     "deleteConfirm": "이 예약 작업을 삭제하시겠습니까?",
-    "deleteWarning": "이 작업은 중지되고 영구적으로 제거됩니다.",
+    "deleteWarning": "이 작업은 중지되고 영구적으로 제거됩니다. 이전 실행 세션은 일반 대화 목록에 표시되지 않으며, 삭제 후에는 작업 항목에서도 더 이상 볼 수 없습니다.",
     "deletedSuccess": "작업이 삭제되었습니다",
     "description": "설명",
     "descriptionPlaceholder": "선택 사항 설명...",
@@ -2489,6 +2492,7 @@
     "exportToJSON": "JSON으로 내보내기",
     "exportZip": "ZIP 내보내기",
     "featureDisabled": "스킬 기능이 비활성화되어 있습니다. 관리자에게 문의하여 활성화해 주세요.",
+    "filter": "필터",
     "form": {
       "addFile": "파일 추가",
       "content": "내용 (Markdown 및 선택적 YAML frontmatter 지원)",
@@ -2580,7 +2584,10 @@
     "uploadZip": "ZIP 업로드",
     "uploadZipTitle": "스킬 ZIP 업로드",
     "uploading": "업로드 중...",
-    "userSkillVisible": "사용자 스킬 (나에게만 표시)"
+    "userSkillVisible": "사용자 스킬 (나에게만 표시)",
+    "filterAll": "전체",
+    "filterEnabled": "사용 중",
+    "filterDisabled": "사용 안 함"
   },
   "skillsHub": {
     "subtitle": "로컬 스킬을 관리하고 마켓플레이스를 탐색하세요",

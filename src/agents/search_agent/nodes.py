@@ -283,7 +283,12 @@ async def agent_node(state: Dict[str, Any], config: RunnableConfig) -> Dict[str,
         logger.info("[SearchAgent] Tool search middleware enabled (deferred MCP loading)")
 
     user_middleware.extend(create_code_interpreter_middleware(agent_options))
-    rubric_middleware = create_goal_rubric_middleware(model=llm, goal=active_goal)
+    rubric_middleware = create_goal_rubric_middleware(
+        model=llm,
+        goal=active_goal,
+        fallback_model=fallback_model_value,
+        thinking=thinking_config,
+    )
     if rubric_middleware is not None:
         user_middleware.append(rubric_middleware)
 

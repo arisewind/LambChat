@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect } from "react";
+import { useState, useCallback, useEffect, useMemo } from "react";
 import i18n from "i18next";
 import { marketplaceApi } from "../services/api/marketplace";
 import type {
@@ -13,6 +13,8 @@ interface BinaryFileInfo {
   size: number;
 }
 
+type ActiveFilter = "all" | "active" | "inactive";
+
 export function useMarketplace() {
   const [skills, setSkills] = useState<MarketplaceSkillResponse[]>([]);
   const [tags, setTags] = useState<string[]>([]);
@@ -20,6 +22,7 @@ export function useMarketplace() {
   const [error, setError] = useState<string | null>(null);
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
+  const [activeFilter, setActiveFilter] = useState<ActiveFilter>("all");
 
   // Debounced search value for API calls
   const [debouncedSearch, setDebouncedSearch] = useState("");
@@ -189,11 +192,20 @@ export function useMarketplace() {
     );
   }, []);
 
+  // Client-side active/inactive filter on top of server results
+  const filteredSkills = useMemo(() => {
+    if (activeFilter === "all") return skills;
+    return skills.filter((s) =>
+      activeFilter === "active" ? s.is_active : !s.is_active,
+    );
+  }, [skills, activeFilter]);
+
   // Clear filters
   const clearFilters = useCallback(() => {
     setSelectedTags([]);
     setSearchQuery("");
     setDebouncedSearch("");
+    setActiveFilter("all");
   }, []);
 
   // Create and publish skill directly in marketplace
@@ -337,12 +349,15 @@ export function useMarketplace() {
 
   return {
     skills,
+    filteredSkills,
     tags,
     isLoading,
     error,
     selectedTags,
     searchQuery,
     setSearchQuery,
+    activeFilter,
+    setActiveFilter,
     toggleTag,
     clearFilters,
     fetchSkills,

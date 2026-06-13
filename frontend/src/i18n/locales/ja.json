@@ -1290,6 +1290,9 @@
     "clearFilters": "フィルターをクリア",
     "confirmDelete": "「{{name}}」を削除しますか？",
     "confirmDeleteMessage": "このスキルはマーケットから永久に削除されます。既にインストールしているユーザーには影響しません。",
+    "filterActive": "有効",
+    "filterAll": "すべて",
+    "filterInactive": "無効",
     "confirmInstall": "スキルをインストール",
     "confirmInstallMessage": "このスキルをインストールしますか？",
     "confirmUpdate": "スキルを更新",
@@ -1896,7 +1899,7 @@
     "date": "1回のみ",
     "delete": "削除",
     "deleteConfirm": "この定期タスクを削除しますか？",
-    "deleteWarning": "この操作によりタスクが停止され、永久に削除されます。",
+    "deleteWarning": "この操作によりタスクが停止され、永久に削除されます。過去の実行セッションは通常の会話一覧に表示されず、削除後はタスクの入口からも表示できなくなります。",
     "deletedSuccess": "タスクを削除しました",
     "description": "説明",
     "descriptionPlaceholder": "オプションの説明...",
@@ -2489,6 +2492,7 @@
     "exportToJSON": "JSONにエクスポート",
     "exportZip": "ZIPエクスポート",
     "featureDisabled": "スキル機能が無効です。管理者に連絡して有効にしてください。",
+    "filter": "フィルター",
     "form": {
       "addFile": "ファイルを追加",
       "content": "コンテンツ（MarkdownとオプションのYAML frontmatterに対応）",
@@ -2580,7 +2584,10 @@
     "uploadZip": "ZIPアップロード",
     "uploadZipTitle": "スキルZIPをアップロード",
     "uploading": "アップロード中...",
-    "userSkillVisible": "ユーザースキル（自分のみに表示）"
+    "userSkillVisible": "ユーザースキル（自分のみに表示）",
+    "filterAll": "すべて",
+    "filterEnabled": "有効",
+    "filterDisabled": "無効"
   },
   "skillsHub": {
     "subtitle": "ローカルスキルを管理し、マーケットプレイスを探索",

@@ -180,6 +180,49 @@
   box-shadow: 0 14px 30px -20px rgb(0 0 0 / 0.36);
 }
 
+/* Segmented control inside filter dropdown */
+.skill-filter-segment {
+  display: flex;
+  gap: 0.25rem;
+  border-radius: 0.625rem;
+  background: color-mix(in srgb, var(--theme-bg) 50%, var(--theme-border));
+  padding: 0.2rem;
+}
+
+.skill-filter-segment__item {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 0.5rem;
+  border: none;
+  padding: 0.4rem 0.75rem;
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: var(--theme-text-secondary);
+  background: transparent;
+  cursor: pointer;
+  transition:
+    background-color 0.15s ease,
+    color 0.15s ease,
+    box-shadow 0.15s ease;
+  white-space: nowrap;
+}
+
+.skill-filter-segment__item:hover {
+  color: var(--theme-text);
+}
+
+.skill-filter-segment__item--active {
+  background: var(--theme-bg-card);
+  color: var(--theme-text);
+  box-shadow: 0 1px 3px rgb(0 0 0 / 0.08);
+}
+
+.dark .skill-filter-segment__item--active {
+  box-shadow: 0 1px 3px rgb(0 0 0 / 0.2);
+}
+
 .skill-grid {
   align-items: stretch;
 }

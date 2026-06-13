@@ -1303,6 +1303,9 @@
     "clearFilters": "Clear filters",
     "confirmDelete": "Delete \"{{name}}\"?",
     "confirmDeleteMessage": "This will permanently remove the skill from the marketplace. Users who have already installed it will keep their copy.",
+    "filterActive": "Active",
+    "filterAll": "All",
+    "filterInactive": "Inactive",
     "confirmInstall": "Install Skill",
     "confirmInstallMessage": "Are you sure you want to install this skill?",
     "confirmUpdate": "Update Skill",
@@ -1909,7 +1912,7 @@
     "date": "Once",
     "delete": "Delete",
     "deleteConfirm": "Delete this scheduled task?",
-    "deleteWarning": "This will stop and remove the task permanently.",
+    "deleteWarning": "This will stop and remove the task permanently. Past run sessions do not appear in the regular conversation list, and after deletion they can no longer be viewed from the task entry point.",
     "deletedSuccess": "Task deleted successfully",
     "description": "Description",
     "descriptionPlaceholder": "Optional description...",
@@ -2502,6 +2505,7 @@
     "exportToJSON": "Export to JSON",
     "exportZip": "Export ZIP",
     "featureDisabled": "Skills feature is disabled. Please contact administrator to enable it.",
+    "filter": "Filter",
     "form": {
       "addFile": "Add file",
       "content": "Content (Markdown with optional YAML frontmatter)",
@@ -2593,7 +2597,10 @@
     "uploadZip": "Upload ZIP",
     "uploadZipTitle": "Upload Skill ZIP",
     "uploading": "Uploading...",
-    "userSkillVisible": "User Skill (only visible to you)"
+    "userSkillVisible": "User Skill (only visible to you)",
+    "filterAll": "All",
+    "filterEnabled": "Enabled",
+    "filterDisabled": "Disabled"
   },
   "skillsHub": {
     "subtitle": "Manage local skills and explore the marketplace",

@@ -232,16 +232,17 @@ class AgentEventProcessor(SubagentEventMixin, StreamEventMixin, ToolEventMixin):
         if evt_type not in _CONTEXT_EVENT_TYPES:
             return
 
-        # Route rubric grader internal events as sub-agent content (depth=1)
-        # so the frontend renders them inside the SubagentBlock panel.
+        # Hide grader internals from the public stream. The chain start/end
+        # events above already provide user-visible grading status; routing
+        # the internal GraderResponse tool call makes the UI look stuck in a
+        # tool loop while the middleware is just validating structured output.
+        if self._rubric_grader_active:
+            return
+
         metadata = event.get("metadata", {})
         checkpoint_ns = None
-        if self._rubric_grader_active:
-            current_agent_id = self._rubric_grader_id
-            current_depth = 1
-        else:
-            checkpoint_ns = self._get_checkpoint_ns(metadata)
-            current_agent_id, current_depth = self._get_agent_context(checkpoint_ns)
+        checkpoint_ns = self._get_checkpoint_ns(metadata)
+        current_agent_id, current_depth = self._get_agent_context(checkpoint_ns)
 
         if current_depth and logger.isEnabledFor(logging.DEBUG):
             logger.debug(

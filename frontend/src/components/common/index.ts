@@ -39,11 +39,13 @@ export { CopyButton } from "./CopyButton";
 
 export {
   PanelFilterSelect,
+  FilterDropdown,
   PanelHeaderActions,
   PanelFooterActions,
 } from "./PanelControls";
 export type {
   PanelFilterSelectProps,
+  FilterDropdownProps,
   PanelHeaderActionsProps,
   PanelFooterActionsProps,
 } from "./PanelControls";

@@ -1,9 +1,17 @@
 import { useState, useEffect } from "react";
-import { X, ShoppingBag, Plus, RotateCw, Tag, ChevronDown } from "lucide-react";
+import {
+  X,
+  ShoppingBag,
+  Plus,
+  RotateCw,
+  Tag,
+  ChevronDown,
+  Filter,
+} from "lucide-react";
 import { useTranslation } from "react-i18next";
 import toast from "react-hot-toast";
 import { PanelHeader } from "../common/PanelHeader";
-import { Button, IconButton } from "../common";
+import { Button, IconButton, FilterDropdown } from "../common";
 import { MarketplacePanelSkeleton } from "../skeletons";
 import { ConfirmDialog } from "../common/ConfirmDialog";
 import { EmptyState } from "../common/EmptyState";
@@ -16,6 +24,17 @@ import type { SkillResponse, SkillCreate } from "../../types";
 import { SkillCard } from "./MarketplacePanel/SkillCard";
 import { SkillPreviewModal } from "./MarketplacePanel/SkillPreviewModal";
 
+type ActiveFilter = "all" | "active" | "inactive";
+
+const ACTIVE_FILTER_OPTIONS: Array<{
+  value: ActiveFilter;
+  labelKey: string;
+}> = [
+  { value: "all", labelKey: "marketplace.filterAll" },
+  { value: "active", labelKey: "marketplace.filterActive" },
+  { value: "inactive", labelKey: "marketplace.filterInactive" },
+];
+
 interface MarketplacePanelProps {
   embedded?: boolean;
 }
@@ -24,13 +43,15 @@ export function MarketplacePanel({ embedded = false }: MarketplacePanelProps) {
   const { t } = useTranslation();
   const { hasAnyPermission } = useAuth();
   const {
-    skills,
+    filteredSkills,
     tags,
     isLoading,
     error,
     selectedTags,
     searchQuery,
     setSearchQuery,
+    activeFilter,
+    setActiveFilter,
     toggleTag,
     clearFilters,
     fetchSkills,
@@ -93,20 +114,17 @@ export function MarketplacePanel({ embedded = false }: MarketplacePanelProps) {
   const [isCreating, setIsCreating] = useState(false);
   const [openMenuName, setOpenMenuName] = useState<string | null>(null);
 
-  // Close all dropdowns when clicking outside
+  // Close card menus when clicking outside
   useEffect(() => {
     const handleClick = (e: MouseEvent) => {
       const target = e.target as HTMLElement;
-      if (isFilterOpen && !target.closest("[data-filter-menu]")) {
-        setIsFilterOpen(false);
-      }
       if (openMenuName && !target.closest("[data-mp-menu]")) {
         setOpenMenuName(null);
       }
     };
     document.addEventListener("mousedown", handleClick);
     return () => document.removeEventListener("mousedown", handleClick);
-  }, [isFilterOpen, openMenuName]);
+  }, [openMenuName]);
 
   // Admin delete confirmation
   const [adminDeleteConfirm, setAdminDeleteConfirm] = useState<{
@@ -249,73 +267,109 @@ export function MarketplacePanel({ embedded = false }: MarketplacePanelProps) {
     setShowCreateModal(false);
   };
 
-  const hasActiveFilters = selectedTags.length > 0 || searchQuery.length > 0;
+  const canManageFilters = canAdmin;
+  const hasActiveFilterDropdown =
+    (canManageFilters && activeFilter !== "all") || selectedTags.length > 0;
+  const hasActiveFilters =
+    (canManageFilters && activeFilter !== "all") ||
+    selectedTags.length > 0 ||
+    searchQuery.length > 0;
 
-  const filterMenu = tags.length > 0 && (
-    <div className="relative shrink-0" data-filter-menu>
-      <Button
-        variant="secondary"
-        type="button"
-        aria-haspopup="menu"
-        aria-expanded={isFilterOpen}
-        onClick={() => setIsFilterOpen((prev) => !prev)}
-        className={`panel-filter-trigger h-10 px-3 ${
-          selectedTags.length > 0
-            ? "border-[var(--theme-primary)] text-[var(--theme-text)]"
-            : ""
-        }`}
-      >
-        <Tag size={16} />
-        <span className="hidden sm:inline panel-filter-trigger__label">
-          {t("adminMarketplace.tags")}
-        </span>
-        {selectedTags.length > 0 && (
-          <span className="inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-[var(--theme-primary-light)] px-1 text-[11px]">
-            {selectedTags.length}
-          </span>
-        )}
-        <ChevronDown
-          size={16}
-          className={`transition-transform ${isFilterOpen ? "rotate-180" : ""}`}
-        />
-      </Button>
-      {isFilterOpen && (
-        <div
-          className="skill-filter-dropdown panel-filter-menu absolute right-0 top-[calc(100%+0.5rem)] z-20 w-72 rounded-2xl border  p-3 shadow-lg"
-          role="menu"
+  const filterMenu = (canManageFilters || tags.length > 0) && (
+    <FilterDropdown
+      trigger={
+        <Button
+          variant="secondary"
+          type="button"
+          aria-haspopup="menu"
+          aria-expanded={isFilterOpen}
+          onClick={() => setIsFilterOpen((prev) => !prev)}
+          className={`panel-filter-trigger h-10 px-3 ${
+            hasActiveFilterDropdown
+              ? "border-[var(--theme-primary)] text-[var(--theme-text)]"
+              : ""
+          }`}
         >
-          <div className="mb-2 flex items-center justify-between">
-            <p className="text-xs font-semibold uppercase tracking-[0.16em] text-[var(--theme-text-secondary)]">
-              {t("adminMarketplace.tags")}
-            </p>
-            {hasActiveFilters && (
+          {canManageFilters ? <Filter size={16} /> : <Tag size={16} />}
+          <span className="panel-filter-trigger__label">
+            {canManageFilters ? t("skills.filter") : t("adminMarketplace.tags")}
+          </span>
+          {hasActiveFilterDropdown && (
+            <span className="inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-[var(--theme-primary-light)] px-1 text-[11px]">
+              {(canManageFilters && activeFilter !== "all" ? 1 : 0) +
+                selectedTags.length}
+            </span>
+          )}
+          <ChevronDown
+            size={16}
+            className={`transition-transform ${
+              isFilterOpen ? "rotate-180" : ""
+            }`}
+          />
+        </Button>
+      }
+      open={isFilterOpen}
+      onOpenChange={setIsFilterOpen}
+      active={hasActiveFilterDropdown}
+    >
+      <div className="p-3">
+        {/* Segmented control: All / Active / Inactive — only for users with permission */}
+        {canManageFilters && (
+          <div className="skill-filter-segment mb-3">
+            {ACTIVE_FILTER_OPTIONS.map((opt) => (
               <button
+                key={opt.value}
                 type="button"
-                onClick={clearFilters}
-                className="text-xs text-[var(--theme-text-secondary)] transition-colors hover:text-[var(--theme-primary)]"
-              >
-                {t("marketplace.clearFilters")}
-              </button>
-            )}
-          </div>
-          <div className="flex max-h-56 flex-wrap gap-2 overflow-y-auto">
-            {tags.map((tag) => (
-              <button
-                key={tag}
-                type="button"
-                aria-pressed={selectedTags.includes(tag)}
-                onClick={() => toggleTag(tag)}
-                className={`skill-tag-chip ${
-                  selectedTags.includes(tag) ? "skill-tag-chip--active" : ""
+                aria-pressed={activeFilter === opt.value}
+                onClick={() => setActiveFilter(opt.value)}
+                className={`skill-filter-segment__item ${
+                  activeFilter === opt.value
+                    ? "skill-filter-segment__item--active"
+                    : ""
                 }`}
               >
-                {tag}
+                {t(opt.labelKey)}
               </button>
             ))}
           </div>
-        </div>
-      )}
-    </div>
+        )}
+
+        {/* Tag chips */}
+        {tags.length > 0 && (
+          <>
+            <div className="mb-2 flex items-center justify-between">
+              <p className="text-xs font-semibold uppercase tracking-[0.16em] text-[var(--theme-text-secondary)]">
+                {t("adminMarketplace.tags")}
+              </p>
+              {hasActiveFilterDropdown && (
+                <button
+                  type="button"
+                  onClick={clearFilters}
+                  className="text-xs text-[var(--theme-text-secondary)] transition-colors hover:text-[var(--theme-primary)]"
+                >
+                  {t("marketplace.clearFilters")}
+                </button>
+              )}
+            </div>
+            <div className="flex max-h-56 flex-wrap gap-2 overflow-y-auto">
+              {tags.map((tag) => (
+                <button
+                  key={tag}
+                  type="button"
+                  aria-pressed={selectedTags.includes(tag)}
+                  onClick={() => toggleTag(tag)}
+                  className={`skill-tag-chip ${
+                    selectedTags.includes(tag) ? "skill-tag-chip--active" : ""
+                  }`}
+                >
+                  {tag}
+                </button>
+              ))}
+            </div>
+          </>
+        )}
+      </div>
+    </FilterDropdown>
   );
 
   const headerActions = (
@@ -341,7 +395,7 @@ export function MarketplacePanel({ embedded = false }: MarketplacePanelProps) {
   );
 
   const isInitialLoading =
-    isLoading && skills.length === 0 && !hasActiveFilters;
+    isLoading && filteredSkills.length === 0 && !hasActiveFilters;
 
   if (isInitialLoading) {
     return <MarketplacePanelSkeleton />;
@@ -395,16 +449,16 @@ export function MarketplacePanel({ embedded = false }: MarketplacePanelProps) {
 
       {/* Skills List */}
       <div className="skill-content-area flex-1 overflow-y-auto py-2 sm:py-4 px-4 sm:p-6 lg:px-8 lg:py-8">
-        {skills.length === 0 ? (
+        {filteredSkills.length === 0 ? (
           <EmptyState
             icon={<ShoppingBag size={28} />}
             title={
-              searchQuery || selectedTags.length > 0
+              hasActiveFilters
                 ? t("marketplace.noMatchingSkills")
                 : t("marketplace.noSkills")
             }
             description={
-              searchQuery || selectedTags.length > 0
+              hasActiveFilters
                 ? t("marketplace.subtitle")
                 : t("marketplace.createHint")
             }
@@ -418,7 +472,7 @@ export function MarketplacePanel({ embedded = false }: MarketplacePanelProps) {
           />
         ) : (
           <div className="grid auto-grid-cols gap-5">
-            {skills.map((skill, index) => (
+            {filteredSkills.map((skill, index) => (
               <SkillCard
                 key={skill.skill_name}
                 skill={skill}

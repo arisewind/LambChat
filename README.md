@@ -88,6 +88,8 @@ These shared sessions show the kind of end-to-end work LambChat is built for.
 | 4 | EV Market Trend Analysis | Turns recent 2025-2026 electric vehicle data into a structured market analysis covering growth, regional performance, and key industry takeaways. | [View Session](https://lambchat.com/shared/5XUeuDEyd2CY) |
 | 5 | Batch Game UI Icon Generation | Analyzes one reference image, generates **48 game UI icons** across 9 categories, organizes them into folders, and saves the workflow as a reusable skill. | [View Session](https://lambchat.com/shared/IsLxtk1RJ7wn) |
 | 6 | E-Commerce Product Image Suite | Runs audience analysis, visual strategy, main image generation, lifestyle scenes, detail shots, and combo images for a product keyword and marketplace. | [View Session](https://lambchat.com/shared/wgs2zatzGi_2) |
+| 7 | Multi-Agent E-Commerce Design Team | **4 agents collaborate** (creative director, designer, AI image engineer, reviewer) to produce a full set of brand e-commerce product images with strategy, generation, audit, and revision in one session. | [View Session](https://lambchat.com/shared/e6OCDGkrpgU1) |
+| 8 | Daily AI Paper Digest (Scheduled Task) | A **scheduled task** runs automatically every day to search arXiv across 5 research directions (VLA, World Models, LLM Reasoning, Multimodal, Agent), filter the latest papers, and generate a structured trend summary — zero manual intervention. | [View Session](https://lambchat.com/shared/G-uQf_O-wXnQ) |
 
 ## Architecture
 

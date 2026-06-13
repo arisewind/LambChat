@@ -1,11 +1,10 @@
-import { useEffect, useRef } from "react";
+import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
   Plus,
   Package,
   FolderOpen,
   Check,
-  Tag,
   ChevronDown,
   Github,
   Archive,
@@ -15,17 +14,111 @@ import { PanelHeader } from "../../common/PanelHeader";
 import { SkillsPanelSkeleton } from "../../skeletons";
 import { Pagination } from "../../common/Pagination";
 import { SkillCard } from "../../skill/SkillCard";
-import { Button, IconButton } from "../../common";
-import { EmptyState } from "../../common/EmptyState";
+import { Button, IconButton, FilterDropdown, EmptyState } from "../../common";
 import type { SkillResponse } from "../../../types";
+
+type EnabledFilter = "all" | "enabled" | "disabled";
+
+const ENABLED_FILTER_OPTIONS: Array<{
+  value: EnabledFilter;
+  labelKey: string;
+}> = [
+  { value: "all", labelKey: "skills.filterAll" },
+  { value: "enabled", labelKey: "skills.filterEnabled" },
+  { value: "disabled", labelKey: "skills.filterDisabled" },
+];
+
+function SkillFilterContent({
+  enabledFilter,
+  setEnabledFilter,
+  availableTags,
+  selectedTags,
+  toggleTag,
+  clearFilters,
+  t,
+}: {
+  enabledFilter: EnabledFilter;
+  setEnabledFilter: (f: EnabledFilter) => void;
+  availableTags: string[];
+  selectedTags: string[];
+  toggleTag: (tag: string) => void;
+  clearFilters: () => void;
+  t: (key: string) => string;
+}) {
+  const hasActiveFilters = enabledFilter !== "all" || selectedTags.length > 0;
+
+  return (
+    <div className="p-3">
+      {/* Segmented control: All / Enabled / Disabled */}
+      <div className="skill-filter-segment mb-3">
+        {ENABLED_FILTER_OPTIONS.map((opt) => (
+          <button
+            key={opt.value}
+            type="button"
+            aria-pressed={enabledFilter === opt.value}
+            onClick={() => setEnabledFilter(opt.value)}
+            className={`skill-filter-segment__item ${
+              enabledFilter === opt.value
+                ? "skill-filter-segment__item--active"
+                : ""
+            }`}
+          >
+            {t(opt.labelKey)}
+          </button>
+        ))}
+      </div>
+
+      {/* Tag chips */}
+      {availableTags.length > 0 && (
+        <>
+          <div className="mb-2 flex items-center justify-between">
+            <p className="text-xs font-semibold uppercase tracking-[0.16em] text-[var(--theme-text-secondary)]">
+              {t("adminMarketplace.tags")}
+            </p>
+            {hasActiveFilters && (
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  clearFilters();
+                }}
+                className="text-xs text-[var(--theme-text-secondary)] transition-colors hover:text-[var(--theme-primary)]"
+              >
+                {t("marketplace.clearFilters")}
+              </button>
+            )}
+          </div>
+          <div className="flex max-h-56 flex-wrap gap-2 overflow-y-auto">
+            {availableTags.map((tag) => (
+              <button
+                key={tag}
+                type="button"
+                aria-pressed={selectedTags.includes(tag)}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  toggleTag(tag);
+                }}
+                className={`skill-tag-chip ${
+                  selectedTags.includes(tag) ? "skill-tag-chip--active" : ""
+                }`}
+              >
+                {tag}
+              </button>
+            ))}
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
 
 interface SkillsListProps {
   embedded?: boolean;
   searchQuery: string;
   setSearchQuery: (query: string) => void;
   selectedTags: string[];
-  isFilterOpen: boolean;
-  setIsFilterOpen: React.Dispatch<React.SetStateAction<boolean>>;
+  enabledFilter: "all" | "enabled" | "disabled";
+  setEnabledFilter: (filter: "all" | "enabled" | "disabled") => void;
   availableTags: string[];
   filteredSkills: SkillResponse[];
   paginatedSkills: SkillResponse[];
@@ -62,8 +155,8 @@ export function SkillsList({
   searchQuery,
   setSearchQuery,
   selectedTags,
-  isFilterOpen,
-  setIsFilterOpen,
+  enabledFilter,
+  setEnabledFilter,
   availableTags,
   filteredSkills,
   paginatedSkills,
@@ -92,22 +185,13 @@ export function SkillsList({
   onZipClick,
 }: SkillsListProps) {
   const { t } = useTranslation();
-  const filterRef = useRef<HTMLDivElement>(null);
 
-  // Close filter dropdown when clicking outside
-  useEffect(() => {
-    if (!isFilterOpen) return;
-    const handleClick = (e: MouseEvent) => {
-      if (filterRef.current && !filterRef.current.contains(e.target as Node)) {
-        setIsFilterOpen(false);
-      }
-    };
-    document.addEventListener("mousedown", handleClick);
-    return () => document.removeEventListener("mousedown", handleClick);
-  }, [isFilterOpen, setIsFilterOpen]);
+  const [filterOpen, setFilterOpen] = useState(false);
 
   const hasActiveFilters =
-    searchQuery.trim().length > 0 || selectedTags.length > 0;
+    searchQuery.trim().length > 0 ||
+    selectedTags.length > 0 ||
+    enabledFilter !== "all";
   const isInitialLoading =
     isLoading && filteredSkills.length === 0 && !hasActiveFilters;
 
@@ -115,71 +199,52 @@ export function SkillsList({
     return <SkillsPanelSkeleton />;
   }
 
-  const filterMenu = availableTags.length > 0 && (
-    <div className="relative shrink-0" data-filter-menu ref={filterRef}>
-      <Button
-        variant="secondary"
-        type="button"
-        aria-haspopup="menu"
-        aria-expanded={isFilterOpen}
-        onClick={() => setIsFilterOpen((prev) => !prev)}
-        className={`panel-filter-trigger h-10 px-3 ${
-          selectedTags.length > 0
-            ? "border-[var(--theme-primary)] text-[var(--theme-text)]"
-            : ""
-        }`}
-      >
-        <Tag size={16} />
-        <span className="hidden sm:inline panel-filter-trigger__label">
-          {t("adminMarketplace.tags")}
-        </span>
-        {selectedTags.length > 0 && (
-          <span className="inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-[var(--theme-primary-light)] px-1 text-[11px]">
-            {selectedTags.length}
-          </span>
-        )}
-        <ChevronDown
-          size={16}
-          className={`transition-transform ${isFilterOpen ? "rotate-180" : ""}`}
-        />
-      </Button>
-      {isFilterOpen && (
-        <div
-          className="skill-filter-dropdown panel-filter-menu absolute right-0 top-[calc(100%+0.5rem)] z-20 w-72 rounded-2xl border  p-3 shadow-lg"
-          role="menu"
+  const hasActiveFilterDropdown =
+    enabledFilter !== "all" || selectedTags.length > 0;
+
+  const filterMenu = (
+    <FilterDropdown
+      trigger={
+        <Button
+          variant="secondary"
+          type="button"
+          aria-haspopup="menu"
+          aria-expanded={filterOpen}
+          onClick={() => setFilterOpen((v) => !v)}
+          className={`panel-filter-trigger h-10 px-3 ${
+            hasActiveFilterDropdown
+              ? "border-[var(--theme-primary)] text-[var(--theme-text)]"
+              : ""
+          }`}
         >
-          <div className="mb-2 flex items-center justify-between">
-            <p className="text-xs font-semibold uppercase tracking-[0.16em] text-[var(--theme-text-secondary)]">
-              {t("adminMarketplace.tags")}
-            </p>
-            {hasActiveFilters && (
-              <button
-                type="button"
-                onClick={clearFilters}
-                className="text-xs text-[var(--theme-text-secondary)] transition-colors hover:text-[var(--theme-primary)]"
-              >
-                {t("marketplace.clearFilters")}
-              </button>
-            )}
-          </div>
-          <div className="flex max-h-56 flex-wrap gap-2 overflow-y-auto">
-            {availableTags.map((tag) => (
-              <button
-                key={tag}
-                type="button"
-                aria-pressed={selectedTags.includes(tag)}
-                onClick={() => toggleTag(tag)}
-                className={`skill-tag-chip ${
-                  selectedTags.includes(tag) ? "skill-tag-chip--active" : ""
-                }`}
-              >
-                {tag}
-              </button>
-            ))}
-          </div>
-        </div>
-      )}
-    </div>
+          <span className="panel-filter-trigger__label">
+            {t("skills.filter")}
+          </span>
+          {hasActiveFilterDropdown && (
+            <span className="inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-[var(--theme-primary-light)] px-1 text-[11px]">
+              {(enabledFilter !== "all" ? 1 : 0) + selectedTags.length}
+            </span>
+          )}
+          <ChevronDown
+            size={16}
+            className={`transition-transform ${filterOpen ? "rotate-180" : ""}`}
+          />
+        </Button>
+      }
+      open={filterOpen}
+      onOpenChange={setFilterOpen}
+      active={hasActiveFilterDropdown}
+    >
+      <SkillFilterContent
+        enabledFilter={enabledFilter}
+        setEnabledFilter={setEnabledFilter}
+        availableTags={availableTags}
+        selectedTags={selectedTags}
+        toggleTag={toggleTag}
+        clearFilters={clearFilters}
+        t={t}
+      />
+    </FilterDropdown>
   );
 
   const headerActions = (

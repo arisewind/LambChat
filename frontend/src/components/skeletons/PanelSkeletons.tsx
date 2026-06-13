@@ -580,7 +580,7 @@ export function ScheduledTaskPanelSkeleton() {
                 </div>
 
                 {/* Subtle last-run info */}
-                <div className="flex items-center gap-2 text-[11px]">
+                <div className="flex items-center gap-2 text-[11px] mb-2">
                   <SkeletonLine width="w-12 sm:w-14" className="!h-3" />
                   <SkeletonLine width="w-20 sm:w-28" className="!h-3" />
                   <SkeletonLine
@@ -591,7 +591,7 @@ export function ScheduledTaskPanelSkeleton() {
               </div>
 
               {/* Action buttons footer */}
-              <div className="mt-auto flex items-center gap-2 border-t border-[var(--glass-border)] pt-3 mt-3.5">
+              <div className="mt-auto flex items-center gap-2 border-t border-[var(--theme-border-faint)] pt-3 mt-3.5">
                 <div className="ml-auto" />
                 {[0, 1, 2, 3].map((j) => (
                   <div key={j} className="skeleton-line size-8 rounded-lg" />

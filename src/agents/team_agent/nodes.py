@@ -522,7 +522,12 @@ async def team_router_node(state: Dict[str, Any], config: RunnableConfig) -> Dic
             )
         )
 
-    rubric_middleware = create_goal_rubric_middleware(model=llm, goal=active_goal)
+    rubric_middleware = create_goal_rubric_middleware(
+        model=llm,
+        goal=active_goal,
+        fallback_model=fallback_model_value,
+        thinking=thinking_config,
+    )
     if rubric_middleware is not None:
         user_middleware.append(rubric_middleware)
 

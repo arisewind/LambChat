@@ -58,9 +58,9 @@
 .skeleton-line {
   background: linear-gradient(
     90deg,
-    color-mix(in srgb, var(--theme-bg) 85%, var(--theme-border)) 0%,
-    color-mix(in srgb, var(--theme-bg) 70%, var(--theme-border)) 50%,
-    color-mix(in srgb, var(--theme-bg) 85%, var(--theme-border)) 100%
+    color-mix(in srgb, var(--theme-bg) 92%, var(--theme-border)) 0%,
+    color-mix(in srgb, var(--theme-bg) 82%, var(--theme-border)) 50%,
+    color-mix(in srgb, var(--theme-bg) 92%, var(--theme-border)) 100%
   );
   background-size: 200% 100%;
   animation: shimmer 2.4s ease-in-out infinite;
@@ -69,9 +69,9 @@
 .dark .skeleton-line {
   background: linear-gradient(
     90deg,
-    color-mix(in srgb, var(--theme-bg) 80%, #57534e) 0%,
-    color-mix(in srgb, var(--theme-bg) 60%, #57534e) 50%,
-    color-mix(in srgb, var(--theme-bg) 80%, #57534e) 100%
+    color-mix(in srgb, var(--theme-bg) 90%, var(--theme-border)) 0%,
+    color-mix(in srgb, var(--theme-bg) 78%, var(--theme-border)) 50%,
+    color-mix(in srgb, var(--theme-bg) 90%, var(--theme-border)) 100%
   );
   background-size: 200% 100%;
 }
@@ -236,7 +236,7 @@
 
 .panel-filter-trigger {
   max-width: 100%;
-  justify-content: flex-start;
+  justify-content: space-between;
   padding-inline: 0.625rem;
   background: color-mix(in srgb, var(--theme-bg-card) 60%, transparent);
   backdrop-filter: blur(8px);
@@ -720,6 +720,12 @@
 }
 
 @media (max-width: 639px) {
+  .panel-filter-trigger .ui-button__label {
+    display: flex;
+    width: 100%;
+    gap: 0.5rem;
+  }
+
   .panel-header__desktop-actions {
     display: none;
   }

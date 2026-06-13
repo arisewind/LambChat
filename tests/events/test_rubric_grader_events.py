@@ -154,22 +154,17 @@ class TestRubricGraderChainEnd:
 
 
 class TestRubricGraderEventRouting:
-    """Rubric grader internal events are routed as sub-agent content (depth=1)
-    instead of being suppressed, so the frontend can display them in the
-    SubagentBlock panel."""
+    """Rubric grader internal events are hidden from the public event stream."""
 
-    async def test_routes_chat_model_stream_inside_grader(self, processor, emitted):
+    async def test_suppresses_chat_model_stream_inside_grader(self, processor, emitted):
         await processor.process_event(_chain_start_event())
         emitted.clear()
 
-        # Text streaming inside the grader should be routed with depth=1
-        # Content is buffered (flush size = 200), so no emit yet for small chunks
         await processor.process_event(_chat_model_stream_event("Let me evaluate..."))
+        await processor.flush()
 
-        # Content should NOT appear in the main output buffer (depth=1, only depth=0 goes there)
-        # and should NOT be suppressed (the event was processed, not dropped)
-        # Since flush size is 200, a short chunk won't emit yet — that's expected
-        assert len(emitted) == 0  # buffered, not yet emitted
+        assert len(emitted) == 0
+        assert processor.output_text == ""
 
     async def test_counts_token_usage_inside_grader(self, processor):
         await processor.process_event(_chain_start_event())
@@ -183,7 +178,7 @@ class TestRubricGraderEventRouting:
         # model-end handler was called (no longer suppressed)
         assert processor.total_input_tokens == 100
 
-    async def test_routes_tool_events_inside_grader(self, processor, emitted):
+    async def test_suppresses_tool_events_inside_grader(self, processor, emitted):
         await processor.process_event(_chain_start_event())
         emitted.clear()
 
@@ -195,8 +190,7 @@ class TestRubricGraderEventRouting:
             "metadata": {},
         }
         await processor.process_event(tool_event)
-        # Tool event should be routed (emitted), not suppressed
-        assert len(emitted) >= 1
+        assert len(emitted) == 0
 
     async def test_events_flow_normally_after_grader_ends(self, processor, emitted):
         # Start grader
