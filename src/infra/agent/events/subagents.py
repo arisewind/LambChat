@@ -70,7 +70,7 @@ class SubagentEventMixin:
         run_id = event.get("run_id", uuid.uuid4().hex)
 
         metadata = event.get("metadata", {})
-        checkpoint_ns = metadata.get("checkpoint_ns", "")
+        checkpoint_ns = self._get_checkpoint_ns(metadata)
         checkpoint_uuid = checkpoint_ns.rpartition(":")[2] if checkpoint_ns else run_id
         instance_id = f"{subagent_type}_{checkpoint_uuid}"
 

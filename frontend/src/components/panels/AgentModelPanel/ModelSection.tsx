@@ -3,7 +3,6 @@
  */
 
 import { useState, useEffect, useCallback, useRef } from "react";
-import { AlertCircle } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import toast from "react-hot-toast";
 import { ModelPanelSkeleton } from "../../skeletons";
@@ -12,6 +11,7 @@ import type { ModelConfig } from "../../../services/api/model";
 import { useAuth } from "../../../hooks/useAuth";
 import { Permission } from "../../../types";
 import type { Role } from "../../../types";
+import { ConfigPanelErrorCallout } from "../ConfigPanelErrorCallout";
 
 import { RolesModelTab, ModelConfigTab } from "../ModelPanel/tabs";
 
@@ -147,12 +147,7 @@ export function ModelSection() {
 
   return (
     <div className="animate-glass-enter px-4 py-5 sm:px-6 lg:px-7">
-      {error && (
-        <div className="glass-card mb-4 flex items-center gap-2 rounded-xl p-3 text-sm text-red-600 !border-red-200/40 dark:text-red-400 dark:!border-red-800/30">
-          <AlertCircle size={18} />
-          <span>{error}</span>
-        </div>
-      )}
+      {error && <ConfigPanelErrorCallout message={error} className="mb-4" />}
 
       <div className="inline-grid grid-cols-2 rounded-lg border border-[var(--glass-border)] bg-[var(--glass-bg-subtle)] p-1 sm:my-3">
         <button

@@ -122,7 +122,11 @@ async def _permission_error(
     }
 
 
-def _format_trigger_preview(trigger_type, trigger_config: dict[str, Any]) -> str:
+def _format_trigger_preview(
+    trigger_type,
+    trigger_config: dict[str, Any],
+    timezone_name: str = "UTC",
+) -> str:
     from src.infra.utils.datetime import parse_iso, to_iso
     from src.kernel.schemas.scheduled_task import TriggerType
 
@@ -147,7 +151,8 @@ def _format_trigger_preview(trigger_type, trigger_config: dict[str, Any]) -> str
     day_of_week = trigger_config.get("day_of_week", "*")
     return (
         "cron schedule "
-        f"(minute={minute}, hour={hour}, day={day}, month={month}, day_of_week={day_of_week}, UTC)"
+        f"(minute={minute}, hour={hour}, day={day}, month={month}, "
+        f"day_of_week={day_of_week}, timezone={timezone_name})"
     )
 
 
@@ -157,18 +162,20 @@ def _build_task_preview(
     message: str,
     trigger_type,
     trigger_config: dict[str, Any],
+    timezone_name: str = "UTC",
     agent_id: str,
     description: str | None,
     timeout_seconds: int,
     run_on_start: bool,
 ) -> dict[str, Any]:
-    schedule = _format_trigger_preview(trigger_type, trigger_config)
+    schedule = _format_trigger_preview(trigger_type, trigger_config, timezone_name)
     return {
         "name": name,
         "description": description,
         "agent_id": agent_id,
         "trigger_type": trigger_type.value,
         "trigger_config": trigger_config,
+        "timezone": timezone_name,
         "schedule": schedule,
         "message": message,
         "timeout_seconds": timeout_seconds,

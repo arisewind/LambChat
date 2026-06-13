@@ -61,7 +61,7 @@
 
 .ppe-textarea {
   padding: 0.625rem;
-  font-size: 0.75rem;
+  font-size: 0.875rem;
   line-height: 1.625;
   resize: none;
   font-family: inherit;
@@ -1167,7 +1167,7 @@
   }
 
   .ppe-textarea {
-    font-size: 0.75rem;
+    font-size: 0.875rem;
     line-height: 1.625;
   }
 

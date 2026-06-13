@@ -1,6 +1,6 @@
-import { memo, useMemo } from "react";
+import { memo, useMemo, useState } from "react";
 import { clsx } from "clsx";
-import { Users, Tag } from "lucide-react";
+import { Users, Tag, Zap, Sparkles } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { CollapsiblePill } from "../../../common";
 import { extractText } from "./toolUtils";
@@ -25,15 +25,24 @@ function ToolAvatarImg({
   src: string;
   className?: string;
 }) {
+  const [loaded, setLoaded] = useState(false);
   return (
-    <img
-      src={src}
-      alt=""
-      className={className}
-      onError={(e) => {
-        (e.target as HTMLImageElement).style.display = "none";
-      }}
-    />
+    <span className="relative inline-flex w-full h-full">
+      {!loaded && (
+        <span className="absolute inset-0 skeleton-line rounded-full" />
+      )}
+      <img
+        src={src}
+        alt=""
+        className={className}
+        onLoad={() => setLoaded(true)}
+        onError={(e) => {
+          setLoaded(true);
+          (e.target as HTMLImageElement).style.display = "none";
+        }}
+        style={loaded ? {} : { opacity: 0 }}
+      />
+    </span>
   );
 }
 
@@ -157,7 +166,7 @@ const TeamItem = memo(function TeamItem({
   // ── Panel detail content ──
 
   const detailContent = canExpand && (
-    <div className="p-4 sm:p-5 space-y-4">
+    <div className="p-4 sm:p-5 space-y-4 tool-panel-content">
       {/* Search: persona list */}
       {isSearch && personas.length > 0 && (
         <DetailSection
@@ -167,22 +176,29 @@ const TeamItem = memo(function TeamItem({
           icon={<Users size={12} />}
           defaultExpanded={true}
         >
-          <div className="space-y-2">
+          <div className="grid auto-grid-cols gap-3">
             {personas.slice(0, 20).map((p, i) => {
               const name = String(p.name || `Persona ${i + 1}`);
               const desc = String(p.description || "");
               const av = String(p.avatar || "");
               const pTags: string[] = Array.isArray(p.tags) ? p.tags : [];
+              const pSkills: string[] = Array.isArray(p.skill_names)
+                ? p.skill_names
+                : [];
+              const pScope = String(p.scope || "");
+              const pStatus = String(p.status || "");
+              const pUsage = Number(p.usage_count || 0);
               const pGradient = nameToGradient(name);
 
               return (
                 <div
                   key={i}
-                  className="rounded-xl overflow-hidden border border-theme-border bg-theme-bg-card hover:shadow-sm transition-all duration-200"
+                  className="rounded-xl overflow-hidden border border-theme-border bg-theme-bg-card hover:shadow-md transition-all duration-200"
                   style={{ boxShadow: `0 1px 8px -2px ${pGradient[0]}15` }}
                 >
+                  {/* Gradient banner */}
                   <div
-                    className="h-8 relative overflow-hidden"
+                    className="h-11 relative overflow-hidden"
                     style={{
                       background: `linear-gradient(135deg, ${pGradient[0]}, ${pGradient[1]}, ${pGradient[2]})`,
                     }}
@@ -193,64 +209,108 @@ const TeamItem = memo(function TeamItem({
                         backgroundImage: `radial-gradient(circle at 80% 20%, ${pGradient[2]}50 0%, transparent 60%)`,
                       }}
                     />
-                    <div className="absolute bottom-0 inset-x-0 h-3 bg-gradient-to-t from-theme-bg-card to-transparent" />
+                    <div className="absolute bottom-0 inset-x-0 h-4 bg-gradient-to-t from-theme-bg-card to-transparent" />
                   </div>
-                  <div className="px-3 py-2.5 bg-theme-bg-card -mt-4 relative">
-                    <div className="flex items-end gap-2.5">
+                  {/* Card body */}
+                  <div className="px-4 pt-4 pb-3.5 bg-theme-bg-card -mt-5 relative">
+                    {/* Avatar + Name + Status */}
+                    <div className="flex items-start gap-3">
                       <div
-                        className="w-8 h-8 rounded-lg flex items-center justify-center text-sm leading-none shrink-0 overflow-hidden relative"
+                        className="w-10 h-10 rounded-xl flex items-center justify-center text-lg leading-none shrink-0 overflow-hidden relative"
                         style={{
-                          boxShadow: `0 2px 8px -2px ${pGradient[0]}30`,
+                          boxShadow: `0 3px 10px -2px ${pGradient[0]}35`,
                         }}
                       >
                         <div
-                          className="absolute inset-0 rounded-lg p-[1px]"
+                          className="absolute inset-0 rounded-xl p-[1px]"
                           style={{
-                            background: `linear-gradient(135deg, ${pGradient[0]}50, ${pGradient[1]}30)`,
+                            background: `linear-gradient(135deg, ${pGradient[0]}60, ${pGradient[1]}35)`,
                           }}
                         >
-                          <div className="w-full h-full rounded-[calc(0.5rem-1px)] bg-theme-bg-card" />
+                          <div className="w-full h-full rounded-[calc(0.75rem-1px)] bg-theme-bg-card" />
                         </div>
-                        <div className="relative z-10 w-full h-full rounded-lg flex items-center justify-center overflow-hidden bg-[color-mix(in_srgb,var(--theme-primary)_8%,var(--theme-bg-card))]">
+                        <div className="relative z-10 w-full h-full rounded-xl flex items-center justify-center overflow-hidden bg-[color-mix(in_srgb,var(--theme-primary)_8%,var(--theme-bg-card))]">
                           <RenderAvatar
                             avatar={av}
                             sizeClass="w-full h-full"
                             fallback={
                               <Users
-                                size={14}
+                                size={16}
                                 className="text-[var(--theme-primary)]"
                               />
                             }
                           />
                         </div>
                       </div>
-                      <div className="min-w-0 flex-1 pb-0.5">
-                        <div className="text-xs text-theme-text font-semibold truncate">
-                          {name}
+                      <div className="min-w-0 flex-1 pt-0.5">
+                        <div className="flex items-center gap-1.5">
+                          <div className="text-sm text-theme-text font-semibold truncate">
+                            {name}
+                          </div>
+                          {pStatus && pStatus !== "published" && (
+                            <span
+                              className={clsx(
+                                "shrink-0 inline-flex items-center px-1.5 py-[2px] rounded-full text-[9px] font-semibold tracking-wide uppercase",
+                                pStatus === "draft"
+                                  ? "bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-300 ring-1 ring-amber-200/50 dark:ring-amber-800/30"
+                                  : "bg-theme-bg-subtle text-theme-text-tertiary ring-1 ring-theme-border",
+                              )}
+                            >
+                              {pStatus}
+                            </span>
+                          )}
                         </div>
                         {desc && (
-                          <div className="text-[10px] text-theme-text-tertiary/70 truncate mt-0.5 leading-snug">
+                          <p className="text-[11px] text-theme-text-secondary/80 mt-1 leading-relaxed line-clamp-2 min-h-[2.75em]">
                             {desc}
-                          </div>
+                          </p>
                         )}
                       </div>
                     </div>
-                    {pTags.length > 0 && (
-                      <div className="flex flex-wrap gap-1 mt-2">
-                        {pTags.slice(0, 4).map((tag, j) => (
+                    {/* Tags + Skills */}
+                    {(pTags.length > 0 || pSkills.length > 0) && (
+                      <div className="flex flex-wrap gap-1.5 mt-3">
+                        {pTags.slice(0, 3).map((tag, j) => (
                           <span
                             key={j}
                             className={clsx(
-                              "inline-flex items-center gap-1 px-1.5 py-[1px] rounded-md text-[10px] font-medium",
+                              "inline-flex items-center gap-1 px-2 py-[2px] rounded-lg text-[10px] font-medium",
                               j === 0
                                 ? "bg-[color-mix(in_srgb,var(--theme-primary)_10%,var(--theme-bg-card))] text-theme-text-secondary ring-1 ring-[color-mix(in_srgb,var(--theme-primary)_18%,var(--theme-border))]"
                                 : "bg-theme-bg text-theme-text-secondary ring-1 ring-theme-border",
                             )}
                           >
-                            <Tag size={7} className="opacity-50" />
+                            <Tag size={8} className="opacity-50" />
                             {tag}
                           </span>
                         ))}
+                        {pSkills.length > 0 && (
+                          <span className="inline-flex items-center gap-1 px-2 py-[2px] rounded-lg text-[10px] font-medium bg-emerald-50 dark:bg-emerald-900/20 text-emerald-700 dark:text-emerald-400 ring-1 ring-emerald-200/50 dark:ring-emerald-700/30">
+                            <Zap size={8} className="opacity-60" />
+                            {pSkills.length}
+                          </span>
+                        )}
+                      </div>
+                    )}
+                    {/* Meta footer */}
+                    {(pScope || pUsage > 0) && (
+                      <div className="flex items-center gap-2 mt-3 pt-2.5 border-t border-theme-border/60">
+                        {pScope && (
+                          <span className="text-[10px] text-theme-text-tertiary">
+                            {pScope === "global"
+                              ? t("personaPresets.official", "官方")
+                              : t("personaPresets.mine", "我的")}
+                          </span>
+                        )}
+                        {pScope && pUsage > 0 && (
+                          <span className="inline-block h-1 w-1 rounded-full bg-theme-border" />
+                        )}
+                        {pUsage > 0 && (
+                          <span className="text-[10px] text-theme-text-tertiary">
+                            {pUsage}
+                            {t("personaPresets.usageCount", "次使用")}
+                          </span>
+                        )}
                       </div>
                     )}
                   </div>
@@ -380,11 +440,6 @@ const TeamItem = memo(function TeamItem({
                           <span className="truncate">
                             {resultId.slice(0, 12)}…
                           </span>
-                          <ToolHoverCopyButton
-                            text={resultId}
-                            position="args"
-                            copyButtonClassName="!bg-theme-bg/80 !rounded-lg !border !border-theme-border"
-                          />
                         </div>
                       )}
                     </div>

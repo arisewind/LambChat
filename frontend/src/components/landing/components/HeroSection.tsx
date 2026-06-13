@@ -20,9 +20,13 @@ export function HeroSection({ onLogin }: HeroSectionProps) {
         aria-hidden="true"
       >
         <div className="absolute inset-0 blog-crosshatch" />
-        <div className="blog-hero-glow-main absolute top-0 left-1/2 -translate-x-1/2 w-[900px] h-[600px] bg-[radial-gradient(ellipse_at_center,rgba(251,191,36,0.06)_0%,rgba(251,146,60,0.03)_40%,transparent_70%)] dark:bg-[radial-gradient(ellipse_at_center,rgba(251,191,36,0.04)_0%,rgba(251,146,60,0.02)_40%,transparent_70%)]" />
-        <div className="blog-hero-glow-blue absolute top-[40%] left-[10%] w-[400px] h-[400px] bg-[radial-gradient(circle,rgba(56,189,248,0.04)_0%,transparent_60%)] dark:bg-[radial-gradient(circle,rgba(56,189,248,0.03)_0%,transparent_60%)]" />
-        <div className="blog-hero-glow-violet absolute bottom-[10%] right-[15%] w-[300px] h-[300px] bg-[radial-gradient(circle,rgba(168,85,247,0.03)_0%,transparent_60%)] dark:bg-[radial-gradient(circle,rgba(168,85,247,0.02)_0%,transparent_60%)]" />
+        <div className="blog-hero-glow-main absolute top-0 left-1/2 -translate-x-1/2 w-[900px] h-[600px] bg-[radial-gradient(ellipse_at_center,rgba(251,191,36,0.08)_0%,rgba(251,146,60,0.04)_40%,transparent_70%)] dark:bg-[radial-gradient(ellipse_at_center,rgba(251,191,36,0.06)_0%,rgba(251,146,60,0.03)_40%,transparent_70%)]" />
+        <div className="blog-hero-glow-blue absolute top-[40%] left-[10%] w-[400px] h-[400px] bg-[radial-gradient(circle,rgba(56,189,248,0.06)_0%,transparent_60%)] dark:bg-[radial-gradient(circle,rgba(56,189,248,0.04)_0%,transparent_60%)]" />
+        <div className="blog-hero-glow-violet absolute bottom-[10%] right-[15%] w-[300px] h-[300px] bg-[radial-gradient(circle,rgba(168,85,247,0.04)_0%,transparent_60%)] dark:bg-[radial-gradient(circle,rgba(168,85,247,0.03)_0%,transparent_60%)]" />
+        {/* Floating light orbs */}
+        <div className="blog-light-orb blog-light-orb-amber absolute top-[20%] left-[5%] opacity-60" />
+        <div className="blog-light-orb blog-light-orb-blue absolute top-[55%] right-[3%] opacity-40" />
+        <div className="blog-light-orb blog-light-orb-violet absolute bottom-[15%] left-[30%] opacity-30" />
       </div>
 
       {/* Floating decorative elements */}

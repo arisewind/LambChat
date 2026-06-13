@@ -94,6 +94,7 @@ class ScheduledTaskCreate(BaseModel):
         ...,
         description="Trigger config (IntervalTriggerConfig | CronTriggerConfig | DateTriggerConfig)",
     )
+    timezone: str = Field("UTC", description="IANA timezone used for cron/date schedule semantics")
     input_payload: dict = Field(default_factory=dict, description="Agent input parameters")
     description: Optional[str] = Field(None, max_length=2000)
     enabled: bool = Field(True)
@@ -118,6 +119,7 @@ class ScheduledTaskUpdate(BaseModel):
     agent_id: Optional[str] = Field(None, min_length=1)
     trigger_type: Optional[TriggerType] = None
     trigger_config: Optional[dict] = None
+    timezone: Optional[str] = None
     input_payload: Optional[dict] = None
     description: Optional[str] = Field(None, max_length=2000)
     enabled: Optional[bool] = None
@@ -138,6 +140,7 @@ class ScheduledTask(BaseModel):
     agent_id: str
     trigger_type: TriggerType
     trigger_config: dict
+    timezone: str = "UTC"
     input_payload: dict
     status: ScheduledTaskStatus = ScheduledTaskStatus.ACTIVE
     enabled: bool = True
@@ -194,6 +197,7 @@ class ScheduledTaskResponse(BaseModel):
     agent_id: str
     trigger_type: TriggerType
     trigger_config: dict
+    timezone: str = "UTC"
     input_payload: dict
     status: ScheduledTaskStatus
     enabled: bool

@@ -83,7 +83,7 @@ const GrepItem = memo(function GrepItem({
         : "error";
 
   const detailContent = canExpand && (
-    <div className="p-4 sm:p-5 space-y-4">
+    <div className="p-4 sm:p-5 space-y-4 tool-panel-content">
       <ToolArgsBlock size="detail" wrap>
         <Search
           size={14}
@@ -100,7 +100,6 @@ const GrepItem = memo(function GrepItem({
             {glob}
           </span>
         )}
-        <ToolHoverCopyButton text={pattern} position="args" />
       </ToolArgsBlock>
       {parsedResult.files.length > 0 && (
         <div>
@@ -128,7 +127,7 @@ const GrepItem = memo(function GrepItem({
         </div>
       )}
       {outputMode === "content" && parsedResult.lines.length > 0 && (
-        <div className="relative group rounded-lg border border-theme-border overflow-hidden">
+        <div className="relative group rounded-lg tool-code-block">
           <DeferredCodeMirrorViewer
             value={parsedResult.lines.join("\n")}
             lineNumbers={false}
@@ -197,7 +196,6 @@ const GrepItem = memo(function GrepItem({
                   {glob}
                 </span>
               )}
-              <ToolHoverCopyButton text={pattern} position="argsCompact" />
             </ToolArgsBlock>
             {parsedResult.files.length > 0 && (
               <div className="mb-2">
@@ -227,7 +225,7 @@ const GrepItem = memo(function GrepItem({
               </div>
             )}
             {outputMode === "content" && parsedResult.lines.length > 0 && (
-              <div className="relative group max-h-48 overflow-y-auto rounded-md border border-theme-border">
+              <div className="relative group max-h-48 overflow-y-auto rounded-md tool-code-block">
                 <DeferredCodeMirrorViewer
                   value={parsedResult.lines.slice(0, 50).join("\n")}
                   lineNumbers={false}

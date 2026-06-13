@@ -4,17 +4,18 @@
  */
 
 import { useState, useEffect, useCallback, useRef } from "react";
-import { Cpu, AlertCircle, RefreshCw } from "lucide-react";
+import { Cpu, RefreshCw } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import toast from "react-hot-toast";
 import { Button } from "../../common";
 import { PanelHeader } from "../../common/PanelHeader";
-import { PanelLoadingState } from "../../common/PanelLoadingState";
+import { ModelPanelSkeleton } from "../../skeletons";
 import { agentConfigApi, roleApi, modelApi } from "../../../services/api";
 import type { ModelConfig } from "../../../services/api/model";
 import { useAuth } from "../../../hooks/useAuth";
 import { Permission } from "../../../types";
 import type { Role } from "../../../types";
+import { ConfigPanelErrorCallout } from "../ConfigPanelErrorCallout";
 
 import { RolesModelTab, ModelConfigTab } from "./tabs";
 
@@ -152,7 +153,7 @@ export function ModelPanel() {
   }, [loadData]);
 
   if (isLoading && !hasLoaded) {
-    return <PanelLoadingState text={t("common.loading", "加载中...")} />;
+    return <ModelPanelSkeleton />;
   }
 
   if (!canManageModels) {
@@ -187,10 +188,10 @@ export function ModelPanel() {
 
       {/* 错误提示 */}
       {error && (
-        <div className="mx-4 mt-4 flex items-center gap-2 glass-card rounded-xl p-3 text-sm text-red-600 dark:text-red-400 sm:mx-6 !border-red-200/40 dark:!border-red-800/30">
-          <AlertCircle size={18} />
-          <span>{error}</span>
-        </div>
+        <ConfigPanelErrorCallout
+          message={error}
+          className="mx-4 mt-4 sm:mx-6"
+        />
       )}
 
       {/* Tab 切换 */}

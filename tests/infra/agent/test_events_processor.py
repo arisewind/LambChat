@@ -274,6 +274,183 @@ async def test_reasoning_content_chunk_emits_thinking_event() -> None:
 
 
 @pytest.mark.asyncio
+async def test_task_start_reads_langgraph_checkpoint_ns_not_empty_checkpoint_ns() -> None:
+    """LangGraph v2 sets metadata.checkpoint_ns='' and puts the real namespace in
+    metadata.langgraph_checkpoint_ns.  _handle_task_start must read the latter so
+    that subsequent sub-agent events can be matched via first_segment lookup."""
+    presenter = FakePresenter()
+    processor = AgentEventProcessor(
+        presenter,
+        subagent_display_names={"team-m-1-role": "健身教练"},
+    )
+
+    # Simulate a real LangGraph v2 task tool_start event:
+    #   checkpoint_ns=""          (empty – legacy field)
+    #   langgraph_checkpoint_ns="tools:9864e6bc-...|model:45d3..."  (actual ns)
+    await processor.process_event(
+        {
+            "event": "on_tool_start",
+            "name": "task",
+            "run_id": "task-run-1",
+            "data": {
+                "input": {
+                    "subagent_type": "team-m-1-role",
+                    "description": "健身计划",
+                },
+            },
+            "metadata": {
+                "checkpoint_ns": "",
+                "langgraph_checkpoint_ns": "tools:9864e6bc-f1bf-94cf-adc4-0ed5c6f59cd1",
+            },
+        }
+    )
+
+    # The key in checkpoint_to_agent must be the langgraph_checkpoint_ns value,
+    # NOT the empty string.
+    assert "" not in processor.checkpoint_to_agent
+    ns_key = "tools:9864e6bc-f1bf-94cf-adc4-0ed5c6f59cd1"
+    assert ns_key in processor.checkpoint_to_agent
+    instance_id, subagent_type = processor.checkpoint_to_agent[ns_key]
+    assert subagent_type == "team-m-1-role"
+    assert instance_id.startswith("team-m-1-role_")
+
+    # agent:call event must have been emitted with the correct display name.
+    call_event = presenter.emitted[0]
+    assert call_event["event"] == "agent:call"
+    assert call_event["data"]["agent_name"] == "健身教练"
+    assert call_event["data"]["agent_id"] == instance_id
+
+
+@pytest.mark.asyncio
+async def test_subagent_stream_resolved_via_langgraph_checkpoint_ns() -> None:
+    """After a task tool_start registers with langgraph_checkpoint_ns, a
+    sub-agent's on_chat_model_stream whose langgraph_checkpoint_ns is
+    '<tools_ns>|model:...' must be resolved to the correct (agent_id, 1)."""
+    presenter = FakePresenter()
+    processor = AgentEventProcessor(
+        presenter,
+        subagent_display_names={"team-m-2-role": "营养师"},
+    )
+
+    tools_ns = "tools:b0ffa46f-0647-782d-bb28-eb64b79cfc35"
+
+    # 1. task start – registers checkpoint_to_agent[tools_ns]
+    await processor.process_event(
+        {
+            "event": "on_tool_start",
+            "name": "task",
+            "run_id": "task-run-2",
+            "data": {
+                "input": {
+                    "subagent_type": "team-m-2-role",
+                    "description": "食谱推荐",
+                },
+            },
+            "metadata": {
+                "checkpoint_ns": "",
+                "langgraph_checkpoint_ns": tools_ns,
+            },
+        }
+    )
+
+    # 2. Sub-agent model stream – langgraph_checkpoint_ns is nested
+    model_ns = f"{tools_ns}|model:753eb9c0-959b-0158-2fca-9f83673a8598"
+    presenter.emitted.clear()
+
+    await processor.process_event(
+        {
+            "event": "on_chat_model_stream",
+            "name": "chat_model",
+            "data": {
+                "chunk": SimpleNamespace(content="你好", id="sub-chunk-1"),
+            },
+            "metadata": {
+                "checkpoint_ns": "",
+                "langgraph_checkpoint_ns": model_ns,
+                "lc_agent_name": "team-m-2-role",
+            },
+        }
+    )
+
+    # Flush the chunk buffer via model_end
+    await processor.process_event(
+        {
+            "event": "on_chat_model_end",
+            "name": "chat_model",
+            "data": {"output": None},
+            "metadata": {
+                "checkpoint_ns": "",
+                "langgraph_checkpoint_ns": model_ns,
+            },
+        }
+    )
+
+    # The text chunk must carry the correct agent_id (not None)
+    assert len(presenter.emitted) >= 1
+    text_event = next(e for e in presenter.emitted if e["event"] == "message:chunk")
+    assert text_event["event"] == "message:chunk"
+    assert text_event["data"]["depth"] == 1
+    assert text_event["data"]["agent_id"] is not None
+    assert text_event["data"]["agent_id"].startswith("team-m-2-role_")
+
+
+@pytest.mark.asyncio
+async def test_task_end_resolves_agent_info_via_langgraph_checkpoint_ns() -> None:
+    """When a task tool_end arrives, _resolve_agent_info must read
+    langgraph_checkpoint_ns to pop the correct entry from checkpoint_to_agent."""
+    presenter = FakePresenter()
+    processor = AgentEventProcessor(
+        presenter,
+        subagent_display_names={"team-m-1-role": "健身教练"},
+    )
+
+    tools_ns = "tools:9864e6bc-f1bf-94cf-adc4-0ed5c6f59cd1"
+
+    # 1. task start
+    await processor.process_event(
+        {
+            "event": "on_tool_start",
+            "name": "task",
+            "run_id": "task-run-3",
+            "data": {
+                "input": {
+                    "subagent_type": "team-m-1-role",
+                    "description": "健身",
+                },
+            },
+            "metadata": {
+                "checkpoint_ns": "",
+                "langgraph_checkpoint_ns": tools_ns,
+            },
+        }
+    )
+
+    instance_id = list(processor.checkpoint_to_agent.values())[0][0]
+
+    # 2. task end
+    presenter.emitted.clear()
+    await processor.process_event(
+        {
+            "event": "on_tool_end",
+            "name": "task",
+            "run_id": "task-run-3",
+            "data": {"output": "Done"},
+            "metadata": {
+                "checkpoint_ns": "",
+                "langgraph_checkpoint_ns": tools_ns,
+            },
+        }
+    )
+
+    result_event = presenter.emitted[0]
+    assert result_event["event"] == "agent:result"
+    assert result_event["data"]["agent_id"] == instance_id
+    assert result_event["data"]["success"] is True
+    # checkpoint_to_agent entry must have been popped
+    assert tools_ns not in processor.checkpoint_to_agent
+
+
+@pytest.mark.asyncio
 async def test_subagent_context_cache_is_invalidated_by_task_lifecycle() -> None:
     presenter = FakePresenter()
     processor = AgentEventProcessor(presenter)

@@ -1,4 +1,4 @@
-import { memo, useMemo } from "react";
+import { memo, useMemo, useState } from "react";
 import { clsx } from "clsx";
 import { UserRound, Tag, Sparkles, Zap, MessageSquare } from "lucide-react";
 import { useTranslation } from "react-i18next";
@@ -26,15 +26,24 @@ function ToolAvatarImg({
   src: string;
   className?: string;
 }) {
+  const [loaded, setLoaded] = useState(false);
   return (
-    <img
-      src={src}
-      alt=""
-      className={className}
-      onError={(e) => {
-        (e.target as HTMLImageElement).style.display = "none";
-      }}
-    />
+    <span className="relative inline-flex w-full h-full">
+      {!loaded && (
+        <span className="absolute inset-0 skeleton-line rounded-full" />
+      )}
+      <img
+        src={src}
+        alt=""
+        className={className}
+        onLoad={() => setLoaded(true)}
+        onError={(e) => {
+          setLoaded(true);
+          (e.target as HTMLImageElement).style.display = "none";
+        }}
+        style={loaded ? {} : { opacity: 0 }}
+      />
+    </span>
   );
 }
 
@@ -110,7 +119,6 @@ const PersonaItem = memo(function PersonaItem({
   const description = parsed?.description || "";
   const avatar = parsed?.avatar || (args.avatar as string) || "";
   const tags: string[] = parsed?.tags || (args.tags as string[]) || [];
-  const presetId = parsed?.id || (args.preset_id as string) || "";
   const systemPrompt = parsed?.system_prompt || "";
   const starterPrompts: Array<{
     icon?: string | null;
@@ -137,7 +145,7 @@ const PersonaItem = memo(function PersonaItem({
   // ── Panel detail content ──
 
   const detailContent = canExpand && (
-    <div className="p-4 sm:p-5 space-y-4">
+    <div className="p-4 sm:p-5 space-y-4 tool-panel-content">
       {/* Hero card */}
       {displayName && (
         <div
@@ -262,7 +270,7 @@ const PersonaItem = memo(function PersonaItem({
                           statusVal === "draft"
                             ? "bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-300 ring-1 ring-amber-200/50 dark:ring-amber-800/30"
                             : statusVal === "archived"
-                              ? "bg-stone-100 dark:bg-stone-700/40 text-stone-500 dark:text-stone-400 ring-1 ring-stone-200/50 dark:ring-stone-600/30"
+                              ? "bg-theme-bg-subtle text-theme-text-tertiary ring-1 ring-theme-border"
                               : "bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-300 ring-1 ring-emerald-200/50 dark:ring-emerald-800/30",
                         )}
                       >
@@ -276,13 +284,6 @@ const PersonaItem = memo(function PersonaItem({
                     </p>
                   )}
                 </div>
-                {presetId && (
-                  <ToolHoverCopyButton
-                    text={presetId}
-                    position="args"
-                    copyButtonClassName="!bg-theme-bg/80 !rounded-lg !border !border-theme-border !mt-0.5"
-                  />
-                )}
               </div>
 
               {/* Tags + Skills */}

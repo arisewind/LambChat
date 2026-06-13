@@ -23,7 +23,7 @@ export function ToolbarChip({
     >
       <div className="flex flex-row items-center gap-2 min-w-0">
         {icon && (
-          <span className="relative h-[18px] w-[18px] shrink-0 inline-flex items-center justify-center">
+          <span className="relative h-[18px] w-[18px] shrink-0 inline-flex items-center justify-center overflow-hidden">
             {icon}
             {onClear && (
               <X
@@ -37,7 +37,7 @@ export function ToolbarChip({
             )}
           </span>
         )}
-        <span className="max-w-40 truncate text-sm font-semibold text-blue-600 dark:text-blue-400 font-serif">
+        <span className="max-w-40 sm:max-w-52 truncate text-sm font-semibold text-blue-600 dark:text-blue-400 font-serif">
           {label}
         </span>
       </div>

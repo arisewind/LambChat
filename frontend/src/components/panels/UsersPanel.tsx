@@ -46,15 +46,30 @@ interface UserAvatarProps {
 function UserAvatar({ user, size = "sm" }: UserAvatarProps) {
   const sizeClasses = size === "sm" ? "h-8 w-8 text-sm" : "h-10 w-10 text-base";
   const [imgError, setImgError] = useState(false);
+  const [imgLoaded, setImgLoaded] = useState(false);
 
   if (user.avatar_url && !imgError) {
     return (
-      <img
-        src={getFullUrl(user.avatar_url) ?? user.avatar_url}
-        alt={user.username}
-        className={`rounded-full object-cover ${sizeClasses}`}
-        onError={() => setImgError(true)}
-      />
+      <span
+        className={`relative inline-flex rounded-full overflow-hidden ${sizeClasses}`}
+      >
+        {!imgLoaded && (
+          <span
+            className={`absolute inset-0 skeleton-line rounded-full ${sizeClasses}`}
+          />
+        )}
+        <img
+          src={getFullUrl(user.avatar_url) ?? user.avatar_url}
+          alt={user.username}
+          className={`rounded-full object-cover ${sizeClasses}`}
+          onLoad={() => setImgLoaded(true)}
+          onError={() => {
+            setImgLoaded(true);
+            setImgError(true);
+          }}
+          style={imgLoaded ? {} : { opacity: 0 }}
+        />
+      </span>
     );
   }
 

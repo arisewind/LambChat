@@ -168,7 +168,7 @@ class AgentEventProcessor(SubagentEventMixin, StreamEventMixin, ToolEventMixin):
 
     async def process_event(self, event: StreamEvent) -> None:
         """Process a single LangChain stream event."""
-        await debug_log_event(event)
+        await debug_log_event(event, self._debug_log_context())
         evt_type = event.get("event")
         event_name = event.get("name", "")
 
@@ -277,6 +277,17 @@ class AgentEventProcessor(SubagentEventMixin, StreamEventMixin, ToolEventMixin):
     _process_messages = staticmethod(process_messages)
     _MCP_MEDIA_TYPES = MCP_MEDIA_TYPES
     _MCP_SKIP_KEYS = MCP_SKIP_KEYS
+
+    def _debug_log_context(self) -> dict[str, Any]:
+        """Return LambChat run identity for raw stream-event debug logs."""
+        config = getattr(self.presenter, "config", None)
+        return {
+            "trace_id": getattr(self.presenter, "trace_id", None),
+            "run_id": getattr(self.presenter, "run_id", None),
+            "session_id": getattr(config, "session_id", None),
+            "agent_id": getattr(config, "agent_id", None),
+            "agent_name": getattr(config, "agent_name", None),
+        }
 
     async def _upload_binary_blocks(self, result: dict) -> None:
         await upload_binary_blocks(result, self._base_url)

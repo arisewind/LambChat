@@ -9,11 +9,11 @@ export function RevealStatusText({
 }) {
   return (
     <div className="flex-1 min-w-0">
-      <div className="text-sm font-medium text-stone-700 dark:text-stone-300 truncate">
+      <div className="text-sm font-medium text-theme-text-secondary truncate">
         {title}
       </div>
       {subtitle != null && (
-        <div className="text-xs text-stone-500 dark:text-stone-400 truncate mt-0.5">
+        <div className="text-xs text-theme-text-tertiary truncate mt-0.5">
           {subtitle}
         </div>
       )}

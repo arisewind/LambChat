@@ -124,14 +124,14 @@ function SessionScheduledTaskPanelBody({
               {/* Header: title + status badge */}
               <div className="scheduled-task-mini-card__header">
                 <div className="min-w-0 flex-1">
-                  <div className="scheduled-task-card__title-row">
-                    <p className="scheduled-task-card__title truncate text-sm">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <p className="truncate text-sm font-semibold text-[var(--theme-text)]">
                       {task.name}
                     </p>
                     <StatusBadge status={task.status} />
                   </div>
                   {task.description && (
-                    <p className="scheduled-task-card__description mt-1 text-xs">
+                    <p className="mt-1 text-xs leading-relaxed text-[var(--theme-text-secondary)] line-clamp-2">
                       {task.description}
                     </p>
                   )}

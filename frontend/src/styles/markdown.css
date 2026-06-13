@@ -50,7 +50,7 @@
   color: #1f2937;
   /* gray-800 - light mode default */
   padding: 0;
-  font-weight: 450;
+  font-weight: 400;
   font-size: 0.9rem;
   line-height: 1.7;
   letter-spacing: 0.01em;
@@ -231,21 +231,24 @@
     system-ui,
     -apple-system,
     sans-serif;
-  line-height: 1.7;
-  color: #44403c;
+  line-height: 1.75;
+  color: #374151;
   overflow-wrap: break-word;
   word-wrap: break-word;
   hyphens: auto;
+  font-size: 0.9375rem;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
 .dark .markdown-preview {
-  color: #d6d3d1;
+  color: #e5e7eb;
 }
 
 /* Thinking content - muted stone tones */
 .markdown-preview.thinking-content {
-  color: #78716c;
-  font-size: 0.9em;
+  color: #57534e;
+  font-size: 1em;
 }
 .dark .markdown-preview.thinking-content {
   color: #d6d3d1;
@@ -334,6 +337,12 @@
   /* Base text */
   html {
     font-size: 16px;
+  }
+
+  /* Markdown preview - slightly larger on mobile for readability */
+  .markdown-preview {
+    font-size: 1rem;
+    line-height: 1.7;
   }
 
   /* Markdown content */

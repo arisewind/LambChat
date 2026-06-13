@@ -51,6 +51,8 @@ export interface SandboxPart {
   work_dir?: string;
   error?: string;
   timestamp?: string;
+  startedAt?: string;
+  completedAt?: string;
 }
 
 // Token 使用统计块类型
@@ -211,6 +213,7 @@ export type FormFieldType =
   | "number"
   | "checkbox"
   | "select"
+  | "radio"
   | "multi_select";
 
 export interface FormField {
@@ -221,6 +224,7 @@ export interface FormField {
   default?: unknown;
   required: boolean;
   options?: string[];
+  multiple?: boolean;
 }
 
 export interface PendingApproval {

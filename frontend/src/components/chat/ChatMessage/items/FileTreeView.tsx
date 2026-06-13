@@ -156,15 +156,15 @@ function FileTreeNode({
       <div>
         <button
           onClick={() => toggleDir(node.path)}
-          className="flex items-center gap-3 w-full px-3 py-2.5 rounded-xl hover:bg-stone-50 dark:hover:bg-stone-800/60 transition-colors"
+          className="flex items-center gap-3 w-full px-3 py-2.5 rounded-xl hover:bg-theme-bg-subtle transition-colors"
         >
           <FolderIcon size={36} className="shrink-0" />
           <div className="flex-1 min-w-0 text-left">
-            <div className="text-sm font-medium text-stone-800 dark:text-stone-200 truncate">
+            <div className="text-sm font-medium text-theme-text truncate">
               {node.name}
             </div>
             {expanded && dirSize > 0 && (
-              <div className="text-xs text-stone-400 dark:text-stone-500 mt-0.5">
+              <div className="text-xs text-theme-text-tertiary mt-0.5">
                 {formatSize(dirSize)}
               </div>
             )}
@@ -172,7 +172,7 @@ function FileTreeNode({
           <ChevronRight
             size={18}
             className={clsx(
-              "shrink-0 text-stone-400 transition-transform duration-200",
+              "shrink-0 text-theme-text-tertiary transition-transform duration-200",
               expanded && "rotate-90",
             )}
           />
@@ -210,22 +210,22 @@ function FileTreeNode({
   return (
     <button
       onClick={() => onFileClick?.(node)}
-      className="flex items-center gap-3 w-full px-3 py-2.5 rounded-xl hover:bg-stone-50 dark:hover:bg-stone-800/60 transition-colors group cursor-pointer"
+      className="flex items-center gap-3 w-full px-3 py-2.5 rounded-xl hover:bg-theme-bg-subtle transition-colors group cursor-pointer"
     >
       {imageSrc ? (
         <img
           src={imageSrc}
           alt={node.name}
-          className="w-9 h-9 rounded-lg object-cover shrink-0 bg-stone-100 dark:bg-stone-800"
+          className="w-9 h-9 rounded-lg object-cover shrink-0 bg-theme-bg-subtle"
         />
       ) : (
         getFileIcon(node.name)
       )}
       <div className="flex-1 min-w-0 text-left">
-        <div className="text-sm text-stone-700 dark:text-stone-300 truncate">
+        <div className="text-sm text-theme-text-secondary truncate">
           {node.name}
         </div>
-        <div className="text-xs text-stone-400 dark:text-stone-500 mt-0.5">
+        <div className="text-xs text-theme-text-tertiary mt-0.5">
           {node.isBinary ? "Binary" : formatSize(node.size)}
         </div>
       </div>
@@ -239,7 +239,7 @@ function FileTreeNode({
             node.url,
           );
         }}
-        className="shrink-0 p-1.5 rounded-lg text-stone-400 dark:text-stone-500 hover:text-stone-600 dark:hover:text-stone-300 hover:bg-stone-100 dark:hover:bg-stone-700 opacity-0 group-hover:opacity-100 transition-all"
+        className="shrink-0 p-1.5 rounded-lg text-theme-text-tertiary hover:text-theme-text-secondary hover:bg-theme-bg-subtle opacity-0 group-hover:opacity-100 transition-all"
         title={t("project.exportZip")}
       >
         <Download size={20} />
@@ -250,7 +250,7 @@ function FileTreeNode({
             e.stopPropagation();
             copyToClipboard(files[node.path]);
           }}
-          className="shrink-0 p-1.5 rounded-lg text-stone-400 dark:text-stone-500 hover:text-stone-600 dark:hover:text-stone-300 hover:bg-stone-100 dark:hover:bg-stone-700 opacity-0 group-hover:opacity-100 transition-all"
+          className="shrink-0 p-1.5 rounded-lg text-theme-text-tertiary hover:text-theme-text-secondary hover:bg-theme-bg-subtle opacity-0 group-hover:opacity-100 transition-all"
           title={t("chat.message.copy")}
         >
           <Copy size={20} />
@@ -297,10 +297,10 @@ export function FileTreeView({
   }, []);
 
   return (
-    <div className="flex flex-col h-full bg-white dark:bg-stone-900">
+    <div className="flex flex-col h-full bg-theme-bg-card">
       {showHeader && (
-        <div className="flex items-center justify-between px-3 py-2 border-b border-stone-200 dark:border-stone-700 shrink-0">
-          <span className="text-xs text-stone-500 dark:text-stone-400">
+        <div className="flex items-center justify-between px-3 py-2 border-b border-theme-border shrink-0">
+          <span className="text-xs text-theme-text-tertiary">
             {t("project.fileCount", "{{count}} 个文件", {
               count: fileCount,
             })}
@@ -309,7 +309,7 @@ export function FileTreeView({
             onClick={() =>
               exportProjectZip(files, projectName || "project", binaryFiles)
             }
-            className="flex items-center gap-1 px-2 py-1 rounded-md text-xs font-medium text-stone-500 dark:text-stone-400 hover:bg-stone-100 dark:hover:bg-stone-800 transition-colors"
+            className="flex items-center gap-1 px-2 py-1 rounded-md text-xs font-medium text-theme-text-tertiary hover:bg-theme-bg-subtle transition-colors"
           >
             <Download size={16} />
             {t("project.exportZip")}

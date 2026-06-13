@@ -8,6 +8,8 @@ Enable via::
     DEBUG_STREAM_EVENTS=true  python -m src.main
 
 Logs are written to ``logs/stream_events_YYYYMMDD_HHMMSS.jsonl``.
+Each record includes a ``_context`` object with the LambChat trace/run/session
+identity when the event is processed through ``AgentEventProcessor``.
 """
 
 from __future__ import annotations
@@ -16,7 +18,7 @@ import json
 import os
 import time
 from pathlib import Path
-from typing import Any
+from typing import Any, Mapping
 
 from src.infra.async_utils import run_blocking_io
 
@@ -109,7 +111,7 @@ def _sanitize(obj: Any, _depth: int = 0) -> Any:
     return str(obj)
 
 
-async def debug_log_event(event: Any) -> None:
+async def debug_log_event(event: Any, context: Mapping[str, Any] | None = None) -> None:
     """Dump the complete raw *event* to the debug JSONL log.
 
     Every field of the LangChain stream event is preserved so nothing is
@@ -124,17 +126,22 @@ async def debug_log_event(event: Any) -> None:
         return
 
     try:
-        await run_blocking_io(_write_event_sync, event, timeout=1.0)
+        if context:
+            await run_blocking_io(_write_event_sync, event, dict(context), timeout=1.0)
+        else:
+            await run_blocking_io(_write_event_sync, event, timeout=1.0)
     except Exception:
         # Debug logging is non-critical — must never kill the agent stream.
         pass
 
 
-def _write_event_sync(event: Any) -> None:
+def _write_event_sync(event: Any, context: Mapping[str, Any] | None = None) -> None:
     """Sanitize, serialize, and write a debug event synchronously."""
     record: dict[str, Any] = {
         "_ts": time.strftime("%H:%M:%S.") + f"{time.time() % 1:.3f}"[2:],
     }
+    if context:
+        record["_context"] = _sanitize(dict(context))
     record.update(_sanitize(event))
     line = json.dumps(record, ensure_ascii=False, default=str) + "\n"
     log_file = _get_log_file()

@@ -82,7 +82,7 @@ const ReadFileItem = memo(function ReadFileItem({
         : "error";
 
   const detailContent = hasContent && (
-    <div className="p-4 sm:p-5 space-y-3">
+    <div className="p-4 sm:p-5 space-y-3 tool-panel-content">
       <ToolArgsBlock size="detail">
         <span className="truncate">{filePath}</span>
         {(offset !== undefined || limit !== undefined) && (
@@ -91,7 +91,6 @@ const ReadFileItem = memo(function ReadFileItem({
             {limit ? `-${(offset ?? 1) + limit}` : ""}
           </span>
         )}
-        <ToolHoverCopyButton text={filePath} position="args" />
       </ToolArgsBlock>
       {imageBlocks.length > 0 && (
         <div className="flex flex-wrap gap-3">
@@ -101,7 +100,7 @@ const ReadFileItem = memo(function ReadFileItem({
         </div>
       )}
       {displayContent && (
-        <div className="relative group rounded-lg border border-theme-border overflow-hidden">
+        <div className="relative group rounded-lg tool-code-block">
           <DeferredCodeMirrorViewer
             value={displayContent}
             filePath={filePath}
@@ -160,7 +159,6 @@ const ReadFileItem = memo(function ReadFileItem({
                     {limit ? `-${(offset ?? 1) + limit}` : ""}
                   </span>
                 )}
-                <ToolHoverCopyButton text={filePath} position="argsCompact" />
               </ToolArgsBlock>
             )}
             {imageBlocks.length > 0 && (
@@ -171,7 +169,7 @@ const ReadFileItem = memo(function ReadFileItem({
               </div>
             )}
             {displayContent && (
-              <div className="relative group rounded-md border border-theme-border">
+              <div className="relative group rounded-md tool-code-block">
                 <DeferredCodeMirrorViewer
                   value={displayContent}
                   filePath={filePath}

@@ -22,7 +22,7 @@ export function FeaturesSection() {
               key={f.titleKey}
               data-reveal
               data-reveal-delay={String(Math.min(i + 1, 6))}
-              className="blog-feature-card group relative rounded-2xl border border-stone-100/80 dark:border-stone-800/40 bg-white/80 dark:bg-stone-900/40 p-7 sm:p-8 transition-all duration-500 hover:-translate-y-1.5 hover:bg-white dark:hover:bg-stone-900/60"
+              className="blog-feature-card blog-glass-inner-glow group relative rounded-2xl border border-stone-100/80 dark:border-stone-800/40 bg-white/80 dark:bg-stone-900/40 p-7 sm:p-8 transition-all duration-500 hover:-translate-y-2 hover:bg-white dark:hover:bg-stone-900/60"
             >
               {/* Top gradient accent */}
               <div
@@ -33,7 +33,7 @@ export function FeaturesSection() {
                 {String(i + 1).padStart(2, "0")}
               </span>
               <div
-                className={`flex items-center justify-center w-11 h-11 sm:w-12 sm:h-12 rounded-xl bg-gradient-to-br ${f.gradient} text-lg sm:text-xl mb-5 sm:mb-6 shadow-sm transition-all duration-400 group-hover:scale-110 group-hover:rotate-3 group-hover:shadow-md`}
+                className={`flex items-center justify-center w-11 h-11 sm:w-12 sm:h-12 rounded-xl bg-gradient-to-br ${f.gradient} text-lg sm:text-xl mb-5 sm:mb-6 shadow-sm transition-all duration-500 group-hover:scale-115 group-hover:rotate-3 group-hover:shadow-lg group-hover:shadow-black/5 dark:group-hover:shadow-black/20`}
               >
                 {f.icon}
               </div>

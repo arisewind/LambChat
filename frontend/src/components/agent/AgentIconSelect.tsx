@@ -57,7 +57,9 @@ export const AgentIconSelect = React.memo(function AgentIconSelect({
         className="ppe-avatar-hint-btn"
         onClick={() => setOpen((current) => !current)}
       >
-        <AgentIcon icon={value || undefined} size={16} />
+        <span className="relative inline-flex h-4 w-4 overflow-hidden">
+          <AgentIcon icon={value || undefined} size={16} />
+        </span>
         <Smile size={12} />
         {t("personaPresets.pickIcon", "选择图标")}
       </button>
@@ -75,13 +77,18 @@ export const AgentIconSelect = React.memo(function AgentIconSelect({
               }}
               title={t(item.labelKey)}
             >
-              <img
-                src={getFluentEmojiCDN(item.emoji, { type: "anim" })}
-                alt={t(item.labelKey)}
-                width={20}
-                height={20}
-                style={{ objectFit: "contain" }}
-              />
+              <span className="relative inline-flex size-5">
+                <span className="absolute inset-0 skeleton-line rounded-md" />
+                <img
+                  src={getFluentEmojiCDN(item.emoji, { type: "anim" })}
+                  alt={t(item.labelKey)}
+                  width={20}
+                  height={20}
+                  style={{ objectFit: "contain" }}
+                  className="relative z-[1]"
+                  loading="lazy"
+                />
+              </span>
             </button>
           ))}
         </div>

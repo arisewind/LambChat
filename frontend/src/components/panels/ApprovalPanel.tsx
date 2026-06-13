@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from "react";
+import { clsx } from "clsx";
 import {
   ShieldCheck,
   X,
@@ -7,6 +8,10 @@ import {
   ChevronRight,
   ListOrdered,
   Clock,
+  Circle,
+  CircleDot,
+  Square,
+  SquareCheck,
 } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import ReactMarkdown from "react-markdown";
@@ -56,6 +61,69 @@ function FormFieldRenderer({
     "w-full rounded-lg pl-3 pr-3 py-2 text-sm transition-all duration-150 focus:outline-none disabled:opacity-50 approval-input";
 
   const interact = () => onInteract?.();
+
+  const renderChoiceOptions = (multiple = false) => {
+    const options = field.options ?? [];
+    const selectedValues = Array.isArray(value) ? (value as string[]) : [];
+    const selectedValue = typeof value === "string" ? value : "";
+    const selectedCount = multiple
+      ? selectedValues.length
+      : selectedValue
+        ? 1
+        : 0;
+
+    return (
+      <div className="space-y-2">
+        <div className="approval-choice-list">
+          {options.map((option) => {
+            const isSelected = multiple
+              ? selectedValues.includes(option)
+              : selectedValue === option;
+            const Icon = multiple
+              ? isSelected
+                ? SquareCheck
+                : Square
+              : isSelected
+                ? CircleDot
+                : Circle;
+
+            return (
+              <button
+                key={option}
+                type="button"
+                onClick={() => {
+                  interact();
+                  if (multiple) {
+                    onChange(
+                      isSelected
+                        ? selectedValues.filter((v) => v !== option)
+                        : [...selectedValues, option],
+                    );
+                  } else {
+                    onChange(option);
+                  }
+                }}
+                disabled={disabled}
+                className={clsx(
+                  "approval-choice-option",
+                  isSelected && "approval-choice-option--selected",
+                  disabled && "approval-choice-option--disabled",
+                )}
+              >
+                <Icon size={16} strokeWidth={isSelected ? 2.4 : 1.8} />
+                <span>{option}</span>
+              </button>
+            );
+          })}
+        </div>
+        {multiple && options.length > 0 && (
+          <div className="approval-choice-count">
+            {selectedCount}/{options.length}
+          </div>
+        )}
+      </div>
+    );
+  };
 
   switch (field.type) {
     case "text":
@@ -151,43 +219,10 @@ function FormFieldRenderer({
           ]}
         />
       );
+    case "radio":
+      return renderChoiceOptions(false);
     case "multi_select": {
-      const selectedValues = (value as string[]) ?? [];
-      return (
-        <div className="flex flex-wrap gap-1.5">
-          {field.options?.map((option) => {
-            const isSelected = selectedValues.includes(option);
-            return (
-              <button
-                key={option}
-                type="button"
-                onClick={() => {
-                  interact();
-                  if (isSelected) {
-                    onChange(selectedValues.filter((v) => v !== option));
-                  } else {
-                    onChange([...selectedValues, option]);
-                  }
-                }}
-                disabled={disabled}
-                className={`approval-chip px-3 py-1 rounded-md text-sm font-medium ${
-                  isSelected ? "approval-chip-active" : ""
-                } ${disabled ? "opacity-50 cursor-not-allowed" : ""}`}
-                style={
-                  isSelected
-                    ? undefined
-                    : {
-                        backgroundColor: "var(--theme-bg-card)",
-                        color: "var(--theme-text-secondary)",
-                      }
-                }
-              >
-                {option}
-              </button>
-            );
-          })}
-        </div>
-      );
+      return renderChoiceOptions(true);
     }
     default:
       return null;
@@ -355,6 +390,7 @@ export function ApprovalPanel({
       case "checkbox":
         return false;
       case "select":
+      case "radio":
         return "";
       case "multi_select":
         return [];

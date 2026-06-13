@@ -360,7 +360,7 @@ export function ToolResultPanel({
           {/* Mobile drag handle */}
           {isMobile && !isFullscreen && (
             <div ref={dragHandleRef} className="flex justify-center pt-4 pb-2">
-              <div className="mobile-drag-handle w-9 h-1 rounded-full bg-stone-300 dark:bg-stone-600" />
+              <div className="mobile-drag-handle w-9 h-1 rounded-full bg-theme-text-tertiary" />
             </div>
           )}
           {hasCustomHeader ? (

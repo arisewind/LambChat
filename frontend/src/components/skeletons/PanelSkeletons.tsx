@@ -538,11 +538,11 @@ export function ScheduledTaskPanelSkeleton() {
           {Array.from({ length: 12 }).map((_, i) => (
             <div
               key={i}
-              className="glass-card scheduled-task-card border border-[var(--theme-border)]"
+              className="group flex h-full flex-col overflow-hidden rounded-xl border border-[var(--theme-border)] bg-[var(--theme-bg-card)] p-4 sm:p-5 shadow-sm"
             >
-              <div className="scheduled-task-card__content">
+              <div className="flex flex-col gap-2.5">
                 {/* Title + status badge */}
-                <div className="scheduled-task-card__title-row">
+                <div className="flex flex-wrap items-center gap-2">
                   <SkeletonLine
                     width={i % 2 === 0 ? "w-40 sm:w-56" : "w-32 sm:w-44"}
                     className="!h-[15px] sm:!h-[15px]"
@@ -562,8 +562,8 @@ export function ScheduledTaskPanelSkeleton() {
                   />
                 </div>
 
-                {/* Meta pills — matches .scheduled-task-meta flex-wrap with bordered pill items */}
-                <div className="scheduled-task-meta">
+                {/* Meta pills */}
+                <div className="my-3 flex flex-wrap gap-1.5">
                   {[0, 1, 2].map((j) => (
                     <SkeletonLine
                       key={j}
@@ -579,8 +579,8 @@ export function ScheduledTaskPanelSkeleton() {
                   ))}
                 </div>
 
-                {/* Subtle last-run info — matches .scheduled-task-card__subtle */}
-                <div className="scheduled-task-card__subtle flex items-center gap-2">
+                {/* Subtle last-run info */}
+                <div className="flex items-center gap-2 text-[11px]">
                   <SkeletonLine width="w-12 sm:w-14" className="!h-3" />
                   <SkeletonLine width="w-20 sm:w-28" className="!h-3" />
                   <SkeletonLine
@@ -590,10 +590,11 @@ export function ScheduledTaskPanelSkeleton() {
                 </div>
               </div>
 
-              {/* Action buttons — matches .scheduled-task-card__actions (border-top, justify-end) */}
-              <div className="scheduled-task-card__actions">
+              {/* Action buttons footer */}
+              <div className="mt-auto flex items-center gap-2 border-t border-[var(--glass-border)] pt-3 mt-3.5">
+                <div className="ml-auto" />
                 {[0, 1, 2, 3].map((j) => (
-                  <div key={j} className="skeleton-line size-9 rounded-lg" />
+                  <div key={j} className="skeleton-line size-8 rounded-lg" />
                 ))}
               </div>
             </div>
@@ -825,10 +826,17 @@ export function AgentPanelSkeleton() {
           className="!h-3 !opacity-60 hidden sm:block"
         />
       </div>
-      {/* Agent list — single glass-card with divide-y (matches real layout) */}
+      {/* Agent list — plain container with divide-y (matches real layout) */}
       <div className="flex-1 overflow-y-auto px-4 sm:px-6">
-        <div className="glass-card rounded-xl divide-y divide-[var(--theme-border)]">
-          {Array.from({ length: 7 }).map((_, i) => (
+        <div
+          className="rounded-xl divide-y divide-[var(--theme-border)]"
+          style={{
+            backgroundColor:
+              "var(--theme-bg-card, color-mix(in srgb, var(--theme-bg) 80%, white))",
+            border: "1px solid var(--theme-border)",
+          }}
+        >
+          {Array.from({ length: 5 }).map((_, i) => (
             <div
               key={i}
               className="flex items-center justify-between gap-3 px-4 py-3.5"
@@ -838,7 +846,7 @@ export function AgentPanelSkeleton() {
                   className="flex size-10 shrink-0 items-center justify-center rounded-xl ring-1 ring-[var(--theme-border)]"
                   style={{
                     backgroundColor:
-                      "var(--glass-bg-subtle, color-mix(in srgb, var(--theme-bg) 80%, white))",
+                      "var(--theme-bg-subtle, color-mix(in srgb, var(--theme-bg) 85%, white))",
                   }}
                 >
                   <div className="skeleton-line size-5 rounded-md" />
@@ -857,12 +865,6 @@ export function AgentPanelSkeleton() {
               <div className="skeleton-line w-8 sm:w-10 h-4 sm:h-5 rounded-full shrink-0" />
             </div>
           ))}
-        </div>
-        {/* Save bar */}
-        <div className="glass-divider px-4 py-3 mt-3">
-          <div className="flex justify-end">
-            <SkeletonLine width="w-20 sm:w-24" className="!h-9 !rounded-lg" />
-          </div>
         </div>
       </div>
     </div>

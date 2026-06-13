@@ -45,13 +45,12 @@ const WriteFileItem = memo(function WriteFileItem({
         : "error";
 
   const detailContent = canExpand && (
-    <div className="p-4 sm:p-5 space-y-3">
+    <div className="p-4 sm:p-5 space-y-3 tool-panel-content">
       <ToolArgsBlock size="detail">
         <span className="truncate">{filePath}</span>
-        <ToolHoverCopyButton text={filePath} position="args" />
       </ToolArgsBlock>
       {content && (
-        <div className="relative group rounded-lg border border-theme-border overflow-hidden">
+        <div className="relative group rounded-lg tool-code-block">
           <DeferredCodeMirrorViewer
             value={content}
             filePath={filePath}
@@ -108,10 +107,9 @@ const WriteFileItem = memo(function WriteFileItem({
           <ToolInlineDetails>
             <ToolArgsBlock size="compact">
               <span className="truncate">{filePath}</span>
-              <ToolHoverCopyButton text={filePath} position="argsCompact" />
             </ToolArgsBlock>
             {content && (
-              <div className="relative group rounded-md border border-theme-border">
+              <div className="relative group rounded-md tool-code-block">
                 <DeferredCodeMirrorViewer
                   value={content}
                   filePath={filePath}

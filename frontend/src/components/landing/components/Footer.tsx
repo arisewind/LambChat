@@ -15,7 +15,10 @@ export function Footer({ onScrollToSection }: FooterProps) {
   return (
     <footer className="safe-area-bottom blog-mesh-footer relative border-t border-stone-200/50 dark:border-stone-800/30 bg-stone-50/30 dark:bg-stone-900/15">
       {/* Top accent */}
-      <div className="absolute top-0 left-1/2 -translate-x-1/2 w-32 h-px bg-gradient-to-r from-transparent via-amber-400/50 to-transparent dark:via-amber-500/25" />
+      <div
+        className="absolute top-0 left-1/2 -translate-x-1/2 w-48 h-px bg-gradient-to-r from-transparent via-amber-400/60 to-transparent dark:via-amber-500/30"
+        style={{ boxShadow: "0 0 12px rgba(251,191,36,0.15)" }}
+      />
 
       <div className="max-w-6xl xl:max-w-7xl mx-auto px-5 sm:px-6 pt-24 sm:pt-28 pb-10 sm:pb-12">
         <div className="grid grid-cols-1 sm:grid-cols-12 gap-14 sm:gap-8 mb-16 sm:mb-20">

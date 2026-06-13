@@ -65,6 +65,7 @@ export { TeamItem } from "./items/TeamItem";
 export { SandboxMcpItem } from "./items/SandboxMcpItem";
 export { MemoryRecallItem } from "./items/MemoryRecallItem";
 export { MemoryStoreItem } from "./items/MemoryStoreItem";
+export { AskHumanItem } from "./items/AskHumanItem";
 
 // Collapsible Tool Call Item (compact design)
 export function ToolCallItem({
@@ -133,10 +134,7 @@ export function ToolCallItem({
   const panelContent = canExpand && (
     <div className="space-y-3 max-h-full overflow-y-auto p-2 sm:p-4 [&_pre]:!text-sm">
       {hasArgs && (
-        <CollapsibleSection
-          title={t("chat.message.args")}
-          action={<CopyButton text={argsJson} size={12} />}
-        >
+        <CollapsibleSection title={t("chat.message.args")}>
           <pre className="text-sm text-stone-600 dark:text-stone-300 overflow-x-auto overflow-y-auto min-w-0 font-mono">
             {argsJson}
           </pre>
@@ -207,10 +205,7 @@ export function ToolCallItem({
         {canExpand && (
           <div className="mt-2 ml-4 pl-3 border-l-2 border-stone-200/60 dark:border-stone-700/50 space-y-2 max-h-96 overflow-y-auto min-w-0">
             {hasArgs && (
-              <CollapsibleSection
-                title={t("chat.message.args")}
-                action={<CopyButton text={argsJson} size={10} />}
-              >
+              <CollapsibleSection title={t("chat.message.args")}>
                 <pre className="text-xs text-stone-600 dark:text-stone-300 overflow-x-auto max-h-40 overflow-y-auto min-w-0">
                   {argsJson}
                 </pre>

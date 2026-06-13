@@ -28,6 +28,9 @@ class FieldType(str, Enum):
     SELECT = "select"
     """下拉单选"""
 
+    RADIO = "radio"
+    """平铺单选"""
+
     MULTI_SELECT = "multi_select"
     """下拉多选"""
 
@@ -39,16 +42,16 @@ class FormField(BaseModel):
     """表单字段定义"""
 
     name: str = Field(
-        ...,
+        default="choice",
         description="字段名称，用于标识返回值中的字段",
     )
     label: str = Field(
-        ...,
+        default="请选择",
         description="字段标签，显示给用户看的名称",
     )
     type: FieldType = Field(
         default=FieldType.TEXT,
-        description="字段类型：text、textarea、number、checkbox、select、multi_select",
+        description="字段类型：text、textarea、number、checkbox、select、radio、multi_select",
     )
     placeholder: Optional[str] = Field(
         default=None,
@@ -64,7 +67,11 @@ class FormField(BaseModel):
     )
     options: Optional[List[str]] = Field(
         default=None,
-        description="选项列表（仅 select 和 multi_select 类型使用）",
+        description="选项列表（仅 select、radio 和 multi_select 类型使用）",
+    )
+    multiple: bool = Field(
+        default=False,
+        description="是否允许多选。设置 options 时可用它自动推断单选或多选",
     )
 
     model_config = {
@@ -107,6 +114,14 @@ class AskHumanInput(BaseModel):
     fields: List[FormField] = Field(
         default_factory=list,
         description="表单字段列表，定义需要用户填写的各个字段",
+    )
+    choices: Optional[List[str]] = Field(
+        default=None,
+        description="简写选项列表。设置后无需手写 fields，会自动生成一个 choice 字段",
+    )
+    multiple: bool = Field(
+        default=False,
+        description="配合 choices 使用：false 为单选，true 为多选",
     )
     timeout: int = Field(
         default=300,

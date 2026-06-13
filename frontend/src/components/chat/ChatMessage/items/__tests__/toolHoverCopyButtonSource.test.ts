@@ -10,7 +10,7 @@ function readSource(relativePath: string): string {
   return readFileSync(resolve(__dirname, relativePath), "utf8");
 }
 
-const argsCopyConsumers = [
+const formerArgsCopyConsumers = [
   "../EditFileItem.tsx",
   "../ExecuteItem.tsx",
   "../GlobItem.tsx",
@@ -21,77 +21,48 @@ const argsCopyConsumers = [
   "../WriteFileItem.tsx",
 ];
 
-test("tool argument copy controls share one hover-positioned wrapper", () => {
+test("tool hover copy controls are reserved for result and content blocks", () => {
   const source = readSource("../ToolHoverCopyButton.tsx");
 
   assert.match(
     source,
-    /type ToolHoverCopyPosition =[\s\S]*"args"[\s\S]*"argsCompact"[\s\S]*"panel"[\s\S]*"panelRaised"[\s\S]*"panelCompact"[\s\S]*"panelCompactRaised"[\s\S]*"result"[\s\S]*"resultCompact"/,
+    /type ToolHoverCopyPosition =[\s\S]*"panel"[\s\S]*"panelRaised"[\s\S]*"panelCompact"[\s\S]*"panelCompactRaised"[\s\S]*"result"[\s\S]*"resultCompact"/,
+  );
+  assert.doesNotMatch(source, /"args(?:Compact)?"/);
+  assert.doesNotMatch(source, /group-hover\/args/);
+  assert.match(
+    source,
+    /panel:\s*"absolute top-2 right-2 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity"/,
   );
   assert.match(
     source,
-    /args:\s*"absolute top-1\.5 right-1\.5 opacity-0 group-hover\/args:opacity-100 transition-opacity"/,
+    /panelRaised:\s*"absolute top-2 right-2 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity z-10"/,
   );
   assert.match(
     source,
-    /argsCompact:\s*"absolute top-0\.5 right-0\.5 opacity-0 group-hover\/args:opacity-100 transition-opacity"/,
+    /panelCompact:\s*"absolute top-1 right-1 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity"/,
   );
   assert.match(
     source,
-    /panel:\s*"absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity"/,
+    /panelCompactRaised:\s*"absolute top-1 right-1 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity z-10"/,
   );
   assert.match(
     source,
-    /panelRaised:\s*"absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity z-10"/,
+    /result:\s*"absolute top-1\.5 right-1\.5 sm:opacity-0 sm:group-hover\/result:opacity-100 transition-opacity"/,
   );
   assert.match(
     source,
-    /panelCompact:\s*"absolute top-1 right-1 opacity-0 group-hover:opacity-100 transition-opacity"/,
-  );
-  assert.match(
-    source,
-    /panelCompactRaised:\s*"absolute top-1 right-1 opacity-0 group-hover:opacity-100 transition-opacity z-10"/,
-  );
-  assert.match(
-    source,
-    /result:\s*"absolute top-1\.5 right-1\.5 opacity-0 group-hover\/result:opacity-100 transition-opacity"/,
-  );
-  assert.match(
-    source,
-    /resultCompact:\s*"absolute top-0\.5 right-0\.5 opacity-0 group-hover\/result:opacity-100 transition-opacity"/,
+    /resultCompact:\s*"absolute top-0\.5 right-0\.5 sm:opacity-0 sm:group-hover\/result:opacity-100 transition-opacity"/,
   );
   assert.match(source, /<CopyButton/);
 
-  for (const relativePath of argsCopyConsumers) {
+  for (const relativePath of formerArgsCopyConsumers) {
     const consumer = readSource(relativePath);
 
-    assert.match(
-      consumer,
-      /import \{ ToolHoverCopyButton \} from "\.\/ToolHoverCopyButton"/,
-      `${relativePath} should import ToolHoverCopyButton`,
-    );
-    if (relativePath !== "../McpBlockPreview.tsx") {
-      assert.match(
-        consumer,
-        /<ToolHoverCopyButton[\s\S]*position="args"/,
-        `${relativePath} should use the full argument copy position`,
-      );
-      assert.match(
-        consumer,
-        /<ToolHoverCopyButton[\s\S]*position="argsCompact"/,
-        `${relativePath} should use the compact argument copy position`,
-      );
-    }
-    if (relativePath === "../McpBlockPreview.tsx") {
-      assert.match(
-        consumer,
-        /<ToolHoverCopyButton[\s\S]*position="resultCompact"/,
-        `${relativePath} should use the compact result copy position`,
-      );
-    }
+    assert.doesNotMatch(consumer, /position="args(?:Compact)?"/);
     assert.doesNotMatch(
       consumer,
-      /absolute top-(?:1\.5|0\.5|2|1) right-(?:1\.5|0\.5|2|1) opacity-0 group-hover(?:\/args|\/result)?:opacity-100 transition-opacity(?: z-10)?/,
+      /absolute top-(?:1\.5|0\.5|2|1) right-(?:1\.5|0\.5|2|1) sm:opacity-0 sm:group-hover(?:\/args|\/result)?:opacity-100 transition-opacity(?: z-10)?/,
       `${relativePath} should not duplicate hover copy wrapper classes`,
     );
   }

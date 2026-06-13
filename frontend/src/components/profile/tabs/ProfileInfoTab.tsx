@@ -25,6 +25,7 @@ export function ProfileInfoTab() {
   // Avatar upload state
   const [isUploading, setIsUploading] = useState(false);
   const [imgError, setImgError] = useState(false);
+  const [imgLoaded, setImgLoaded] = useState(false);
 
   // Permission check for avatar upload
   const canUploadAvatar = hasPermission(Permission.AVATAR_UPLOAD);
@@ -163,12 +164,22 @@ export function ProfileInfoTab() {
       <div className="flex flex-col items-center mb-6">
         <div className="relative">
           {user?.avatar_url && !imgError ? (
-            <img
-              src={getFullUrl(user.avatar_url) ?? user.avatar_url}
-              alt={t("profile.avatar", "头像")}
-              className="size-20 rounded-full object-cover border-4 border-white dark:border-stone-700 shadow-lg ring-2 ring-stone-100 dark:ring-stone-600"
-              onError={() => setImgError(true)}
-            />
+            <span className="relative inline-flex size-20 rounded-full overflow-hidden">
+              {!imgLoaded && (
+                <span className="absolute inset-0 skeleton-line rounded-full border-4 border-white dark:border-stone-700 shadow-lg ring-2 ring-stone-100 dark:ring-stone-600" />
+              )}
+              <img
+                src={getFullUrl(user.avatar_url) ?? user.avatar_url}
+                alt={t("profile.avatar", "头像")}
+                className="size-20 rounded-full object-cover border-4 border-white dark:border-stone-700 shadow-lg ring-2 ring-stone-100 dark:ring-stone-600"
+                onLoad={() => setImgLoaded(true)}
+                onError={() => {
+                  setImgLoaded(true);
+                  setImgError(true);
+                }}
+                style={imgLoaded ? {} : { opacity: 0 }}
+              />
+            </span>
           ) : (
             <div className="size-16 sm:size-20 rounded-full bg-gradient-to-br from-amber-400 to-orange-500 flex items-center justify-center border-4 border-white dark:border-stone-700 shadow-lg ring-2 ring-stone-100 dark:ring-stone-600">
               <span className="text-3xl font-bold text-white font-serif">

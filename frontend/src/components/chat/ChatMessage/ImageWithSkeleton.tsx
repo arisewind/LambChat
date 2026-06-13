@@ -56,12 +56,12 @@ export function ImageWithSkeleton({
   // Inline mode: skeleton sits behind the img in the same space, no extra wrapper
   if (inline) {
     return (
-      <div className="relative w-full h-full">
+      <div className={`relative overflow-hidden ${className ?? ""}`}>
         {!isLoaded && !hasError && (
-          <div className="absolute inset-0 skeleton-line" />
+          <div className="absolute inset-0 skeleton-line rounded-[inherit]" />
         )}
         {hasError ? (
-          <div className="absolute inset-0 flex items-center justify-center bg-stone-100 dark:bg-stone-800 rounded">
+          <div className="absolute inset-0 flex items-center justify-center bg-stone-100 dark:bg-stone-800 rounded-[inherit]">
             <span className="text-xs text-stone-400 truncate px-1">
               {alt || "…"}
             </span>
@@ -74,7 +74,6 @@ export function ImageWithSkeleton({
             onLoad={handleLoad}
             onError={handleError}
             onClick={onClick}
-            className={className}
             referrerPolicy="no-referrer"
             style={{
               opacity: isLoaded ? 1 : 0,

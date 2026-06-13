@@ -1,14 +1,15 @@
 """scheduled_task_create tool implementation."""
 
 import sys
-from datetime import timedelta
+from datetime import datetime, timedelta
 from typing import TYPE_CHECKING, Annotated, Any
+from zoneinfo import ZoneInfo
 
 from langchain_core.tools import InjectedToolArg
 
 from src.infra.scheduler.service import ScheduledTaskService
 from src.infra.tool.backend_utils import get_user_id_from_runtime
-from src.infra.utils.datetime import parse_iso, to_iso, utc_now
+from src.infra.utils.datetime import ensure_utc, to_iso, utc_now
 from src.kernel.schemas.scheduled_task import ScheduledTaskCreate, TriggerType
 from src.kernel.types import Permission
 
@@ -39,6 +40,13 @@ from src.infra.tool.scheduled_task.helpers import (
 )
 
 
+def _parse_run_at_iso(value: str, timezone_name: str) -> datetime:
+    run_date = datetime.fromisoformat(value)
+    if run_date.tzinfo is None:
+        run_date = run_date.replace(tzinfo=ZoneInfo(timezone_name))
+    return ensure_utc(run_date)
+
+
 @tool
 async def scheduled_task_create(
     name: Annotated[str, "Task name, e.g. 'Daily Report', 'Cache Cleanup'"],
@@ -61,7 +69,13 @@ async def scheduled_task_create(
     run_at_iso: Annotated[
         str | None,
         "Absolute ISO-8601 datetime for a one-time run. Use when trigger_type='date'. "
-        "If timezone is omitted, UTC is assumed.",
+        "If timezone/offset is omitted, schedule_timezone is assumed.",
+    ] = None,
+    schedule_timezone: Annotated[
+        str | None,
+        "IANA timezone for interpreting user-facing schedule times, e.g. 'Asia/Shanghai' "
+        "or 'America/Los_Angeles'. Usually omit this and inherit the current user's timezone. "
+        "For cron schedules, cron_hour/cron_minute are in this timezone, not UTC.",
     ] = None,
     interval_seconds: Annotated[
         int | None,
@@ -72,7 +86,7 @@ async def scheduled_task_create(
         str | None,
         "Cron hour pattern (0-23). Only used when trigger_type='cron'. "
         "Examples: '9' (9 AM), '0,12' (midnight and noon), '*/3' (every 3 hours). "
-        "Time is in UTC.",
+        "Time is in schedule_timezone/the user's local timezone, not UTC.",
     ] = None,
     cron_minute: Annotated[
         str | None,
@@ -144,7 +158,8 @@ async def scheduled_task_create(
     The agent will receive the 'message' as a user prompt on each execution.
     Use trigger_type='date' for one-time tasks (e.g. remind me in 5 minutes).
     Use trigger_type='interval' for periodic tasks (e.g. every 5 minutes),
-    or trigger_type='cron' for calendar-based schedules (e.g. every weekday at 9 AM UTC).
+    or trigger_type='cron' for calendar-based schedules (e.g. every weekday at 9 AM
+    in the user's timezone).
     Each run creates a new session under the user's account.
     Before calling this tool, explain in the current conversation what the scheduled
     task will do. This tool does not run the task once for preview; it only asks
@@ -155,6 +170,16 @@ async def scheduled_task_create(
     error = await _permission_error(user_id, Permission.SCHEDULED_TASK_WRITE.value)
     if error:
         return _json(error)
+
+    (
+        session_agent_id,
+        session_agent_options,
+        session_user_timezone,
+        session_channel_delivery,
+        session_persona_preset_id,
+        session_team_id,
+    ) = await _get_current_session_defaults()
+    effective_timezone = schedule_timezone or session_user_timezone or "UTC"
 
     # Build trigger_config from structured params
     try:
@@ -181,7 +206,7 @@ async def scheduled_task_create(
                     return _json({"error": "delay_seconds must be at least 1"})
                 run_date = utc_now() + timedelta(seconds=delay_seconds)
             else:
-                run_date = parse_iso(str(run_at_iso))
+                run_date = _parse_run_at_iso(str(run_at_iso), effective_timezone)
         except Exception as e:
             return _json({"error": f"Invalid one-time schedule: {e}"})
 
@@ -213,14 +238,6 @@ async def scheduled_task_create(
         if "minute" not in trigger_config:
             trigger_config["minute"] = "0"
 
-    (
-        session_agent_id,
-        session_agent_options,
-        session_user_timezone,
-        session_channel_delivery,
-        session_persona_preset_id,
-        session_team_id,
-    ) = await _get_current_session_defaults()
     user = await _resolve_user(user_id)
     if team_query:
         effective_agent_id = "team"
@@ -288,6 +305,7 @@ async def scheduled_task_create(
         message=message,
         trigger_type=trigger_enum,
         trigger_config=trigger_config,
+        timezone_name=effective_timezone,
         agent_id=effective_agent_id,
         description=description,
         timeout_seconds=timeout_seconds,
@@ -332,6 +350,7 @@ async def scheduled_task_create(
                 agent_id=effective_agent_id,
                 trigger_type=trigger_enum,
                 trigger_config=trigger_config,
+                timezone=effective_timezone,
                 input_payload=input_payload,
                 description=description,
                 enabled=True,

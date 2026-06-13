@@ -2,6 +2,7 @@ import {
   useEffect,
   useState,
   useCallback,
+  useMemo,
   useRef,
   useLayoutEffect,
 } from "react";
@@ -26,7 +27,7 @@ import {
   Star,
   type LucideIcon,
 } from "lucide-react";
-import { FluentEmoji } from "@lobehub/fluent-emoji";
+import { getFluentEmojiCDN } from "@lobehub/fluent-emoji";
 import { useTranslation } from "react-i18next";
 import { LoadingSpinner, CollapsiblePill, CopyButton } from "../../common";
 import { ImageWithSkeleton } from "./ImageWithSkeleton";
@@ -65,7 +66,7 @@ import {
   resetSubagentPanelAutoOpenDismissal,
   shouldAutoOpenSubagentPanel,
 } from "./subagentPanelControl";
-import { formatDateTime } from "../../../utils/datetime";
+import { formatDateTime, formatDuration } from "../../../utils/datetime";
 
 function useSubagentPanelData(agentId: string): SubagentPanelData | undefined {
   const [, forceRender] = useState(0);
@@ -229,7 +230,7 @@ function SubagentStatusIcon({
       <Loader2
         size={size}
         className={clsx(
-          "text-amber-500 dark:text-amber-300 animate-spin",
+          "text-amber-500 dark:text-amber-400 animate-spin",
           className,
         )}
       />
@@ -239,7 +240,7 @@ function SubagentStatusIcon({
     return (
       <CheckCircle
         size={size}
-        className={clsx("text-[var(--theme-primary)]", className)}
+        className={clsx("text-emerald-500 dark:text-emerald-400", className)}
       />
     );
   }
@@ -247,7 +248,7 @@ function SubagentStatusIcon({
     return (
       <XCircle
         size={size}
-        className={clsx("text-red-500 dark:text-red-300", className)}
+        className={clsx("text-red-500 dark:text-red-400", className)}
       />
     );
   }
@@ -255,7 +256,7 @@ function SubagentStatusIcon({
     return (
       <Ban
         size={size}
-        className={clsx("text-amber-500 dark:text-amber-300", className)}
+        className={clsx("text-stone-400 dark:text-stone-500", className)}
       />
     );
   }
@@ -480,7 +481,7 @@ function SubagentPanelContent({ agentId }: { agentId: string }) {
     }
 
     scrollToBottom();
-  });
+  }, [data, scrollToBottom]);
 
   useEffect(() => {
     const scroller = scrollRef.current;
@@ -695,6 +696,11 @@ export function SubagentBlock({
   const roleIconMeta = getSubagentRoleIconMeta(formattedAgentName);
   const RoleIcon = roleIconMeta.icon;
   const agentAvatarUrl = getSubagentAvatarImageUrl(agent_avatar);
+
+  // Stable serialization of parts for effect dependency — array reference
+  // changes every render from the parent but content only changes on real updates.
+  const partsKey = useMemo(() => JSON.stringify(parts ?? []), [parts]);
+
   useEffect(() => {
     subagentPanelStore.set({
       agentId: agent_id,
@@ -746,7 +752,7 @@ export function SubagentBlock({
     success,
     error,
     isPending,
-    parts,
+    partsKey,
     startedAt,
     completedAt,
     effectiveStatus,
@@ -781,30 +787,23 @@ export function SubagentBlock({
       className={clsx(
         "my-1.5 rounded-xl overflow-hidden min-w-0 group relative",
         "ring-1 ring-stone-300/80 dark:ring-stone-600/60 transition-all duration-250",
-        effectiveStatus === "running" && "bg-amber-50/80 dark:bg-amber-950/15",
-        effectiveStatus === "complete" &&
-          "bg-[color-mix(in_srgb,var(--theme-primary)_7%,var(--theme-bg-card))] dark:bg-[color-mix(in_srgb,var(--theme-primary)_10%,var(--theme-bg-card))]",
-        effectiveStatus === "error" &&
-          "bg-gradient-to-r from-red-50/60 to-transparent dark:from-red-950/20",
-        effectiveStatus === "cancelled" &&
-          "bg-stone-50/80 dark:bg-stone-800/40",
-        (!effectiveStatus || effectiveStatus === "pending") &&
-          "bg-stone-50/80 dark:bg-stone-800/40",
+        "bg-theme-bg-card",
       )}
     >
       <div
         className={clsx(
           "absolute right-2.5 top-2.5 z-[1] flex h-5 w-5 items-center justify-center rounded-full",
-          "bg-theme-bg-card/90 shadow-sm ring-1",
+          "shadow-sm ring-1",
           effectiveStatus === "running" &&
-            "ring-amber-300/70 dark:ring-amber-700/50",
+            "bg-amber-100/80 dark:bg-amber-900/30 ring-amber-300/70 dark:ring-amber-700/50",
           effectiveStatus === "complete" &&
-            "ring-[color-mix(in_srgb,var(--theme-primary)_38%,transparent)] dark:ring-[color-mix(in_srgb,var(--theme-primary)_42%,transparent)]",
-          effectiveStatus === "error" && "ring-red-300/70 dark:ring-red-900/45",
+            "bg-emerald-100/80 dark:bg-emerald-900/30 ring-emerald-300/70 dark:ring-emerald-700/50",
+          effectiveStatus === "error" &&
+            "bg-red-100/80 dark:bg-red-900/30 ring-red-300/70 dark:ring-red-900/45",
           effectiveStatus === "cancelled" &&
-            "ring-amber-300/55 dark:ring-amber-800/40",
+            "bg-stone-200/60 dark:bg-stone-700/50 ring-stone-300/60 dark:ring-stone-600/50",
           (!effectiveStatus || effectiveStatus === "pending") &&
-            "ring-stone-200 dark:ring-stone-700/80",
+            "bg-stone-100 dark:bg-stone-800 ring-stone-200 dark:ring-stone-700",
         )}
         aria-label={t("chat.subagentStatus", {
           status: effectiveStatus || "pending",
@@ -818,20 +817,27 @@ export function SubagentBlock({
       >
         <div
           className={clsx(
-            "flex h-8 w-8 items-center justify-center rounded-lg shrink-0 overflow-hidden",
+            "relative flex h-8 w-8 items-center justify-center rounded-lg shrink-0 overflow-hidden",
             "ring-1 ring-inset ring-black/5 dark:ring-white/10",
             agentAvatarUrl
               ? "bg-white dark:bg-stone-800"
               : roleIconMeta.bgClassName,
           )}
         >
-          {roleIconMeta.emoji ? (
-            <FluentEmoji emoji={roleIconMeta.emoji} size={22} type="3d" />
-          ) : (
+          {!agentAvatarUrl && roleIconMeta.emoji ? (
+            <ImageWithSkeleton
+              src={getFluentEmojiCDN(roleIconMeta.emoji!, { type: "3d" })}
+              alt={roleIconMeta.emoji}
+              skipUrlResolve
+              inline
+              loading="eager"
+              style={{ objectFit: "contain" }}
+            />
+          ) : !agentAvatarUrl ? (
             <RoleIcon size={15} className={roleIconMeta.className} />
-          )}
+          ) : null}
           {agentAvatarUrl && (
-            <div className="absolute h-8 w-8 overflow-hidden rounded-full">
+            <div className="absolute inset-0 overflow-hidden rounded-full">
               <ImageWithSkeleton
                 src={agentAvatarUrl}
                 alt=""
@@ -854,13 +860,7 @@ export function SubagentBlock({
           <span
             className={clsx(
               "text-[13px] font-medium truncate block",
-              effectiveStatus === "running" &&
-                "text-amber-700 dark:text-amber-300",
-              effectiveStatus === "complete" && "text-theme-text",
-              effectiveStatus === "error" && "text-red-700 dark:text-red-300",
-              effectiveStatus === "cancelled" && "text-theme-text",
-              (!effectiveStatus || effectiveStatus === "pending") &&
-                "text-theme-text-secondary",
+              "text-theme-text",
             )}
           >
             {formattedAgentName}
@@ -881,16 +881,36 @@ export function SandboxItem({
   status,
   sandboxId,
   error,
+  startedAt,
+  completedAt,
 }: {
   status: "starting" | "ready" | "error" | "cancelled";
   sandboxId?: string;
   error?: string;
+  startedAt?: string;
+  completedAt?: string;
 }) {
   const { t } = useTranslation();
   const [isExpanded, setIsExpanded] = useState(false);
 
+  // Compute duration string when timing data is available
+  const durationText = (() => {
+    if (startedAt) {
+      const startMs = new Date(startedAt).getTime();
+      const endMs = completedAt
+        ? new Date(completedAt).getTime()
+        : status !== "starting"
+          ? Date.now()
+          : undefined;
+      if (endMs != null && endMs > startMs) {
+        return formatDuration(endMs - startMs);
+      }
+    }
+    return undefined;
+  })();
+
   const hasDetails =
-    (status === "ready" && sandboxId) ||
+    (status === "ready" && (sandboxId || durationText)) ||
     (status === "error" && error) ||
     status === "cancelled";
 
@@ -920,19 +940,30 @@ export function SandboxItem({
     >
       {isExpanded && hasDetails && (
         <div className="mt-1 ml-4 pl-3 border-l-2 border-theme-border max-h-40 overflow-y-auto">
-          {status === "ready" && sandboxId && (
-            <div className="text-xs text-theme-text pl-1 py-1 font-mono">
-              {t("chat.sandboxId", { id: sandboxId })}
+          {status === "ready" && (
+            <div className="text-xs text-theme-text pl-1 py-0.5 font-mono flex items-center gap-1.5">
+              {sandboxId && (
+                <span>{t("chat.sandboxId", { id: sandboxId })}</span>
+              )}
+              {durationText && (
+                <span>
+                  {t("chat.sandbox.elapsed", { duration: durationText })}
+                </span>
+              )}
             </div>
           )}
-          {status === "error" && error && (
-            <div className="text-xs text-red-600 dark:text-red-400 pl-1 py-1">
-              {error}
+          {status === "error" && (
+            <div className="text-xs text-red-600 dark:text-red-400 pl-1 py-0.5">
+              {error || t("chat.sandboxInitFailed")}
+              {durationText &&
+                ` · ${t("chat.sandbox.elapsed", { duration: durationText })}`}
             </div>
           )}
           {status === "cancelled" && (
             <div className="text-xs text-amber-600 dark:text-amber-400 pl-1 py-1">
               {t("chat.cancelled")}
+              {durationText &&
+                ` · ${t("chat.sandbox.elapsed", { duration: durationText })}`}
             </div>
           )}
         </div>

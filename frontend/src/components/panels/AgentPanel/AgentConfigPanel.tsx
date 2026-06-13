@@ -4,14 +4,14 @@
  */
 
 import { useState, useEffect, useCallback } from "react";
-import { Bot, AlertCircle, RefreshCw } from "lucide-react";
+import { Bot, RefreshCw } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import i18n from "../../../i18n";
 import toast from "react-hot-toast";
 import { Button } from "../../common";
 import { PanelHeader } from "../../common/PanelHeader";
-import { PanelLoadingState } from "../../common/PanelLoadingState";
 import { AgentIcon } from "../../agent/AgentIcon";
+import { AgentPanelSkeleton } from "../../skeletons";
 import { agentConfigApi, roleApi, agentApi } from "../../../services/api";
 import { useAuth } from "../../../hooks/useAuth";
 import { Permission } from "../../../types";
@@ -20,6 +20,7 @@ import {
   resolveAgentDescription,
   resolveAgentDisplayName,
 } from "../../agent/agentCatalog";
+import { ConfigPanelErrorCallout } from "../ConfigPanelErrorCallout";
 
 import { GlobalAgentTab, RolesAgentTab } from "./tabs";
 
@@ -183,7 +184,7 @@ export function AgentConfigPanel() {
   };
 
   if (isLoading) {
-    return <PanelLoadingState text={t("common.loading", "加载中...")} />;
+    return <AgentPanelSkeleton />;
   }
 
   return (
@@ -208,10 +209,10 @@ export function AgentConfigPanel() {
 
       {/* 错误提示 */}
       {error && (
-        <div className="mx-4 mt-4 flex items-center gap-2 rounded-xl bg-red-50 p-3 text-sm text-red-600 dark:bg-red-900/30 dark:text-red-400 sm:mx-6">
-          <AlertCircle size={18} />
-          <span>{error}</span>
-        </div>
+        <ConfigPanelErrorCallout
+          message={error}
+          className="mx-4 mt-4 sm:mx-6"
+        />
       )}
 
       {/* Tab 切换 */}
@@ -288,7 +289,7 @@ export function AgentConfigPanel() {
                     key={agent.id}
                     className="flex items-center gap-3.5 glass-card rounded-xl p-4 transition-all duration-200 hover:shadow-[var(--glass-shadow-hover)]"
                   >
-                    <div className="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-xl bg-[var(--glass-bg-subtle)] ring-1 ring-[var(--glass-border)] shadow-sm">
+                    <div className="flex h-11 w-11 flex-shrink-0 items-center justify-center overflow-hidden rounded-xl bg-[var(--glass-bg-subtle)] ring-1 ring-[var(--glass-border)] shadow-sm">
                       <AgentIcon
                         icon={agent.icon || "Bot"}
                         size={20}

@@ -92,7 +92,7 @@ function StatusBadge({
       <span
         className={clsx(
           "w-1.5 h-1.5 rounded-full",
-          isActive ? "bg-emerald-500" : "bg-stone-400",
+          isActive ? "bg-emerald-500" : "bg-theme-text-tertiary",
         )}
       />
       {t(`scheduledTask.${status || "statusUnknown"}`)}
@@ -422,7 +422,6 @@ const ScheduledTaskItem = memo(function ScheduledTaskItem({
     : "";
 
   const displayName = String(task?.name || taskName || rejectionTaskName || "");
-  const taskId = String(task?.id || args.task_id || "");
   const trigger = String(
     task?.trigger_type || triggerType || preview?.trigger_type || "",
   );
@@ -453,7 +452,7 @@ const ScheduledTaskItem = memo(function ScheduledTaskItem({
   // ── detail (panel) content ─────────────────────────────────────────
 
   const detailContent = canExpand && (
-    <div className="p-4 sm:p-5 space-y-3">
+    <div className="p-4 sm:p-5 space-y-3 tool-panel-content">
       {/* Rejection card */}
       {rejection && (
         <RejectionCard rejection={rejection} t={t} compact={false} />
@@ -492,13 +491,6 @@ const ScheduledTaskItem = memo(function ScheduledTaskItem({
               )}
             </div>
           </div>
-          {taskId && (
-            <ToolHoverCopyButton
-              text={taskId}
-              position="args"
-              copyButtonClassName="!bg-theme-bg-card/80 !rounded-md !border !border-theme-border"
-            />
-          )}
         </div>
       )}
 
@@ -625,7 +617,6 @@ const ScheduledTaskItem = memo(function ScheduledTaskItem({
           <span className="truncate text-theme-text font-medium">
             {displayName}
           </span>
-          <ToolHoverCopyButton text={displayName} position="argsCompact" />
         </ToolArgsBlock>
       )}
 
@@ -653,7 +644,7 @@ const ScheduledTaskItem = memo(function ScheduledTaskItem({
             <span
               className={clsx(
                 "w-1 h-1 rounded-full",
-                enabled ? "bg-emerald-500" : "bg-stone-400",
+                enabled ? "bg-emerald-500" : "bg-theme-text-tertiary",
               )}
             />
             {status

@@ -16,6 +16,27 @@ export interface SubagentPanelData {
 
 type Listener = () => void;
 
+function shallowEqual(a: SubagentPanelData, b: SubagentPanelData): boolean {
+  const partsEqual =
+    a.parts === b.parts ||
+    (Array.isArray(a.parts) &&
+      Array.isArray(b.parts) &&
+      a.parts.length === b.parts.length);
+  return (
+    a.agentId === b.agentId &&
+    a.agentName === b.agentName &&
+    a.input === b.input &&
+    a.result === b.result &&
+    a.success === b.success &&
+    a.error === b.error &&
+    a.isPending === b.isPending &&
+    a.startedAt === b.startedAt &&
+    a.completedAt === b.completedAt &&
+    a.status === b.status &&
+    partsEqual
+  );
+}
+
 export interface SubagentPanelStore {
   delete: (agentId: string) => void;
   get: (agentId: string) => SubagentPanelData | undefined;
@@ -45,6 +66,8 @@ export function createSubagentPanelStore(): SubagentPanelStore {
       return data.get(agentId);
     },
     set(next) {
+      const prev = data.get(next.agentId);
+      if (prev && shallowEqual(prev, next)) return;
       data.set(next.agentId, next);
       emit(next.agentId);
     },

@@ -5,7 +5,7 @@ import remarkBreaks from "remark-breaks";
 import remarkMath from "remark-math";
 import rehypeKatex from "rehype-katex";
 import React, { memo, useState } from "react";
-import { Copy, Check, Download } from "lucide-react";
+import { Copy, Check, Download, Table2 } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { clsx } from "clsx";
 import { getFullUrl } from "../../../services/api/config";
@@ -221,36 +221,44 @@ function TableBlock({ children }: { children: React.ReactNode }) {
   };
 
   return (
-    <div className="group/table relative my-3 rounded-lg shadow ring-1 ring-stone-200 dark:ring-stone-700 overflow-hidden">
-      {/* Floating toolbar — pinned to container top-right, outside scroll flow */}
+    <div className="group/table my-3 rounded-lg shadow ring-1 ring-stone-200 dark:ring-stone-700 overflow-hidden">
+      {/* Toolbar */}
       <div
         className={clsx(
-          "absolute top-1.5 right-1.5 z-20 flex items-center gap-0.5 px-1 py-0.5 rounded-md",
-          "bg-stone-100/90 dark:bg-stone-800/90 shadow-sm border border-stone-200/50 dark:border-stone-700/50",
-          "opacity-100 sm:opacity-0 sm:group-hover/table:opacity-100 transition-opacity duration-150",
+          "flex items-center justify-between px-2 py-1.5",
+          "border-b border-stone-200/60 dark:border-stone-700/60",
+          "bg-stone-50/80 dark:bg-stone-800/60",
         )}
       >
-        <button
-          onClick={handleCopy}
-          className={clsx(
-            "flex items-center gap-1 rounded px-1.5 py-1 text-xs font-medium transition-colors",
-            copied
-              ? "text-green-600 dark:text-green-400"
-              : "text-stone-500 hover:text-stone-700 hover:bg-stone-200/60 dark:text-stone-400 dark:hover:text-stone-200 dark:hover:bg-stone-700/50",
-          )}
-          title={copied ? t("chat.message.copied") : t("chat.message.copy")}
-        >
-          {copied ? <Check size={13} /> : <Copy size={13} />}
-        </button>
-        <button
-          onClick={handleExport}
-          className="flex items-center gap-1 rounded px-1.5 py-1 text-xs font-medium text-stone-500 hover:text-stone-700 hover:bg-stone-200/60 dark:text-stone-400 dark:hover:text-stone-200 dark:hover:bg-stone-700/50 transition-colors"
-          title={t("chat.message.exportCsv", "Export CSV")}
-        >
-          <Download size={13} />
-        </button>
+        <span className="flex items-center gap-1.5 text-[11px] sm:text-xs font-medium text-stone-500 dark:text-stone-400 select-none">
+          <Table2 size={12} />
+          {t("chat.message.table", "Table")}
+        </span>
+        <div className="flex items-center gap-0.5">
+          <button
+            onClick={handleCopy}
+            className={clsx(
+              "flex items-center gap-1 rounded px-1.5 py-0.5 text-[11px] sm:text-xs font-medium transition-colors",
+              copied
+                ? "text-green-600 dark:text-green-400"
+                : "text-stone-500 hover:text-stone-700 hover:bg-stone-200/60 dark:text-stone-400 dark:hover:text-stone-200 dark:hover:bg-stone-700/50",
+            )}
+            title={copied ? t("chat.message.copied") : t("chat.message.copy")}
+          >
+            {copied ? <Check size={12} /> : <Copy size={12} />}
+            {copied ? t("chat.message.copied") : t("chat.message.copy")}
+          </button>
+          <button
+            onClick={handleExport}
+            className="flex items-center gap-1 rounded px-1.5 py-0.5 text-[11px] sm:text-xs font-medium text-stone-500 hover:text-stone-700 hover:bg-stone-200/60 dark:text-stone-400 dark:hover:text-stone-200 dark:hover:bg-stone-700/50 transition-colors"
+            title={t("chat.message.exportCsv", "Export CSV")}
+          >
+            <Download size={12} />
+            {t("chat.message.exportCsv", "CSV")}
+          </button>
+        </div>
       </div>
-      {/* Scrollable table area — toolbar is outside this so it stays fixed */}
+      {/* Scrollable table area */}
       <div className="overflow-x-auto">
         <table
           ref={tableRef}
@@ -357,7 +365,7 @@ export const MarkdownContent = memo(function MarkdownContent({
           },
           // Paragraphs
           p: ({ children }) => (
-            <p className="text-stone-700 dark:text-stone-300 leading-relaxed mb-2 last:mb-0">
+            <p className="text-gray-700 dark:text-gray-300 leading-[1.75] mb-2 last:mb-0">
               {children}
             </p>
           ),
@@ -373,7 +381,7 @@ export const MarkdownContent = memo(function MarkdownContent({
             </ol>
           ),
           li: ({ children }) => (
-            <li className="text-stone-700 dark:text-stone-300 leading-relaxed">
+            <li className="text-gray-700 dark:text-gray-300 leading-[1.75]">
               {children}
             </li>
           ),
@@ -490,12 +498,12 @@ export const MarkdownContent = memo(function MarkdownContent({
             </tr>
           ),
           th: ({ children }) => (
-            <th className="px-3 py-2 text-left text-xs font-semibold text-stone-700 dark:text-stone-300 uppercase tracking-wider whitespace-nowrap min-w-[60px]">
+            <th className="px-2 sm:px-3 py-1.5 sm:py-2 text-left text-[11px] sm:text-xs font-semibold text-stone-700 dark:text-stone-300 uppercase tracking-wider whitespace-nowrap min-w-[40px]">
               {children}
             </th>
           ),
           td: ({ children }) => (
-            <td className="px-3 py-2 text-sm text-stone-600 dark:text-stone-400 break-words min-w-[60px]">
+            <td className="px-2 sm:px-3 py-1.5 sm:py-2 text-xs sm:text-sm text-stone-600 dark:text-stone-400 break-words min-w-[60px]">
               {children}
             </td>
           ),

@@ -23,6 +23,7 @@ import {
   SandboxMcpItem,
   MemoryRecallItem,
   MemoryStoreItem,
+  AskHumanItem,
 } from "./ToolCallItem";
 import { ThinkingBlock, SubagentBlock, SandboxItem } from "./SubagentBlocks";
 import { TodoBlock } from "./TodoBlock";
@@ -363,6 +364,20 @@ export function MessagePartRenderer({
         />
       );
     }
+    // Detect ask_human tool, use dedicated component
+    if (part.name === "ask_human") {
+      return (
+        <AskHumanItem
+          args={part.args}
+          result={part.result}
+          success={part.success}
+          isPending={part.isPending}
+          cancelled={part.cancelled}
+          startedAt={part.startedAt}
+          completedAt={part.completedAt}
+        />
+      );
+    }
     return (
       <ToolCallItem
         name={part.name}
@@ -413,6 +428,8 @@ export function MessagePartRenderer({
         status={part.status}
         sandboxId={part.sandbox_id}
         error={part.error}
+        startedAt={part.startedAt}
+        completedAt={part.completedAt}
       />
     );
   }

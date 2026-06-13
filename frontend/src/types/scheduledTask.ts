@@ -41,6 +41,7 @@ export interface ScheduledTask {
   agent_id: string;
   trigger_type: TriggerType;
   trigger_config: IntervalTriggerConfig | CronTriggerConfig | DateTriggerConfig;
+  timezone: string;
   input_payload: Record<string, unknown>;
   status: ScheduledTaskStatus;
   enabled: boolean;
@@ -66,6 +67,7 @@ export interface ScheduledTaskCreate {
   agent_id: string;
   trigger_type: TriggerType;
   trigger_config: Record<string, unknown>;
+  timezone?: string;
   input_payload?: Record<string, unknown>;
   description?: string | null;
   enabled?: boolean;
@@ -83,6 +85,7 @@ export interface ScheduledTaskUpdate {
   agent_id?: string;
   trigger_type?: TriggerType;
   trigger_config?: Record<string, unknown>;
+  timezone?: string;
   input_payload?: Record<string, unknown>;
   description?: string | null;
   enabled?: boolean;

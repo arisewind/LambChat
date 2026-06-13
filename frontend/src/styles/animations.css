@@ -156,3 +156,99 @@
     transform: rotate(360deg);
   }
 }
+
+/* ── CollapsiblePill micro-animations ── */
+
+/* Success: gentle one-time pulse (scale up then settle) */
+.pill-enter-success {
+  animation: pill-pulse-success 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+@keyframes pill-pulse-success {
+  0% {
+    transform: scale(1);
+  }
+  40% {
+    transform: scale(1.06);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+/* Error: subtle shake */
+.pill-enter-error {
+  animation: pill-shake 0.35s ease-in-out;
+}
+
+@keyframes pill-shake {
+  0%,
+  100% {
+    translate: 0 0;
+  }
+  20% {
+    translate: -2px 0;
+  }
+  40% {
+    translate: 2px 0;
+  }
+  60% {
+    translate: -1px 0;
+  }
+  80% {
+    translate: 1px 0;
+  }
+}
+
+/* Loading: soft opacity breath */
+.pill-loading-breathe {
+  animation: pill-breathe 2s ease-in-out infinite;
+}
+
+@keyframes pill-breathe {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.7;
+  }
+}
+
+/* Base pill hover/transition */
+.pill-btn {
+  transition:
+    transform 0.18s cubic-bezier(0.33, 1, 0.68, 1),
+    box-shadow 0.18s ease,
+    background-color 0.18s ease;
+}
+
+.pill-btn:hover:not(:disabled) {
+  transform: translateY(-1px);
+  box-shadow:
+    0 2px 6px -1px color-mix(in_srgb, currentColor 10%, transparent),
+    0 1px 2px -1px color-mix(in_srgb, currentColor 6%, transparent);
+}
+
+.pill-btn:active:not(:disabled) {
+  transform: translateY(0) scale(0.98);
+  box-shadow: none;
+  transition-duration: 0.08s;
+}
+
+/* Reduced motion */
+@media (prefers-reduced-motion: reduce) {
+  .pill-enter-success,
+  .pill-enter-error,
+  .pill-loading-breathe {
+    animation: none !important;
+  }
+  .pill-btn {
+    transition: background-color 0.15s ease !important;
+  }
+  .pill-btn:hover:not(:disabled),
+  .pill-btn:active:not(:disabled) {
+    transform: none;
+    box-shadow: none;
+  }
+}

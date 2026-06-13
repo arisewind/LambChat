@@ -315,7 +315,7 @@ function ProjectRevealPreviewPanel({
                   "flex items-center justify-center w-8 h-8 rounded-xl transition-all duration-200 active:scale-95",
                   showExplorer
                     ? "bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400"
-                    : "hover:bg-stone-100 dark:hover:bg-stone-800 text-stone-400 dark:text-stone-500",
+                    : "hover:bg-theme-bg-subtle text-theme-text-tertiary",
                 )}
                 title={t("project.toggleExplorer", "切换文件浏览器")}
               >
@@ -330,9 +330,9 @@ function ProjectRevealPreviewPanel({
             {t("project.loadFilesFailed")}
           </div>
         ) : !loadedFiles ? (
-          <div className="h-full bg-stone-900 flex items-center justify-center">
-            <div className="text-stone-400 text-sm flex items-center gap-2">
-              <LoadingSpinner size="sm" className="text-stone-400" />
+          <div className="h-full bg-theme-bg-elevated flex items-center justify-center">
+            <div className="text-theme-text-tertiary text-sm flex items-center gap-2">
+              <LoadingSpinner size="sm" className="text-theme-text-tertiary" />
               {t("project.loadingFiles")}
             </div>
           </div>

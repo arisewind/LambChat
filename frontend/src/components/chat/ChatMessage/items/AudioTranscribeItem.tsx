@@ -48,7 +48,7 @@ const AudioTranscribeItem = memo(function AudioTranscribeItem({
         : "error";
 
   const detailContent = canExpand && (
-    <div className="p-4 sm:p-5 space-y-4">
+    <div className="p-4 sm:p-5 space-y-4 tool-panel-content">
       {url && (
         <ToolArgsBlock size="detail" wrap>
           <Mic
@@ -56,7 +56,6 @@ const AudioTranscribeItem = memo(function AudioTranscribeItem({
             className="shrink-0 text-violet-500 dark:text-violet-400"
           />
           <span className="truncate">{url}</span>
-          <ToolHoverCopyButton text={url} position="args" />
         </ToolArgsBlock>
       )}
 
@@ -76,7 +75,7 @@ const AudioTranscribeItem = memo(function AudioTranscribeItem({
       </div>
 
       {transcription && (
-        <div className="relative group rounded-lg border border-theme-border bg-theme-bg overflow-hidden hover:border-violet-200 dark:hover:border-violet-800/50 transition-colors">
+        <div className="relative group rounded-lg tool-code-block">
           <DeferredCodeMirrorViewer
             value={transcription}
             lineNumbers={false}
@@ -126,7 +125,6 @@ const AudioTranscribeItem = memo(function AudioTranscribeItem({
               <span className="truncate">
                 {url.length > 100 ? url.slice(0, 97) + "…" : url}
               </span>
-              <ToolHoverCopyButton text={url} position="argsCompact" />
             </ToolArgsBlock>
 
             <div className="flex flex-wrap gap-1">
@@ -144,7 +142,7 @@ const AudioTranscribeItem = memo(function AudioTranscribeItem({
             </div>
 
             {transcription && (
-              <div className="relative group rounded-md border border-theme-border bg-theme-bg overflow-hidden hover:border-violet-200 dark:hover:border-violet-800/50 transition-colors">
+              <div className="relative group rounded-md tool-code-block">
                 <DeferredCodeMirrorViewer
                   value={
                     transcription.length > 2000

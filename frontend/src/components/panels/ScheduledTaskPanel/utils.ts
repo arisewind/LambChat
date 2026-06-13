@@ -6,6 +6,14 @@ import type { RunConversationMessage, ScheduledTaskDefaults } from "./types";
 
 const SCHEDULED_TASK_DEFAULTS_KEY = "lambchat_scheduled_task_defaults";
 
+export function getBrowserTimezone(): string {
+  try {
+    return Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC";
+  } catch {
+    return "UTC";
+  }
+}
+
 export function readScheduledTaskDefaults(): ScheduledTaskDefaults {
   if (typeof window === "undefined") return {};
   try {

@@ -29,6 +29,7 @@ export function UserMenu({ onShowProfile }: UserMenuProps) {
   const [showMenu, setShowMenu] = useState(false);
   const [menuPosition, setMenuPosition] = useState({ top: 0, right: 0 });
   const [imgError, setImgError] = useState(false);
+  const [imgLoaded, setImgLoaded] = useState(false);
   const [isMobile, setIsMobile] = useState(
     () => typeof window !== "undefined" && window.innerWidth < 640,
   );
@@ -263,12 +264,22 @@ export function UserMenu({ onShowProfile }: UserMenuProps) {
           className="flex h-8 w-8 items-center justify-center rounded-lg transition-all hover:ring-2 hover:ring-[var(--theme-primary-light)] active:scale-95 overflow-hidden"
         >
           {user?.avatar_url && !imgError ? (
-            <img
-              src={getFullUrl(user.avatar_url) ?? user.avatar_url}
-              alt={user?.username || t("common.user")}
-              className="size-5 object-cover rounded-full"
-              onError={() => setImgError(true)}
-            />
+            <span className="relative inline-flex size-5 rounded-full overflow-hidden">
+              {!imgLoaded && (
+                <span className="absolute inset-0 skeleton-line rounded-full" />
+              )}
+              <img
+                src={getFullUrl(user.avatar_url) ?? user.avatar_url}
+                alt={user?.username || t("common.user")}
+                className="size-5 object-cover rounded-full"
+                onLoad={() => setImgLoaded(true)}
+                onError={() => {
+                  setImgLoaded(true);
+                  setImgError(true);
+                }}
+                style={imgLoaded ? {} : { opacity: 0 }}
+              />
+            </span>
           ) : (
             <div className="flex size-5 items-center justify-center bg-gradient-to-br from-amber-400 to-orange-500 rounded-full">
               <span className="text-xs font-semibold text-white font-serif">

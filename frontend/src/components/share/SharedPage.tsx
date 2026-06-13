@@ -188,6 +188,7 @@ export function SharedPage() {
   const [error, setError] = useState<string | null>(null);
   const [data, setData] = useState<SharedContentResponse | null>(null);
   const [imgError, setImgError] = useState(false);
+  const [imgLoaded, setImgLoaded] = useState(false);
   const [showScrollTop, setShowScrollTop] = useState(false);
   const [showScrollBottom, setShowScrollBottom] = useState(true);
   const [scrollProgress, setScrollProgress] = useState(0);
@@ -635,14 +636,25 @@ export function SharedPage() {
               {/* Author */}
               <div className="flex items-center gap-3">
                 {data.owner.avatar_url && !imgError ? (
-                  <img
-                    src={
-                      getFullUrl(data.owner.avatar_url) ?? data.owner.avatar_url
-                    }
-                    alt={data.owner.username}
-                    className="size-10 rounded-full object-cover grayscale-[20%] dark:grayscale-[10%] flex-shrink-0 ring-2 ring-stone-100 dark:ring-stone-800"
-                    onError={() => setImgError(true)}
-                  />
+                  <span className="relative inline-flex size-10 rounded-full overflow-hidden flex-shrink-0">
+                    {!imgLoaded && (
+                      <span className="absolute inset-0 skeleton-line rounded-full ring-2 ring-stone-100 dark:ring-stone-800" />
+                    )}
+                    <img
+                      src={
+                        getFullUrl(data.owner.avatar_url) ??
+                        data.owner.avatar_url
+                      }
+                      alt={data.owner.username}
+                      className="size-10 rounded-full object-cover grayscale-[20%] dark:grayscale-[10%] flex-shrink-0 ring-2 ring-stone-100 dark:ring-stone-800"
+                      onLoad={() => setImgLoaded(true)}
+                      onError={() => {
+                        setImgLoaded(true);
+                        setImgError(true);
+                      }}
+                      style={imgLoaded ? {} : { opacity: 0 }}
+                    />
+                  </span>
                 ) : (
                   <img
                     src="/images/lamb.webp"

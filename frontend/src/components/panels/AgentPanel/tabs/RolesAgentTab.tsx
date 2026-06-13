@@ -136,7 +136,7 @@ export function RolesAgentTab({
                     onChange={() => toggleAgent(agent.id)}
                     size="sm"
                   />
-                  <div className="flex size-9 flex-shrink-0 items-center justify-center rounded-xl bg-[var(--glass-bg-subtle)] text-theme-text-secondary ring-1 ring-[var(--glass-border)]">
+                  <div className="flex size-9 flex-shrink-0 items-center justify-center overflow-hidden rounded-xl bg-[var(--glass-bg-subtle)] text-theme-text-secondary ring-1 ring-[var(--glass-border)]">
                     <AgentIcon icon={agent.icon || "Bot"} size={16} />
                   </div>
                   <div className="min-w-0 flex-1">

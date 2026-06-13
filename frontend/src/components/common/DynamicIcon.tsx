@@ -1,27 +1,29 @@
-import { FluentEmoji } from "@lobehub/fluent-emoji";
+import { getFluentEmojiCDN } from "@lobehub/fluent-emoji";
+import { ImageWithSkeleton } from "../chat/ChatMessage/ImageWithSkeleton";
 
-// Legacy default icons → mapped to 💬 FluentEmoji
+// Legacy default icons → mapped to 💬
 const LEGACY_DEFAULT_ICONS = new Set(["MessageCircle", "Bot", "📁"]);
 
 function renderEmojiIcon(
   icon: string,
   size?: number,
   className?: string,
-  extraClasses?: string,
 ) {
   return (
-    <span
-      className={[
-        "inline-flex items-center justify-center overflow-hidden",
-        extraClasses,
-        className,
-      ]
-        .filter(Boolean)
-        .join(" ")}
-      style={{ width: size, height: size, fontSize: size, lineHeight: 1 }}
-    >
-      <FluentEmoji emoji={icon} size={size} type="3d" />
-    </span>
+    <ImageWithSkeleton
+      src={getFluentEmojiCDN(icon, { type: "3d" })}
+      alt={icon}
+      className={className}
+      skipUrlResolve
+      inline
+      loading="eager"
+      style={{
+        objectFit: "contain",
+        ...(size != null
+          ? { width: size, height: size }
+          : {}),
+      }}
+    />
   );
 }
 

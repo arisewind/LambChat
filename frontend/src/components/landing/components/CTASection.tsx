@@ -13,7 +13,9 @@ export function CTASection({ onLogin }: CTASectionProps) {
     <section className="blog-mesh-cta blog-cta-ambient py-20 sm:py-28 lg:py-36 relative overflow-hidden">
       {/* Ambient glow */}
       <div className="absolute inset-0 pointer-events-none" aria-hidden="true">
-        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[700px] h-[400px] bg-[radial-gradient(ellipse,rgba(251,191,36,0.05)_0%,rgba(232,121,249,0.02)_40%,transparent_65%)] dark:bg-[radial-gradient(ellipse,rgba(251,191,36,0.04)_0%,rgba(232,121,249,0.015)_40%,transparent_65%)]" />
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[700px] h-[400px] bg-[radial-gradient(ellipse,rgba(251,191,36,0.08)_0%,rgba(232,121,249,0.04)_30%,transparent_65%)] dark:bg-[radial-gradient(ellipse,rgba(251,191,36,0.06)_0%,rgba(232,121,249,0.03)_30%,transparent_65%)]" />
+        <div className="absolute top-[20%] right-[10%] w-[200px] h-[200px] bg-[radial-gradient(circle,rgba(56,189,248,0.06),transparent_70%)]" />
+        <div className="absolute bottom-[20%] left-[10%] w-[180px] h-[180px] bg-[radial-gradient(circle,rgba(139,92,246,0.05),transparent_70%)]" />
       </div>
 
       <div className="relative max-w-2xl lg:max-w-3xl mx-auto px-5 sm:px-6 text-center">
@@ -22,9 +24,9 @@ export function CTASection({ onLogin }: CTASectionProps) {
           data-reveal
           className="flex items-center justify-center gap-3 mb-14 sm:mb-16"
         >
-          <div className="w-20 sm:w-28 h-px bg-gradient-to-r from-transparent to-stone-300/50 dark:to-stone-600/30" />
+          <div className="w-20 sm:w-28 h-px bg-gradient-to-r from-transparent via-amber-400/20 to-stone-300/50 dark:via-amber-500/15 dark:to-stone-600/30" />
           <div className="blog-ornament-diamond" />
-          <div className="w-20 sm:w-28 h-px bg-gradient-to-l from-transparent to-stone-300/50 dark:to-stone-600/30" />
+          <div className="w-20 sm:w-28 h-px bg-gradient-to-l from-transparent via-sky-400/15 to-stone-300/50 dark:via-sky-500/10 dark:to-stone-600/30" />
         </div>
 
         <h2

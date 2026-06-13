@@ -144,7 +144,7 @@ const MemoryStoreItem = memo(function MemoryStoreItem({
   // ── Panel detail content ──
 
   const detailContent = canExpand && (
-    <div className="p-4 sm:p-5 space-y-4">
+    <div className="p-4 sm:p-5 space-y-4 tool-panel-content">
       {/* Status banner */}
       {isSuccess && (
         <div className="flex items-center gap-2.5 px-3.5 py-2.5 rounded-xl bg-[color-mix(in_srgb,var(--theme-success)_7%,var(--theme-bg-card))] border border-[color-mix(in_srgb,var(--theme-success)_16%,var(--theme-border))]">
@@ -282,7 +282,7 @@ const MemoryStoreItem = memo(function MemoryStoreItem({
                   </div>
                 )}
                 {context && (
-                  <span className="inline-flex items-center gap-1 px-2 py-[2px] rounded-lg text-[10px] font-medium bg-stone-100 dark:bg-stone-800/40 text-stone-600 dark:text-stone-400 ring-1 ring-stone-200/50 dark:ring-stone-600/30">
+                  <span className="inline-flex items-center gap-1 px-2 py-[2px] rounded-lg text-[10px] font-medium bg-theme-bg text-theme-text-secondary ring-1 ring-theme-border">
                     {context}
                   </span>
                 )}
@@ -304,12 +304,6 @@ const MemoryStoreItem = memo(function MemoryStoreItem({
               {memoryIdArg}
             </div>
           </div>
-          <ToolHoverCopyButton
-            text={memoryIdArg}
-            position="args"
-            size={10}
-            copyButtonClassName="!bg-theme-bg/80 !rounded-lg !border !border-theme-border"
-          />
         </div>
       )}
 

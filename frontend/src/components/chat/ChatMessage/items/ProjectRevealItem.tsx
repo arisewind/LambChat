@@ -237,12 +237,9 @@ export function ProjectRevealItem({
 
   if (isPending) {
     return (
-      <div className="my-2 flex items-center gap-3 px-4 py-3 rounded-xl border border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-900">
-        <div className="p-2.5 rounded-lg bg-stone-100 dark:bg-stone-800">
-          <LoadingSpinner
-            size="sm"
-            className="text-stone-600 dark:text-stone-400"
-          />
+      <div className="my-2 flex items-center gap-3 px-4 py-3 rounded-xl border border-theme-border bg-theme-bg-card">
+        <div className="p-2.5 rounded-lg bg-theme-bg-subtle">
+          <LoadingSpinner size="sm" className="text-theme-text-secondary" />
         </div>
         <RevealStatusText
           title={projectName || t("project.loading")}
@@ -289,7 +286,7 @@ export function ProjectRevealItem({
   return (
     <div className="my-2 sm:my-3 min-w-0">
       <div
-        className="flex items-center gap-3 px-3 sm:px-4 py-2.5 sm:py-3 rounded-2xl ring-1 ring-stone-200 dark:ring-stone-700/80 bg-white dark:bg-stone-900 cursor-pointer hover:ring-stone-300 dark:hover:ring-stone-600 transition-all duration-200 shadow-sm hover:shadow-md"
+        className="flex items-center gap-3 px-3 sm:px-4 py-2.5 sm:py-3 rounded-2xl ring-1 ring-theme-border bg-theme-bg-card cursor-pointer hover:ring-theme-border-hover transition-all duration-200 shadow-sm hover:shadow-md"
         onClick={() => openPreview()}
       >
         <div className="flex items-center justify-center size-10 rounded-xl shrink-0 bg-blue-100 dark:bg-blue-900/40">
@@ -303,10 +300,10 @@ export function ProjectRevealItem({
           )}
         </div>
         <div className="flex-1 min-w-0">
-          <div className="text-sm font-medium text-stone-800 dark:text-stone-100 truncate">
+          <div className="text-sm font-medium text-theme-text truncate">
             {projectName || t("project.untitled")}
           </div>
-          <div className="text-xs text-stone-400 dark:text-stone-500 mt-0.5 truncate">
+          <div className="text-xs text-theme-text-tertiary mt-0.5 truncate">
             {t("project.fileCount", { count: fileCount })}
             {mode === "project" && template !== "static"
               ? ` · ${template}`
@@ -320,7 +317,7 @@ export function ProjectRevealItem({
                 event.stopPropagation();
                 exportProjectZip(loadedFiles, projectName, binaryFiles);
               }}
-              className="flex items-center justify-center size-8 rounded-lg text-stone-400 dark:text-stone-500 hover:text-stone-600 dark:hover:text-stone-300 hover:bg-stone-100 dark:hover:bg-stone-700 transition-colors"
+              className="flex items-center justify-center size-8 rounded-lg text-theme-text-tertiary hover:text-theme-text-secondary hover:bg-theme-bg-subtle transition-colors"
               title={t("project.exportZip")}
             >
               <Download size={16} />
@@ -331,7 +328,7 @@ export function ProjectRevealItem({
               event.stopPropagation();
               openPreview();
             }}
-            className="px-3 py-1.5 rounded-lg text-xs font-medium bg-stone-100 dark:bg-stone-800 text-stone-700 dark:text-stone-300 hover:bg-stone-200 dark:hover:bg-stone-700 transition-colors"
+            className="px-3 py-1.5 rounded-lg text-xs font-medium bg-theme-bg-subtle text-theme-text-secondary hover:bg-theme-bg-elevated transition-colors"
           >
             {t("project.preview", "预览")}
           </button>

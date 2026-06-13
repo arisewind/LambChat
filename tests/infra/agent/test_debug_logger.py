@@ -42,3 +42,29 @@ async def test_debug_log_event_offloads_serialization_and_file_write(
     await debug_logger.debug_log_event({"event": "on_chain_stream"})
 
     assert calls == ["fake_write_event_sync"]
+
+
+@pytest.mark.asyncio
+async def test_debug_log_event_includes_processing_context(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    calls: list[tuple[str, dict]] = []
+
+    async def fake_run_blocking_io(func, *args, **kwargs):
+        calls.append((func.__name__, args[1]))
+        return None
+
+    monkeypatch.setattr(debug_logger, "_ENABLED", True)
+    monkeypatch.setattr(debug_logger, "run_blocking_io", fake_run_blocking_io)
+
+    await debug_logger.debug_log_event(
+        {"event": "on_chat_model_stream"},
+        {"trace_id": "trace-1", "run_id": "run-1", "session_id": "session-1"},
+    )
+
+    assert calls == [
+        (
+            "_write_event_sync",
+            {"trace_id": "trace-1", "run_id": "run-1", "session_id": "session-1"},
+        )
+    ]

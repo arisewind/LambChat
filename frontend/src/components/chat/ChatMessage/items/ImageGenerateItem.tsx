@@ -91,7 +91,7 @@ const ImageGenerateItem = memo(function ImageGenerateItem({
   // ── detail (panel) content ─────────────────────────────────────────
 
   const detailContent = canExpand && (
-    <div className="p-4 sm:p-5 space-y-3">
+    <div className="p-4 sm:p-5 space-y-3 tool-panel-content">
       {/* ── Character Card Header ── */}
       <div
         className={clsx(
@@ -161,8 +161,8 @@ const ImageGenerateItem = memo(function ImageGenerateItem({
 
       {/* ── Prompt ── */}
       {prompt && (
-        <div className="group/args relative rounded-lg border border-theme-border overflow-hidden">
-          <div className="flex items-center gap-1.5 px-3 py-1.5 bg-theme-bg-subtle text-theme-text-tertiary text-xs">
+        <div className="group/args relative rounded-lg tool-code-block">
+          <div className="flex items-center gap-1.5 px-3 py-1.5 bg-theme-bg-subtle text-theme-text-tertiary text-xs transition-colors duration-200">
             <Sparkles
               size={12}
               className="text-violet-500 dark:text-violet-400"
@@ -172,7 +172,6 @@ const ImageGenerateItem = memo(function ImageGenerateItem({
           <div className="px-3 py-2 text-sm text-theme-text-secondary whitespace-pre-wrap break-words leading-relaxed">
             {prompt}
           </div>
-          <ToolHoverCopyButton text={prompt} position="args" />
         </div>
       )}
 
@@ -261,7 +260,6 @@ const ImageGenerateItem = memo(function ImageGenerateItem({
           <span className="truncate text-violet-600 dark:text-violet-300">
             {prompt.length > 120 ? prompt.slice(0, 117) + "…" : prompt}
           </span>
-          <ToolHoverCopyButton text={prompt} position="argsCompact" />
         </ToolArgsBlock>
       )}
 

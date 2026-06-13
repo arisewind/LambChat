@@ -48,7 +48,7 @@ const GlobItem = memo(function GlobItem({
         : "error";
 
   const detailContent = canExpand && (
-    <div className="p-4 sm:p-5 space-y-4">
+    <div className="p-4 sm:p-5 space-y-4 tool-panel-content">
       <ToolArgsBlock size="detail" wrap>
         <span className="text-emerald-600 dark:text-emerald-400 font-semibold">
           {pattern}
@@ -56,7 +56,6 @@ const GlobItem = memo(function GlobItem({
         {searchPath && (
           <span className="text-theme-text-tertiary">in {searchPath}</span>
         )}
-        <ToolHoverCopyButton text={pattern} position="args" />
       </ToolArgsBlock>
       {paths.length > 0 && (
         <div className="relative group rounded-lg border border-theme-border bg-theme-bg overflow-auto max-h-[60dvh]">
@@ -76,7 +75,7 @@ const GlobItem = memo(function GlobItem({
               <div
                 key={i}
                 className={clsx(
-                  "flex items-center gap-2.5 px-4 py-2 text-sm font-mono",
+                  "flex items-center gap-2.5 px-4 py-2 text-sm font-mono tool-file-row",
                   "border-b border-theme-border-faint last:border-b-0",
                   "hover:bg-theme-bg-subtle transition-colors",
                 )}
@@ -141,7 +140,6 @@ const GlobItem = memo(function GlobItem({
                   {t("chat.message.toolInPath", { path: searchPath })}
                 </span>
               )}
-              <ToolHoverCopyButton text={pattern} position="argsCompact" />
             </ToolArgsBlock>
             {paths.length > 0 && (
               <div className="relative group max-h-48 overflow-y-auto rounded-md border border-theme-border bg-theme-bg">
@@ -160,7 +158,7 @@ const GlobItem = memo(function GlobItem({
                     <div
                       key={i}
                       className={clsx(
-                        "flex items-center gap-2 px-3 py-1 text-xs font-mono",
+                        "flex items-center gap-2 px-3 py-1 text-xs font-mono tool-file-row",
                         "border-b border-theme-border-faint last:border-b-0",
                         "hover:bg-theme-bg-subtle transition-colors",
                       )}

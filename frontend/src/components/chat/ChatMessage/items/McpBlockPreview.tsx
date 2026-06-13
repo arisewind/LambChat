@@ -54,7 +54,7 @@ export function BlockPreviewPortal() {
     icon = <ImageIcon size={16} />;
     title = t("chat.message.toolOutput");
     content = (
-      <div className="flex items-center justify-center p-4 bg-stone-50 dark:bg-stone-900 min-h-[200px]">
+      <div className="flex items-center justify-center p-4 bg-theme-bg min-h-[200px]">
         <ImageWithSkeleton
           src={preview.src}
           alt={t("chat.message.toolOutput")}
@@ -69,14 +69,14 @@ export function BlockPreviewPortal() {
     title = preview.fileName || t("chat.message.toolFile");
     content = (
       <div className="p-4 sm:p-5 space-y-3">
-        <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-stone-100 dark:bg-stone-800 text-sm text-stone-500 dark:text-stone-400 font-mono truncate">
+        <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-theme-bg-subtle text-sm text-theme-text-tertiary font-mono truncate">
           <span className="truncate">{preview.url}</span>
         </div>
         <a
           href={preview.url}
           target="_blank"
           rel="noopener noreferrer"
-          className="inline-flex items-center gap-2 px-4 py-2.5 rounded-lg bg-stone-100 dark:bg-stone-800 text-sm text-stone-600 dark:text-stone-300 hover:bg-stone-200 dark:hover:bg-stone-700 transition-colors border border-stone-200 dark:border-stone-700"
+          className="inline-flex items-center gap-2 px-4 py-2.5 rounded-lg bg-theme-bg-subtle text-sm text-theme-text-secondary hover:bg-theme-bg-elevated transition-colors border border-theme-border"
         >
           <ExternalLink size={14} />
           {t("chat.message.toolOpenFile", "Open file")}
@@ -91,7 +91,7 @@ export function BlockPreviewPortal() {
         <div className="flex justify-end mb-2">
           <CopyButton text={preview.text} />
         </div>
-        <pre className="text-sm text-stone-700 dark:text-stone-300 whitespace-pre-wrap break-words font-mono">
+        <pre className="text-sm text-theme-text-secondary whitespace-pre-wrap break-words font-mono">
           {preview.text}
         </pre>
       </div>
@@ -137,12 +137,12 @@ export function McpBlockPreview({ block }: { block: McpContentBlock }) {
     return (
       <>
         {!loaded && (
-          <div className="w-48 h-32 rounded-md border border-stone-200 dark:border-stone-700 bg-stone-100 dark:bg-stone-800 animate-pulse" />
+          <div className="w-48 h-32 rounded-md border border-theme-border bg-theme-bg-subtle animate-pulse" />
         )}
         <img
           src={src}
           alt={t("chat.message.toolOutput")}
-          className={`max-w-full max-h-48 rounded-md border border-stone-200 dark:border-stone-700 cursor-pointer hover:opacity-80 transition-opacity${
+          className={`max-w-full max-h-48 rounded-md border border-theme-border cursor-pointer hover:opacity-80 transition-opacity${
             !loaded ? " hidden" : ""
           }`}
           onClick={() => {
@@ -160,7 +160,7 @@ export function McpBlockPreview({ block }: { block: McpContentBlock }) {
     return (
       <button
         onClick={() => openBlockPreview({ type: "file", url, fileName })}
-        className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-md bg-stone-100 dark:bg-stone-800 text-xs text-stone-600 dark:text-stone-300 hover:bg-stone-200 dark:hover:bg-stone-700 transition-colors border border-stone-200 dark:border-stone-700 cursor-pointer"
+        className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-md bg-theme-bg-subtle text-xs text-theme-text-secondary hover:bg-theme-bg-elevated transition-colors border border-theme-border cursor-pointer"
       >
         <File size={12} />
         {fileName}
@@ -173,7 +173,7 @@ export function McpBlockPreview({ block }: { block: McpContentBlock }) {
       <div className="group/pre relative">
         <pre
           onClick={() => openBlockPreview({ type: "text", text: block.text })}
-          className="text-xs text-stone-600 dark:text-stone-300 whitespace-pre-wrap break-words overflow-y-auto min-w-0 cursor-pointer hover:text-stone-900 dark:hover:text-stone-100 transition-colors"
+          className="text-xs text-theme-text-secondary whitespace-pre-wrap break-words overflow-y-auto min-w-0 cursor-pointer hover:text-theme-text transition-colors"
         >
           {block.text}
         </pre>
@@ -208,11 +208,11 @@ function GeneratedImageResults({ images }: { images: GeneratedImageResult[] }) {
         {images.map((image) => (
           <figure
             key={image.url}
-            className="overflow-hidden rounded-md border border-stone-200 bg-stone-50 dark:border-stone-700 dark:bg-stone-900"
+            className="overflow-hidden rounded-md border border-theme-border bg-theme-bg"
           >
             <button
               type="button"
-              className="block w-full bg-stone-100 dark:bg-stone-950"
+              className="block w-full bg-theme-bg-elevated"
               onClick={() => setActiveImage(image)}
               aria-label={t("chat.message.openImage", "Open image")}
             >
@@ -225,17 +225,17 @@ function GeneratedImageResults({ images }: { images: GeneratedImageResult[] }) {
                 wrapperClassName="!my-0 !shadow-none"
               />
             </button>
-            <figcaption className="flex items-center gap-2 border-t border-stone-200 px-3 py-2 text-xs text-stone-600 dark:border-stone-700 dark:text-stone-300">
+            <figcaption className="flex items-center gap-2 border-t border-theme-border px-3 py-2 text-xs text-theme-text-secondary">
               <ImageIcon
                 size={14}
-                className="shrink-0 text-stone-500 dark:text-stone-400"
+                className="shrink-0 text-theme-text-tertiary"
               />
               <span className="min-w-0 flex-1 truncate">{image.name}</span>
               <a
                 href={image.url}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="shrink-0 rounded-md p-1 text-stone-500 transition-colors hover:bg-stone-200 hover:text-stone-800 dark:text-stone-400 dark:hover:bg-stone-800 dark:hover:text-stone-100"
+                className="shrink-0 rounded-md p-1 text-theme-text-tertiary transition-colors hover:bg-theme-bg-subtle hover:text-theme-text"
                 aria-label={t("chat.message.openImage", "Open image")}
               >
                 <ExternalLink size={14} />
@@ -318,7 +318,7 @@ export function ToolResultContent({
     return (
       <div className="space-y-1.5">
         {combinedText && (
-          <div className="group/result relative text-xs text-stone-600 dark:text-stone-300 overflow-y-auto">
+          <div className="group/result relative text-xs text-theme-text-secondary overflow-y-auto">
             {isMarkdownText(combinedText) ? (
               <MarkdownContent content={combinedText} />
             ) : (
@@ -353,7 +353,7 @@ export function ToolResultContent({
       <div className="space-y-1.5">
         {mcp.text &&
           (isMarkdownText(mcp.text) ? (
-            <div className="group/result relative text-xs text-stone-600 dark:text-stone-300 overflow-y-auto">
+            <div className="group/result relative text-xs text-theme-text-secondary overflow-y-auto">
               <MarkdownContent content={mcp.text} />
               <ToolHoverCopyButton
                 text={mcp.text}
@@ -362,7 +362,7 @@ export function ToolResultContent({
               />
             </div>
           ) : (
-            <pre className="group/result relative text-xs text-stone-600 dark:text-stone-300 whitespace-pre-wrap break-words max-h-64 overflow-y-auto">
+            <pre className="group/result relative text-xs text-theme-text-secondary whitespace-pre-wrap break-words max-h-64 overflow-y-auto">
               {mcp.text}
               <ToolHoverCopyButton
                 text={mcp.text}
@@ -394,36 +394,33 @@ export function ToolResultContent({
     const title = typeof result.title === "string" ? result.title : "";
     const url = typeof result.url === "string" ? result.url : "";
     return (
-      <div className="rounded-md border border-stone-200 dark:border-stone-700 overflow-hidden">
+      <div className="rounded-md border border-theme-border overflow-hidden">
         {(title || url) && (
-          <div className="flex items-center gap-2 px-3 py-2 bg-stone-100 dark:bg-stone-800 border-b border-stone-200 dark:border-stone-700">
-            <FileText
-              size={14}
-              className="shrink-0 text-stone-500 dark:text-stone-400"
-            />
+          <div className="flex items-center gap-2 px-3 py-2 bg-theme-bg-subtle border-b border-theme-border">
+            <FileText size={14} className="shrink-0 text-theme-text-tertiary" />
             {url ? (
               <a
                 href={url}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="text-xs font-medium text-stone-700 dark:text-stone-200 hover:underline truncate"
+                className="text-xs font-medium text-theme-text hover:underline truncate"
               >
                 {title || url}
               </a>
             ) : (
-              <span className="text-xs font-medium text-stone-700 dark:text-stone-200 truncate">
+              <span className="text-xs font-medium text-theme-text truncate">
                 {title}
               </span>
             )}
             {url && (
               <ExternalLink
                 size={12}
-                className="shrink-0 text-stone-400 dark:text-stone-500 ml-auto"
+                className="shrink-0 text-theme-text-tertiary ml-auto"
               />
             )}
           </div>
         )}
-        <div className="group/rich relative p-3 text-xs text-stone-600 dark:text-stone-300 max-h-96 overflow-y-auto">
+        <div className="group/rich relative p-3 text-xs text-theme-text-secondary max-h-96 overflow-y-auto">
           <MarkdownContent content={result.content} />
           <div className="absolute top-1 right-1 opacity-0 group-hover/rich:opacity-100 transition-opacity">
             {!hideCopyButton && <CopyButton text={result.content} size={12} />}
@@ -461,7 +458,7 @@ export function ToolResultContent({
 
   if (textContent) {
     return isMarkdownText(textContent) ? (
-      <div className="group/result relative text-xs text-stone-600 dark:text-stone-300 overflow-y-auto">
+      <div className="group/result relative text-xs text-theme-text-secondary overflow-y-auto">
         <MarkdownContent content={textContent} />
         <ToolHoverCopyButton
           text={textContent}
@@ -470,7 +467,7 @@ export function ToolResultContent({
         />
       </div>
     ) : (
-      <pre className="group/result relative text-xs text-stone-600 dark:text-stone-300 overflow-y-auto whitespace-pre-wrap break-words">
+      <pre className="group/result relative text-xs text-theme-text-secondary overflow-y-auto whitespace-pre-wrap break-words">
         {textContent}
         <ToolHoverCopyButton
           text={textContent}
@@ -507,13 +504,13 @@ function JsonFallback({
       <div className="absolute top-1 right-1 opacity-0 group-hover/json:opacity-100 transition-opacity z-10">
         {!hideCopyButton && <CopyButton text={str} size={12} />}
       </div>
-      <pre className="text-xs text-stone-600 dark:text-stone-300 overflow-y-auto whitespace-pre-wrap break-words min-w-0">
+      <pre className="text-xs text-theme-text-secondary overflow-y-auto whitespace-pre-wrap break-words min-w-0">
         {display}
       </pre>
       {needsTruncation && (
         <button
           onClick={() => setExpanded((v) => !v)}
-          className="flex items-center gap-1 mt-1 text-xs text-stone-500 dark:text-stone-400 hover:text-stone-700 dark:hover:text-stone-200 transition-colors"
+          className="flex items-center gap-1 mt-1 text-xs text-theme-text-tertiary hover:text-theme-text transition-colors"
         >
           {expanded ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
           {expanded ? t("chat.message.collapse") : t("chat.message.expandAll")}

@@ -36,7 +36,7 @@ import {
   getScheduledTaskPersonaPresetId,
   getScheduledTaskTeamId,
 } from "../scheduledTaskPayload";
-import { toDateTimeLocalValue } from "./utils";
+import { getBrowserTimezone, toDateTimeLocalValue } from "./utils";
 
 /** Create/Edit form sidebar */
 export function TaskFormModal({
@@ -94,6 +94,7 @@ export function TaskFormModal({
   const [triggerType, setTriggerType] = useState<TriggerType>(
     task?.trigger_type ?? "interval",
   );
+  const [timezone] = useState(task?.timezone || getBrowserTimezone());
   const [intervalSeconds, setIntervalSeconds] = useState(
     task?.trigger_type === "interval"
       ? String((task?.trigger_config as { seconds?: number })?.seconds ?? 300)
@@ -237,6 +238,7 @@ export function TaskFormModal({
         agent_id: agentId,
         trigger_type: triggerType,
         trigger_config: triggerConfig,
+        timezone,
         input_payload: nextPayload,
         description: description.trim() || null,
         enabled,

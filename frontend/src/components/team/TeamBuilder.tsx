@@ -486,12 +486,17 @@ export const TeamBuilder = forwardRef<TeamBuilderHandle, TeamBuilderProps>(
                         }}
                         title={emoji}
                       >
-                        <img
-                          src={getEmojiAvatarUrl(emoji)}
-                          alt=""
-                          width={20}
-                          height={20}
-                        />
+                        <span className="relative inline-flex size-5">
+                          <span className="absolute inset-0 skeleton-line rounded-md" />
+                          <img
+                            src={getEmojiAvatarUrl(emoji)}
+                            alt=""
+                            width={20}
+                            height={20}
+                            className="relative z-[1]"
+                            loading="lazy"
+                          />
+                        </span>
                       </button>
                     ))}
                   </div>

@@ -2,7 +2,14 @@
  * 登录/注册页面组件
  */
 
-import { useState, useEffect, useRef, Fragment } from "react";
+import {
+  useState,
+  useEffect,
+  useRef,
+  Fragment,
+  useMemo,
+  useCallback,
+} from "react";
 import { Link } from "react-router-dom";
 import { User, Mail, AlertCircle, AtSign } from "lucide-react";
 import { PasswordInput } from "./PasswordInput";
@@ -24,6 +31,8 @@ import {
   AUTH_REDIRECT_FAILSAFE_MS,
   resolvePostAuthRedirectPath,
 } from "./authRedirectTransition";
+
+const CURRENT_YEAR = new Date().getFullYear();
 
 type AuthMode = "login" | "register";
 
@@ -63,17 +72,21 @@ export function AuthPage({ onSuccess, initialMode }: AuthPageProps) {
   const [contactAdminOpen, setContactAdminOpen] = useState(false);
   const [turnstileToken, setTurnstileToken] = useState<string | null>(null);
   const [turnstileKey, setTurnstileKey] = useState(0); // 用于强制重新渲染 Turnstile
-  const submitLabel = mode === "login" ? t("auth.login") : t("auth.register");
-
   const { theme } = useTheme();
   const isKeyboardOpen = useMobileKeyboardAware();
+  const { login, register, loginWithOAuth } = useAuth();
 
   // 当主题变化时，强制重新渲染 Turnstile 以更新主题
   useEffect(() => {
     setTurnstileKey((prev) => prev + 1);
   }, [theme]);
 
-  const { login, register, loginWithOAuth } = useAuth();
+  // Memoize submit label to avoid recalculating on unrelated renders
+  const submitLabel = useMemo(
+    () => (mode === "login" ? t("auth.login") : t("auth.register")),
+    [mode, t],
+  );
+
   const [oauthProviders, setOauthProviders] = useState<
     { id: string; name: string }[]
   >([]);
@@ -86,13 +99,27 @@ export function AuthPage({ onSuccess, initialMode }: AuthPageProps) {
     require_on_password_change: true,
   });
 
+  // Memoize Turnstile requirement check
+  const showTurnstile = useMemo(() => {
+    if (!turnstileConfig.enabled || !turnstileConfig.site_key) return false;
+    if (mode === "login") return turnstileConfig.require_on_login;
+    if (mode === "register") return turnstileConfig.require_on_register;
+    return false;
+  }, [
+    turnstileConfig.enabled,
+    turnstileConfig.site_key,
+    turnstileConfig.require_on_login,
+    turnstileConfig.require_on_register,
+    mode,
+  ]);
+
   // Use ref to access current mode without adding it to deps
   const modeRef = useRef(mode);
   modeRef.current = mode;
   const redirectTimerRef = useRef<number | null>(null);
   const redirectFailsafeRef = useRef<number | null>(null);
 
-  const clearRedirectTimers = () => {
+  const clearRedirectTimers = useCallback(() => {
     if (redirectTimerRef.current !== null) {
       window.clearTimeout(redirectTimerRef.current);
       redirectTimerRef.current = null;
@@ -101,9 +128,9 @@ export function AuthPage({ onSuccess, initialMode }: AuthPageProps) {
       window.clearTimeout(redirectFailsafeRef.current);
       redirectFailsafeRef.current = null;
     }
-  };
+  }, []);
 
-  useEffect(() => clearRedirectTimers, []);
+  useEffect(() => clearRedirectTimers, [clearRedirectTimers]);
 
   // 获取 OAuth 提供商列表和认证设置
   useEffect(() => {
@@ -134,14 +161,6 @@ export function AuthPage({ onSuccess, initialMode }: AuthPageProps) {
     };
   }, []);
 
-  // 检查当前模式是否需要 Turnstile
-  const requiresTurnstile = () => {
-    if (!turnstileConfig.enabled || !turnstileConfig.site_key) return false;
-    if (mode === "login") return turnstileConfig.require_on_login;
-    if (mode === "register") return turnstileConfig.require_on_register;
-    return false;
-  };
-
   // 重置 Turnstile token 当模式切换时
   useEffect(() => {
     setTurnstileToken(null);
@@ -150,13 +169,16 @@ export function AuthPage({ onSuccess, initialMode }: AuthPageProps) {
   }, [mode]);
 
   // OAuth 登录处理
-  const handleOAuthLogin = async (provider: string) => {
-    try {
-      await loginWithOAuth(provider);
-    } catch {
-      toast.error(t("auth.oauthLoginFailed"));
-    }
-  };
+  const handleOAuthLogin = useCallback(
+    async (provider: string) => {
+      try {
+        await loginWithOAuth(provider);
+      } catch {
+        toast.error(t("auth.oauthLoginFailed"));
+      }
+    },
+    [loginWithOAuth, t],
+  );
 
   const beginSuccessRedirect = (redirectPath?: string | null) => {
     const nextPath = resolvePostAuthRedirectPath(redirectPath);
@@ -220,7 +242,7 @@ export function AuthPage({ onSuccess, initialMode }: AuthPageProps) {
     }
 
     // Turnstile 验证
-    if (requiresTurnstile() && !turnstileToken) {
+    if (showTurnstile && !turnstileToken) {
       setError(t("auth.turnstileRequired"));
       return;
     }
@@ -322,12 +344,31 @@ export function AuthPage({ onSuccess, initialMode }: AuthPageProps) {
     <div className="auth-shell min-h-[100svh] min-h-[100dvh] overflow-y-auto overflow-x-hidden">
       <div className="auth-crosshatch" aria-hidden="true" />
 
-      {/* Subtle background gradient */}
+      {/* Atmospheric background with aurora glow orbs */}
       <div className="auth-atmosphere" aria-hidden="true">
         <div className="auth-glow-main absolute -top-24 left-1/2 -translate-x-1/2 w-[720px] h-[520px] bg-[radial-gradient(ellipse_at_center,rgba(251,191,36,0.065)_0%,rgba(251,146,60,0.025)_42%,transparent_70%)] dark:bg-[radial-gradient(ellipse_at_center,rgba(251,191,36,0.04)_0%,rgba(251,146,60,0.018)_42%,transparent_70%)]" />
         <div className="auth-glow-blue absolute top-[34%] left-[4%] w-[360px] h-[360px] bg-[radial-gradient(circle,rgba(56,189,248,0.04)_0%,transparent_62%)] dark:bg-[radial-gradient(circle,rgba(56,189,248,0.028)_0%,transparent_62%)]" />
         <div className="auth-glow-violet absolute bottom-[10%] right-[8%] w-[300px] h-[300px] bg-[radial-gradient(circle,rgba(168,85,247,0.035)_0%,transparent_60%)] dark:bg-[radial-gradient(circle,rgba(168,85,247,0.022)_0%,transparent_60%)]" />
+        {/* Floating light orbs */}
+        <div className="auth-light-orb auth-light-orb-amber absolute top-[18%] left-[6%] opacity-50" />
+        <div className="auth-light-orb auth-light-orb-blue absolute top-[52%] right-[4%] opacity-35" />
+        <div className="auth-light-orb auth-light-orb-violet absolute bottom-[18%] left-[28%] opacity-25" />
       </div>
+
+      {/* Floating decorative elements */}
+      <div
+        className="auth-float-line absolute top-28 left-[7%] opacity-40"
+        aria-hidden="true"
+      />
+      <div
+        className="auth-float-line absolute top-36 right-[9%] opacity-30"
+        aria-hidden="true"
+        style={{ height: "48px", animationDelay: "1.2s" }}
+      />
+      <div
+        className="auth-float-dot absolute top-[58%] right-[7%] opacity-25"
+        aria-hidden="true"
+      />
 
       {/* Navbar */}
       <nav className="safe-area-top fixed top-0 inset-x-0 z-50 bg-white/90 dark:bg-stone-950/90 border-b border-stone-100/60 dark:border-stone-800/40 transition-shadow duration-300">
@@ -360,14 +401,14 @@ export function AuthPage({ onSuccess, initialMode }: AuthPageProps) {
       >
         <div className="w-full max-w-[22.5rem] sm:max-w-[420px] lg:max-w-[450px] 2xl:max-w-[480px]">
           {/* Title area */}
-          <div className="mb-5 text-center sm:mb-6">
-            <h1 className="mb-2 flex justify-center text-stone-900 dark:text-stone-50">
+          <div className="mb-5 text-center sm:mb-7">
+            <h1 className="auth-title-underline mb-2.5 flex justify-center text-stone-900 dark:text-stone-50 sm:mb-3">
               <BrandWordmark
                 title={APP_NAME}
                 className="h-auto w-[5.37em] text-[2.65rem] sm:text-4xl lg:text-5xl"
               />
             </h1>
-            <p className="mx-auto max-w-[18rem] text-xs leading-relaxed text-stone-500 dark:text-stone-400 sm:text-[13px] lg:text-sm">
+            <p className="auth-subtitle-enter mx-auto max-w-[18rem] text-xs leading-relaxed text-stone-500 dark:text-stone-400 sm:text-[13px] lg:text-sm">
               {mode === "login" ? t("auth.loginHint") : t("auth.registerHint")}
             </p>
           </div>
@@ -383,7 +424,7 @@ export function AuthPage({ onSuccess, initialMode }: AuthPageProps) {
                       <button
                         type="button"
                         onClick={() => handleOAuthLogin(provider.id)}
-                        className="flex h-11 min-w-12 items-center justify-center gap-2 rounded-xl border border-stone-200 bg-white/85 px-3 text-sm font-medium text-stone-700 shadow-sm transition-all hover:-translate-y-0.5 hover:bg-white hover:shadow-md active:translate-y-0 dark:border-stone-700 dark:bg-stone-800/70 dark:text-stone-200 dark:hover:bg-stone-800 dark:hover:shadow-lg sm:h-auto sm:gap-2.5 sm:p-3"
+                        className="auth-oauth-btn flex h-11 min-w-12 items-center justify-center gap-2 rounded-xl px-3 text-sm font-medium text-stone-700 dark:text-stone-200 transition-all hover:-translate-y-0.5 active:translate-y-0 sm:h-auto sm:gap-2.5 sm:p-3"
                       >
                         {provider.id === "google" && (
                           <svg
@@ -431,13 +472,13 @@ export function AuthPage({ onSuccess, initialMode }: AuthPageProps) {
                   ))}
                 </div>
 
-                {/* Divider */}
-                <div className="relative mt-3 flex items-center sm:mt-3.5 lg:mt-4 2xl:mt-5">
-                  <div className="flex-grow border-t border-stone-200 dark:border-stone-700" />
-                  <span className="flex-shrink-0 mx-3 text-[10px] font-medium uppercase tracking-widest text-stone-400 dark:text-stone-500 sm:mx-4 sm:text-xs">
+                {/* Divider with ornament */}
+                <div className="auth-divider-ornament mt-3 sm:mt-3.5 lg:mt-4 2xl:mt-5">
+                  <span className="auth-divider-diamond" aria-hidden="true" />
+                  <span className="flex-shrink-0 text-[10px] font-medium uppercase tracking-widest text-stone-400 dark:text-stone-500 sm:text-xs">
                     {t("auth.or")}
                   </span>
-                  <div className="flex-grow border-t border-stone-200 dark:border-stone-700" />
+                  <span className="auth-divider-diamond" aria-hidden="true" />
                 </div>
               </div>
             )}
@@ -558,7 +599,7 @@ export function AuthPage({ onSuccess, initialMode }: AuthPageProps) {
               )}
 
               {/* Turnstile */}
-              {requiresTurnstile() && (
+              {showTurnstile && (
                 <div className="flex justify-center overflow-hidden">
                   <div className="max-w-[300px] w-full">
                     <Turnstile
@@ -638,37 +679,49 @@ export function AuthPage({ onSuccess, initialMode }: AuthPageProps) {
             </p>
           </div>
 
-          {/* Footer */}
-          <div className="safe-area-bottom mt-4 flex flex-wrap items-center justify-center gap-x-2 text-[10px] text-stone-400 dark:text-stone-500 sm:gap-x-3 sm:text-xs lg:mt-6">
-            <a
-              href={GITHUB_URL}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-flex items-center gap-1 transition-colors hover:text-stone-600 dark:hover:text-stone-300 sm:gap-1.5"
-            >
-              <svg
-                className="h-3 w-3 sm:h-3.5 sm:w-3.5"
-                viewBox="0 0 24 24"
-                fill="currentColor"
-              >
-                <path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z" />
-              </svg>
-              <span>GitHub</span>
-            </a>
-            <span className="text-stone-300 dark:text-stone-600">·</span>
-            <span className="text-stone-600 dark:text-stone-400 font-serif transition-colors">
-              {t("auth.poweredBy")}{" "}
+          {/* Footer - content-visibility: auto defers rendering until visible */}
+          <div
+            className="auth-footer-enter safe-area-bottom mt-5 flex flex-col items-center gap-3 sm:mt-7 sm:gap-4"
+            style={{
+              contentVisibility: "auto",
+              containIntrinsicSize: "0 80px",
+            }}
+          >
+            <div
+              className="auth-footer-divider w-32 sm:w-40"
+              aria-hidden="true"
+            />
+            <div className="flex flex-wrap items-center justify-center gap-x-2 text-[10px] text-stone-400 dark:text-stone-500 sm:gap-x-3 sm:text-xs">
               <a
                 href={GITHUB_URL}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="hover:text-stone-900 dark:hover:text-stone-200 font-serif transition-colors"
+                className="inline-flex items-center gap-1 transition-colors hover:text-stone-600 dark:hover:text-stone-300 sm:gap-1.5"
               >
-                {APP_NAME}
+                <svg
+                  className="h-3 w-3 sm:h-3.5 sm:w-3.5"
+                  viewBox="0 0 24 24"
+                  fill="currentColor"
+                >
+                  <path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z" />
+                </svg>
+                <span>GitHub</span>
               </a>
-            </span>
-            <span className="text-stone-300 dark:text-stone-600">·</span>
-            <span>{new Date().getFullYear()}</span>
+              <span className="text-stone-300 dark:text-stone-600">·</span>
+              <span className="text-stone-600 dark:text-stone-400 font-serif transition-colors">
+                {t("auth.poweredBy")}{" "}
+                <a
+                  href={GITHUB_URL}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="hover:text-stone-900 dark:hover:text-stone-200 font-serif transition-colors"
+                >
+                  {APP_NAME}
+                </a>
+              </span>
+              <span className="text-stone-300 dark:text-stone-600">·</span>
+              <span>{CURRENT_YEAR}</span>
+            </div>
           </div>
         </div>
       </div>

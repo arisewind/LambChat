@@ -148,6 +148,26 @@ async def test_create_cron_task(
 
 
 @pytest.mark.asyncio
+async def test_create_cron_task_uses_request_timezone(
+    service: ScheduledTaskService,
+    mock_storage: AsyncMock,
+    mock_scheduler: MagicMock,
+) -> None:
+    request = _make_create_request(
+        name="Morning Report",
+        trigger_type=TriggerType.CRON,
+        trigger_config={"day_of_week": "mon-fri", "hour": "9", "minute": "0"},
+        timezone="Asia/Shanghai",
+    )
+
+    task = await service.create_task(request, owner_id="user_1")
+
+    job = mock_scheduler.register_job.call_args.args[0]
+    assert task.timezone == "Asia/Shanghai"
+    assert str(job.trigger.timezone) == "Asia/Shanghai"
+
+
+@pytest.mark.asyncio
 async def test_create_task_invalid_trigger_raises(
     service: ScheduledTaskService,
 ) -> None:
@@ -345,6 +365,18 @@ async def test_load_persisted_tasks_pauses_expired_date_task(
         {"status": ScheduledTaskStatus.PAUSED, "enabled": False},
     )
     mock_scheduler.register_job.assert_not_called()
+
+
+def test_expired_date_task_interprets_naive_run_date_in_task_timezone() -> None:
+    task = _make_task(
+        trigger_type=TriggerType.DATE,
+        trigger_config={"run_date": "2026-06-13T09:00:00"},
+        timezone="Asia/Shanghai",
+        total_runs=0,
+    )
+    now = datetime(2026, 6, 13, 2, 0, tzinfo=timezone.utc)
+
+    assert ScheduledTaskService._is_expired_date_task(task, now=now) is True
 
 
 @pytest.mark.asyncio

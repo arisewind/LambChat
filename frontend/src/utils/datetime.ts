@@ -83,6 +83,24 @@ export function formatRelativeDate(
   return t("common.timeMonthsAgo", { count: Math.floor(diffDays / 30) });
 }
 
+// ── Duration ──────────────────────────────────────────
+
+export function formatDuration(ms: number): string {
+  if (ms < 0) ms = 0;
+  const totalSec = ms / 1000;
+  const h = Math.floor(totalSec / 3600);
+  const remainder = totalSec - h * 3600;
+  const m = Math.floor(remainder / 60);
+  const s = remainder - m * 60;
+
+  if (h > 0) return `${h}h ${m}m ${Math.round(s)}s`;
+  if (m > 0) return `${m}m ${Math.round(s)}s`;
+  // Sub-second: show one decimal; omit 0s entirely
+  if (totalSec < 1 && totalSec > 0) return `${Math.round(totalSec * 10) / 10}s`;
+  if (totalSec === 0) return "";
+  return `${Math.round(s)}s`;
+}
+
 // ── Comparison helpers ─────────────────────────────────
 
 export function getTimeMs(input: TimeInput): number {

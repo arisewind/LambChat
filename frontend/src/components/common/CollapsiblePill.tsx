@@ -1,5 +1,5 @@
 import { clsx } from "clsx";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Ban, CheckCircle, XCircle, ChevronRight } from "lucide-react";
 import { LoadingSpinner } from "./LoadingSpinner";
 
@@ -99,7 +99,25 @@ export function CollapsiblePill({
   formatLabel = true,
 }: CollapsiblePillProps) {
   const [isExpanded, setIsExpanded] = useState(defaultExpanded);
+  const [enterClass, setEnterClass] = useState("");
+  const prevStatus = useRef(status);
   const hasChildren = children !== undefined;
+
+  // One-shot enter animation when status changes to success/error
+  useEffect(() => {
+    if (prevStatus.current === status) return;
+    prevStatus.current = status;
+    if (status === "success") {
+      setEnterClass("pill-enter-success");
+      const t = setTimeout(() => setEnterClass(""), 500);
+      return () => clearTimeout(t);
+    }
+    if (status === "error") {
+      setEnterClass("pill-enter-error");
+      const t = setTimeout(() => setEnterClass(""), 350);
+      return () => clearTimeout(t);
+    }
+  }, [status]);
 
   const handleToggle = () => {
     if (!expandable && !hasChildren) return;
@@ -126,10 +144,12 @@ export function CollapsiblePill({
       <button
         onClick={handleToggle}
         className={clsx(
+          "pill-btn",
           "inline-flex items-center gap-2 p-3 rounded-full text-xs font-medium max-w-full h-7",
-          "transition-colors",
           statusStyles[status],
-          canExpand && "cursor-pointer hover:opacity-80",
+          enterClass,
+          status === "loading" && "pill-loading-breathe",
+          canExpand && "cursor-pointer",
           !canExpand && "cursor-default",
         )}
       >

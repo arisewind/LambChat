@@ -46,17 +46,16 @@ const EditFileItem = memo(function EditFileItem({
         : "error";
 
   const detailContent = canExpand && (
-    <div className="p-4 sm:p-5 space-y-3">
+    <div className="p-4 sm:p-5 space-y-3 tool-panel-content">
       <ToolArgsBlock size="detail">
         <span className="truncate">{filePath}</span>
-        <ToolHoverCopyButton text={filePath} position="args" />
       </ToolArgsBlock>
       {oldString && (
         <div>
           <div className="text-xs text-red-500 dark:text-red-400 mb-1.5 font-semibold uppercase tracking-wider">
             {t("chat.message.toolEditRemoved")}
           </div>
-          <div className="relative group rounded-lg border border-red-200/60 dark:border-red-800/40 bg-red-50 dark:bg-red-950/30 overflow-hidden">
+          <div className="relative group rounded-lg overflow-hidden tool-diff-removed">
             <DeferredCodeMirrorViewer
               value={oldString}
               filePath={filePath}
@@ -78,7 +77,7 @@ const EditFileItem = memo(function EditFileItem({
           <div className="text-xs text-emerald-500 dark:text-emerald-400 mb-1.5 font-semibold uppercase tracking-wider">
             {t("chat.message.toolEditAdded")}
           </div>
-          <div className="relative group rounded-lg border border-emerald-200/60 dark:border-emerald-800/40 bg-emerald-50 dark:bg-emerald-950/30 overflow-hidden">
+          <div className="relative group rounded-lg overflow-hidden tool-diff-added">
             <DeferredCodeMirrorViewer
               value={newString}
               filePath={filePath}
@@ -137,14 +136,13 @@ const EditFileItem = memo(function EditFileItem({
           <ToolInlineDetails>
             <ToolArgsBlock size="compact">
               <span className="truncate">{filePath}</span>
-              <ToolHoverCopyButton text={filePath} position="argsCompact" />
             </ToolArgsBlock>
             {oldString && (
               <div className="mb-2">
                 <div className="text-xs text-red-500 dark:text-red-400 mb-1 font-medium">
                   -
                 </div>
-                <div className="relative group overflow-y-auto rounded-md border border-red-200/60 dark:border-red-800/40 bg-red-50 dark:bg-red-950/30">
+                <div className="relative group overflow-y-auto rounded-md tool-diff-removed">
                   <DeferredCodeMirrorViewer
                     value={oldString}
                     filePath={filePath}
@@ -165,7 +163,7 @@ const EditFileItem = memo(function EditFileItem({
                 <div className="text-xs text-emerald-500 dark:text-emerald-400 mb-1 font-medium">
                   +
                 </div>
-                <div className="relative group overflow-y-auto rounded-md border border-emerald-200/60 dark:border-emerald-800/40 bg-emerald-50 dark:bg-emerald-950/30">
+                <div className="relative group overflow-y-auto rounded-md tool-diff-added">
                   <DeferredCodeMirrorViewer
                     value={newString}
                     filePath={filePath}

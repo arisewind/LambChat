@@ -10,6 +10,7 @@ import json
 from datetime import timedelta
 from typing import Any, Optional
 from uuid import uuid4
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from apscheduler.triggers.base import BaseTrigger
 from apscheduler.triggers.cron import CronTrigger
@@ -40,6 +41,20 @@ logger = get_logger(__name__)
 _managed_task_signatures: dict[str, str] = {}
 
 
+def _coerce_timezone(timezone_name: str | None) -> ZoneInfo:
+    name = (timezone_name or "UTC").strip() or "UTC"
+    try:
+        return ZoneInfo(name)
+    except ZoneInfoNotFoundError as exc:
+        raise ValueError(f"Invalid timezone: {name}") from exc
+
+
+def _ensure_utc_in_timezone(dt, timezone_name: str | None):
+    if dt.tzinfo is None:
+        dt = dt.replace(tzinfo=_coerce_timezone(timezone_name))
+    return ensure_utc(dt)
+
+
 def clear_managed_task_signatures() -> None:
     """Release in-process scheduler registration signatures."""
     _managed_task_signatures.clear()
@@ -61,7 +76,7 @@ class ScheduledTaskService:
     ) -> ScheduledTask:
         """Validate, persist, and register a new scheduled task."""
         # Validate trigger config
-        self._build_trigger(request.trigger_type, request.trigger_config)
+        self._build_trigger(request.trigger_type, request.trigger_config, request.timezone)
 
         now = utc_now()
         task_id = str(uuid4())
@@ -73,6 +88,7 @@ class ScheduledTaskService:
                 "agent_id": request.agent_id,
                 "trigger_type": request.trigger_type,
                 "trigger_config": request.trigger_config,
+                "timezone": request.timezone,
                 "input_payload": request.input_payload,
                 "status": ScheduledTaskStatus.ACTIVE,
                 "enabled": request.enabled,
@@ -116,10 +132,11 @@ class ScheduledTaskService:
 
         # Validate trigger changes as one atomic pair. This also supports changing
         # trigger_type and trigger_config in a single update request.
-        if "trigger_type" in updates or "trigger_config" in updates:
+        if "trigger_type" in updates or "trigger_config" in updates or "timezone" in updates:
             trigger_type = updates.get("trigger_type", task.trigger_type)
             trigger_config = updates.get("trigger_config", task.trigger_config)
-            self._build_trigger(trigger_type, trigger_config)
+            timezone_name = updates.get("timezone", task.timezone)
+            self._build_trigger(trigger_type, trigger_config, timezone_name)
             if trigger_type == TriggerType.DATE:
                 updates["run_on_start"] = False
 
@@ -300,6 +317,7 @@ class ScheduledTaskService:
             agent_id=task.agent_id,
             trigger_type=task.trigger_type,
             trigger_config=task.trigger_config,
+            timezone=task.timezone,
             input_payload=task.input_payload,
             status=task.status,
             enabled=task.enabled,
@@ -364,6 +382,7 @@ class ScheduledTaskService:
             {
                 "trigger_type": task.trigger_type.value,
                 "trigger_config": task.trigger_config,
+                "timezone": task.timezone,
                 "enabled": task.enabled,
                 "status": task.status.value,
                 "run_on_start": task.run_on_start,
@@ -394,16 +413,25 @@ class ScheduledTaskService:
             return IntervalTrigger(
                 seconds=interval_cfg.seconds,
                 start_date=start_date,
-                timezone="UTC",
+                timezone=_coerce_timezone(task.timezone),
             )
-        return ScheduledTaskService._build_trigger(task.trigger_type, task.trigger_config)
+        return ScheduledTaskService._build_trigger(
+            task.trigger_type,
+            task.trigger_config,
+            task.timezone,
+        )
 
     @staticmethod
-    def _build_trigger(trigger_type: TriggerType, config: dict) -> BaseTrigger:
+    def _build_trigger(
+        trigger_type: TriggerType,
+        config: dict,
+        timezone_name: str | None = "UTC",
+    ) -> BaseTrigger:
         """Build an APScheduler trigger from the stored config dict."""
+        tz = _coerce_timezone(timezone_name)
         if trigger_type == TriggerType.INTERVAL:
             interval_cfg = IntervalTriggerConfig(**config)
-            return IntervalTrigger(seconds=interval_cfg.seconds, timezone="UTC")
+            return IntervalTrigger(seconds=interval_cfg.seconds, timezone=tz)
         if trigger_type == TriggerType.CRON:
             cron_cfg = CronTriggerConfig(**config)
             return CronTrigger(
@@ -415,11 +443,11 @@ class ScheduledTaskService:
                 hour=cron_cfg.hour,
                 minute=cron_cfg.minute,
                 second=cron_cfg.second,
-                timezone="UTC",
+                timezone=tz,
             )
         if trigger_type == TriggerType.DATE:
             date_cfg = DateTriggerConfig(**config)
-            run_date = ensure_utc(date_cfg.run_date)
+            run_date = _ensure_utc_in_timezone(date_cfg.run_date, timezone_name)
             if run_date <= utc_now():
                 raise ValueError("date trigger run_date must be in the future")
             return DateTrigger(run_date=run_date, timezone="UTC")
@@ -433,4 +461,4 @@ class ScheduledTaskService:
             cfg = DateTriggerConfig(**task.trigger_config)
         except Exception:
             return False
-        return ensure_utc(cfg.run_date) <= (now or utc_now())
+        return _ensure_utc_in_timezone(cfg.run_date, task.timezone) <= (now or utc_now())

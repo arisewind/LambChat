@@ -332,6 +332,7 @@ export function processMessageEvent(
         sandbox_id: data.sandbox_id,
         work_dir: data.work_dir,
         timestamp: data.timestamp,
+        completedAt: data.timestamp,
       };
       result.parts = upsertSandboxPart(parts, readyPart);
       break;
@@ -343,6 +344,7 @@ export function processMessageEvent(
         status: "error",
         error: data.error,
         timestamp: data.timestamp,
+        completedAt: data.timestamp,
       };
       result.parts = upsertSandboxPart(parts, errorPart);
       break;
@@ -488,14 +490,29 @@ export function processMessageEvent(
 // Internal helpers
 // ============================================
 
-/** Replace existing sandbox part or append if none exists. */
+/** Replace existing sandbox part or append if none exists.
+ *  Preserves `startedAt` from the previous part so the original
+ *  starting timestamp survives across status transitions. */
 function upsertSandboxPart(
   parts: MessagePart[],
   sandboxPart: SandboxPart,
 ): MessagePart[] {
   return parts.some((p) => p.type === "sandbox")
-    ? parts.map((p) => (p.type === "sandbox" ? sandboxPart : p))
-    : [...parts, sandboxPart];
+    ? parts.map((p) => {
+        if (p.type !== "sandbox") return p;
+        const prevStartedAt = p.startedAt;
+        return {
+          ...sandboxPart,
+          startedAt: sandboxPart.startedAt ?? prevStartedAt,
+        };
+      })
+    : [
+        ...parts,
+        {
+          ...sandboxPart,
+          startedAt: sandboxPart.startedAt ?? sandboxPart.timestamp,
+        },
+      ];
 }
 
 /** Replace existing todo part or append if none exists. */

@@ -4,8 +4,11 @@
 
 :root {
   font-family: Inter, system-ui, Avenir, Helvetica, Arial, sans-serif;
-
-  /* ── Primary ── */
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+  line-height: 1.6;
+  font-weight: 400;
   --theme-primary: #78716c;
   --theme-primary-hover: #57534e;
   --theme-primary-light: #f5f5f4;
@@ -91,7 +94,7 @@
   --theme-bg-card: #1e1b18;
   --theme-bg-sidebar: #151210;
   --theme-bg-elevated: #292524;
-  --theme-bg-subtle: #1e1b18;
+  --theme-bg-subtle: #252220;
 
   /* ── Borders ── */
   --theme-border: #3d3835;

@@ -116,7 +116,7 @@ export function GlobalAgentTab({
                   onClick={() => setEditingAgentId(agent.id)}
                   className="flex min-w-0 flex-1 items-center gap-3.5 text-left"
                 >
-                  <div className="flex size-10 flex-shrink-0 items-center justify-center rounded-xl bg-[var(--glass-bg-subtle)] text-theme-text-secondary ring-1 ring-[var(--glass-border)] transition-all duration-200 group-hover:bg-[var(--glass-bg-hover)]">
+                  <div className="flex size-10 flex-shrink-0 items-center justify-center overflow-hidden rounded-xl bg-[var(--glass-bg-subtle)] text-theme-text-secondary ring-1 ring-[var(--glass-border)] transition-all duration-200 group-hover:bg-[var(--glass-bg-hover)]">
                     <AgentIcon icon={agent.icon || "Bot"} size={20} />
                   </div>
                   <div className="min-w-0 flex-1">

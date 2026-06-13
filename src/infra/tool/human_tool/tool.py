@@ -55,10 +55,12 @@ class AskHumanTool(BaseTool):
 
 参数：
 - message: 向用户展示的提示消息，说明需要用户提供什么信息
+- choices: 简写选项列表；设置后会自动生成单选字段
+- multiple: 配合 choices 使用，true 时生成多选字段
 - fields: 表单字段列表，每个字段包含：
   - name: 字段名称（用于标识返回值）
   - label: 显示给用户的标签
-  - type: 字段类型 - text（单行文本）、textarea（多行文本）、number（数字）、checkbox（复选框）、select（下拉单选）、multi_select（下拉多选）
+  - type: 字段类型 - text（单行文本）、textarea（多行文本）、number（数字）、checkbox（复选框）、select（下拉单选）、radio（平铺单选）、multi_select（多选）
   - placeholder: 输入框占位符文本（可选）
   - default: 默认值（可选）
   - required: 是否必填（默认 true）
@@ -111,6 +113,8 @@ class AskHumanTool(BaseTool):
         self,
         message: str,
         fields: Optional[List[FormField]] = None,
+        choices: Optional[List[str]] = None,
+        multiple: bool = False,
         timeout: int = 300,
         allow_other: bool = False,
     ) -> str:
@@ -126,8 +130,7 @@ class AskHumanTool(BaseTool):
             JSON 字符串，包含状态和字段值或错误消息
         """
         # 设置默认值
-        if fields is None:
-            fields = []
+        fields = self._expand_short_choices(fields, choices, multiple)
 
         # 解析字段并设置默认值
         parsed_fields = await run_blocking_io(self._parse_fields, fields)
@@ -208,6 +211,27 @@ class AskHumanTool(BaseTool):
         }
         return await _json_dumps_result(result)
 
+    def _expand_short_choices(
+        self,
+        fields: Optional[List[FormField]],
+        choices: Optional[List[str]],
+        multiple: bool,
+    ) -> list[Any]:
+        if fields:
+            return fields
+        if not choices:
+            return []
+        return [
+            {
+                "name": "choice",
+                "label": "请选择",
+                "type": "multi_select" if multiple else "radio",
+                "options": choices,
+                "multiple": multiple,
+                "required": True,
+            }
+        ]
+
     def _parse_fields(self, fields: Any) -> List[FormField]:
         """
         解析字段列表并设置默认值
@@ -234,24 +258,50 @@ class AskHumanTool(BaseTool):
         parsed = []
         for field in fields:
             if isinstance(field, FormField):
+                if field.options and field.type == FieldType.TEXT:
+                    field = field.model_copy(
+                        update={
+                            "type": FieldType.MULTI_SELECT if field.multiple else FieldType.RADIO,
+                            "multiple": field.multiple,
+                        }
+                    )
                 parsed.append(field)
             elif isinstance(field, dict):
-                # 从字典创建 FormField
-                field_type = field.get("type", "text")
+                # 从字典创建 FormField。带 options 的字段可省略 type。
+                field_multiple = bool(field.get("multiple", False))
+                field_type = field.get("type")
+                if not field_type:
+                    field_type = (
+                        "multi_select"
+                        if field.get("options") and field_multiple
+                        else "radio"
+                        if field.get("options")
+                        else "text"
+                    )
                 if isinstance(field_type, str):
-                    field_type = FieldType(field_type)
+                    type_aliases = {
+                        "choice": "radio",
+                        "single": "radio",
+                        "single_select": "radio",
+                        "multiple_choice": "multi_select",
+                        "checkbox_group": "multi_select",
+                    }
+                    field_type = FieldType(type_aliases.get(field_type, field_type))
 
                 # 兼容 LLM 可能使用 "id" 而不是 "name" 的情况
-                field_name = field.get("name") or field.get("id", "")
+                field_name = field.get("name") or field.get("id") or "choice"
 
                 form_field = FormField(
                     name=field_name,
-                    label=field.get("label", field_name),
+                    label=field.get("label")
+                    or field.get("title")
+                    or ("请选择" if field.get("options") else field_name),
                     type=field_type,
                     placeholder=field.get("placeholder"),
                     default=field.get("default", self._get_type_default(field_type)),
                     required=field.get("required", True),
                     options=field.get("options"),
+                    multiple=field_multiple or field_type == FieldType.MULTI_SELECT,
                 )
                 parsed.append(form_field)
             else:
@@ -286,6 +336,7 @@ class AskHumanTool(BaseTool):
             FieldType.NUMBER: 0,
             FieldType.CHECKBOX: False,
             FieldType.SELECT: None,
+            FieldType.RADIO: None,
             FieldType.MULTI_SELECT: [],
         }
         return defaults.get(field_type, None)

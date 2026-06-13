@@ -87,7 +87,7 @@ const SandboxMcpItem = memo(function SandboxMcpItem({
   // ── Panel detail content ──
 
   const detailContent = canExpand && (
-    <div className="p-4 sm:p-5 space-y-4">
+    <div className="p-4 sm:p-5 space-y-4 tool-panel-content">
       {/* Server info card */}
       {serverName && (
         <div className="rounded-xl border border-theme-border overflow-hidden">
@@ -100,27 +100,17 @@ const SandboxMcpItem = memo(function SandboxMcpItem({
                 {serverName}
               </span>
             </div>
-            <ToolHoverCopyButton
-              text={serverName}
-              position="args"
-              copyButtonClassName="!bg-theme-bg/80 !rounded-md !border !border-theme-border"
-            />
           </div>
 
           {/* Command block */}
           {command && (
             <div className="px-3 py-2.5 bg-theme-bg">
-              <div className="group/cmd relative overflow-hidden rounded-lg bg-teal-950 px-3 py-2.5 text-sm font-mono border border-teal-500/20 shadow-sm">
+              <div className="group/cmd relative overflow-hidden rounded-lg bg-teal-950 px-3 py-2.5 text-sm font-mono border border-teal-500/20 shadow-sm transition-colors duration-200">
                 <div className="flex items-center gap-2 text-teal-100">
                   <Terminal size={13} className="shrink-0 text-teal-300" />
                   <span className="text-teal-300 font-semibold">$</span>
                   <span className="break-all min-w-0">{command}</span>
                 </div>
-                <ToolHoverCopyButton
-                  text={command}
-                  position="args"
-                  copyButtonClassName="!bg-white/10 hover:!bg-white/20 !text-teal-100 !border !border-teal-500/30"
-                />
               </div>
             </div>
           )}
@@ -233,7 +223,6 @@ const SandboxMcpItem = memo(function SandboxMcpItem({
                 <span className="truncate text-theme-text font-medium font-mono">
                   {serverName}
                 </span>
-                <ToolHoverCopyButton text={serverName} position="argsCompact" />
               </ToolArgsBlock>
             )}
 
@@ -249,11 +238,6 @@ const SandboxMcpItem = memo(function SandboxMcpItem({
                 <span className="text-theme-text-secondary break-all min-w-0">
                   {command.length > 120 ? command.slice(0, 117) + "…" : command}
                 </span>
-                <ToolHoverCopyButton
-                  text={command}
-                  position="argsCompact"
-                  copyButtonClassName="!bg-theme-bg-card/80 !rounded-md !border !border-theme-border"
-                />
               </div>
             )}
 

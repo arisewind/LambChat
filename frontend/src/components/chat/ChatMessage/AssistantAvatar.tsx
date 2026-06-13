@@ -19,6 +19,7 @@ import {
   Zap,
   type LucideIcon,
 } from "lucide-react";
+import { ImageWithSkeleton } from "./ImageWithSkeleton";
 
 const ICONS: Record<PersonaAvatarIconKey, LucideIcon> = {
   sparkles: Sparkles,
@@ -51,7 +52,7 @@ export function AssistantAvatar({
     const Icon = ICONS[builtInIcon.key];
     return (
       <div
-        className={className}
+        className={`overflow-hidden ${className ?? ""}`}
         style={{
           display: "flex",
           alignItems: "center",
@@ -69,35 +70,38 @@ export function AssistantAvatar({
 
   if (isEmojiAvatar(personaAvatar)) {
     return (
-      <img
+      <ImageWithSkeleton
         src={getEmojiAvatarUrl(personaAvatar)}
         alt={t("chat.assistant", "助手")}
-        width={personaSize + 6}
-        height={personaSize + 6}
         className={className}
+        skipUrlResolve
+        inline
+        loading="eager"
       />
     );
   }
 
   if (isPersonaImageAvatar(personaAvatar)) {
     return (
-      <img
+      <ImageWithSkeleton
         src={getFullUrl(personaAvatar) ?? personaAvatar}
         alt={t("chat.assistant", "助手")}
-        width={personaSize + 6}
-        height={personaSize + 6}
         className={className}
+        skipUrlResolve
+        inline
+        loading="eager"
       />
     );
   }
 
   return (
-    <img
+    <ImageWithSkeleton
       src={DEFAULT_AVATAR_SRC}
       alt={t("chat.assistant", "助手")}
-      width={28}
-      height={28}
       className={className}
+      skipUrlResolve
+      inline
+      loading="eager"
     />
   );
 }

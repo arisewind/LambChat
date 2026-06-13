@@ -1,8 +1,6 @@
 import { CopyButton } from "../../../common";
 
 type ToolHoverCopyPosition =
-  | "args"
-  | "argsCompact"
   | "panel"
   | "panelRaised"
   | "panelCompact"
@@ -11,9 +9,6 @@ type ToolHoverCopyPosition =
   | "resultCompact";
 
 const positionClasses: Record<ToolHoverCopyPosition, string> = {
-  args: "absolute top-1.5 right-1.5 sm:opacity-0 sm:group-hover/args:opacity-100 transition-opacity",
-  argsCompact:
-    "absolute top-0.5 right-0.5 sm:opacity-0 sm:group-hover/args:opacity-100 transition-opacity",
   panel:
     "absolute top-2 right-2 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity",
   panelRaised:

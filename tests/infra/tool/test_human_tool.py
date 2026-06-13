@@ -98,3 +98,106 @@ async def test_ask_human_offloads_fields_parsing(
     assert result["values"] == {"choice": "yes"}
     assert captured_fields[0]["name"] == "choice"
     assert any(getattr(func, "__name__", "") == "_parse_fields" for func in calls)
+
+
+@pytest.mark.asyncio
+async def test_ask_human_expands_short_choice_options(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    captured_fields: list[dict] = []
+
+    async def fake_create_approval(**kwargs):
+        captured_fields.extend(kwargs["fields"])
+        return SimpleNamespace(id="approval-1")
+
+    async def fake_wait_for_response(approval_id: str, timeout: int):
+        return SimpleNamespace(approved=True, response={"choice": "later"})
+
+    async def fake_send_approval_event(self, *args, **kwargs):
+        return None
+
+    monkeypatch.setattr(human_tool, "create_approval", fake_create_approval)
+    monkeypatch.setattr(human_tool, "wait_for_response", fake_wait_for_response)
+    monkeypatch.setattr(human_tool.AskHumanTool, "_send_approval_event", fake_send_approval_event)
+
+    await human_tool.AskHumanTool()._arun(
+        message="When should I continue?",
+        choices=["now", "later"],
+        timeout=10,
+    )
+
+    assert captured_fields == [
+        {
+            "name": "choice",
+            "label": "请选择",
+            "type": "radio",
+            "placeholder": None,
+            "default": None,
+            "required": True,
+            "options": ["now", "later"],
+            "multiple": False,
+        }
+    ]
+
+
+@pytest.mark.asyncio
+async def test_ask_human_expands_multiple_choice_options(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    captured_fields: list[dict] = []
+
+    async def fake_create_approval(**kwargs):
+        captured_fields.extend(kwargs["fields"])
+        return SimpleNamespace(id="approval-1")
+
+    async def fake_wait_for_response(approval_id: str, timeout: int):
+        return SimpleNamespace(approved=True, response={"choice": ["a", "b"]})
+
+    async def fake_send_approval_event(self, *args, **kwargs):
+        return None
+
+    monkeypatch.setattr(human_tool, "create_approval", fake_create_approval)
+    monkeypatch.setattr(human_tool, "wait_for_response", fake_wait_for_response)
+    monkeypatch.setattr(human_tool.AskHumanTool, "_send_approval_event", fake_send_approval_event)
+
+    await human_tool.AskHumanTool()._arun(
+        message="Pick blockers",
+        choices=["a", "b", "c"],
+        multiple=True,
+        timeout=10,
+    )
+
+    assert captured_fields[0]["type"] == "multi_select"
+    assert captured_fields[0]["multiple"] is True
+    assert captured_fields[0]["options"] == ["a", "b", "c"]
+
+
+@pytest.mark.asyncio
+async def test_ask_human_infers_field_type_from_options(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    captured_fields: list[dict] = []
+
+    async def fake_create_approval(**kwargs):
+        captured_fields.extend(kwargs["fields"])
+        return SimpleNamespace(id="approval-1")
+
+    async def fake_wait_for_response(approval_id: str, timeout: int):
+        return SimpleNamespace(approved=True, response={"choice": "ship it"})
+
+    async def fake_send_approval_event(self, *args, **kwargs):
+        return None
+
+    monkeypatch.setattr(human_tool, "create_approval", fake_create_approval)
+    monkeypatch.setattr(human_tool, "wait_for_response", fake_wait_for_response)
+    monkeypatch.setattr(human_tool.AskHumanTool, "_send_approval_event", fake_send_approval_event)
+
+    await human_tool.AskHumanTool()._arun(
+        message="Decision?",
+        fields=[{"options": ["ship it", "hold"], "multiple": False}],
+        timeout=10,
+    )
+
+    assert captured_fields[0]["name"] == "choice"
+    assert captured_fields[0]["label"] == "请选择"
+    assert captured_fields[0]["type"] == "radio"

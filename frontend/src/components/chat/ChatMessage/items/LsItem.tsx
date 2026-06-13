@@ -49,14 +49,13 @@ const LsItem = memo(function LsItem({
         : "error";
 
   const detailContent = canExpand && (
-    <div className="p-4 sm:p-5 space-y-4">
+    <div className="p-4 sm:p-5 space-y-4 tool-panel-content">
       <ToolArgsBlock size="detail">
         <FolderOpen size={14} className="shrink-0 opacity-60" />
         <span className="truncate">{dirPath}</span>
         <span className="shrink-0 text-theme-text-tertiary">
           {entries.length} items
         </span>
-        <ToolHoverCopyButton text={dirPath} position="args" />
       </ToolArgsBlock>
       <div className="relative group rounded-lg border border-theme-border bg-theme-bg overflow-auto max-h-[60dvh]">
         <ToolHoverCopyButton
@@ -75,7 +74,7 @@ const LsItem = memo(function LsItem({
             <div
               key={i}
               className={clsx(
-                "flex items-center gap-2.5 px-4 py-2 text-sm font-mono",
+                "flex items-center gap-2.5 px-4 py-2 text-sm font-mono tool-file-row",
                 "border-b border-theme-border-faint last:border-b-0",
                 "hover:bg-theme-bg-subtle transition-colors",
               )}
@@ -137,7 +136,6 @@ const LsItem = memo(function LsItem({
               <span className="shrink-0 text-theme-text-tertiary">
                 {t("chat.message.toolItemCount", { count: entries.length })}
               </span>
-              <ToolHoverCopyButton text={dirPath} position="argsCompact" />
             </ToolArgsBlock>
             <div className="relative group max-h-48 overflow-y-auto rounded-md border border-theme-border bg-theme-bg">
               <ToolHoverCopyButton
@@ -155,7 +153,7 @@ const LsItem = memo(function LsItem({
                   <div
                     key={i}
                     className={clsx(
-                      "flex items-center gap-2 px-3 py-1 text-xs font-mono",
+                      "flex items-center gap-2 px-3 py-1 text-xs font-mono tool-file-row",
                       "border-b border-theme-border-faint last:border-b-0",
                       "hover:bg-theme-bg-subtle transition-colors",
                     )}

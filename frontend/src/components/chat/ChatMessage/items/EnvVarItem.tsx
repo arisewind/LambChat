@@ -103,7 +103,7 @@ const EnvVarItem = memo(function EnvVarItem({
   // ── Panel detail content ──
 
   const detailContent = canExpand && (
-    <div className="p-4 sm:p-5 space-y-4">
+    <div className="p-4 sm:p-5 space-y-4 tool-panel-content">
       {allKeys.length > 0 && (
         <div className="rounded-xl border border-theme-border overflow-hidden">
           {/* Header */}
@@ -124,7 +124,7 @@ const EnvVarItem = memo(function EnvVarItem({
             {allKeys.map((k, i) => (
               <div
                 key={i}
-                className="flex items-center gap-2.5 px-3 py-2.5 hover:bg-emerald-50/40 dark:hover:bg-emerald-950/10 transition-colors"
+                className="flex items-center gap-2.5 px-3 py-2.5 hover:bg-emerald-50/40 dark:hover:bg-emerald-950/10 transition-colors tool-file-row"
               >
                 <div className="w-6 h-6 rounded-md flex items-center justify-center shrink-0 bg-emerald-100/70 dark:bg-emerald-900/20">
                   <KeyRound

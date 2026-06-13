@@ -3,7 +3,6 @@
  */
 
 import { useState, useEffect, useCallback } from "react";
-import { AlertCircle } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import i18n from "../../../i18n";
 import toast from "react-hot-toast";
@@ -17,6 +16,7 @@ import {
   resolveAgentDescription,
   resolveAgentDisplayName,
 } from "../../agent/agentCatalog";
+import { ConfigPanelErrorCallout } from "../ConfigPanelErrorCallout";
 
 import { GlobalAgentTab, RolesAgentTab } from "../AgentPanel/tabs";
 
@@ -167,12 +167,7 @@ export function AgentSection() {
 
   return (
     <div className="animate-glass-enter px-4 py-5 sm:px-6 lg:px-7">
-      {error && (
-        <div className="glass-card mb-4 flex items-center gap-2 rounded-xl p-3 text-sm text-red-600 !border-red-200/40 dark:text-red-400 dark:!border-red-800/30">
-          <AlertCircle size={18} />
-          <span>{error}</span>
-        </div>
-      )}
+      {error && <ConfigPanelErrorCallout message={error} className="mb-4" />}
 
       {canManageAgents && (
         <div className="inline-grid grid-cols-2 rounded-lg border border-[var(--glass-border)] bg-[var(--glass-bg-subtle)] p-1 sm:my-3">
@@ -239,7 +234,7 @@ export function AgentSection() {
                   className="flex items-center gap-3.5 px-4 py-3.5 transition-colors duration-150 hover:bg-[var(--glass-bg-hover)]"
                   style={{ animationDelay: `${index * 30}ms` }}
                 >
-                  <div className="flex size-10 flex-shrink-0 items-center justify-center rounded-xl bg-[var(--glass-bg-subtle)] text-theme-text-secondary ring-1 ring-[var(--glass-border)]">
+                  <div className="flex size-10 flex-shrink-0 items-center justify-center overflow-hidden rounded-xl bg-[var(--glass-bg-subtle)] text-theme-text-secondary ring-1 ring-[var(--glass-border)]">
                     <AgentIcon icon={agent.icon || "Bot"} size={20} />
                   </div>
                   <div className="min-w-0 flex-1">

@@ -73,28 +73,25 @@ const ExecuteItem = memo(function ExecuteItem({
         : "error";
 
   const detailContent = canExpand && (
-    <div className="p-4 sm:p-5 space-y-4">
-      <div className="group/args relative px-3.5 py-3 rounded-xl bg-stone-900 dark:bg-stone-950 text-sm font-mono flex items-center gap-2.5 flex-wrap shadow-sm ring-1 ring-stone-700/30 dark:ring-stone-800/40">
-        <Terminal size={13} className="shrink-0 text-stone-500" />
-        <span className="text-emerald-400 font-semibold">$</span>
-        <span className="text-stone-200 break-all min-w-0">{command}</span>
+    <div className="p-4 sm:p-5 space-y-4 tool-panel-content">
+      <div className="group/args relative px-3.5 py-3 rounded-xl bg-theme-bg-elevated text-sm font-mono flex items-center gap-2.5 flex-wrap shadow-[var(--shadow-card)] ring-1 ring-theme-border transition-colors duration-200">
+        <Terminal size={13} className="shrink-0 text-theme-text-tertiary" />
+        <span className="text-emerald-500 dark:text-emerald-400 font-semibold">
+          $
+        </span>
+        <span className="text-theme-text break-all min-w-0">{command}</span>
         {timeout && (
-          <span className="shrink-0 px-2 py-0.5 rounded-md bg-stone-700/80 text-stone-300 text-xs ring-1 ring-stone-600/30">
+          <span className="shrink-0 px-2 py-0.5 rounded-md bg-theme-bg-subtle text-theme-text-secondary text-xs ring-1 ring-theme-border/50">
             {timeout}s
           </span>
         )}
-        <ToolHoverCopyButton
-          text={command}
-          position="args"
-          copyButtonClassName="!bg-white/10 hover:!bg-white/20 !text-stone-300 !border !border-stone-600"
-        />
       </div>
 
       {parsed.output && (
         <div className="relative group">
           <pre
             className={clsx(
-              "text-sm rounded-xl p-4 min-w-0",
+              "text-sm rounded-xl p-4 min-w-0 tool-code-block",
               "bg-theme-bg border border-theme-border",
               "text-theme-text-secondary whitespace-pre-wrap break-words font-mono",
             )}
@@ -178,7 +175,6 @@ const ExecuteItem = memo(function ExecuteItem({
                   {timeout}s
                 </span>
               )}
-              <ToolHoverCopyButton text={command} position="argsCompact" />
             </div>
 
             {parsed.output && (

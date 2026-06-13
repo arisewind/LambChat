@@ -26,7 +26,7 @@ export function ArchitectureSection({
         <div className="blog-dot-pattern rounded-2xl p-1">
           <div
             data-reveal-scale
-            className="blog-arch-frame blog-arch-card group relative rounded-xl overflow-hidden cursor-pointer bg-white/80 dark:bg-stone-900/30 transition-all duration-500 hover:-translate-y-1 hover:shadow-2xl"
+            className="blog-arch-frame blog-arch-card blog-glass-inner-glow group relative rounded-xl overflow-hidden cursor-pointer bg-white/80 dark:bg-stone-900/30 transition-all duration-500 hover:-translate-y-1.5 hover:shadow-2xl"
             onClick={() =>
               onOpenViewer(
                 "/images/best-practice/architecture.webp",
@@ -53,7 +53,7 @@ export function ArchitectureSection({
               key={s.key}
               data-reveal
               data-reveal-delay={String(i + 1)}
-              className={`blog-stat-card group relative rounded-2xl border border-stone-100/60 dark:border-stone-800/30 bg-white/80 dark:bg-stone-900/30 p-6 sm:p-7 text-center transition-all duration-500 hover:-translate-y-1.5 ${
+              className={`blog-stat-card blog-glass-inner-glow group relative rounded-2xl border border-stone-100/60 dark:border-stone-800/30 bg-white/80 dark:bg-stone-900/30 p-6 sm:p-7 text-center transition-all duration-500 hover:-translate-y-1.5 ${
                 STATS.length % 2 !== 0 && i === STATS.length - 1
                   ? "col-span-2 sm:col-span-1"
                   : ""
