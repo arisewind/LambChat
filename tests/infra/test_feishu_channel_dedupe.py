@@ -64,6 +64,12 @@ def _build_message_event(
     return SimpleNamespace(event=SimpleNamespace(message=message, sender=sender))
 
 
+def _build_card_action_event(value: Any):
+    action = SimpleNamespace(value=value)
+    context = SimpleNamespace(open_message_id="om_card", open_chat_id="oc_chat")
+    return SimpleNamespace(event=SimpleNamespace(action=action, context=context))
+
+
 def _build_fake_lark_module() -> ModuleType:
     module = ModuleType("lark_oapi")
 
@@ -382,3 +388,22 @@ async def test_audio_message_uses_configured_transcription_prompt(
 
     assert captured["content"] == "Please transcribe this voice message."
     assert captured["metadata"]["attachments"][0]["type"] == "audio"
+
+
+def test_card_action_response_payload_removes_approval_buttons() -> None:
+    channel = _build_channel()
+    payload = channel._build_card_action_response_payload(
+        _build_card_action_event(
+            {
+                "action": "lambchat.approval",
+                "approval_id": "approval-1",
+                "approved": True,
+            }
+        )
+    )
+
+    assert payload["toast"]["type"] == "success"
+    assert payload["card"]["type"] == "raw"
+    card = payload["card"]["data"]
+    assert "正在处理" in card["elements"][2]["content"]
+    assert all(element.get("tag") != "action" for element in card["elements"])

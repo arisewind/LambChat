@@ -14,17 +14,30 @@ from src.infra.channel.feishu import handler as feishu_handler
 class _FakeManager:
     def __init__(self) -> None:
         self.sent_messages: list[tuple[str, str, str]] = []
+        self.sent_cards: list[tuple[str, str, str, str | None]] = []
 
     async def send_message(
         self, user_id: str, chat_id: str, content: str, instance_id: str | None = None
     ) -> None:
         self.sent_messages.append((user_id, chat_id, content))
 
+    async def send_card_message_with_id(
+        self,
+        user_id: str,
+        chat_id: str,
+        card_content: str,
+        instance_id: str | None = None,
+        reply_to_id: str | None = None,
+    ) -> tuple[bool, str]:
+        self.sent_cards.append((user_id, chat_id, card_content, reply_to_id))
+        return True, f"approval-card-{len(self.sent_cards)}"
+
 
 class _FakeReactionManager:
     def __init__(self) -> None:
         self.add_calls: list[tuple[str, str, str]] = []
         self.delete_calls: list[tuple[str, str, str]] = []
+        self.sent_cards: list[tuple[str, str, str, str | None]] = []
 
     async def add_reaction(
         self,
@@ -46,6 +59,17 @@ class _FakeReactionManager:
         self.delete_calls.append((user_id, message_id, reaction_id))
         return True
 
+    async def send_card_message_with_id(
+        self,
+        user_id: str,
+        chat_id: str,
+        card_content: str,
+        instance_id: str | None = None,
+        reply_to_id: str | None = None,
+    ) -> tuple[bool, str]:
+        self.sent_cards.append((user_id, chat_id, card_content, reply_to_id))
+        return True, f"approval-card-{len(self.sent_cards)}"
+
 
 class _FakeStreamingClient:
     def __init__(self) -> None:
@@ -54,6 +78,7 @@ class _FakeStreamingClient:
         self.sent: list[tuple[str, str, str | None]] = []
         self.updates: list[tuple[str, str, int]] = []
         self.finalized: list[tuple[str, str, int]] = []
+        self.patched_cards: list[tuple[str, str]] = []
 
     async def create_stream_card(self, initial_text: str = "...") -> str:
         self.created += 1
@@ -72,6 +97,10 @@ class _FakeStreamingClient:
 
     async def finalize_stream_card(self, card_id: str, content: str, sequence: int) -> bool:
         self.finalized.append((card_id, content, sequence))
+        return True
+
+    async def patch_card_message(self, message_id: str, card_content: str) -> bool:
+        self.patched_cards.append((message_id, card_content))
         return True
 
 
@@ -1330,6 +1359,349 @@ async def test_upload_image_from_uri_requires_file_upload_api(
 
     assert image_key is None
     assert client.image_uploads == []
+
+
+@pytest.mark.asyncio
+async def test_process_events_sends_approval_card_and_updates_status(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    events = [
+        {
+            "event_type": feishu_handler.EVENT_MESSAGE_CHUNK,
+            "data": {"content": "我需要确认"},
+        },
+        {
+            "event_type": "approval_required",
+            "data": {
+                "id": "approval-1",
+                "message": "Please confirm creation of this scheduled task.",
+                "type": "confirm",
+                "fields": [],
+                "timeout": 300,
+            },
+        },
+        {
+            "event_type": feishu_handler.EVENT_TOOL_RESULT,
+            "data": {
+                "tool": "scheduled_task_create",
+                "result": json.dumps({"approval_id": "approval-1", "status": "approved"}),
+            },
+        },
+        {"event_type": "done", "data": {}},
+    ]
+
+    class _FakeDualWriter:
+        async def read_from_redis(self, session_id: str, run_id: str):
+            for event in events:
+                yield event
+
+    monkeypatch.setattr(
+        "src.infra.session.dual_writer.get_dual_writer",
+        lambda: _FakeDualWriter(),
+    )
+
+    manager = _FakeManager()
+    client = _FakeStreamingClient()
+    manager._find_channel = lambda user_id, instance_id=None: client  # type: ignore[attr-defined]
+    collector = feishu_handler.FeishuResponseCollector(
+        manager=manager,  # type: ignore[arg-type]
+        user_id="user-1",
+        chat_id="oc_chat",
+        reply_to_message_id="om_original",
+    )
+    collector.set_session_link("session-1", "run-1")
+
+    await feishu_handler._process_events(
+        collector=collector,
+        session_id="session-1",
+        run_id="run-1",
+        show_tools=True,
+    )
+
+    assert len(manager.sent_cards) == 1
+    sent_card = json.loads(manager.sent_cards[0][2])
+    action_buttons = sent_card["elements"][-1]["actions"]
+    values = [button.get("value") for button in action_buttons if "value" in button]
+    assert values == [
+        {
+            "action": feishu_handler.FEISHU_APPROVAL_ACTION,
+            "approval_id": "approval-1",
+            "approved": True,
+        },
+        {
+            "action": feishu_handler.FEISHU_APPROVAL_ACTION,
+            "approval_id": "approval-1",
+            "approved": False,
+        },
+    ]
+    assert client.patched_cards
+    patched = json.loads(client.patched_cards[0][1])
+    assert "已确认" in patched["elements"][2]["content"]
+    assert collector._stream_status_text is None
+
+
+@pytest.mark.asyncio
+async def test_process_events_refreshes_status_when_tool_result_omits_it(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A tool result that carries an approval_id but omits its outcome must not
+    revert an already-resolved card back to pending — the handler refreshes the
+    authoritative status from the approval record instead."""
+    events = [
+        {
+            "event_type": "approval_required",
+            "data": {
+                "id": "approval-1",
+                "message": "Please confirm creation of this scheduled task.",
+                "type": "confirm",
+                "fields": [],
+                "timeout": 300,
+            },
+        },
+        {
+            "event_type": feishu_handler.EVENT_TOOL_RESULT,
+            "data": {
+                "tool": "scheduled_task_create",
+                # approval_id present, status/approved omitted → extracts to
+                # "pending" without the defensive fallback.
+                "result": json.dumps({"approval_id": "approval-1"}),
+            },
+        },
+        {"event_type": "done", "data": {}},
+    ]
+
+    class _FakeDualWriter:
+        async def read_from_redis(self, session_id: str, run_id: str):
+            for event in events:
+                yield event
+
+    monkeypatch.setattr(
+        "src.infra.session.dual_writer.get_dual_writer",
+        lambda: _FakeDualWriter(),
+    )
+
+    async def fake_existing_status(approval_id: str) -> str:
+        assert approval_id == "approval-1"
+        return "approved"
+
+    monkeypatch.setattr(feishu_handler, "_get_existing_approval_status", fake_existing_status)
+
+    manager = _FakeManager()
+    client = _FakeStreamingClient()
+    manager._find_channel = lambda user_id, instance_id=None: client  # type: ignore[attr-defined]
+    collector = feishu_handler.FeishuResponseCollector(
+        manager=manager,  # type: ignore[arg-type]
+        user_id="user-1",
+        chat_id="oc_chat",
+        reply_to_message_id="om_original",
+    )
+    collector.set_session_link("session-1", "run-1")
+
+    await feishu_handler._process_events(
+        collector=collector,
+        session_id="session-1",
+        run_id="run-1",
+        show_tools=True,
+    )
+
+    assert client.patched_cards
+    patched = json.loads(client.patched_cards[0][1])
+    assert "已确认" in patched["elements"][2]["content"]
+    assert "等待确认" not in patched["elements"][2]["content"]
+
+
+@pytest.mark.asyncio
+async def test_process_events_sends_one_approval_card_for_duplicate_events(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    approval_event = {
+        "event_type": "approval_required",
+        "data": {
+            "id": "approval-1",
+            "message": "Please confirm creation of this scheduled task.",
+            "type": "confirm",
+            "fields": [],
+            "timeout": 300,
+        },
+    }
+    events = [
+        approval_event,
+        approval_event,
+        {"event_type": "done", "data": {}},
+    ]
+
+    class _FakeDualWriter:
+        async def read_from_redis(self, session_id: str, run_id: str):
+            for event in events:
+                yield event
+
+    monkeypatch.setattr(
+        "src.infra.session.dual_writer.get_dual_writer",
+        lambda: _FakeDualWriter(),
+    )
+
+    manager = _FakeManager()
+    collector = feishu_handler.FeishuResponseCollector(
+        manager=manager,  # type: ignore[arg-type]
+        user_id="user-1",
+        chat_id="oc_chat",
+        reply_to_message_id="om_original",
+    )
+
+    await feishu_handler._process_events(
+        collector=collector,
+        session_id="session-1",
+        run_id="run-1",
+        show_tools=True,
+    )
+
+    assert len(manager.sent_cards) == 1
+
+
+@pytest.mark.asyncio
+async def test_feishu_approval_action_responds_and_patches_card(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    calls: list[tuple[str, bool, str]] = []
+
+    async def fake_respond_to_approval(
+        approval_id: str, *, approved: bool, response: str = "{}"
+    ) -> dict[str, Any]:
+        calls.append((approval_id, approved, response))
+        return {"status": "success"}
+
+    async def fake_respond_helper(approval_id: str, *, approved: bool) -> None:
+        await fake_respond_to_approval(approval_id, approved=approved, response="{}")
+
+    async def fake_claim(approval_id: str) -> bool:
+        assert approval_id == "approval-1"
+        return True
+
+    monkeypatch.setattr(feishu_handler, "_respond_to_human_approval", fake_respond_helper)
+    monkeypatch.setattr(feishu_handler, "_claim_feishu_approval_action", fake_claim)
+
+    client = _FakeStreamingClient()
+    manager = _FakeStreamingManager(client)
+
+    handled = await feishu_handler.handle_feishu_approval_action(
+        value={
+            "action": feishu_handler.FEISHU_APPROVAL_ACTION,
+            "approval_id": "approval-1",
+            "approved": True,
+        },
+        message_id="om_card",
+        user_id="user-1",
+        manager=manager,  # type: ignore[arg-type]
+    )
+
+    assert handled is True
+    assert calls == [("approval-1", True, "{}")]
+    assert client.patched_cards
+    patched = json.loads(client.patched_cards[0][1])
+    assert "已确认" in patched["elements"][2]["content"]
+
+
+@pytest.mark.asyncio
+async def test_feishu_approval_action_is_idempotent_for_already_handled_clicks(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from fastapi import HTTPException
+
+    async def fake_respond_to_approval(
+        approval_id: str, *, approved: bool, response: str = "{}"
+    ) -> dict[str, Any]:
+        raise HTTPException(status_code=400, detail="审批请求已处理")
+
+    async def fake_existing_status(approval_id: str) -> str:
+        assert approval_id == "approval-1"
+        return "approved"
+
+    async def fake_respond_helper(approval_id: str, *, approved: bool) -> None:
+        await fake_respond_to_approval(approval_id, approved=approved, response="{}")
+
+    async def fake_claim(approval_id: str) -> bool:
+        assert approval_id == "approval-1"
+        return True
+
+    monkeypatch.setattr(feishu_handler, "_respond_to_human_approval", fake_respond_helper)
+    monkeypatch.setattr(feishu_handler, "_claim_feishu_approval_action", fake_claim)
+    monkeypatch.setattr(feishu_handler, "_get_existing_approval_status", fake_existing_status)
+
+    client = _FakeStreamingClient()
+    manager = _FakeStreamingManager(client)
+
+    handled = await feishu_handler.handle_feishu_approval_action(
+        value={
+            "action": feishu_handler.FEISHU_APPROVAL_ACTION,
+            "approval_id": "approval-1",
+            "approved": True,
+        },
+        message_id="om_card",
+        user_id="user-1",
+        manager=manager,  # type: ignore[arg-type]
+    )
+
+    assert handled is True
+    assert client.patched_cards
+    patched = json.loads(client.patched_cards[0][1])
+    assert "已确认" in patched["elements"][2]["content"]
+    assert "处理失败" not in patched["elements"][2]["content"]
+
+
+@pytest.mark.asyncio
+async def test_feishu_approval_action_dedupes_repeated_clicks(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    calls: list[str] = []
+
+    async def fake_claim(approval_id: str) -> bool:
+        calls.append(f"claim:{approval_id}")
+        return len([call for call in calls if call.startswith("claim:")]) == 1
+
+    async def fake_existing_status(approval_id: str) -> str:
+        calls.append(f"status:{approval_id}")
+        return "approved"
+
+    async def fake_respond_to_approval(
+        approval_id: str, *, approved: bool, response: str = "{}"
+    ) -> dict[str, Any]:
+        calls.append(f"respond:{approval_id}:{approved}")
+        return {"status": "success"}
+
+    async def fake_respond_helper(approval_id: str, *, approved: bool) -> None:
+        await fake_respond_to_approval(approval_id, approved=approved, response="{}")
+
+    monkeypatch.setattr(feishu_handler, "_respond_to_human_approval", fake_respond_helper)
+    monkeypatch.setattr(feishu_handler, "_claim_feishu_approval_action", fake_claim)
+    monkeypatch.setattr(feishu_handler, "_get_existing_approval_status", fake_existing_status)
+
+    client = _FakeStreamingClient()
+    manager = _FakeStreamingManager(client)
+    value = {
+        "action": feishu_handler.FEISHU_APPROVAL_ACTION,
+        "approval_id": "approval-1",
+        "approved": True,
+    }
+
+    await feishu_handler.handle_feishu_approval_action(
+        value=value,
+        message_id="om_card",
+        user_id="user-1",
+        manager=manager,  # type: ignore[arg-type]
+    )
+    await feishu_handler.handle_feishu_approval_action(
+        value=value,
+        message_id="om_card",
+        user_id="user-1",
+        manager=manager,  # type: ignore[arg-type]
+    )
+
+    assert calls == [
+        "claim:approval-1",
+        "respond:approval-1:True",
+        "claim:approval-1",
+        "status:approval-1",
+    ]
 
 
 @pytest.mark.asyncio

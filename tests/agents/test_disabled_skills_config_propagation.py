@@ -321,7 +321,7 @@ async def test_fast_agent_node_reads_existing_state_messages_for_recommendations
     await asyncio.sleep(0)
 
     assert fake_graph.aget_state_calls == 1
-    assert result["messages"] == []
+    assert result == {"output": ""}
 
 
 @pytest.mark.asyncio
@@ -640,7 +640,7 @@ async def test_search_agent_node_reads_existing_state_messages_for_recommendatio
     await asyncio.sleep(0)
 
     assert fake_graph.aget_state_calls == 1
-    assert result["messages"] == []
+    assert result == {"output": ""}
 
 
 @pytest.mark.asyncio

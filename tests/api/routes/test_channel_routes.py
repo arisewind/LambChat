@@ -307,6 +307,7 @@ async def test_create_channel_persists_team_id(
 ) -> None:
     storage = _FakeStorage()
     monkeypatch.setattr(channels_route, "get_registry", lambda: _FakeRegistry())
+    monkeypatch.setattr(channels_route, "_validate_agent_id", _async_noop)
     monkeypatch.setattr(channels_route, "publish_channel_config_changed", _async_noop)
 
     await channels_route.create_channel_instance(

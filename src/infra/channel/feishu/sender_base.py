@@ -1,5 +1,6 @@
 """Shared Feishu sender HTTP helpers and streaming card operations."""
 
+import asyncio
 import json
 import time
 from collections import OrderedDict
@@ -11,6 +12,14 @@ from src.infra.async_utils import run_blocking_io
 from src.infra.logging import get_logger
 
 logger = get_logger(__name__)
+
+# Feishu returns code 230099 ("cardid is invalid", ext ErrCode 11310) when a
+# streaming card created via /cardkit/v1/cards is referenced by /im/v1/messages
+# before it has propagated. Retrying after a short delay lets the card become
+# usable instead of falling back to a second (duplicate) non-stream card.
+_FEISHU_CARD_NOT_READY_CODE = 230099
+_STREAM_CARD_SEND_MAX_ATTEMPTS = 3
+_STREAM_CARD_SEND_RETRY_DELAY_SECONDS = 0.5
 
 
 class FeishuBaseSenderMixin:
@@ -201,22 +210,65 @@ class FeishuBaseSenderMixin:
             {"type": "card", "data": {"card_id": card_id}},
             ensure_ascii=False,
         )
+        # Retry on the card-not-ready propagation race (code 230099). A freshly
+        # created card_id can be reported invalid for a brief window; waiting and
+        # retrying avoids giving up and emitting a duplicate non-stream card.
+        for attempt in range(_STREAM_CARD_SEND_MAX_ATTEMPTS):
+            ok, message_id, code = await self._send_stream_card_attempt(
+                content, chat_id, reply_to_id
+            )
+            if ok:
+                logger.info(
+                    "[CARD_CREATE_DEBUG] send_card_by_id STREAM ok card_id=%s "
+                    "reply_to=%s attempt=%d",
+                    card_id,
+                    reply_to_id,
+                    attempt + 1,
+                )
+                return True, message_id
+            if code == _FEISHU_CARD_NOT_READY_CODE and attempt < _STREAM_CARD_SEND_MAX_ATTEMPTS - 1:
+                delay = _STREAM_CARD_SEND_RETRY_DELAY_SECONDS * (attempt + 1)
+                logger.info(
+                    "[Feishu] Stream card not ready (code=%s), retrying in %.2fs "
+                    "(attempt %d/%d) card_id=%s",
+                    code,
+                    delay,
+                    attempt + 1,
+                    _STREAM_CARD_SEND_MAX_ATTEMPTS,
+                    card_id,
+                )
+                await asyncio.sleep(delay)
+                continue
+            return False, None
+        return False, None
+
+    async def _send_stream_card_attempt(
+        self,
+        content: str,
+        chat_id: str,
+        reply_to_id: str | None,
+    ) -> tuple[bool, str | None, Any]:
+        """Single send attempt for a stream card. Returns (ok, message_id, code)."""
         if reply_to_id:
             payload = await self._feishu_json(
                 "POST",
                 f"/im/v1/messages/{reply_to_id}/reply",
                 json_body={"msg_type": "interactive", "content": content},
             )
-            if payload and payload.get("code") == 0:
+            code = payload.get("code") if payload else None
+            if payload and code == 0:
                 data = payload.get("data") or {}
-                return True, data.get("message_id")
-            reply_code = payload.get("code") if payload else None
-            logger.warning("[Feishu] Reply stream card failed: %s", payload)
-            if reply_code not in self._REPLY_FALLBACK_ERROR_CODES:
-                return False, None
+                return True, data.get("message_id"), code
+            if code not in self._REPLY_FALLBACK_ERROR_CODES:
+                logger.warning(
+                    "[CARD_CREATE_DEBUG] send_card_by_id STREAM REPLY failed code=%s reply_to=%s",
+                    code,
+                    reply_to_id,
+                )
+                return False, None, code
             logger.info(
                 "[Feishu] Falling back to create stream card after reply code=%s",
-                reply_code,
+                code,
             )
 
         receive_id_type, receive_id = self._resolve_receive_id(chat_id)
@@ -230,16 +282,17 @@ class FeishuBaseSenderMixin:
                 "content": content,
             },
         )
-        if not payload or payload.get("code") != 0:
-            logger.warning(
-                "[Feishu] Send stream card failed: receive_id_type=%s receive_id=%s payload=%s",
-                receive_id_type,
-                receive_id,
-                payload,
-            )
-            return False, None
-        data = payload.get("data") or {}
-        return True, data.get("message_id")
+        code = payload.get("code") if payload else None
+        if payload and code == 0:
+            data = payload.get("data") or {}
+            return True, data.get("message_id"), code
+        logger.warning(
+            "[Feishu] Send stream card failed: receive_id_type=%s receive_id=%s code=%s",
+            receive_id_type,
+            receive_id,
+            code,
+        )
+        return False, None, code
 
     async def update_stream_card(self, card_id: str, content: str, sequence: int) -> bool:
         payload = await self._feishu_json(

@@ -144,7 +144,7 @@ async def delete_scheduled_task(
     user: TokenPayload = Depends(require_permissions(Permission.SCHEDULED_TASK_DELETE.value)),
     service: ScheduledTaskService = Depends(_get_service),
 ):
-    """Soft-delete a scheduled task."""
+    """Physically delete a scheduled task."""
     await _require_owned_task(task_id, user, service)
     await service.delete_task(task_id)
 

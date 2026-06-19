@@ -10,6 +10,7 @@ from functools import lru_cache
 from typing import TYPE_CHECKING, Any, List, Optional
 
 from pydantic import BaseModel
+from pymongo import ReturnDocument
 
 from src.infra.async_utils import run_blocking_io
 from src.infra.logging import get_logger
@@ -255,6 +256,33 @@ class ApprovalStorage:
 
         result = await self.collection.update_one({"_id": approval_id}, {"$set": update_doc})
         return result.modified_count > 0
+
+    async def respond_if_pending(
+        self,
+        approval_id: str,
+        status: str,
+        response: ApprovalResponse,
+    ) -> Optional[PendingApproval]:
+        """Atomically mark a pending approval as responded."""
+        update_doc = {
+            "status": status,
+            "updated_at": utc_now(),
+            "response": response.model_dump(),
+        }
+        doc = await self.collection.find_one_and_update(
+            {
+                "_id": approval_id,
+                "status": "pending",
+                "expires_at": {"$gt": utc_now()},
+            },
+            {"$set": update_doc},
+            projection={"response": 0},
+            return_document=ReturnDocument.AFTER,
+        )
+        if not doc:
+            return None
+        doc.pop("_id", None)
+        return PendingApproval(**doc)
 
     async def extend_expires_at(
         self,

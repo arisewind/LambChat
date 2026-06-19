@@ -190,6 +190,7 @@ class FeishuMessageSenderMixin:
             reply_to_id: Optional message ID to reply to (for quote/reply)
         """
         try:
+            via = "create"
             # Use ReplyMessageRequest API for replies
             if reply_to_id:
                 from lark_oapi.api.im.v1 import ReplyMessageRequest, ReplyMessageRequestBody
@@ -241,6 +242,9 @@ class FeishuMessageSenderMixin:
                             .build()
                         )
                         response = self._client.im.v1.message.create(request)
+                        via = "reply-fallback"
+                else:
+                    via = "reply"
             else:
                 # Use CreateMessageRequest API for new messages
                 from lark_oapi.api.im.v1 import CreateMessageRequest, CreateMessageRequestBody
@@ -258,6 +262,7 @@ class FeishuMessageSenderMixin:
                     .build()
                 )
                 response = self._client.im.v1.message.create(request)
+                via = "create"
 
             if not response.success():
                 logger.error(
@@ -271,6 +276,7 @@ class FeishuMessageSenderMixin:
                 return False, None
             data = response.data
             message_id = data.message_id if data else None
+            logger.info("[Feishu] Card delivered message_id=%s via=%s", message_id, via)
             return True, message_id
         except Exception as e:
             logger.error(f"Error sending Feishu card message: {e}")
@@ -377,3 +383,9 @@ class FeishuMessageSenderMixin:
         # Fall back to patch API (for card messages only)
         text_body = await _json_dumps_text_body(content)
         return await run_blocking_io(self._patch_message_sync, message_id, text_body)
+
+    async def patch_card_message(self, message_id: str, card_content: str) -> bool:
+        """Patch/update an existing interactive card message."""
+        if not self._client:
+            return False
+        return await run_blocking_io(self._patch_message_sync, message_id, card_content)

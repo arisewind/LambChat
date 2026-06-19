@@ -136,6 +136,11 @@ async def create_approval(
 
     # 存储到 MongoDB
     await _approval_storage.create(approval)
+    logger.info(
+        "[HITL] approval_id=%s Approval created (type=%s)",
+        approval_id,
+        approval_type,
+    )
 
     # 创建本地 Event（单进程优化）
     _store_local_event(approval_id, (asyncio.Event(), time.time()))
@@ -161,6 +166,11 @@ async def wait_for_response(approval_id: str, timeout: float = 300) -> Optional[
     Returns:
         ApprovalResponse 或 None (超时)
     """
+    logger.info(
+        "[HITL] approval_id=%s Waiting for response (timeout=%ss)",
+        approval_id,
+        timeout,
+    )
     local_event = _touch_local_event(approval_id)
     event = local_event[0] if local_event else None
 
@@ -170,6 +180,10 @@ async def wait_for_response(approval_id: str, timeout: float = 300) -> Optional[
             # 先检查是否已有响应
             response = await _approval_storage.get_response(approval_id)
             if response:
+                logger.info(
+                    "[HITL] approval_id=%s Response received (already present)",
+                    approval_id,
+                )
                 return response
 
             # 创建两个任务：本地 Event 和 MongoDB 轮询
@@ -201,13 +215,23 @@ async def wait_for_response(approval_id: str, timeout: float = 300) -> Optional[
                     logger.warning(f"Wait task error: {e}")
 
             # 从 MongoDB 获取最终结果
-            return await _approval_storage.get_response(approval_id)
+            final_response = await _approval_storage.get_response(approval_id)
+            if final_response:
+                logger.info("[HITL] approval_id=%s Response received", approval_id)
+            else:
+                logger.info("[HITL] approval_id=%s Wait timed out", approval_id)
+            return final_response
 
         finally:
             _local_events.pop(approval_id, None)
     else:
         # 跨进程：直接使用 MongoDB 轮询
-        return await wait_for_response_distributed(approval_id, timeout)
+        distributed_response = await wait_for_response_distributed(approval_id, timeout)
+        if distributed_response:
+            logger.info("[HITL] approval_id=%s Response received", approval_id)
+        else:
+            logger.info("[HITL] approval_id=%s Wait timed out", approval_id)
+        return distributed_response
 
 
 def _cleanup_approval(approval_id: str) -> None:
@@ -255,11 +279,21 @@ async def respond_to_approval(
 
     前端调用此接口提交审批结果。
     """
+    logger.info(
+        "[HITL] approval_id=%s Responding approved=%s",
+        approval_id,
+        approved,
+    )
     approval = await _approval_storage.get(approval_id)
     if not approval:
         raise HTTPException(status_code=404, detail="审批请求不存在")
 
     if approval.status != "pending":
+        logger.info(
+            "[HITL] approval_id=%s Approval not pending (status=%s)",
+            approval_id,
+            approval.status,
+        )
         raise HTTPException(status_code=400, detail="审批请求已处理")
 
     # 解析 JSON 响应数据
@@ -271,7 +305,18 @@ async def respond_to_approval(
     # 记录响应并更新状态
     approval_response = ApprovalResponse(approved=approved, response=response_data)
     status = "approved" if approved else "rejected"
-    await _approval_storage.update_status(approval_id, status, approval_response)
+    respond_if_pending = getattr(_approval_storage, "respond_if_pending", None)
+    if callable(respond_if_pending):
+        updated_approval = await respond_if_pending(approval_id, status, approval_response)
+        if updated_approval is None:
+            raise HTTPException(status_code=400, detail="审批请求已处理")
+    else:
+        await _approval_storage.update_status(approval_id, status, approval_response)
+
+    logger.info(
+        "[HITL] approval_id=%s Approval response recorded, notifying waiters",
+        approval_id,
+    )
 
     # 通知等待的 Agent（分布式支持）
     # 1. 通过 Redis Pub/Sub 通知跨进程的 Agent

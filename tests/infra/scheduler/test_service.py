@@ -225,7 +225,7 @@ async def test_resume_task_registers(
 
 
 @pytest.mark.asyncio
-async def test_delete_task_soft_deletes(
+async def test_delete_task_physically_deletes(
     service: ScheduledTaskService,
     mock_storage: AsyncMock,
     mock_scheduler: MagicMock,

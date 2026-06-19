@@ -212,6 +212,107 @@ async def test_send_card_by_id_offloads_content_json_serialization(
     }
 
 
+@pytest.mark.asyncio
+async def test_send_card_by_id_retries_when_card_not_ready_then_succeeds(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from src.infra.channel.feishu import sender_base
+
+    async def fake_run_blocking_io(func, *args: Any, **kwargs: Any):
+        return func(*args, **kwargs)
+
+    payloads = [
+        {"code": sender_base._FEISHU_CARD_NOT_READY_CODE},
+        {"code": 0, "data": {"message_id": "message-1"}},
+    ]
+    feishu_calls: list[str] = []
+    sleeps: list[float] = []
+
+    class _RetrySender(_DummySender):
+        async def _feishu_json(self, method: str, path: str, **kwargs: Any):
+            feishu_calls.append(path)
+            return payloads.pop(0)
+
+    async def fake_sleep(delay: float) -> None:
+        sleeps.append(delay)
+
+    monkeypatch.setattr(sender_base, "run_blocking_io", fake_run_blocking_io, raising=False)
+    monkeypatch.setattr(sender_base.asyncio, "sleep", fake_sleep)
+
+    sent, message_id = await _RetrySender().send_card_by_id("oc_chat", "card-1")
+
+    assert sent is True
+    assert message_id == "message-1"
+    assert len(feishu_calls) == 2  # first 230099, then success on retry
+    assert sleeps == [sender_base._STREAM_CARD_SEND_RETRY_DELAY_SECONDS]
+
+
+@pytest.mark.asyncio
+async def test_send_card_by_id_gives_up_after_max_retries_when_card_still_not_ready(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from src.infra.channel.feishu import sender_base
+
+    async def fake_run_blocking_io(func, *args: Any, **kwargs: Any):
+        return func(*args, **kwargs)
+
+    feishu_calls: list[str] = []
+    sleeps: list[float] = []
+
+    class _AlwaysNotReadySender(_DummySender):
+        async def _feishu_json(self, method: str, path: str, **kwargs: Any):
+            feishu_calls.append(path)
+            return {"code": sender_base._FEISHU_CARD_NOT_READY_CODE}
+
+    async def fake_sleep(delay: float) -> None:
+        sleeps.append(delay)
+
+    monkeypatch.setattr(sender_base, "run_blocking_io", fake_run_blocking_io, raising=False)
+    monkeypatch.setattr(sender_base.asyncio, "sleep", fake_sleep)
+
+    sent, message_id = await _AlwaysNotReadySender().send_card_by_id("oc_chat", "card-1")
+
+    assert sent is False
+    assert message_id is None
+    # Attempted once per allowed try, backing off between retries.
+    assert len(feishu_calls) == sender_base._STREAM_CARD_SEND_MAX_ATTEMPTS
+    assert sleeps == [
+        sender_base._STREAM_CARD_SEND_RETRY_DELAY_SECONDS * 1,
+        sender_base._STREAM_CARD_SEND_RETRY_DELAY_SECONDS * 2,
+    ]
+
+
+@pytest.mark.asyncio
+async def test_send_card_by_id_does_not_retry_on_other_error_codes(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from src.infra.channel.feishu import sender_base
+
+    async def fake_run_blocking_io(func, *args: Any, **kwargs: Any):
+        return func(*args, **kwargs)
+
+    feishu_calls: list[str] = []
+    sleeps: list[float] = []
+
+    class _OtherErrorSender(_DummySender):
+        async def _feishu_json(self, method: str, path: str, **kwargs: Any):
+            feishu_calls.append(path)
+            return {"code": 230001}  # not the card-not-ready race
+
+    async def fake_sleep(delay: float) -> None:
+        sleeps.append(delay)
+
+    monkeypatch.setattr(sender_base, "run_blocking_io", fake_run_blocking_io, raising=False)
+    monkeypatch.setattr(sender_base.asyncio, "sleep", fake_sleep)
+
+    sent, message_id = await _OtherErrorSender().send_card_by_id("oc_chat", "card-1")
+
+    assert sent is False
+    assert message_id is None
+    assert len(feishu_calls) == 1  # no retry for non-230099 codes
+    assert sleeps == []
+
+
 class _Builder:
     def __getattr__(self, _name: str):
         def _method(*_args: Any, **_kwargs: Any):

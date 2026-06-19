@@ -5,6 +5,8 @@ from __future__ import annotations
 import asyncio
 from typing import Any, Optional
 
+from pymongo.errors import DuplicateKeyError
+
 from src.infra.logging import get_logger
 from src.infra.utils.datetime import utc_now
 from src.kernel.config import settings
@@ -86,9 +88,27 @@ class ScheduledTaskStorage:
 
     async def create_task(self, task: ScheduledTask) -> ScheduledTask:
         doc = task.model_dump(by_alias=True)
-        await self._get_collection(_COLL_TASKS).insert_one(doc)
+        collection = self._get_collection(_COLL_TASKS)
+        try:
+            await collection.insert_one(doc)
+        except DuplicateKeyError:
+            if not await self._delete_deleted_name_collision(task):
+                raise
+            await collection.insert_one(doc)
         await self._bump_scheduler_definition_revision()
         return task
+
+    async def _delete_deleted_name_collision(self, task: ScheduledTask) -> bool:
+        """Remove a historical soft-deleted same-name task so unique indexes stop blocking create."""
+        collection = self._get_collection(_COLL_TASKS)
+        result = await collection.delete_one(
+            {
+                "owner_id": task.owner_id,
+                "name": task.name,
+                "status": ScheduledTaskStatus.DELETED,
+            }
+        )
+        return result.deleted_count > 0
 
     async def get_task(self, task_id: str) -> Optional[ScheduledTask]:
         doc = await self._get_collection(_COLL_TASKS).find_one({"_id": task_id})
@@ -179,14 +199,11 @@ class ScheduledTaskStorage:
         return result.modified_count > 0
 
     async def delete_task(self, task_id: str) -> bool:
-        """Soft-delete a task by setting status to deleted."""
-        result = await self._get_collection(_COLL_TASKS).update_one(
-            {"_id": task_id},
-            {"$set": {"status": ScheduledTaskStatus.DELETED, "updated_at": utc_now()}},
-        )
-        if result.modified_count > 0:
+        """Physically remove a task document so its name is freed immediately."""
+        result = await self._get_collection(_COLL_TASKS).delete_one({"_id": task_id})
+        if result.deleted_count > 0:
             await self._bump_scheduler_definition_revision()
-        return result.modified_count > 0
+        return result.deleted_count > 0
 
     async def update_task_run_stats(self, task_id: str, run_id: str, run_status: RunStatus) -> None:
         """Update task-level run statistics after execution completes."""
