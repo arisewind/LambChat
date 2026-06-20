@@ -14,6 +14,7 @@ from src.api.deps import get_current_user_required
 from src.infra.logging import get_logger
 from src.infra.usage.storage import get_usage_storage
 from src.kernel.schemas.usage import (
+    UsageDashboardResponse,
     UsageLog,
     UsageLogListResponse,
     UsageStats,
@@ -101,6 +102,32 @@ async def get_usage_stats(
         limit=1,  # 只需要 stats，不需要 items
     )
     return UsageStats(**stats)
+
+
+@router.get("/dashboard", response_model=UsageDashboardResponse)
+async def get_usage_dashboard(
+    user_id: Optional[str] = Query(None, description="按用户ID过滤（仅管理员）"),
+    period: Optional[str] = Query("week", description="周期: today, week, month, all"),
+    model: Optional[str] = Query(None, description="按模型名称过滤"),
+    search: Optional[str] = Query(None, description="搜索用户名（仅管理员）"),
+    user: TokenPayload = Depends(get_current_user_required),
+) -> UsageDashboardResponse:
+    """获取数字员工运营看板聚合数据。"""
+    storage = get_usage_storage()
+
+    effective_user_id: Optional[str] = user.sub
+    effective_search: Optional[str] = None
+    if _is_admin(user):
+        effective_user_id = user_id
+        effective_search = search
+
+    data = await storage.get_usage_dashboard(
+        user_id=effective_user_id,
+        start_date=_compute_start_date(period or "week"),
+        model=model,
+        search=effective_search,
+    )
+    return UsageDashboardResponse(**data)
 
 
 def _compute_start_date(period: str) -> Optional[str]:

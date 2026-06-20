@@ -19,8 +19,8 @@ import {
 } from "lucide-react";
 import toast from "react-hot-toast";
 import { PanelHeader } from "../../common/PanelHeader";
-import { PanelLoadingState } from "../../common/PanelLoadingState";
 import { Pagination } from "../../common/Pagination";
+import { MemoryPanelSkeleton } from "../../skeletons";
 import { Checkbox } from "../../common/Checkbox";
 import { Button, IconButton } from "../../common";
 import { BatchActionBar } from "../SkillsPanel/BatchActionBar";
@@ -218,6 +218,10 @@ export function MemoryPanel() {
 
   const clearSelection = () => setCheckedIds(new Set());
 
+  if (isLoading && memories.length === 0) {
+    return <MemoryPanelSkeleton />;
+  }
+
   return (
     <div className="glass-shell flex h-full flex-col min-h-0">
       <PanelHeader
@@ -307,9 +311,7 @@ export function MemoryPanel() {
 
       {/* List */}
       <div className="flex-1 overflow-y-auto py-2 sm:py-4 px-4 sm:p-6">
-        {isLoading && memories.length === 0 ? (
-          <PanelLoadingState />
-        ) : !isLoading && memories.length === 0 ? (
+        {!isLoading && memories.length === 0 ? (
           <div className="flex h-full flex-col items-center justify-center text-center">
             <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-[var(--glass-bg)]">
               <Brain size={32} className="text-[var(--theme-text-secondary)]" />

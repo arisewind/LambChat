@@ -10,7 +10,7 @@ import {
   X,
 } from "lucide-react";
 import { PanelHeader } from "../../common/PanelHeader";
-import { SkillsPanelSkeleton } from "../../skeletons";
+import { SkillsListSkeleton, SkillsPanelSkeleton } from "../../skeletons";
 import { Pagination } from "../../common/Pagination";
 import { SkillCard } from "../../skill/SkillCard";
 import { Button, IconButton, EmptyState } from "../../common";
@@ -112,7 +112,7 @@ export function SkillsList({
     isLoading && filteredSkills.length === 0 && !hasActiveFilters;
 
   if (isInitialLoading) {
-    return <SkillsPanelSkeleton />;
+    return embedded ? <SkillsListSkeleton /> : <SkillsPanelSkeleton />;
   }
 
   const filterMenu = (
@@ -151,7 +151,7 @@ export function SkillsList({
       )}
       <Button variant="secondary" onClick={onGithubClick} className="h-10">
         <Github size={16} />
-        <span className="hidden sm:inline">GitHub</span>
+        <span className="hidden sm:inline">{t("skills.github")}</span>
       </Button>
       <Button variant="secondary" onClick={onZipClick} className="h-10">
         <Archive size={16} />

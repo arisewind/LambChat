@@ -47,16 +47,14 @@ export function PanelHeaderSkeleton({
 
         {/* Desktop action buttons */}
         <div className="panel-header__actions panel-header__desktop-actions flex flex-nowrap flex-shrink-0 items-center gap-1.5 sm:gap-2">
-          <div className="skeleton-line h-10 w-24 sm:w-28 rounded-lg" />
-          <div className="skeleton-line h-10 w-24 sm:w-28 rounded-lg hidden sm:block" />
+          <div className="skeleton-line h-10 w-20 rounded-lg" />
+          <div className="skeleton-line h-10 w-10 rounded-lg" />
         </div>
 
-        {/* Mobile menu button (shown when no search row, matching real PanelHeader mobile-menu pattern) */}
-        {!hasSearch && (
-          <div className="panel-header__mobile-actions sm:hidden">
-            <div className="skeleton-line size-9 rounded-lg" />
-          </div>
-        )}
+        {/* Mobile menu button — always shown on mobile */}
+        <div className="panel-header__mobile-actions sm:hidden">
+          <div className="skeleton-line size-9 rounded-lg" />
+        </div>
       </div>
 
       {/* Search row — matches real search-row with searchAccessory + searchActions */}

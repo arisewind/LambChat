@@ -226,6 +226,8 @@ make frontend-dev   # Vite frontend
 
 LambChat can be configured through the UI and environment variables. Start with `.env.example`, then set stable secrets before using it with real users.
 
+Runtime settings stored in the database take precedence over environment variables. Environment variables are used as initial values or fallback values only when the corresponding database setting has not been set.
+
 ```bash
 # Recommended: keep sessions valid across restarts
 JWT_SECRET_KEY=your-stable-secret-key

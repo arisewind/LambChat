@@ -1,5 +1,6 @@
 /** Barrel re-export — panel skeletons split into domain-specific files */
 export {
+  SkillsListSkeleton,
   SkillsPanelSkeleton,
   MarketplacePanelSkeleton,
 } from "./SkillSkeletons";
@@ -14,5 +15,12 @@ export {
   ChannelsGridSkeleton,
   ChannelConfigSkeleton,
 } from "./ChannelSkeletons";
-export { AgentPanelSkeleton, ModelPanelSkeleton } from "./SettingsSkeletons";
+export {
+  AgentModelPanelSkeleton,
+  AgentPanelSkeleton,
+  AgentSectionSkeleton,
+  ModelPanelSkeleton,
+  ModelSectionSkeleton,
+} from "./SettingsSkeletons";
 export { UsagePanelSkeleton } from "./UsageSkeleton";
+export { MemoryPanelSkeleton } from "./MemorySkeleton";

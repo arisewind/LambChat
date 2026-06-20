@@ -16,7 +16,12 @@ from typing import Any, AsyncGenerator, Dict
 
 from langchain_core.runnables import RunnableConfig
 
-from src.agents.core.base import BaseGraphAgent, GraphBuilder, register_agent
+from src.agents.core.base import (
+    BaseGraphAgent,
+    GraphBuilder,
+    build_presenter_langsmith_metadata,
+    register_agent,
+)
 from src.agents.team_agent.context import TeamAgentContext
 from src.agents.team_agent.nodes import team_router_node
 from src.agents.team_agent.state import TeamAgentState
@@ -159,7 +164,22 @@ class TeamAgent(BaseGraphAgent):
         agent_options = kwargs.get("agent_options", {})
         logger.info(f"[TeamAgent] agent_options: {agent_options}")
 
-        langsmith_metadata = await presenter.build_langsmith_metadata()
+        langsmith_context = {
+            "agent_options": agent_options,
+            "disabled_skills": disabled_skills,
+            "enabled_skills": context_enabled_skills,
+            "persona_system_prompt": kwargs.get("persona_system_prompt"),
+            "disabled_mcp_tools": disabled_mcp_tools,
+            "base_url": kwargs.get("base_url", ""),
+            "team_id": team_id,
+            "active_goal": kwargs.get("active_goal"),
+            "recommendation_input": kwargs.get("recommendation_input"),
+            "attachments": kwargs.get("attachments", []),
+        }
+        langsmith_metadata = await build_presenter_langsmith_metadata(
+            presenter,
+            langsmith_context,
+        )
 
         config: RunnableConfig = {
             "configurable": {

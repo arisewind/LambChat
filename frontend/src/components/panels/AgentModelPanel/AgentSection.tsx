@@ -7,7 +7,7 @@ import { useTranslation } from "react-i18next";
 import i18n from "../../../i18n";
 import toast from "react-hot-toast";
 import { AgentIcon } from "../../agent/AgentIcon";
-import { AgentPanelSkeleton } from "../../skeletons";
+import { AgentSectionSkeleton } from "../../skeletons";
 import { agentConfigApi, roleApi, agentApi } from "../../../services/api";
 import { useAuth } from "../../../hooks/useAuth";
 import { Permission } from "../../../types";
@@ -162,7 +162,7 @@ export function AgentSection() {
   };
 
   if (isLoading) {
-    return <AgentPanelSkeleton />;
+    return <AgentSectionSkeleton />;
   }
 
   return (
@@ -170,7 +170,7 @@ export function AgentSection() {
       {error && <ConfigPanelErrorCallout message={error} className="mb-4" />}
 
       {canManageAgents && (
-        <div className="inline-grid grid-cols-2 rounded-lg border border-[var(--glass-border)] bg-[var(--glass-bg-subtle)] p-1 sm:my-3">
+        <div className="inline-grid grid-cols-2 rounded-lg border border-[var(--glass-border)] bg-[var(--glass-bg-subtle)] p-1 my-3">
           <button
             onClick={() => setActiveTab("global")}
             className={`flex items-center justify-center gap-2 rounded-md px-3 py-2 text-sm font-medium transition-all duration-150 ${
@@ -212,7 +212,7 @@ export function AgentSection() {
           />
         )
       ) : (
-        <div className="space-y-4">
+        <div className="">
           <p className="text-sm text-theme-text-secondary px-1 leading-relaxed hidden sm:block">
             {t("agentConfig.availableAgents")}
           </p>

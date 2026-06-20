@@ -146,7 +146,8 @@ async def scheduled_task_create(
     ] = None,
     timeout_seconds: Annotated[
         int,
-        "Maximum execution time in seconds. Range: 10-3600. Default: 600 (10 min).",
+        "Maximum execution time in seconds. Range: 10-3600. Default: 600s (10 min). "
+        "Do not set this too short; omit it unless the user explicitly asks for a shorter timeout.",
     ] = 600,
     run_on_start: Annotated[
         bool,
@@ -323,6 +324,9 @@ async def scheduled_task_create(
                 "action": "not_created",
                 "reason": confirmation["status"],
                 "approval_id": confirmation["approval_id"],
+                "approved": confirmation["approved"],
+                "status": confirmation["status"],
+                "approval_status": confirmation["status"],
                 "preview": preview,
                 "message": confirmation["message"],
             }
@@ -375,6 +379,9 @@ async def scheduled_task_create(
             "task": resp.model_dump(mode="json"),
             "preview": preview,
             "approval_id": confirmation["approval_id"],
+            "approved": confirmation["approved"],
+            "status": confirmation["status"],
+            "approval_status": confirmation["status"],
             "message": (
                 f"Scheduled task '{task.name}' created (trigger: {trigger_type}, id: {task.id})."
             ),

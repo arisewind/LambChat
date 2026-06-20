@@ -65,6 +65,9 @@ async function main() {
   const total = frontendResults.length + backendResults.length;
   console.log("\n========================================");
   console.log(`Total: ${total} file(s)`);
+  if (total > 0) {
+    process.exitCode = 1;
+  }
 }
 
 main().catch(console.error);

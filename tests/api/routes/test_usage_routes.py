@@ -43,6 +43,68 @@ class _FakeUsageStorage:
             },
         )
 
+    async def get_usage_dashboard(self, **kwargs):
+        self.calls.append(kwargs)
+        return {
+            "summary": {
+                "total_requests": 2,
+                "total_tokens": 100,
+                "total_input_tokens": 40,
+                "total_output_tokens": 60,
+                "total_cache_read_tokens": 10,
+                "total_duration": 120.0,
+                "total_tool_calls": 5,
+                "scheduled_runs": 1,
+                "success_rate": 0.5,
+            },
+            "daily": [
+                {
+                    "date": "2026-06-14",
+                    "requests": 2,
+                    "tokens": 100,
+                    "duration": 120.0,
+                    "scheduled_runs": 1,
+                    "tool_calls": 5,
+                }
+            ],
+            "top_agents": [
+                {
+                    "id": "Team Agent",
+                    "name": "Team Agent",
+                    "requests": 2,
+                    "tokens": 100,
+                    "duration": 120.0,
+                }
+            ],
+            "top_teams": [
+                {
+                    "id": "team-1",
+                    "name": "Growth Team",
+                    "requests": 1,
+                    "tokens": 70,
+                    "duration": 80.0,
+                }
+            ],
+            "top_personas": [
+                {
+                    "id": "persona-1",
+                    "name": "Researcher",
+                    "requests": 1,
+                    "tokens": 30,
+                    "duration": 40.0,
+                }
+            ],
+            "top_models": [
+                {
+                    "id": "openai/gpt-5",
+                    "name": "openai/gpt-5",
+                    "requests": 2,
+                    "tokens": 100,
+                    "duration": 120.0,
+                }
+            ],
+        }
+
 
 @pytest.mark.asyncio
 async def test_list_usage_logs_restricts_non_admin_to_current_user(monkeypatch) -> None:
@@ -132,3 +194,54 @@ async def test_get_usage_stats_uses_period_and_admin_scope(monkeypatch) -> None:
     assert storage.calls[0]["start_date"] == "2026-06-14T00:00:00+00:00"
     assert storage.calls[0]["skip"] == 0
     assert storage.calls[0]["limit"] == 1
+
+
+@pytest.mark.asyncio
+async def test_get_usage_dashboard_restricts_non_admin_to_current_user(monkeypatch) -> None:
+    storage = _FakeUsageStorage()
+    monkeypatch.setattr(usage_routes, "get_usage_storage", lambda: storage)
+    monkeypatch.setattr(
+        usage_routes,
+        "_now_utc",
+        lambda: datetime(2026, 6, 14, 12, 0, tzinfo=timezone.utc),
+    )
+    user = TokenPayload(
+        sub="user-1",
+        username="User",
+        permissions=["usage:read"],
+    )
+
+    response = await usage_routes.get_usage_dashboard(
+        user_id="user-2",
+        period="week",
+        search="Ada",
+        user=user,
+    )
+
+    assert response.summary.total_requests == 2
+    assert response.daily[0].date == "2026-06-14"
+    assert storage.calls[-1]["user_id"] == "user-1"
+    assert storage.calls[-1]["search"] is None
+    assert storage.calls[-1]["start_date"] == "2026-06-07T12:00:00+00:00"
+
+
+@pytest.mark.asyncio
+async def test_get_usage_dashboard_allows_admin_global_search(monkeypatch) -> None:
+    storage = _FakeUsageStorage()
+    monkeypatch.setattr(usage_routes, "get_usage_storage", lambda: storage)
+    user = TokenPayload(
+        sub="admin-1",
+        username="Admin",
+        permissions=["usage:read", "usage:admin"],
+    )
+
+    await usage_routes.get_usage_dashboard(
+        user_id=None,
+        period="all",
+        search="Ada",
+        user=user,
+    )
+
+    assert storage.calls[-1]["user_id"] is None
+    assert storage.calls[-1]["search"] == "Ada"
+    assert storage.calls[-1]["start_date"] is None

@@ -1,5 +1,19 @@
 # Changelog
 
+## v2.5.3 (2026-06-21)
+
+### ✨ New Features
+
+- **Usage Dashboard Refresh** — Added trend cards, rankings, insights, and a structured usage log table.
+- **Feishu Channel Refactor** — Split approval, collection, and event handling into dedicated modules.
+- **Presentation & Usage Telemetry** — Expanded persisted trace metadata and usage rollups.
+
+### 🐛 Bug Fixes
+
+- Improve loading and skeleton states across agent, model, memory, skill, and usage panels.
+- Add share dialog privacy reminder coverage.
+- Harden scheduled task runtime and active goal behavior.
+
 ## v2.5.2 (2026-06-14)
 
 ### ✨ New Features

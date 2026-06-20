@@ -159,7 +159,7 @@ class ScheduledTaskRunner:
                     },
                 )
                 try:
-                    result = await self._execute_agent(task, run_id, session_id)
+                    result = await self._execute_agent(task, run_id, session_id, trigger_type)
                     final_attempt = self._classify_attempt_result(result)
                 except Exception as exc:
                     final_attempt = _AttemptResult(
@@ -286,7 +286,13 @@ class ScheduledTaskRunner:
 
         return None
 
-    async def _execute_agent(self, task: ScheduledTask, run_id: str, session_id: str) -> dict:
+    async def _execute_agent(
+        self,
+        task: ScheduledTask,
+        run_id: str,
+        session_id: str,
+        trigger_type: str | None = None,
+    ) -> dict:
         """Execute the agent via BackgroundTaskManager in a dedicated session."""
         from src.infra.session.manager import SessionManager
         from src.infra.task.concurrency import get_registered_executor
@@ -350,6 +356,7 @@ class ScheduledTaskRunner:
             "source": "scheduled_task",
             "scheduled_task_id": task.id,
             "scheduled_task_run_id": run_id,
+            "scheduled_task_trigger_type": trigger_type or task.trigger_type.value,
             "hidden_from_conversation_list": True,
         }
         if persona_preset_id:

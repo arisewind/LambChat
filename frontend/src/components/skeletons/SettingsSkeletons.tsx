@@ -2,6 +2,175 @@ import { SkeletonLine } from "./primitives";
 import { PanelHeaderSkeleton } from "./PanelHeaderSkeleton";
 import { PanelSegmentedTabsSkeleton } from "./PanelSkeletonHelpers";
 
+function AgentListSkeletonRows({
+  withCheckbox = false,
+}: {
+  withCheckbox?: boolean;
+}) {
+  return (
+    <div className="glass-card divide-y divide-[var(--glass-border)] overflow-hidden rounded-xl">
+      {Array.from({ length: 5 }).map((_, i) => (
+        <div
+          key={i}
+          className="flex items-center justify-between gap-3 px-4 py-3.5"
+        >
+          <div className="flex min-w-0 flex-1 items-center gap-3.5">
+            {withCheckbox && (
+              <div className="skeleton-line size-4 rounded shrink-0" />
+            )}
+            <div className="flex size-10 shrink-0 items-center justify-center rounded-xl ring-1 ring-[var(--glass-border)]">
+              <div className="skeleton-line size-5 rounded-md" />
+            </div>
+            <div className="min-w-0 flex-1">
+              <SkeletonLine
+                width={i % 2 === 0 ? "w-20 sm:w-28" : "w-28 sm:w-36"}
+                className="!h-[13px] sm:!h-[14px]"
+              />
+              <SkeletonLine
+                width="w-3/5"
+                className="!h-2.5 sm:!h-3 mt-1 hidden sm:block"
+              />
+            </div>
+          </div>
+          {!withCheckbox && (
+            <div className="skeleton-line h-5 w-10 rounded-full shrink-0" />
+          )}
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function ModelRowsSkeleton({ compact = false }: { compact?: boolean }) {
+  return (
+    <div className={compact ? "space-y-3" : "space-y-3"}>
+      {Array.from({ length: compact ? 5 : 8 }).map((_, i) => (
+        <div key={i} className="glass-card rounded-xl">
+          <div className="block p-3.5 sm:hidden">
+            <div className="mb-2 flex items-center justify-between gap-2">
+              <div className="flex min-w-0 flex-1 items-center gap-2">
+                <div className="skeleton-line size-4 rounded shrink-0 !opacity-30" />
+                <div className="skeleton-line size-5 rounded shrink-0" />
+                <SkeletonLine
+                  width={i % 2 === 0 ? "w-24" : "w-20"}
+                  className="!h-[13px] flex-1"
+                />
+              </div>
+              <div className="skeleton-line h-5 w-10 rounded-full shrink-0" />
+            </div>
+            <SkeletonLine width="w-32" className="!h-3 !opacity-60" />
+            <div className="mt-2 flex items-center justify-end gap-1">
+              <div className="skeleton-line size-8 rounded-lg" />
+              <div className="skeleton-line size-8 rounded-lg" />
+              <div className="skeleton-line size-8 rounded-lg" />
+            </div>
+          </div>
+
+          <div className="hidden items-center justify-between gap-2 p-4 sm:flex">
+            <div className="flex min-w-0 flex-1 items-center gap-3">
+              <div className="skeleton-line size-4 rounded shrink-0 !opacity-30" />
+              <div className="skeleton-line size-5 rounded shrink-0" />
+              <div className="min-w-0 flex-1">
+                <SkeletonLine
+                  width={i % 2 === 0 ? "w-24 sm:w-32" : "w-20 sm:w-28"}
+                  className="!h-[13px] sm:!h-[14px]"
+                />
+                <SkeletonLine width="w-40" className="!h-3 mt-1 !opacity-60" />
+              </div>
+            </div>
+            <div className="flex shrink-0 items-center gap-1.5">
+              <div className="skeleton-line h-5 w-10 rounded-full" />
+              <div className="skeleton-line size-8 rounded-lg" />
+              <div className="skeleton-line size-8 rounded-lg" />
+            </div>
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+export function AgentSectionSkeleton() {
+  return (
+    <div className="animate-glass-enter px-4 py-5 sm:px-6 lg:px-7">
+      <PanelSegmentedTabsSkeleton
+        activeWidth="w-16 sm:w-20"
+        inactiveWidth="w-12 sm:w-16"
+      />
+      <div className="space-y-4">
+        <SkeletonLine
+          width="w-3/4"
+          className="!h-3 !opacity-60 hidden sm:block"
+        />
+        <AgentListSkeletonRows />
+      </div>
+    </div>
+  );
+}
+
+export function ModelSectionSkeleton() {
+  return (
+    <div className="animate-glass-enter px-4 py-5 sm:px-6 lg:px-7">
+      <PanelSegmentedTabsSkeleton
+        activeWidth="w-14 sm:w-16"
+        inactiveWidth="w-20 sm:w-28"
+      />
+      <div className="space-y-4">
+        <SkeletonLine
+          width="w-48"
+          className="!h-3.5 !opacity-60 hidden sm:block"
+        />
+        <div className="skeleton-line h-10 w-full max-w-xs rounded-lg" />
+        <div className="agent-config-list overflow-hidden rounded-lg border border-[var(--glass-border)] bg-[var(--glass-bg)] divide-y divide-[var(--glass-border)]">
+          <div className="flex items-center justify-between gap-3 bg-[var(--glass-bg-subtle)] px-3.5 py-2.5 sm:px-4">
+            <SkeletonLine width="w-36 sm:w-48" className="!h-3" />
+            <div className="flex items-center gap-2">
+              <SkeletonLine width="w-10" className="!h-3" />
+              <SkeletonLine width="w-10" className="!h-3" />
+            </div>
+          </div>
+          <div className="px-3.5 py-2 sm:px-4">
+            <SkeletonLine width="w-28" className="!h-6 !rounded-full" />
+          </div>
+          {Array.from({ length: 5 }).map((_, i) => (
+            <div
+              key={i}
+              className="flex min-h-14 items-center gap-3 px-3.5 py-3 sm:px-4 sm:gap-3.5"
+            >
+              <div className="skeleton-line size-4 rounded shrink-0" />
+              <div className="skeleton-line size-5 rounded shrink-0" />
+              <div className="min-w-0 flex-1">
+                <SkeletonLine
+                  width={i % 2 === 0 ? "w-24" : "w-28"}
+                  className="!h-3.5"
+                />
+                <SkeletonLine
+                  width="w-32"
+                  className="!h-3 mt-1 sm:hidden !opacity-60"
+                />
+              </div>
+              <SkeletonLine
+                width="w-28"
+                className="!h-3 hidden sm:block !opacity-60"
+              />
+              <div className="skeleton-line size-5 rounded shrink-0" />
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+export function AgentModelPanelSkeleton() {
+  return (
+    <div className="glass-shell flex h-full flex-col min-h-0 animate-fade-in">
+      <PanelHeaderSkeleton hasSearch={false} hasSubtitle />
+      <AgentSectionSkeleton />
+    </div>
+  );
+}
+
 /** Agent panel: single divided container with tab switcher */
 export function AgentPanelSkeleton() {
   return (
@@ -21,44 +190,7 @@ export function AgentPanelSkeleton() {
       </div>
       {/* Agent list — plain container with divide-y (matches real layout) */}
       <div className="flex-1 overflow-y-auto px-4 sm:px-6">
-        <div
-          className="rounded-xl divide-y divide-[var(--theme-border)]"
-          style={{
-            backgroundColor:
-              "var(--theme-bg-card, color-mix(in srgb, var(--theme-bg) 80%, white))",
-            border: "1px solid var(--theme-border)",
-          }}
-        >
-          {Array.from({ length: 5 }).map((_, i) => (
-            <div
-              key={i}
-              className="flex items-center justify-between gap-3 px-4 py-3.5"
-            >
-              <div className="flex items-center gap-3 min-w-0 flex-1">
-                <div
-                  className="flex size-10 shrink-0 items-center justify-center rounded-xl ring-1 ring-[var(--theme-border)]"
-                  style={{
-                    backgroundColor:
-                      "var(--theme-bg-subtle, color-mix(in srgb, var(--theme-bg) 85%, white))",
-                  }}
-                >
-                  <div className="skeleton-line size-5 rounded-md" />
-                </div>
-                <div className="min-w-0 flex-1">
-                  <SkeletonLine
-                    width={i % 2 === 0 ? "w-20 sm:w-28" : "w-28 sm:w-36"}
-                    className="!h-[13px] sm:!h-[14px]"
-                  />
-                  <SkeletonLine
-                    width="w-3/5"
-                    className="!h-2.5 sm:!h-3 mt-1 hidden sm:block"
-                  />
-                </div>
-              </div>
-              <div className="skeleton-line w-8 sm:w-10 h-4 sm:h-5 rounded-full shrink-0" />
-            </div>
-          ))}
-        </div>
+        <AgentListSkeletonRows />
       </div>
     </div>
   );
@@ -88,42 +220,7 @@ export function ModelPanelSkeleton() {
             <div className="skeleton-line h-8 w-16 sm:w-20 rounded-lg" />
           </div>
         </div>
-        {Array.from({ length: 8 }).map((_, i) => (
-          <div key={i} className="glass-card rounded-xl">
-            {/* Desktop row */}
-            <div className="hidden sm:flex items-center justify-between p-4 gap-2">
-              <div className="flex items-center gap-2 sm:gap-3 flex-1 min-w-0">
-                {/* Drag handle */}
-                <div className="skeleton-line size-4 rounded shrink-0 !opacity-30" />
-                <div className="skeleton-line size-5 rounded shrink-0" />
-                <div className="flex-1 min-w-0">
-                  <SkeletonLine
-                    width={i % 2 === 0 ? "w-24 sm:w-32" : "w-20 sm:w-28"}
-                    className="!h-[13px] sm:!h-[14px]"
-                  />
-                </div>
-              </div>
-              <div className="flex items-center gap-1 sm:gap-1.5 shrink-0">
-                {/* Expand chevron */}
-                <div className="skeleton-line size-5 rounded" />
-                <div className="skeleton-line w-8 sm:w-10 h-4 sm:h-5 rounded-full" />
-                <div className="skeleton-line size-7 sm:size-8 rounded-lg" />
-                <div className="skeleton-line size-7 sm:size-8 rounded-lg" />
-              </div>
-            </div>
-            {/* Mobile row */}
-            <div className="block sm:hidden p-3.5">
-              <div className="flex items-center gap-2 min-w-0 flex-1">
-                <div className="skeleton-line size-4 rounded shrink-0 !opacity-30" />
-                <div className="skeleton-line size-5 rounded shrink-0" />
-                <SkeletonLine
-                  width={i % 2 === 0 ? "w-24" : "w-20"}
-                  className="!h-[13px] flex-1"
-                />
-              </div>
-            </div>
-          </div>
-        ))}
+        <ModelRowsSkeleton />
       </div>
     </div>
   );

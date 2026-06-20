@@ -1,33 +1,49 @@
 /**
  * Usage Details Panel — Token consumption tracking
- *
- * Theme-adaptive design. Responsive: mobile → tablet → desktop
  */
 
 import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import {
   Zap,
-  ArrowDownToLine,
   ArrowUpFromLine,
   Clock,
   Bot,
   Activity,
   RefreshCw,
   DatabaseZap,
-  LucideIcon,
+  CalendarClock,
+  Users,
+  BadgeCheck,
+  Wrench,
+  PieChart,
+  UserRound,
+  LayoutDashboard,
 } from "lucide-react";
 import { useTranslation } from "react-i18next";
-import type { TFunction } from "i18next";
 import toast from "react-hot-toast";
 import { PanelHeader } from "../common/PanelHeader";
 import { PanelFilterSelect } from "../common";
 import { Pagination } from "../common/Pagination";
 import { UsagePanelSkeleton } from "../skeletons";
+import {
+  DistributionList,
+  InsightStrip,
+  MiniTrend,
+  RankingList,
+  StatMetric,
+  UsageLogsTable,
+  fmt,
+  fmtDur,
+  pct,
+} from "./UsagePanel/index";
 import { usageApi } from "../../services/api/usage";
 import { useAuth } from "../../hooks/useAuth";
-import { formatDateTimeShort, formatDuration } from "../../utils/datetime";
 import { Permission } from "../../types";
-import type { UsageLog, UsageStats } from "../../types/usage";
+import type {
+  UsageDashboardResponse,
+  UsageLog,
+  UsageStats,
+} from "../../types/usage";
 
 // ── Helpers ──────────────────────────────────────────────
 
@@ -40,256 +56,6 @@ function useDebounce<T>(value: T, delay: number): T {
   return debouncedValue;
 }
 
-function fmt(n: number): string {
-  if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
-  if (n >= 1_000) return `${(n / 1_000).toFixed(1)}K`;
-  return n.toString();
-}
-
-function fmtDur(seconds: number): string {
-  if (seconds <= 0) return "-";
-  return formatDuration(seconds * 1000);
-}
-
-// ── Stat Metric ──────────────────────────────────────────
-
-function StatMetric({
-  icon: Icon,
-  label,
-  value,
-}: {
-  icon: LucideIcon;
-  label: string;
-  value: string | number;
-}) {
-  return (
-    <div className="group relative flex min-w-0 flex-col gap-1 rounded-lg px-3 py-2.5 transition-colors duration-150 hover:bg-[var(--usage-surface-hover)]">
-      <div className="flex items-center gap-2">
-        <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md bg-[var(--usage-icon-bg)] text-[var(--theme-primary)]">
-          <Icon size={13} strokeWidth={2} />
-        </div>
-        <p className="truncate text-[13px] font-medium leading-none text-theme-text-tertiary font-serif">
-          {label}
-        </p>
-      </div>
-      <p className="mt-0.5 pl-8 truncate text-lg font-bold leading-none tracking-tight text-theme-text tabular-nums">
-        {value}
-      </p>
-    </div>
-  );
-}
-
-function LogsSectionHeader({
-  shown,
-  total,
-  page,
-  pageSize,
-  title,
-}: {
-  shown: number;
-  total: number;
-  page: number;
-  pageSize: number;
-  title: string;
-  subtitle: string;
-}) {
-  const start = total === 0 ? 0 : (page - 1) * pageSize + 1;
-  const end = Math.min(start + shown - 1, total);
-
-  return (
-    <div className="mb-3 flex items-center justify-between gap-4 sm:mb-4">
-      <h2 className="text-sm font-semibold text-theme-text">{title}</h2>
-      {total > 0 && (
-        <span className="shrink-0 text-[11px] tabular-nums text-theme-text-tertiary">
-          {start}–{end} / {total}
-        </span>
-      )}
-    </div>
-  );
-}
-
-// ── Status Pill ──────────────────────────────────────────
-
-function StatusPill({ status }: { status: string }) {
-  const ok = status === "completed";
-  return (
-    <span
-      className={`inline-flex items-center gap-1 rounded-full px-1.5 py-0.5 text-[10px] font-medium tabular-nums ${
-        ok
-          ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400"
-          : "bg-red-500/10 text-red-500 dark:text-red-400"
-      }`}
-    >
-      <span
-        className={`h-1.5 w-1.5 rounded-full ${
-          ok ? "bg-emerald-500" : "bg-red-500"
-        }`}
-      />
-      {ok ? "OK" : "Err"}
-    </span>
-  );
-}
-
-// ── Desktop Row ─────────────────────────────────────────
-
-function DesktopRow({
-  log,
-  isAdmin,
-  showCache,
-}: {
-  log: UsageLog;
-  index: number;
-  isAdmin: boolean;
-  showCache: boolean;
-}) {
-  return (
-    <tr className="group border-b border-stone-200/60 dark:border-white/[0.06] transition-colors duration-150 hover:bg-[var(--glass-bg-subtle)]/50">
-      <td className="whitespace-nowrap px-4 py-2.5 text-sm tabular-nums text-theme-text-secondary">
-        {log.started_at ? formatDateTimeShort(log.started_at) : "-"}
-      </td>
-      {isAdmin && (
-        <td className="whitespace-nowrap px-4 py-2.5">
-          <div className="flex items-center gap-2">
-            <div className="flex h-6 w-6 items-center justify-center rounded-full bg-[var(--usage-icon-bg)] text-[10px] font-bold text-[var(--theme-primary)]">
-              {(log.username || "-").charAt(0).toUpperCase()}
-            </div>
-            <span className="text-sm text-theme-text">
-              {log.username || "-"}
-            </span>
-          </div>
-        </td>
-      )}
-      <td className="whitespace-nowrap px-4 py-2.5">
-        <code className="rounded bg-[var(--usage-code-bg)] px-2 py-0.5 text-xs font-medium text-theme-text tabular-nums">
-          {log.model || "-"}
-        </code>
-      </td>
-      <td className="whitespace-nowrap px-4 py-2.5 text-sm text-theme-text-tertiary font-serif">
-        {log.agent_name || "-"}
-      </td>
-      <td className="whitespace-nowrap px-4 py-2.5 text-right text-sm tabular-nums text-theme-text-secondary">
-        {fmt(log.input_tokens)}
-      </td>
-      <td className="whitespace-nowrap px-4 py-2.5 text-right text-sm tabular-nums text-theme-text-secondary">
-        {fmt(log.output_tokens)}
-      </td>
-      {showCache && (
-        <td className="whitespace-nowrap px-4 py-2.5 text-right text-sm tabular-nums text-theme-text-tertiary">
-          {log.cache_read_tokens > 0 ? (
-            fmt(log.cache_read_tokens)
-          ) : (
-            <span className="opacity-15">-</span>
-          )}
-        </td>
-      )}
-      <td className="whitespace-nowrap px-4 py-2.5 text-right text-sm tabular-nums font-semibold text-[var(--theme-primary)]">
-        {fmt(log.total_tokens)}
-      </td>
-      <td className="whitespace-nowrap px-4 py-2.5 text-right text-sm tabular-nums text-theme-text-tertiary">
-        {fmtDur(log.duration)}
-      </td>
-      <td className="whitespace-nowrap px-4 py-2.5 text-center">
-        <StatusPill status={log.status} />
-      </td>
-    </tr>
-  );
-}
-
-// ── Mobile Card ──────────────────────────────────────────
-
-function MobileCard({
-  log,
-  isAdmin,
-  t,
-}: {
-  log: UsageLog;
-  isAdmin: boolean;
-  t: TFunction;
-}) {
-  const hasCache = log.cache_read_tokens > 0;
-
-  return (
-    <div className="usage-surface group overflow-hidden rounded-lg transition-colors duration-150 hover:border-[var(--usage-border-hover)]">
-      <div className="px-3 py-2.5">
-        {/* Header: Model + Status */}
-        <div className="flex items-center justify-between gap-2">
-          <div className="flex min-w-0 flex-1 items-center gap-2">
-            <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md bg-[var(--usage-icon-bg)] text-[var(--theme-primary)]">
-              <Bot size={12} />
-            </div>
-            <div className="min-w-0">
-              <code className="block truncate text-xs font-semibold text-theme-text tabular-nums">
-                {log.model || "-"}
-              </code>
-              {log.agent_name && (
-                <p className="truncate text-[10px] text-theme-text-tertiary">
-                  {log.agent_name}
-                </p>
-              )}
-            </div>
-          </div>
-          <StatusPill status={log.status} />
-        </div>
-
-        {/* Token metrics */}
-        <div className="mt-2 grid grid-cols-3 gap-1.5 rounded-md bg-[var(--usage-inset-bg)] px-2 py-1.5">
-          <div className="min-w-0 flex-1">
-            <span className="block text-[9px] font-medium text-theme-text-tertiary">
-              {t("usage.inTokens")}
-            </span>
-            <span className="mt-0.5 block truncate text-xs font-semibold tabular-nums text-theme-text-secondary">
-              {fmt(log.input_tokens)}
-            </span>
-          </div>
-          <div className="min-w-0 flex-1">
-            <span className="block text-[9px] font-medium text-theme-text-tertiary">
-              {t("usage.outTokens")}
-            </span>
-            <span className="mt-0.5 block truncate text-xs font-semibold tabular-nums text-theme-text-secondary">
-              {fmt(log.output_tokens)}
-            </span>
-          </div>
-          <div className="min-w-0 flex-1">
-            <span className="block text-[9px] font-medium text-theme-text-tertiary">
-              {t("usage.totalTokens")}
-            </span>
-            <span className="mt-0.5 block truncate text-xs font-semibold tabular-nums text-[var(--theme-primary)]">
-              {fmt(log.total_tokens)}
-            </span>
-          </div>
-        </div>
-
-        {/* Cache read */}
-        {hasCache && (
-          <div className="mt-1.5 flex items-center gap-2 rounded-md bg-[var(--usage-inset-bg)] px-2 py-1">
-            <span className="text-[10px] text-theme-text-tertiary">
-              {t("usage.cacheRead")}
-            </span>
-            <span className="ml-auto text-[10px] font-semibold tabular-nums text-theme-text-secondary">
-              {fmt(log.cache_read_tokens)}
-            </span>
-          </div>
-        )}
-
-        {/* Footer */}
-        <div className="mt-2 flex items-center justify-between text-[11px] text-theme-text-tertiary">
-          <span className="tabular-nums">
-            {log.started_at ? formatDateTimeShort(log.started_at) : "-"}
-          </span>
-          <div className="flex items-center gap-2">
-            {isAdmin && log.username && (
-              <span className="text-theme-text-secondary">{log.username}</span>
-            )}
-            {log.duration > 0 && (
-              <span className="tabular-nums">{fmtDur(log.duration)}</span>
-            )}
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
-
 // ── Main Component ─────────────────────────────────────
 
 export function UsagePanel() {
@@ -299,6 +65,9 @@ export function UsagePanel() {
 
   const [logs, setLogs] = useState<UsageLog[]>([]);
   const [stats, setStats] = useState<UsageStats | null>(null);
+  const [dashboard, setDashboard] = useState<UsageDashboardResponse | null>(
+    null,
+  );
   const [isLoading, setIsLoading] = useState(true);
   const [total, setTotal] = useState(0);
 
@@ -308,6 +77,7 @@ export function UsagePanel() {
   const [searchQuery, setSearchQuery] = useState("");
   const [period, setPeriod] = useState<string>("all");
   const debouncedSearch = useDebounce(searchQuery, 300);
+
   const handleSearchQueryChange = useCallback((query: string) => {
     setSkip(0);
     setSearchQuery(query);
@@ -319,7 +89,7 @@ export function UsagePanel() {
 
   const computeDateRange = useCallback((p: string): { start_date?: string } => {
     const now = new Date();
-    if (p === "today") {
+    if (p === "today")
       return {
         start_date: new Date(
           now.getFullYear(),
@@ -327,7 +97,6 @@ export function UsagePanel() {
           now.getDate(),
         ).toISOString(),
       };
-    }
     if (p === "week")
       return { start_date: new Date(now.getTime() - 7 * 864e5).toISOString() };
     if (p === "month")
@@ -335,30 +104,49 @@ export function UsagePanel() {
     return {};
   }, []);
 
-  // Keep a live ref to t so fetchData doesn't depend on it — prevents
-  // potential infinite loop if useTranslation() produces unstable references.
   const tRef = useRef(t);
   tRef.current = t;
+
+  // Fetch logs independently
+  const fetchLogs = useCallback(async () => {
+    const dateRange = computeDateRange(period);
+    const search = isAdmin && debouncedSearch ? debouncedSearch : undefined;
+    const response = await usageApi.list({
+      skip,
+      limit: pageSize,
+      search,
+      ...dateRange,
+    });
+    setLogs(response.items);
+    setTotal(response.total);
+    setStats(response.stats);
+  }, [skip, period, debouncedSearch, isAdmin, computeDateRange]);
+
+  // Fetch dashboard independently (silent failure)
+  const fetchDashboard = useCallback(async () => {
+    try {
+      const search = isAdmin && debouncedSearch ? debouncedSearch : undefined;
+      const data = await usageApi.getDashboard({
+        period: period as "today" | "week" | "month" | "all",
+        search,
+      });
+      setDashboard(data);
+    } catch {
+      setDashboard(null);
+    }
+  }, [period, debouncedSearch, isAdmin]);
 
   const fetchData = useCallback(async () => {
     setIsLoading(true);
     try {
-      const dateRange = computeDateRange(period);
-      const response = await usageApi.list({
-        skip,
-        limit: pageSize,
-        search: isAdmin && debouncedSearch ? debouncedSearch : undefined,
-        ...dateRange,
-      });
-      setLogs(response.items);
-      setTotal(response.total);
-      setStats(response.stats);
+      await fetchLogs();
     } catch (err) {
       toast.error((err as Error).message || tRef.current("usage.loadFailed"));
     } finally {
       setIsLoading(false);
     }
-  }, [skip, period, debouncedSearch, isAdmin, computeDateRange]);
+    fetchDashboard();
+  }, [fetchLogs, fetchDashboard]);
 
   useEffect(() => {
     fetchData();
@@ -366,10 +154,8 @@ export function UsagePanel() {
 
   const isInitialLoading =
     isLoading && logs.length === 0 && searchQuery.trim().length === 0;
-
   const page = Math.floor(skip / pageSize) + 1;
   const totalPages = Math.max(1, Math.ceil(total / pageSize));
-
   const hasAnyCache = useMemo(
     () => logs.some((l) => l.cache_read_tokens > 0),
     [logs],
@@ -381,6 +167,29 @@ export function UsagePanel() {
       (stats.total_cache_read_tokens / stats.total_input_tokens) * 100,
     )}%`;
   }, [stats]);
+
+  const dashboardSummary = dashboard?.summary;
+  const dashboardTitle = isAdmin
+    ? t("usage.dashboard.titleAdmin")
+    : t("usage.dashboard.titleUser");
+  const dashboardSubtitle = isAdmin
+    ? t("usage.dashboard.subtitleAdmin")
+    : t("usage.dashboard.subtitleUser");
+  const personaRankingTitle = isAdmin
+    ? t("usage.ranking.personaAdmin")
+    : t("usage.ranking.personaUser");
+  const teamRankingTitle = isAdmin
+    ? t("usage.ranking.teamAdmin")
+    : t("usage.ranking.teamUser");
+  const agentRankingTitle = isAdmin
+    ? t("usage.ranking.agentAdmin")
+    : t("usage.ranking.agentUser");
+  const modelRankingTitle = isAdmin
+    ? t("usage.ranking.modelAdmin")
+    : t("usage.ranking.modelUser");
+  const sourceDistributionTitle = isAdmin
+    ? t("usage.ranking.sourceAdmin")
+    : t("usage.ranking.sourceUser");
 
   useEffect(() => {
     if (!isLoading && total > 0 && page > totalPages) {
@@ -406,23 +215,20 @@ export function UsagePanel() {
   const refreshButton = (
     <button
       type="button"
-      className="inline-flex h-10 w-10 items-center justify-center rounded-lg border border-[var(--glass-border)] bg-[var(--glass-bg-card)] text-theme-text-secondary transition-colors hover:border-[var(--glass-border-hover)] hover:bg-[var(--glass-bg-hover)] hover:text-theme-text disabled:cursor-not-allowed disabled:opacity-50"
+      className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-[var(--glass-border)] bg-[var(--glass-bg-card)] text-theme-text-secondary transition-all duration-200 hover:border-[var(--glass-border-hover)] hover:text-theme-text active:scale-95 disabled:cursor-not-allowed disabled:opacity-50 sm:h-10 sm:w-10"
       onClick={fetchData}
       disabled={isLoading}
-      aria-label={t("usage.refresh", "刷新")}
-      title={t("usage.refresh", "刷新")}
+      aria-label={t("usage.refresh")}
+      title={t("usage.refresh")}
     >
-      <RefreshCw size={16} className={isLoading ? "animate-spin" : undefined} />
+      <RefreshCw size={15} className={isLoading ? "animate-spin" : undefined} />
     </button>
   );
 
-  if (isInitialLoading) {
-    return <UsagePanelSkeleton />;
-  }
+  if (isInitialLoading) return <UsagePanelSkeleton />;
 
   return (
     <div className="glass-shell usage-panel flex h-full min-h-0 flex-col overflow-y-auto">
-      {/* Header */}
       <PanelHeader
         title={t("usage.title")}
         subtitle={t("usage.subtitle")}
@@ -442,207 +248,193 @@ export function UsagePanel() {
         }
       />
 
-      {/* Stat Metrics */}
+      {/* KPI Cards */}
       {stats && (
-        <div className="px-4 py-2 sm:px-6 sm:py-3">
-          <div className="usage-surface grid grid-cols-2 gap-1 rounded-lg p-1.5 sm:grid-cols-3 lg:grid-cols-5">
+        <div className="mx-auto w-full max-w-[1760px] px-3 pt-5 pb-4 sm:px-6 sm:pt-6 sm:pb-5">
+          <div className="usage-surface grid grid-cols-2 overflow-hidden rounded-xl md:grid-cols-3 xl:grid-cols-6">
             <StatMetric
               icon={Zap}
               label={t("usage.totalRequests")}
               value={fmt(stats.total_requests)}
-            />
-            <StatMetric
-              icon={ArrowDownToLine}
-              label={t("usage.inputTokens")}
-              value={fmt(stats.total_input_tokens)}
-            />
-            <StatMetric
-              icon={ArrowUpFromLine}
-              label={t("usage.outputTokens")}
-              value={fmt(stats.total_output_tokens)}
+              hint={
+                dashboardSummary
+                  ? t("usage.successRate", {
+                      rate: pct(dashboardSummary.success_rate),
+                    })
+                  : undefined
+              }
             />
             <StatMetric
               icon={Clock}
-              label={t("usage.totalDuration")}
+              label={t("usage.kpi.durationLabel")}
               value={fmtDur(stats.total_duration)}
+              hint={t("usage.kpi.durationHint")}
+            />
+            <StatMetric
+              icon={CalendarClock}
+              label={t("usage.kpi.scheduledLabel")}
+              value={
+                dashboardSummary ? fmt(dashboardSummary.scheduled_runs) : "-"
+              }
+              hint={t("usage.kpi.scheduledHint")}
+            />
+            <StatMetric
+              icon={Wrench}
+              label={t("usage.kpi.toolCallsLabel")}
+              value={
+                dashboardSummary ? fmt(dashboardSummary.total_tool_calls) : "-"
+              }
+              hint={t("usage.kpi.toolCallsHint")}
             />
             <StatMetric
               icon={DatabaseZap}
-              label={t("usage.cacheHitRate", "缓存命中")}
+              label={t("usage.cacheHitRate")}
               value={cacheHitLabel}
+              hint={t("usage.cacheTokens", {
+                count: fmt(stats.total_cache_read_tokens),
+              })}
+            />
+            <StatMetric
+              icon={ArrowUpFromLine}
+              label={t("usage.totalTokens")}
+              value={fmt(stats.total_tokens)}
+              hint={t("usage.kpi.tokensHint", {
+                in: fmt(stats.total_input_tokens),
+                out: fmt(stats.total_output_tokens),
+              })}
             />
           </div>
         </div>
       )}
 
-      {/* Content */}
-      <div className="flex-1 px-4 py-2 sm:px-6 sm:py-4">
+      {/* Dashboard sections */}
+      <div className="mx-auto w-full max-w-[1760px] flex-1 px-3 pt-2 pb-5 sm:px-6 sm:pt-3 sm:pb-7">
+        {/* Section header */}
+        {dashboard && (
+          <div className="mb-5 flex items-center gap-2.5 sm:mb-6">
+            <LayoutDashboard
+              size={14}
+              strokeWidth={2}
+              className="text-theme-text-tertiary"
+            />
+            <div>
+              <h2 className="text-[13px] font-bold text-theme-text sm:text-sm">
+                {dashboardTitle}
+              </h2>
+              <p className="text-[10px] text-theme-text-tertiary sm:text-[11px]">
+                {dashboardSubtitle}
+              </p>
+            </div>
+          </div>
+        )}
+
+        {/* Insights */}
+        {dashboard && (
+          <div className="mb-6 sm:mb-7">
+            <InsightStrip dashboard={dashboard} />
+          </div>
+        )}
+
+        {/* Chart + Rankings */}
+        {dashboard && (
+          <div className="mb-6 grid gap-5 sm:mb-7 xl:grid-cols-[minmax(0,1.45fr)_minmax(24rem,0.95fr)]">
+            <MiniTrend points={dashboard.daily} />
+            <div className="grid gap-5 sm:grid-cols-2 xl:grid-cols-1">
+              <RankingList
+                title={personaRankingTitle}
+                icon={BadgeCheck}
+                items={
+                  dashboard.top_personas.length
+                    ? dashboard.top_personas
+                    : dashboard.top_agents
+                }
+                emptyLabel={t("usage.empty.persona")}
+              />
+              <RankingList
+                title={teamRankingTitle}
+                icon={Users}
+                items={dashboard.top_teams}
+                emptyLabel={t("usage.empty.team")}
+              />
+            </div>
+          </div>
+        )}
+
+        {/* Bottom grid */}
+        {dashboard && (
+          <div className="mb-6 grid grid-cols-1 gap-5 sm:mb-7 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
+            <RankingList
+              title={agentRankingTitle}
+              icon={Bot}
+              items={dashboard.top_agents}
+              emptyLabel={t("usage.empty.agent")}
+            />
+            <RankingList
+              title={modelRankingTitle}
+              icon={DatabaseZap}
+              items={dashboard.top_models}
+              emptyLabel={t("usage.empty.model")}
+            />
+            {isAdmin && (
+              <RankingList
+                title={t("usage.ranking.userAdmin")}
+                icon={UserRound}
+                items={dashboard.top_users}
+                emptyLabel={t("usage.empty.user")}
+              />
+            )}
+            <DistributionList
+              title={sourceDistributionTitle}
+              icon={PieChart}
+              items={dashboard.sources}
+              total={dashboard.summary.total_requests}
+              emptyLabel={t("usage.empty.source")}
+            />
+          </div>
+        )}
+
+        {/* Triggers */}
+        {isAdmin && dashboard && dashboard.triggers.length > 0 && (
+          <div className="mb-6 sm:mb-7">
+            <DistributionList
+              title={t("usage.ranking.triggers")}
+              icon={CalendarClock}
+              items={dashboard.triggers}
+              total={dashboard.summary.scheduled_runs}
+              emptyLabel={t("usage.empty.triggers")}
+            />
+          </div>
+        )}
+
+        {/* Refreshing pill */}
         {isLoading && logs.length > 0 && (
           <div className="pointer-events-none mb-2 flex justify-center">
-            <div className="mt-2 inline-flex items-center gap-2 rounded-full bg-[var(--glass-bg-card)] px-3 py-1.5 text-xs text-theme-text-tertiary shadow-sm">
-              <RefreshCw size={11} className="animate-spin" />
-              {t("usage.refreshing", "刷新中")}
+            <div className="inline-flex items-center gap-1.5 rounded-full bg-[var(--glass-bg-card)] px-3 py-1 text-[11px] text-theme-text-tertiary shadow-sm ring-1 ring-inset ring-[var(--theme-border-faint)]">
+              <RefreshCw size={10} className="animate-spin" />
+              {t("usage.refreshing")}
             </div>
           </div>
         )}
-        {logs.length === 0 ? (
-          <div className="flex min-h-[260px] flex-col items-center justify-center py-16 text-center sm:h-full sm:py-24">
-            <div className="mb-3 flex h-14 w-14 items-center justify-center rounded-2xl bg-[var(--glass-bg-subtle)] sm:h-16 sm:w-16">
-              <Activity size={24} className="text-theme-text-tertiary/30" />
-            </div>
-            <p className="text-sm text-theme-text-secondary/60">
-              {t("usage.noUsage")}
-            </p>
-            <p className="mt-1 text-xs text-theme-text-tertiary/40">
-              {t("usage.noUsageHint")}
-            </p>
-          </div>
-        ) : (
-          <>
-            <LogsSectionHeader
-              shown={logs.length}
-              total={total}
-              page={page}
-              pageSize={pageSize}
-              title={t("usage.logDetails", "日志明细")}
-              subtitle={t(
-                "usage.statsScopeHint",
-                "顶部统计为当前筛选下全部数据",
-              )}
-            />
 
-            {/* ── Desktop Table ── */}
-            <div className="hidden lg:block">
-              <div className="usage-surface overflow-x-auto rounded-lg">
-                <table className="w-full">
-                  <thead>
-                    <tr className="border-b border-stone-200/80 dark:border-white/10">
-                      <th className="whitespace-nowrap px-4 py-2 text-left text-[13px] font-medium text-theme-text-tertiary font-serif">
-                        {t("usage.time")}
-                      </th>
-                      {isAdmin && (
-                        <th className="whitespace-nowrap px-4 py-2 text-left text-[13px] font-medium text-theme-text-tertiary font-serif">
-                          {t("usage.user")}
-                        </th>
-                      )}
-                      <th className="whitespace-nowrap px-4 py-2 text-left text-[13px] font-medium text-theme-text-tertiary font-serif">
-                        {t("usage.model")}
-                      </th>
-                      <th className="whitespace-nowrap px-4 py-2 text-left text-[13px] font-medium text-theme-text-tertiary font-serif">
-                        {t("usage.agent")}
-                      </th>
-                      <th className="whitespace-nowrap px-4 py-2 text-right text-[11px] font-medium text-theme-text-tertiary">
-                        {t("usage.inTokens")}
-                      </th>
-                      <th className="whitespace-nowrap px-4 py-2 text-right text-[11px] font-medium text-theme-text-tertiary">
-                        {t("usage.outTokens")}
-                      </th>
-                      {hasAnyCache && (
-                        <th className="whitespace-nowrap px-4 py-2 text-right text-[11px] font-medium text-theme-text-tertiary">
-                          {t("usage.cacheRead")}
-                        </th>
-                      )}
-                      <th className="whitespace-nowrap px-4 py-2 text-right text-[11px] font-medium text-theme-text-tertiary">
-                        {t("usage.totalTokens")}
-                      </th>
-                      <th className="whitespace-nowrap px-4 py-2 text-right text-[11px] font-medium text-theme-text-tertiary">
-                        {t("usage.duration")}
-                      </th>
-                      <th className="whitespace-nowrap px-4 py-2 text-center text-[11px] font-medium text-theme-text-tertiary">
-                        {t("usage.status")}
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {logs.map((log, i) => (
-                      <DesktopRow
-                        key={log.trace_id}
-                        log={log}
-                        index={i}
-                        isAdmin={isAdmin}
-                        showCache={hasAnyCache}
-                      />
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-
-            {/* ── Tablet compact ── */}
-            <div className="hidden sm:block lg:hidden">
-              <div className="space-y-1.5">
-                {logs.map((log) => (
-                  <div
-                    key={log.trace_id}
-                    className="usage-surface group flex items-center gap-3 rounded-lg px-3.5 py-2.5 transition-colors duration-150 hover:border-[var(--usage-border-hover)]"
-                  >
-                    <div className="w-24 shrink-0">
-                      <p className="text-xs tabular-nums text-theme-text-secondary">
-                        {log.started_at
-                          ? formatDateTimeShort(log.started_at)
-                          : "-"}
-                      </p>
-                      <p className="text-[10px] tabular-nums text-theme-text-tertiary">
-                        {fmtDur(log.duration)}
-                      </p>
-                    </div>
-                    <div className="min-w-0 flex-1">
-                      <div className="flex items-center gap-2">
-                        <code className="truncate text-xs font-medium text-theme-text tabular-nums">
-                          {log.model || "-"}
-                        </code>
-                        <StatusPill status={log.status} />
-                      </div>
-                      {log.agent_name && (
-                        <p className="truncate text-[10px] text-theme-text-tertiary">
-                          {log.agent_name}
-                        </p>
-                      )}
-                    </div>
-                    <div className="flex items-center gap-2 text-xs tabular-nums shrink-0">
-                      <span className="text-theme-text-secondary">
-                        {fmt(log.input_tokens)}
-                      </span>
-                      <span className="text-theme-text-secondary">
-                        {fmt(log.output_tokens)}
-                      </span>
-                      <span className="font-semibold text-[var(--theme-primary)]">
-                        {fmt(log.total_tokens)}
-                      </span>
-                    </div>
-                    {isAdmin && log.username && (
-                      <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-[var(--usage-icon-bg)] text-[9px] font-bold text-[var(--theme-primary)]">
-                        {log.username.charAt(0).toUpperCase()}
-                      </div>
-                    )}
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            {/* ── Mobile cards ── */}
-            <div className="space-y-2 sm:hidden pb-4">
-              {logs.map((log) => (
-                <MobileCard
-                  key={log.trace_id}
-                  log={log}
-                  isAdmin={isAdmin}
-                  t={t}
-                />
-              ))}
-            </div>
-          </>
-        )}
+        {/* Logs */}
+        <UsageLogsTable
+          logs={logs}
+          total={total}
+          page={page}
+          pageSize={pageSize}
+          isAdmin={isAdmin}
+          hasAnyCache={hasAnyCache}
+        />
       </div>
 
       {/* Pagination */}
       {total > pageSize && (
-        <div className="glass-divider px-4 py-3 sm:px-6">
+        <div className="glass-divider px-3 py-2.5 sm:px-6 sm:py-3">
           <Pagination
             page={page}
             pageSize={pageSize}
             total={total}
-            itemLabel={t("usage.logItems", "条日志")}
+            itemLabel={t("usage.logItems")}
             onChange={(p) => setSkip((p - 1) * pageSize)}
           />
         </div>

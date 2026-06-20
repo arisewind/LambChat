@@ -23,11 +23,31 @@ const modelSectionSource = readFileSync(
   "utf8",
 );
 
+const tabContentSource = readFileSync(
+  join(import.meta.dirname, "../../layout/AppContent/TabContent.tsx"),
+  "utf8",
+);
+
 test("agent and model configuration pages use matching skeleton screens", () => {
   assert.match(agentPanelSource, /import \{ AgentPanelSkeleton \}/);
   assert.match(modelPanelSource, /import \{ ModelPanelSkeleton \}/);
   assert.match(agentPanelSource, /return <AgentPanelSkeleton \/>/);
   assert.match(modelPanelSource, /return <ModelPanelSkeleton \/>/);
+});
+
+test("combined agent model sections use embedded skeleton screens", () => {
+  assert.match(agentSectionSource, /import \{ AgentSectionSkeleton \}/);
+  assert.match(modelSectionSource, /import \{ ModelSectionSkeleton \}/);
+  assert.match(agentSectionSource, /return <AgentSectionSkeleton \/>/);
+  assert.match(modelSectionSource, /return <ModelSectionSkeleton \/>/);
+  assert.doesNotMatch(agentSectionSource, /return <AgentPanelSkeleton \/>/);
+  assert.doesNotMatch(modelSectionSource, /return <ModelPanelSkeleton \/>/);
+});
+
+test("agents tab suspense fallback matches combined configuration panel", () => {
+  assert.match(tabContentSource, /AgentModelPanelSkeleton/);
+  assert.match(tabContentSource, /agents:\s*<AgentModelPanelSkeleton \/>/);
+  assert.doesNotMatch(tabContentSource, /agents:\s*<AgentPanelSkeleton \/>/);
 });
 
 test("agent and model configuration errors share one callout component", () => {

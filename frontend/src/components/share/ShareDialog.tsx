@@ -14,6 +14,7 @@ import {
   Loader2,
   Check,
   X,
+  AlertTriangle,
 } from "lucide-react";
 import toast from "react-hot-toast";
 import { SkeletonList, SkeletonCard } from "../skeletons";
@@ -259,6 +260,14 @@ export function ShareDialog({
             <div className="text-sm text-stone-600 dark:text-stone-400">
               <span className="font-medium">{t("share.session")}:</span>{" "}
               {sessionName || t("sidebar.newChat")}
+            </div>
+
+            <div className="flex items-start gap-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2.5 text-sm text-amber-900 dark:border-amber-900/50 dark:bg-amber-950/30 dark:text-amber-100">
+              <AlertTriangle
+                size={16}
+                className="mt-0.5 flex-shrink-0 text-amber-600 dark:text-amber-300"
+              />
+              <p className="leading-5">{t("share.privacyReminder")}</p>
             </div>
 
             {/* Share Type */}

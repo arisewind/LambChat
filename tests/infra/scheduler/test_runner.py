@@ -442,12 +442,14 @@ async def test_execute_agent_hides_injected_timestamp_from_display(
         "source": "scheduled_task",
         "scheduled_task_id": "task_1",
         "scheduled_task_run_id": "run_1",
+        "scheduled_task_trigger_type": "interval",
         "hidden_from_conversation_list": True,
     }
     assert session_manager.metadata == {
         "source": "scheduled_task",
         "scheduled_task_id": "task_1",
         "scheduled_task_run_id": "run_1",
+        "scheduled_task_trigger_type": "interval",
         "hidden_from_conversation_list": True,
     }
 
@@ -518,6 +520,7 @@ async def test_execute_agent_resolves_persona_id_for_non_team_agent(
     assert submitted["enabled_skills"] == ["writing"]
     assert submitted["team_id"] is None
     assert submitted["session_metadata"]["persona_preset_id"] == "persona-1"
+    assert submitted["session_metadata"]["scheduled_task_trigger_type"] == "interval"
     assert submitted["updated_metadata"]["persona_preset_id"] == "persona-1"
     assert task.input_payload == {
         "message": "Write the brief",
@@ -585,6 +588,7 @@ async def test_execute_agent_passes_team_id_for_team_agent_without_persona(
     assert submitted["persona_system_prompt"] is None
     assert submitted["enabled_skills"] is None
     assert submitted["session_metadata"]["team_id"] == "team-1"
+    assert submitted["session_metadata"]["scheduled_task_trigger_type"] == "interval"
     assert "persona_preset_id" not in submitted["session_metadata"]
     assert submitted["updated_metadata"]["team_id"] == "team-1"
 
@@ -651,6 +655,7 @@ async def test_execute_agent_uses_arq_backend_when_enabled(
         "source": "scheduled_task",
         "scheduled_task_id": "task_1",
         "scheduled_task_run_id": "run_1",
+        "scheduled_task_trigger_type": "interval",
         "hidden_from_conversation_list": True,
     }
     assert submitted["write_user_message_immediately"] is True

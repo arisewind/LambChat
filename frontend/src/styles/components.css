@@ -3480,7 +3480,24 @@
   animation: tool-panel-enter 0.25s cubic-bezier(0.16, 1, 0.3, 1) both;
 }
 
-/* Usage panel surfaces */
+/* ═══════════════════════════════════════════
+   Usage Panel — Design Tokens & Minimal CSS
+   Components use Tailwind classes directly.
+   ═══════════════════════════════════════════ */
+
+/* ── Entrance animation ── */
+@keyframes usage-card-enter {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* ── Design tokens ── */
 .usage-panel {
   --usage-surface: var(--theme-bg-card);
   --usage-surface-hover: color-mix(
@@ -3490,63 +3507,197 @@
   );
   --usage-inset-bg: color-mix(
     in srgb,
-    var(--theme-bg) 75%,
-    var(--theme-bg-card) 25%
-  );
-  --usage-code-bg: color-mix(
-    in srgb,
     var(--theme-bg) 80%,
     var(--theme-bg-card) 20%
   );
-  --usage-icon-bg: color-mix(
+  --usage-code-bg: color-mix(
     in srgb,
-    var(--theme-primary) 8%,
-    var(--theme-bg-card)
+    var(--theme-bg) 78%,
+    var(--theme-bg-card) 22%
   );
-  --usage-border: color-mix(in srgb, var(--theme-border) 80%, transparent);
+  --usage-icon-bg: color-mix(in srgb, var(--theme-primary) 12%, transparent);
+  --usage-border: color-mix(in srgb, var(--theme-border) 75%, transparent);
   --usage-border-hover: color-mix(
     in srgb,
-    var(--theme-primary) 28%,
+    var(--theme-primary) 30%,
     var(--theme-border)
   );
-  --usage-shadow: none;
+  --usage-shadow: 0 1px 3px
+    color-mix(in srgb, var(--theme-text) 6%, transparent);
+  --usage-accent-soft: color-mix(
+    in srgb,
+    var(--theme-primary) 16%,
+    transparent
+  );
+  --usage-accent-mid: color-mix(in srgb, var(--theme-primary) 58%, transparent);
+  --usage-chart-secondary: color-mix(
+    in srgb,
+    var(--theme-primary) 68%,
+    var(--theme-text-tertiary)
+  );
+  --usage-progress-fill: color-mix(
+    in srgb,
+    var(--theme-primary) 76%,
+    var(--theme-text-tertiary)
+  );
 }
 
 .dark .usage-panel {
-  --usage-surface: var(--theme-bg-card);
+  --usage-surface: color-mix(
+    in srgb,
+    var(--theme-bg-card) 72%,
+    var(--theme-bg) 28%
+  );
   --usage-surface-hover: color-mix(
     in srgb,
-    var(--theme-bg-card) 88%,
-    var(--theme-primary) 8%
+    var(--theme-bg-card) 78%,
+    var(--theme-bg) 22%
   );
   --usage-inset-bg: color-mix(
     in srgb,
-    var(--theme-bg) 60%,
-    var(--theme-bg-card) 40%
+    var(--theme-bg) 72%,
+    var(--theme-bg-card) 28%
   );
   --usage-code-bg: color-mix(
     in srgb,
-    var(--theme-bg) 55%,
-    var(--theme-bg-card) 45%
+    var(--theme-bg) 76%,
+    var(--theme-bg-card) 24%
   );
   --usage-icon-bg: color-mix(
     in srgb,
-    var(--theme-primary) 10%,
+    var(--theme-primary) 9%,
     var(--theme-bg-card)
   );
-  --usage-border: color-mix(in srgb, var(--theme-border) 70%, transparent);
+  --usage-border: color-mix(in srgb, var(--theme-border) 42%, transparent);
   --usage-border-hover: color-mix(
     in srgb,
-    var(--theme-primary) 28%,
+    var(--theme-primary) 18%,
     var(--theme-border)
   );
   --usage-shadow: none;
+  --usage-accent-soft: color-mix(in srgb, var(--theme-primary) 8%, transparent);
+  --usage-accent-mid: color-mix(in srgb, var(--theme-primary) 38%, transparent);
+  --usage-chart-secondary: color-mix(
+    in srgb,
+    var(--theme-primary) 48%,
+    var(--theme-text-tertiary)
+  );
+  --usage-progress-fill: color-mix(
+    in srgb,
+    var(--theme-primary) 55%,
+    var(--theme-text-tertiary)
+  );
 }
 
+/* ── Shared surface ── */
 .usage-surface {
   border: 1px solid var(--usage-border);
   background: var(--usage-surface);
   box-shadow: var(--usage-shadow);
+  transition:
+    border-color 0.2s ease,
+    box-shadow 0.2s ease;
+}
+
+/* ── Tremor Card override (used by StatMetric) ── */
+.usage-panel .tremor-Card-root {
+  border-color: var(--usage-border);
+  background-color: var(--usage-surface);
+  color: var(--theme-text);
+  box-shadow: var(--usage-shadow);
+}
+
+/* ── Recharts text color ── */
+.usage-panel .recharts-text {
+  fill: var(--theme-text-tertiary);
+  font-size: 0.6875rem;
+}
+
+/* ── Progress bars (Tremor ProgressBar inside RankingCards) ── */
+.usage-progress-track {
+  background: linear-gradient(
+    90deg,
+    var(--usage-inset-bg),
+    color-mix(in srgb, var(--usage-inset-bg) 82%, var(--theme-primary) 18%)
+  );
+  border-radius: 999px;
+  overflow: hidden;
+}
+
+.usage-progress-fill {
+  background: var(--usage-progress-fill);
+  box-shadow: none;
+  border-radius: 999px;
+  transition: width 0.6s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+/* ── Soft pills ── */
+.usage-soft-pill {
+  border: 1px solid var(--usage-border);
+  border-radius: 999px;
+  background: var(--usage-inset-bg);
+  padding: 0.125rem 0.45rem;
+  transition: all 0.2s ease;
+}
+
+/* ── Section header ── */
+.usage-section-header {
+  position: relative;
+  padding-bottom: 0.5rem;
+}
+
+.usage-section-header::after {
+  content: "";
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 1px;
+  background: linear-gradient(90deg, var(--usage-border), transparent 70%);
+}
+
+/* ── Refreshing pill ── */
+.usage-refreshing-pill {
+  animation: usage-pulse-soft 1.5s ease-in-out infinite;
+}
+
+@keyframes usage-pulse-soft {
+  0%,
+  100% {
+    opacity: 0.6;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+/* ── Empty state ── */
+.usage-empty-state {
+  animation: usage-card-enter 0.5s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+/* ── Mobile card ── */
+.usage-mobile-card {
+  position: relative;
+}
+
+.usage-mobile-card::before {
+  content: "";
+  position: absolute;
+  inset: 0 0 auto 0;
+  height: 3px;
+  z-index: 1;
+  background: linear-gradient(
+    90deg,
+    var(--usage-border-hover),
+    color-mix(in srgb, var(--theme-primary) 25%, transparent) 50%,
+    transparent
+  );
+  border-radius: 1rem 1rem 0 0;
+}
+
+.usage-metrics-bar {
+  background: var(--usage-inset-bg);
 }
 
 @keyframes tool-panel-enter {

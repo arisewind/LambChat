@@ -373,7 +373,24 @@ class BaseGraphAgent(ABC):
             yield meta_evt
 
             # 构建 config，注入 presenter
-            langsmith_metadata = await presenter.build_langsmith_metadata()
+            agent_options = kwargs.get("agent_options", {}) or {}
+            langsmith_context = {
+                "agent_options": agent_options,
+                "disabled_tools": kwargs.get("disabled_tools"),
+                "disabled_skills": kwargs.get("disabled_skills"),
+                "enabled_skills": kwargs.get("enabled_skills"),
+                "persona_system_prompt": kwargs.get("persona_system_prompt"),
+                "disabled_mcp_tools": kwargs.get("disabled_mcp_tools"),
+                "base_url": kwargs.get("base_url", ""),
+                "team_id": kwargs.get("team_id"),
+                "active_goal": kwargs.get("active_goal"),
+                "recommendation_input": kwargs.get("recommendation_input"),
+                "attachments": kwargs.get("attachments", []),
+            }
+            langsmith_metadata = await build_presenter_langsmith_metadata(
+                presenter,
+                langsmith_context,
+            )
             config: RunnableConfig = {
                 "configurable": {
                     "thread_id": session_id,
@@ -879,6 +896,17 @@ def resolve_agent_name(agent_id: str) -> str:
     if agent_cls is None:
         return agent_id.title()
     return getattr(agent_cls, "_agent_name", agent_id.title())
+
+
+async def build_presenter_langsmith_metadata(
+    presenter: Any,
+    context: Dict[str, Any] | None = None,
+) -> Dict[str, Any]:
+    """Build LangSmith metadata while remaining compatible with older presenter fakes."""
+    try:
+        return await presenter.build_langsmith_metadata(context or {})
+    except TypeError:
+        return await presenter.build_langsmith_metadata()
 
 
 def list_registered_agents() -> List[str]:

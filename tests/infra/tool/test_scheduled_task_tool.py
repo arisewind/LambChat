@@ -151,6 +151,16 @@ def test_create_tool_has_trigger_params() -> None:
     assert "team_query" in fields
 
 
+def test_create_tool_timeout_prompt_prefers_600s_default() -> None:
+    fields = _tool_fields(scheduled_task_tool.scheduled_task_create)
+    timeout_field = fields["timeout_seconds"]
+
+    assert timeout_field.default == 600
+    assert timeout_field.description is not None
+    assert "Default: 600s" in timeout_field.description
+    assert "Do not set this too short" in timeout_field.description
+
+
 def test_list_tool_can_fetch_single_task_details() -> None:
     fields = _tool_fields(scheduled_task_tool.scheduled_task_list)
     assert "task_id" in fields

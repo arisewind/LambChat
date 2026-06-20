@@ -5,7 +5,7 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { useTranslation } from "react-i18next";
 import toast from "react-hot-toast";
-import { ModelPanelSkeleton } from "../../skeletons";
+import { ModelSectionSkeleton } from "../../skeletons";
 import { agentConfigApi, roleApi, modelApi } from "../../../services/api";
 import type { ModelConfig } from "../../../services/api/model";
 import { useAuth } from "../../../hooks/useAuth";
@@ -132,7 +132,7 @@ export function ModelSection() {
   );
 
   if (isLoading && !hasLoaded) {
-    return <ModelPanelSkeleton />;
+    return <ModelSectionSkeleton />;
   }
 
   if (!canManageModels) {
@@ -149,7 +149,7 @@ export function ModelSection() {
     <div className="animate-glass-enter px-4 py-5 sm:px-6 lg:px-7">
       {error && <ConfigPanelErrorCallout message={error} className="mb-4" />}
 
-      <div className="inline-grid grid-cols-2 rounded-lg border border-[var(--glass-border)] bg-[var(--glass-bg-subtle)] p-1 sm:my-3">
+      <div className="inline-grid grid-cols-2 rounded-lg border border-[var(--glass-border)] bg-[var(--glass-bg-subtle)] p-1 my-3">
         <button
           onClick={() => setActiveTab("roles")}
           className={`flex items-center justify-center gap-2 rounded-md px-3 py-2 text-sm font-medium transition-all duration-150 ${

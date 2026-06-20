@@ -236,6 +236,19 @@
   transition-duration: 0.08s;
 }
 
+/* ── Usage panel: OK status pulse dot ── */
+@keyframes status-ok-pulse {
+  0%,
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.5;
+    transform: scale(0.85);
+  }
+}
+
 /* Reduced motion */
 @media (prefers-reduced-motion: reduce) {
   .pill-enter-success,

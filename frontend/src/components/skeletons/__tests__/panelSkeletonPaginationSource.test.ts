@@ -29,7 +29,7 @@ test("panel skeletons share segmented tab placeholders", () => {
   assert.match(source, /function PanelSegmentedTabsSkeleton\(/);
   assert.match(
     source,
-    /className="inline-grid grid-cols-2 rounded-lg border border-\[var\(--glass-border\)\] bg-\[var\(--glass-bg-subtle\)\] p-1 sm:my-3"/,
+    /className="inline-grid grid-cols-2 rounded-lg border border-\[var\(--glass-border\)\] bg-\[var\(--glass-bg-subtle\)\] p-1 my-3"/,
   );
   assert.match(
     source,
@@ -38,7 +38,7 @@ test("panel skeletons share segmented tab placeholders", () => {
 
   assert.equal(
     source.match(
-      /inline-grid grid-cols-2 rounded-lg border border-\[var\(--glass-border\)\] bg-\[var\(--glass-bg-subtle\)\] p-1 sm:my-3/g,
+      /inline-grid grid-cols-2 rounded-lg border border-\[var\(--glass-border\)\] bg-\[var\(--glass-bg-subtle\)\] p-1 my-3/g,
     )?.length,
     1,
   );

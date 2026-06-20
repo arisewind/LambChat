@@ -8,7 +8,7 @@ import {
   FeedbackPanelSkeleton,
   ScheduledTaskPanelSkeleton,
   ChannelsGridSkeleton,
-  AgentPanelSkeleton,
+  AgentModelPanelSkeleton,
   UsagePanelSkeleton,
 } from "../../skeletons";
 import { PanelLoadingState } from "../../common/PanelLoadingState";
@@ -113,7 +113,7 @@ const skeletonMap: Partial<Record<TabType, ReactNode>> = {
   feedback: <FeedbackPanelSkeleton />,
   "scheduled-tasks": <ScheduledTaskPanelSkeleton />,
   channels: <ChannelsGridSkeleton />,
-  agents: <AgentPanelSkeleton />,
+  agents: <AgentModelPanelSkeleton />,
   usage: <UsagePanelSkeleton />,
 };
 

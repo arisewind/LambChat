@@ -154,6 +154,16 @@ def test_main_agent_prompt_sections_unchanged():
     assert "Handoff Notes" not in str(MAIN_AGENT_PROMPT_SECTIONS)
 
 
+def test_shared_agent_prompts_include_privacy_output_policy():
+    from src.agents.core.subagent_prompts import MAIN_AGENT_PROMPT_SECTIONS, SUBAGENT_PROMPT
+
+    combined_prompt = "\n".join((*MAIN_AGENT_PROMPT_SECTIONS, SUBAGENT_PROMPT))
+
+    assert "Privacy-Safe Output" in combined_prompt
+    assert "Do not repeat sensitive personal data" in combined_prompt
+    assert "access tokens" in combined_prompt
+
+
 def test_build_role_subagent_prompt_exists():
     from src.agents.core.subagent_prompts import build_role_subagent_prompt
 

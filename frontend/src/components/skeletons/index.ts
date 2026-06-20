@@ -16,6 +16,7 @@ export { PersonaPlazaSkeleton, PersonaPageSkeleton } from "./PersonaSkeletons";
 export { PanelHeaderSkeleton } from "./PanelHeaderSkeleton";
 export {
   SkillsPanelSkeleton,
+  SkillsListSkeleton,
   MarketplacePanelSkeleton,
   UsersPanelSkeleton,
   RolesPanelSkeleton,
@@ -25,7 +26,11 @@ export {
   TaskSessionListSkeleton,
   ChannelsGridSkeleton,
   ChannelConfigSkeleton,
+  AgentModelPanelSkeleton,
   AgentPanelSkeleton,
+  AgentSectionSkeleton,
   ModelPanelSkeleton,
+  ModelSectionSkeleton,
+  MemoryPanelSkeleton,
   UsagePanelSkeleton,
 } from "./PanelSkeletons";

@@ -4,7 +4,11 @@
 
 import { authFetch } from "./fetch";
 import { API_BASE } from "./config";
-import type { UsageLogListResponse, UsageStats } from "../../types/usage";
+import type {
+  UsageDashboardResponse,
+  UsageLogListResponse,
+  UsageStats,
+} from "../../types/usage";
 
 export interface UsageLogsParams {
   skip?: number;
@@ -19,6 +23,11 @@ export interface UsageLogsParams {
 export interface UsageStatsParams {
   user_id?: string;
   period?: "today" | "week" | "month" | "all";
+}
+
+export interface UsageDashboardParams extends UsageStatsParams {
+  model?: string;
+  search?: string;
 }
 
 export const usageApi = {
@@ -52,5 +61,22 @@ export const usageApi = {
       searchParams.append("period", params.period);
     const query = searchParams.toString() ? `?${searchParams}` : "";
     return authFetch<UsageStats>(`${API_BASE}/api/usage/stats${query}`);
+  },
+
+  /**
+   * Get dashboard aggregates for the digital worker operations view
+   */
+  async getDashboard(
+    params: UsageDashboardParams = {},
+  ): Promise<UsageDashboardResponse> {
+    const searchParams = new URLSearchParams();
+    if (params.user_id) searchParams.append("user_id", params.user_id);
+    if (params.period) searchParams.append("period", params.period);
+    if (params.model) searchParams.append("model", params.model);
+    if (params.search) searchParams.append("search", params.search);
+    const query = searchParams.toString() ? `?${searchParams}` : "";
+    return authFetch<UsageDashboardResponse>(
+      `${API_BASE}/api/usage/dashboard${query}`,
+    );
   },
 };

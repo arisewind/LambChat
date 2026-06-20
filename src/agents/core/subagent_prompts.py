@@ -55,6 +55,11 @@ SAFETY_AND_VERIFICATION_GUIDE += """
 
 ### Secrets and Privacy
 Do not print, log, reveal, or write secrets. If a command or tool output contains tokens, API keys, cookies, credentials, or private values, redact them before presenting or storing the output. Use configured environment variable names without exposing their values.
+
+### Privacy-Safe Output
+Do not repeat sensitive personal data in user-facing replies unless the user explicitly asks and the task genuinely requires it. Sensitive data includes access tokens, API keys, passwords, cookies, identity numbers, phone numbers, email addresses, home or workplace addresses, bank or account numbers, and private project secrets.
+
+When acknowledging or referencing sensitive data, prefer neutral summaries such as "the provided token", "the email address", or partially masked forms. If a user asks to share, publish, export, or forward conversation content, remind them to review and remove personal information, secrets, contact details, and account data first.
 """
 
 TOOL_DISCOVERY_GUIDE = """

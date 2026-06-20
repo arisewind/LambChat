@@ -617,7 +617,7 @@ class FeishuChannel(FeishuSenderMixin, BaseChannel):
         if not approval_id:
             return {}
 
-        from src.infra.channel.feishu.handler import build_feishu_approval_processing_card_data
+        from src.infra.channel.feishu.approval import build_feishu_approval_processing_card_data
 
         return {
             "card": {
@@ -642,7 +642,7 @@ class FeishuChannel(FeishuSenderMixin, BaseChannel):
             if not isinstance(value, dict):
                 return None
 
-            from src.infra.channel.feishu.handler import FEISHU_APPROVAL_ACTION
+            from src.infra.channel.feishu.approval import FEISHU_APPROVAL_ACTION
 
             if value.get("action") != FEISHU_APPROVAL_ACTION:
                 return None
@@ -673,7 +673,7 @@ class FeishuChannel(FeishuSenderMixin, BaseChannel):
             approval_id = self._extract_lambchat_approval_id(data)
             logger.debug("[HITL] approval_id=%s Handling card action", approval_id)
 
-            from src.infra.channel.feishu.handler import handle_feishu_approval_action
+            from src.infra.channel.feishu.approval import handle_feishu_approval_action
             from src.infra.channel.feishu.manager import get_feishu_channel_manager
 
             await handle_feishu_approval_action(

@@ -2,6 +2,10 @@
 
 Basic application configuration for the LambChat server.
 
+::: tip Configuration priority
+Database-backed settings have higher priority than environment variables at runtime. Environment variables are imported only for settings that are not already present in the database, and remain fallback values when no database setting exists.
+:::
+
 | Variable | Default | Description |
 |----------|---------|-------------|
 | `DEBUG` | `false` | Enable debug/reload mode. Sets log verbosity and enables hot reload in development. |

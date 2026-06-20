@@ -226,6 +226,8 @@ make frontend-dev   # Vite 前端
 
 LambChat 支持通过 UI 和环境变量配置。建议先从 `.env.example` 开始，正式使用前设置稳定密钥。
 
+运行时会优先读取数据库中的 Settings 配置；环境变量只在对应数据库配置尚未设置时作为初始值或回退值使用。
+
 ```bash
 # 推荐：保持登录会话在重启后仍然有效
 JWT_SECRET_KEY=your-stable-secret-key

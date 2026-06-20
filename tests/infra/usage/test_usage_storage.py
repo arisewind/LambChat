@@ -251,3 +251,225 @@ async def test_list_usage_logs_paginates_items_but_keeps_stats_global() -> None:
     assert stats["total_input_tokens"] == 60
     assert stats["total_output_tokens"] == 25
     assert stats["total_tokens"] == 85
+
+
+@pytest.mark.asyncio
+async def test_upsert_usage_log_enriches_operational_metadata(monkeypatch) -> None:
+    collection = _FakeCollection()
+    storage = UsageStorage()
+    storage._collection = collection
+
+    async def fake_session_metadata(session_id):
+        assert session_id == "session-1"
+        return {
+            "team_id": "team-1",
+            "team_name": "Growth Team",
+            "persona_preset_id": "persona-1",
+            "persona_preset_name": "Researcher",
+            "source": "scheduled_task",
+            "scheduled_task_id": "task-1",
+            "scheduled_task_run_id": "run-scheduled-1",
+            "scheduled_task_trigger_type": "cron",
+        }
+
+    monkeypatch.setattr(storage, "_get_session_metadata", fake_session_metadata)
+
+    inserted = await storage.upsert_usage_log(
+        {
+            "trace_id": "trace-ops",
+            "session_id": "session-1",
+            "run_id": "run-1",
+            "user_id": "user-1",
+            "agent_id": "team",
+            "started_at": "2026-06-14T00:00:00+00:00",
+            "completed_at": "2026-06-14T00:02:00+00:00",
+            "status": "completed",
+            "metadata": {
+                "username": "Ada",
+                "agent_name": "Team Agent",
+                "team_id": "team-from-trace",
+                "step_count": 7,
+                "tool_calls": 3,
+            },
+            "events": [
+                {
+                    "event_type": "token:usage",
+                    "data": {
+                        "model": "openai/gpt-5",
+                        "input_tokens": 20,
+                        "output_tokens": 30,
+                        "duration": 120.0,
+                    },
+                },
+            ],
+        }
+    )
+
+    assert inserted is True
+    doc = collection.update_calls[0][1]["$set"]
+    assert doc["team_id"] == "team-from-trace"
+    assert doc["team_name"] == "Growth Team"
+    assert doc["persona_preset_id"] == "persona-1"
+    assert doc["persona_preset_name"] == "Researcher"
+    assert doc["source"] == "scheduled_task"
+    assert doc["scheduled_task_id"] == "task-1"
+    assert doc["scheduled_task_run_id"] == "run-scheduled-1"
+    assert doc["scheduled_task_trigger_type"] == "cron"
+
+
+@pytest.mark.asyncio
+async def test_upsert_usage_log_resolves_team_name_when_missing(monkeypatch) -> None:
+    collection = _FakeCollection()
+    storage = UsageStorage()
+    storage._collection = collection
+
+    async def fake_session_metadata(session_id):
+        return {"team_id": "team-1"}
+
+    async def fake_resolve_team_name(team_id):
+        assert team_id == "team-1"
+        return "Ops Team"
+
+    monkeypatch.setattr(storage, "_get_session_metadata", fake_session_metadata)
+    monkeypatch.setattr(storage, "_resolve_team_name", fake_resolve_team_name)
+
+    inserted = await storage.upsert_usage_log(
+        {
+            "trace_id": "trace-team",
+            "session_id": "session-1",
+            "run_id": "run-1",
+            "user_id": "user-1",
+            "agent_id": "team",
+            "started_at": "2026-06-14T00:00:00+00:00",
+            "completed_at": "2026-06-14T00:02:00+00:00",
+            "status": "completed",
+            "metadata": {"username": "Ada", "agent_name": "Team Agent"},
+            "events": [
+                {
+                    "event_type": "token:usage",
+                    "data": {"input_tokens": 1, "output_tokens": 2},
+                },
+            ],
+        }
+    )
+
+    assert inserted is True
+    doc = collection.update_calls[0][1]["$set"]
+    assert doc["team_id"] == "team-1"
+    assert doc["team_name"] == "Ops Team"
+
+
+class _DashboardFakeCollection:
+    def __init__(self):
+        self.aggregate_pipelines = []
+
+    def aggregate(self, pipeline):
+        self.aggregate_pipelines.append(pipeline)
+        return _FakeAggregateCursor(
+            [
+                {
+                    "daily": [
+                        {
+                            "_id": "2026-06-14",
+                            "requests": 2,
+                            "tokens": 150,
+                            "duration": 60.0,
+                            "scheduled_runs": 1,
+                            "tool_calls": 5,
+                            "failed_requests": 1,
+                        }
+                    ],
+                    "agents": [
+                        {"_id": "Team Agent", "requests": 2, "tokens": 150, "duration": 60.0}
+                    ],
+                    "teams": [
+                        {
+                            "_id": "team-1",
+                            "name": "Growth Team",
+                            "requests": 2,
+                            "tokens": 150,
+                            "duration": 60.0,
+                        }
+                    ],
+                    "personas": [
+                        {
+                            "_id": "persona-1",
+                            "name": "Researcher",
+                            "requests": 1,
+                            "tokens": 80,
+                            "duration": 30.0,
+                        }
+                    ],
+                    "models": [
+                        {"_id": "openai/gpt-5", "requests": 2, "tokens": 150, "duration": 60.0}
+                    ],
+                    "users": [
+                        {
+                            "_id": "user-1",
+                            "name": "Ada",
+                            "requests": 2,
+                            "tokens": 150,
+                            "duration": 60.0,
+                        }
+                    ],
+                    "sources": [
+                        {"_id": "scheduled_task", "requests": 1, "tokens": 90, "duration": 40.0}
+                    ],
+                    "triggers": [{"_id": "cron", "requests": 1, "tokens": 90, "duration": 40.0}],
+                    "summary": [
+                        {
+                            "total_requests": 2,
+                            "total_tokens": 150,
+                            "total_input_tokens": 70,
+                            "total_output_tokens": 80,
+                            "total_cache_read_tokens": 20,
+                            "total_duration": 60.0,
+                            "total_tool_calls": 5,
+                            "scheduled_runs": 1,
+                            "successful_requests": 1,
+                            "failed_requests": 1,
+                            "max_duration": 45.0,
+                        }
+                    ],
+                }
+            ]
+        )
+
+
+@pytest.mark.asyncio
+async def test_get_usage_dashboard_returns_daily_and_rankings() -> None:
+    collection = _DashboardFakeCollection()
+    storage = UsageStorage()
+    storage._collection = collection
+
+    dashboard = await storage.get_usage_dashboard(
+        user_id="user-1",
+        start_date="2026-06-01T00:00:00+00:00",
+        end_date="2026-07-01T00:00:00+00:00",
+    )
+
+    assert dashboard["summary"]["total_requests"] == 2
+    assert dashboard["summary"]["scheduled_runs"] == 1
+    assert dashboard["summary"]["failed_requests"] == 1
+    assert dashboard["summary"]["success_rate"] == 0.5
+    assert dashboard["summary"]["avg_tokens_per_request"] == 75
+    assert dashboard["summary"]["avg_duration_per_request"] == 30.0
+    assert dashboard["summary"]["scheduled_share"] == 0.5
+    assert dashboard["summary"]["cache_read_share"] == 20 / 70
+    assert dashboard["summary"]["tool_calls_per_request"] == 2.5
+    assert dashboard["summary"]["peak_day"]["date"] == "2026-06-14"
+    assert dashboard["daily"][0]["date"] == "2026-06-14"
+    assert dashboard["daily"][0]["failed_requests"] == 1
+    assert dashboard["top_agents"][0]["name"] == "Team Agent"
+    assert dashboard["top_teams"][0]["id"] == "team-1"
+    assert dashboard["top_personas"][0]["name"] == "Researcher"
+    assert dashboard["top_models"][0]["name"] == "openai/gpt-5"
+    assert dashboard["top_users"][0]["name"] == "Ada"
+    assert dashboard["sources"][0]["id"] == "scheduled_task"
+    assert dashboard["triggers"][0]["id"] == "cron"
+
+    match_stage = collection.aggregate_pipelines[0][0]
+    assert match_stage["$match"]["user_id"] == "user-1"
+    assert match_stage["$match"]["started_at"]["$gte"] == datetime(2026, 6, 1, tzinfo=timezone.utc)
+    pipeline_text = str(collection.aggregate_pipelines[0])
+    assert "scheduled_task_id" in pipeline_text
