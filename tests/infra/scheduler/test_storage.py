@@ -2,13 +2,15 @@ from __future__ import annotations
 
 import asyncio
 from datetime import datetime, timezone
+from types import SimpleNamespace
 from typing import Any
 
 import pytest
+from pymongo.errors import DuplicateKeyError
 
 from src.infra.scheduler import storage as storage_module
 from src.infra.scheduler.storage import ScheduledTaskStorage
-from src.kernel.schemas.scheduled_task import ScheduledTaskStatus, TriggerType
+from src.kernel.schemas.scheduled_task import ScheduledTask, ScheduledTaskStatus, TriggerType
 
 
 def _task_doc(task_id: str) -> dict[str, Any]:
@@ -33,6 +35,10 @@ def _task_doc(task_id: str) -> dict[str, Any]:
         "created_at": now,
         "updated_at": now,
     }
+
+
+def _task(task_id: str = "task_1", name: str = "Task task_1") -> ScheduledTask:
+    return ScheduledTask.model_validate(_task_doc(task_id) | {"name": name})
 
 
 class _ConcurrentCursor:
@@ -139,6 +145,34 @@ class _ExecutionProjectionCollection:
         return _task_doc("task_1")
 
 
+class _DuplicateThenInsertCollection:
+    def __init__(self, *, deleted_count: int = 1) -> None:
+        self.deleted_count = deleted_count
+        self.inserted_docs: list[dict[str, Any]] = []
+        self.delete_calls: list[dict[str, Any]] = []
+        self.insert_attempts = 0
+
+    async def insert_one(self, doc: dict[str, Any]) -> None:
+        self.insert_attempts += 1
+        if self.insert_attempts == 1:
+            raise DuplicateKeyError("duplicate task name")
+        self.inserted_docs.append(doc)
+
+    async def delete_one(self, query: dict[str, Any]):
+        self.delete_calls.append(query)
+        return SimpleNamespace(deleted_count=self.deleted_count)
+
+
+class _HardDeleteTaskCollection:
+    def __init__(self, *, deleted_count: int) -> None:
+        self.deleted_count = deleted_count
+        self.delete_calls: list[dict[str, Any]] = []
+
+    async def delete_one(self, query: dict[str, Any]):
+        self.delete_calls.append(query)
+        return SimpleNamespace(deleted_count=self.deleted_count)
+
+
 @pytest.mark.asyncio
 async def test_list_tasks_paginated_fetches_rows_and_count_concurrently() -> None:
     storage = ScheduledTaskStorage()
@@ -199,6 +233,79 @@ async def test_get_task_for_execution_uses_projection() -> None:
     assert collection.find_one_projection["timeout_seconds"] == 1
     assert "description" not in collection.find_one_projection
     assert "updated_at" not in collection.find_one_projection
+
+
+@pytest.mark.asyncio
+async def test_create_task_deletes_historical_deleted_same_name_collision_and_retries() -> None:
+    storage = ScheduledTaskStorage()
+    collection = _DuplicateThenInsertCollection()
+    metadata_collection = _RevisionMetadataCollection()
+    storage._collections["scheduled_tasks"] = collection
+    storage._collections["scheduled_task_metadata"] = metadata_collection
+    task = _task(task_id="new-task", name="Daily Report")
+
+    created = await storage.create_task(task)
+
+    assert created == task
+    assert collection.insert_attempts == 2
+    assert collection.inserted_docs == [task.model_dump(by_alias=True)]
+    assert collection.delete_calls == [
+        {
+            "owner_id": "user_1",
+            "name": "Daily Report",
+            "status": ScheduledTaskStatus.DELETED,
+        }
+    ]
+    assert metadata_collection.update_one_calls  # revision bumped after successful create
+
+
+@pytest.mark.asyncio
+async def test_create_task_reraises_duplicate_when_no_deleted_collision_found() -> None:
+    storage = ScheduledTaskStorage()
+    collection = _DuplicateThenInsertCollection(deleted_count=0)
+    storage._collections["scheduled_tasks"] = collection
+
+    with pytest.raises(DuplicateKeyError):
+        await storage.create_task(_task(name="Active Task"))
+
+    assert collection.insert_attempts == 1
+    assert collection.inserted_docs == []
+    assert collection.delete_calls == [
+        {
+            "owner_id": "user_1",
+            "name": "Active Task",
+            "status": ScheduledTaskStatus.DELETED,
+        }
+    ]
+
+
+@pytest.mark.asyncio
+async def test_delete_task_physically_deletes_and_bumps_revision() -> None:
+    storage = ScheduledTaskStorage()
+    task_collection = _HardDeleteTaskCollection(deleted_count=1)
+    metadata_collection = _RevisionMetadataCollection()
+    storage._collections["scheduled_tasks"] = task_collection
+    storage._collections["scheduled_task_metadata"] = metadata_collection
+
+    deleted = await storage.delete_task("task_1")
+
+    assert deleted is True
+    assert task_collection.delete_calls == [{"_id": "task_1"}]
+    assert metadata_collection.update_one_calls  # revision bumped
+
+
+@pytest.mark.asyncio
+async def test_delete_task_returns_false_when_document_missing() -> None:
+    storage = ScheduledTaskStorage()
+    task_collection = _HardDeleteTaskCollection(deleted_count=0)
+    metadata_collection = _RevisionMetadataCollection()
+    storage._collections["scheduled_tasks"] = task_collection
+    storage._collections["scheduled_task_metadata"] = metadata_collection
+
+    deleted = await storage.delete_task("missing")
+
+    assert deleted is False
+    assert not metadata_collection.update_one_calls  # not bumped when nothing changed
 
 
 def test_close_scheduled_task_storage_releases_singleton() -> None:

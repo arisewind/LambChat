@@ -4,6 +4,7 @@ import asyncio
 import json
 
 import pytest
+from fastapi import HTTPException
 
 from src.api.routes import human
 from src.infra.storage.mongodb import ApprovalResponse
@@ -106,6 +107,48 @@ async def test_respond_to_approval_offloads_response_json_parse(
     assert updated[0][2].response == {"note": "ok"}
     assert notified[0][1].response == {"note": "ok"}
     assert result["status"] == "success"
+
+
+@pytest.mark.asyncio
+async def test_respond_to_approval_uses_atomic_pending_update(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    notified: list[tuple[str, ApprovalResponse]] = []
+
+    class _FakeApproval:
+        status = "pending"
+
+    class _FakeApprovalStorage:
+        async def get(self, approval_id: str):
+            assert approval_id == "approval-1"
+            return _FakeApproval()
+
+        async def respond_if_pending(
+            self,
+            approval_id: str,
+            status: str,
+            approval_response: ApprovalResponse,
+        ):
+            assert approval_id == "approval-1"
+            assert status == "approved"
+            assert approval_response.approved is True
+            return None
+
+    async def fake_notify(approval_id: str, approval_response: ApprovalResponse) -> None:
+        notified.append((approval_id, approval_response))
+
+    monkeypatch.setattr(human, "_approval_storage", _FakeApprovalStorage())
+    monkeypatch.setattr(human, "notify_approval_response", fake_notify)
+
+    with pytest.raises(HTTPException) as exc:
+        await human.respond_to_approval(
+            "approval-1",
+            approved=True,
+            response="{}",
+        )
+
+    assert exc.value.status_code == 400
+    assert notified == []
 
 
 @pytest.mark.asyncio

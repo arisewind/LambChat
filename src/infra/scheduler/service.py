@@ -181,7 +181,7 @@ class ScheduledTaskService:
         return updated
 
     async def delete_task(self, task_id: str) -> bool:
-        """Soft-delete a task."""
+        """Physically delete a task."""
         self._unregister_managed_task(task_id)
         storage = get_scheduled_task_storage()
         deleted = await storage.delete_task(task_id)

@@ -408,6 +408,8 @@ class FeishuChannel(FeishuSenderMixin, BaseChannel):
                 builder = builder.register_p2_im_message_reaction_created_v1(lambda data: None)
             if hasattr(builder, "register_p2_im_message_reaction_deleted_v1"):
                 builder = builder.register_p2_im_message_reaction_deleted_v1(lambda data: None)
+            if hasattr(builder, "register_p2_card_action_trigger"):
+                builder = builder.register_p2_card_action_trigger(self._on_card_action_sync)
 
             event_handler = builder.build()
             return client, event_handler
@@ -584,6 +586,108 @@ class FeishuChannel(FeishuSenderMixin, BaseChannel):
             self._set_connection_state(ConnectionState.CONNECTED)
         if self._loop and self._loop.is_running():
             asyncio.run_coroutine_threadsafe(self._on_message(data), self._loop)
+
+    def _on_card_action_sync(self, data: Any) -> Any:
+        """Sync handler for Feishu interactive card button clicks."""
+        logger.debug("[HITL] Received card action callback")
+        self._update_activity_time()
+        if self._get_connection_state() != ConnectionState.CONNECTED:
+            self._set_connection_state(ConnectionState.CONNECTED)
+        response_payload = self._build_card_action_response_payload(data)
+        approval_id = self._extract_lambchat_approval_id(data)
+        logger.debug(
+            "[HITL] approval_id=%s Returned processing card synchronously",
+            approval_id,
+        )
+        if self._loop and self._loop.is_running():
+            asyncio.run_coroutine_threadsafe(self._on_card_action(data), self._loop)
+
+        try:
+            from lark_oapi.event.callback.model.p2_card_action_trigger import (
+                P2CardActionTriggerResponse,
+            )
+
+            return P2CardActionTriggerResponse(response_payload)
+        except Exception:
+            return None
+
+    def _build_card_action_response_payload(self, data: Any) -> dict[str, Any]:
+        """Build immediate Feishu callback response payload for known card actions."""
+        approval_id = self._extract_lambchat_approval_id(data)
+        if not approval_id:
+            return {}
+
+        from src.infra.channel.feishu.handler import build_feishu_approval_processing_card_data
+
+        return {
+            "card": {
+                "type": "raw",
+                "data": build_feishu_approval_processing_card_data(approval_id),
+            },
+            "toast": {
+                "type": "success",
+                "content": "已收到确认操作，正在处理",
+            },
+        }
+
+    @staticmethod
+    def _extract_lambchat_approval_id(data: Any) -> str | None:
+        """Return the LambChat approval id from a Feishu card action callback."""
+        try:
+            event = getattr(data, "event", None)
+            action = getattr(event, "action", None)
+            value = getattr(action, "value", None)
+            if isinstance(value, str) and value.strip():
+                value = json.loads(value)
+            if not isinstance(value, dict):
+                return None
+
+            from src.infra.channel.feishu.handler import FEISHU_APPROVAL_ACTION
+
+            if value.get("action") != FEISHU_APPROVAL_ACTION:
+                return None
+            approval_id = value.get("approval_id")
+            return approval_id if isinstance(approval_id, str) and approval_id else None
+        except Exception:
+            return None
+
+    async def _on_card_action(self, data: Any) -> None:
+        """Handle Feishu interactive card actions."""
+        # This coroutine runs on the main event loop (scheduled from the lark WS
+        # thread), so it bypasses the HTTP middleware that normally populates the
+        # request context. Seed user_id here so downstream logs auto-include it.
+        try:
+            from src.infra.logging.context import TraceContext
+
+            TraceContext.set_request_context(user_id=self.config.user_id)
+        except Exception as e:
+            logger.debug("[HITL] Failed to set request context for card action: %s", e)
+
+        try:
+            event = getattr(data, "event", None)
+            action = getattr(event, "action", None)
+            context = getattr(event, "context", None)
+            value = getattr(action, "value", None)
+            message_id = getattr(context, "open_message_id", None)
+
+            approval_id = self._extract_lambchat_approval_id(data)
+            logger.debug("[HITL] approval_id=%s Handling card action", approval_id)
+
+            from src.infra.channel.feishu.handler import handle_feishu_approval_action
+            from src.infra.channel.feishu.manager import get_feishu_channel_manager
+
+            await handle_feishu_approval_action(
+                value=value,
+                message_id=message_id,
+                user_id=self.config.user_id,
+                instance_id=self.config.instance_id,
+                manager=get_feishu_channel_manager(),
+            )
+        except Exception as e:
+            logger.error(
+                f"Error processing Feishu card action for user {self.config.user_id}: {e}",
+                exc_info=True,
+            )
 
     async def _on_message(self, data: Any) -> None:
         """Handle incoming message from Feishu."""

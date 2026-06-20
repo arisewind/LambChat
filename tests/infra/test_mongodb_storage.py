@@ -120,6 +120,75 @@ async def test_approval_storage_list_pending_applies_default_limit() -> None:
     assert collection.cursor.limit_value == 100
 
 
+class _RespondCollection:
+    """Fake collection capturing find_one_and_update calls."""
+
+    def __init__(self, *, return_doc: dict | None) -> None:
+        self._return_doc = return_doc
+        self.calls: list[tuple[dict, dict, dict | None, object | None]] = []
+
+    async def find_one_and_update(
+        self,
+        filter_doc: dict,
+        update_doc: dict,
+        projection: dict | None = None,
+        return_document: object | None = None,
+    ):
+        self.calls.append((filter_doc, update_doc, projection, return_document))
+        if self._return_doc is None:
+            return None
+        return dict(self._return_doc)
+
+
+@pytest.mark.asyncio
+async def test_respond_if_pending_returns_updated_approval() -> None:
+    from pymongo import ReturnDocument
+
+    storage = ApprovalStorage()
+    collection = _RespondCollection(
+        return_doc={"id": "approval-1", "message": "请确认", "status": "approved"}
+    )
+    storage._collection = collection
+    storage._indexes_created = True
+
+    response = ApprovalResponse(approved=True, response={"ok": True})
+    result = await storage.respond_if_pending("approval-1", "approved", response)
+
+    assert result is not None
+    assert result.id == "approval-1"
+    assert result.status == "approved"
+
+    filter_doc, update_doc, projection, return_document = collection.calls[0]
+    # Only a still-pending, unexpired approval may be claimed atomically.
+    assert filter_doc["_id"] == "approval-1"
+    assert filter_doc["status"] == "pending"
+    assert "$gt" in filter_doc["expires_at"]
+    assert update_doc["$set"]["status"] == "approved"
+    assert update_doc["$set"]["response"] == response.model_dump()
+    assert projection == {"response": 0}
+    assert return_document == ReturnDocument.AFTER
+
+
+@pytest.mark.asyncio
+async def test_respond_if_pending_returns_none_when_already_handled_or_expired() -> None:
+    storage = ApprovalStorage()
+    collection = _RespondCollection(return_doc=None)
+    storage._collection = collection
+    storage._indexes_created = True
+
+    response = ApprovalResponse(approved=False, response={})
+    result = await storage.respond_if_pending("approval-1", "rejected", response)
+
+    assert result is None
+    filter_doc, _update_doc, _projection, _return_document = collection.calls[0]
+    # The atomic guard rejects already-responded or expired approvals by
+    # requiring both pending status and a future expiry.
+    assert set(filter_doc.keys()) == {"_id", "status", "expires_at"}
+    assert filter_doc["_id"] == "approval-1"
+    assert filter_doc["status"] == "pending"
+    assert "$gt" in filter_doc["expires_at"]
+
+
 def test_close_approval_storage_releases_cached_singleton() -> None:
     storage = mongodb.get_approval_storage()
 

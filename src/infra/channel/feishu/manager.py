@@ -433,6 +433,36 @@ class FeishuChannelManager(UserChannelManager):
 
         return await client.send_message(chat_id, content)
 
+    async def send_card_message_with_id(
+        self,
+        user_id: str,
+        chat_id: str,
+        card_content: str,
+        instance_id: Optional[str] = None,
+        reply_to_id: str | None = None,
+    ) -> tuple[bool, str | None]:
+        """Send an interactive card through a user's Feishu bot."""
+        logger.info("[Feishu] Sending card user=%s chat=%s", user_id, chat_id)
+        client = self._find_channel(user_id, instance_id)
+        if not client:
+            logger.warning(f"No Feishu client for user {user_id}, instance {instance_id}")
+            return False, None
+        receive_id_type, receive_id = client._resolve_receive_id(chat_id)
+        success, message_id = await client._send_card_message_internal(
+            receive_id_type,
+            receive_id,
+            card_content,
+            reply_to_id,
+        )
+        logger.info(
+            "[Feishu] Card sent ok=%s message_id=%s user=%s chat=%s",
+            success,
+            message_id,
+            user_id,
+            chat_id,
+        )
+        return success, message_id
+
     async def add_reaction(
         self,
         user_id: str,

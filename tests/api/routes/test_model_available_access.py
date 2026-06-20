@@ -177,7 +177,11 @@ async def test_list_available_models_returns_public_fields_only(
             "icon": "qwen",
             "label": "Allowed",
             "description": "Visible",
-            "profile": {"max_input_tokens": None, "supports_vision": True},
+            "profile": {
+                "max_input_tokens": None,
+                "supports_vision": True,
+                "image_url_to_base64": False,
+            },
         }
     ]
     assert payload["default_model_id"] == "allowed-model"

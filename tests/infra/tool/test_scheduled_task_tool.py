@@ -191,6 +191,10 @@ async def test_create_interval_task(monkeypatch: pytest.MonkeyPatch) -> None:
     assert result["action"] == "created"
     assert result["task"]["name"] == "Daily Report"
     assert result["approval_id"] == "approval-1"
+    # The human-approval outcome must be propagated so channel handlers can
+    # finalize the approval card to the correct terminal status.
+    assert result["approved"] is True
+    assert result["status"] == "approved"
     assert result["preview"]["schedule"] == "every 5 minute(s)"
     assert "Clean up expired cache entries" in result["preview"]["effect"]
 
@@ -684,6 +688,10 @@ async def test_create_task_rejected_does_not_create(monkeypatch: pytest.MonkeyPa
     assert result["action"] == "not_created"
     assert result["reason"] == "rejected"
     assert result["approval_id"] == "approval-2"
+    # The human-approval outcome must be propagated so channel handlers can
+    # finalize the approval card to the correct terminal status.
+    assert result["approved"] is False
+    assert result["status"] == "rejected"
     assert result["preview"]["name"] == "Daily Report"
     approval_mock.assert_awaited_once()
     create_mock.assert_not_called()
