@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect, useCallback, useMemo, memo } from "react";
 import toast from "react-hot-toast";
-import { Ban, Check, Sparkles, UploadCloud } from "lucide-react";
+import { Ban, Sparkles, UploadCloud } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { ImageViewer } from "../common";
 import { ConfirmDialog } from "../common/ConfirmDialog";
@@ -12,6 +12,7 @@ import { useTeamMentionSearch } from "../../hooks/useTeamMentionSearch";
 import { useInputHistory } from "../../hooks/useInputHistory";
 import { useTextareaResize } from "../../hooks/useTextareaResize";
 import { usePasteHandler } from "../../hooks/usePasteHandler";
+import { useChatInputKeyboard } from "../../hooks/useChatInputKeyboard";
 import { useAuth } from "../../hooks/useAuth";
 import { MentionPopup } from "./MentionPopup";
 import { TeamMentionPopup } from "./TeamMentionPopup";
@@ -21,9 +22,9 @@ import { ChatInputSelectors } from "./ChatInputSelectors";
 import { ChatInputHelpMenu } from "./ChatInputHelpMenu";
 import { ChatInputAttachments } from "./ChatInputAttachments";
 import { SkillSelector } from "../selectors/SkillSelector";
-import { getMentionPopupFixedPlacement } from "./chatInputViewport";
-import { getCategoryIcon, nameToGradient } from "../common/cardUtils";
 import { FILE_CATEGORY_PERMISSIONS } from "./chatInputConstants";
+import { getMentionPopupFixedPlacement } from "./chatInputViewport";
+import { SlashDropdownMenu } from "./SlashDropdownMenu";
 import {
   applySlashCommandSelection,
   clearSlashCommandInput,
@@ -374,128 +375,7 @@ export const ChatInput = memo(function ChatInput({
     [slashDropdownItems],
   );
 
-  const renderSlashDropdownSections = () =>
-    slashDropdownSections.map((section) => {
-      let sectionStart = 0;
-      for (const prev of slashDropdownSections) {
-        if (prev === section) break;
-        sectionStart += prev.items.length;
-      }
-
-      return (
-        <div key={section.kind}>
-          {slashDropdownSections.length > 1 && (
-            <div
-              className="px-3 py-1.5 text-[11px] font-medium uppercase tracking-wider"
-              style={{ color: "var(--theme-text-secondary)" }}
-            >
-              {t(section.labelKey, section.fallbackLabel)}
-            </div>
-          )}
-          {section.items.map((item, idx) => {
-            const globalIndex = sectionStart + idx;
-            const isHighlighted = globalIndex === slashHighlightIndex;
-
-            return (
-              <button
-                key={
-                  item.type === "command"
-                    ? `cmd-${item.command.id}`
-                    : `skill-${item.skill.name}`
-                }
-                data-slash-idx={globalIndex}
-                type="button"
-                role="option"
-                aria-selected={isHighlighted}
-                onMouseDown={(e) => {
-                  e.preventDefault();
-                  applySlashDropdownSelection(item);
-                }}
-                className="flex w-full items-center gap-2.5 px-3 py-2 text-left text-[13px] transition-colors"
-                style={{
-                  backgroundColor: isHighlighted
-                    ? "var(--theme-bg-hover, rgba(128,128,128,0.08))"
-                    : "transparent",
-                }}
-                onMouseEnter={() => setSlashHighlightIndex(globalIndex)}
-              >
-                {item.type === "command" ? (
-                  <>
-                    <item.command.icon
-                      size={14}
-                      className="shrink-0"
-                      style={{ color: "var(--theme-text-secondary)" }}
-                    />
-                    <span className="font-medium shrink-0">
-                      {t(item.command.labelKey, item.command.fallbackLabel)}
-                    </span>
-                    {item.command.fallbackDescription && (
-                      <span
-                        className="min-w-0 flex-1 truncate"
-                        style={{ color: "var(--theme-text-secondary)" }}
-                      >
-                        {t(
-                          item.command.descriptionKey ?? "",
-                          item.command.fallbackDescription,
-                        )}
-                      </span>
-                    )}
-                  </>
-                ) : (
-                  (() => {
-                    const SkillIcon = item.skill.tags[0]
-                      ? getCategoryIcon(item.skill.tags[0])
-                      : Sparkles;
-                    const gradient = nameToGradient(item.skill.name);
-                    const isSelected = runSkillNameSet.has(item.skill.name);
-                    return (
-                      <>
-                        <div
-                          className="shrink-0 flex items-center justify-center size-6 rounded-md"
-                          style={{
-                            background: `linear-gradient(135deg, ${gradient[0]}66, ${gradient[1]}66)`,
-                            opacity: isSelected ? 1 : 0.5,
-                          }}
-                        >
-                          <SkillIcon size={12} className="text-white" />
-                        </div>
-                        <span className="min-w-0 flex-1 truncate">
-                          {item.skill.name}
-                        </span>
-                        {isSelected && (
-                          <Check
-                            size={14}
-                            className="shrink-0"
-                            style={{ color: "var(--theme-primary)" }}
-                          />
-                        )}
-                      </>
-                    );
-                  })()
-                )}
-              </button>
-            );
-          })}
-        </div>
-      );
-    });
-
   const [slashHighlightIndex, setSlashHighlightIndex] = useState(0);
-
-  useEffect(() => {
-    setSlashHighlightIndex(0);
-  }, [slashDropdownItems.length]);
-
-  // Scroll highlighted item into view when navigating with arrow keys
-  useEffect(() => {
-    if (!slashCommandOpen) return;
-    const el = containerRef.current?.querySelector(
-      `[data-slash-idx="${slashHighlightIndex}"]`,
-    );
-    if (el) {
-      el.scrollIntoView({ block: "nearest" });
-    }
-  }, [slashCommandOpen, slashHighlightIndex]);
 
   const applySlashDropdownSelection = useCallback(
     (item: SlashDropdownItem) => {
@@ -626,113 +506,38 @@ export const ChatInput = memo(function ChatInput({
     }
   };
 
-  const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (slashCommandOpen) {
-      if (e.key === "ArrowUp") {
-        e.preventDefault();
-        const len = slashDropdownItems.length;
-        setSlashHighlightIndex((prev) => (prev - 1 + len) % len);
-        return;
-      }
-      if (e.key === "ArrowDown") {
-        e.preventDefault();
-        const len = slashDropdownItems.length;
-        setSlashHighlightIndex((prev) => (prev + 1) % len);
-        return;
-      }
-      if (e.key === "Enter" || e.key === "Tab") {
-        e.preventDefault();
-        const highlighted = slashDropdownItems[slashHighlightIndex];
-        if (highlighted) {
-          applySlashDropdownSelection(highlighted);
-        }
-        return;
-      }
-      if (e.key === "Escape") {
-        e.preventDefault();
-        setInput("");
-        setCursorPosition(0);
-        return;
-      }
-    }
-
-    if (mention.isActive) {
-      if (e.key === "ArrowUp") {
-        e.preventDefault();
-        moveMentionHighlight("up");
-        return;
-      }
-      if (e.key === "ArrowDown") {
-        e.preventDefault();
-        moveMentionHighlight("down");
-        return;
-      }
-      if (e.key === "Enter" || e.key === "Tab") {
-        e.preventDefault();
-        if (mentionMode === "team") {
-          const highlighted = teamMentionSearch.teams[mention.highlightedIndex];
-          if (highlighted) applyTeamMentionSelection(highlighted);
-        } else {
-          const highlighted = mentionSearch.presets[mention.highlightedIndex];
-          if (highlighted) applyMentionSelection(highlighted);
-        }
-        return;
-      }
-      if (e.key === "Escape") {
-        e.preventDefault();
-        resetMention();
-        return;
-      }
-    }
-
-    const newlineModifier = localStorage.getItem("newlineModifier") || "shift";
-
-    if (e.key === "Enter") {
-      const needsModifier = newlineModifier === "ctrl" ? e.ctrlKey : e.shiftKey;
-      if (needsModifier) return;
-
-      e.preventDefault();
-      if (isLoading) {
-        setStopConfirmOpen(true);
-      } else {
-        handleSubmit(e);
-      }
-      return;
-    }
-
-    const textarea = textareaRef.current;
-    const atTop =
-      textarea?.selectionStart === 0 && textarea?.selectionEnd === 0;
-    const value = textarea?.value ?? "";
-    const atBottom =
-      textarea?.selectionStart === value.length &&
-      textarea?.selectionEnd === value.length;
-
-    if (e.key === "ArrowUp" && atTop) {
-      e.preventDefault();
-      const prev = navigateUp(input);
-      if (prev !== null) {
-        setInput(prev);
-        requestAnimationFrame(() => {
-          if (textarea) {
-            textarea.selectionStart = textarea.selectionEnd = prev.length;
-          }
-        });
-      }
-    } else if (e.key === "ArrowDown" && (atBottom || history.length > 0)) {
-      e.preventDefault();
-      const next = navigateDown();
-      if (next !== null) {
-        setInput(next);
-        requestAnimationFrame(() => {
-          if (textarea) {
-            textarea.selectionStart = textarea.selectionEnd =
-              textarea.value.length;
-          }
-        });
-      }
-    }
-  };
+  const handleKeyDown = useChatInputKeyboard(
+    {
+      open: slashCommandOpen,
+      items: slashDropdownItems,
+      highlightIndex: slashHighlightIndex,
+      setHighlightIndex: setSlashHighlightIndex,
+      onSelect: applySlashDropdownSelection,
+    },
+    {
+      active: mention.isActive,
+      mode: mentionMode,
+      highlightedIndex: mention.highlightedIndex,
+      moveHighlight: moveMentionHighlight,
+      teamItems: teamMentionSearch.teams,
+      personaItems: mentionSearch.presets,
+      onTeamSelect: applyTeamMentionSelection,
+      onPersonaSelect: applyMentionSelection,
+      reset: resetMention,
+    },
+    {
+      isLoading,
+      textareaRef,
+      input,
+      setInput,
+      setCursorPosition,
+      onSubmit: handleSubmit,
+      onSetStopConfirmOpen: setStopConfirmOpen,
+      navigateUp,
+      navigateDown,
+      historyLength: history.length,
+    },
+  );
 
   const hasContent = !!input.trim() && !disabled;
   const hasUploadingAttachment = attachments.some((a) => a.isUploading);
@@ -985,54 +790,16 @@ export const ChatInput = memo(function ChatInput({
               />
             </div>
           </div>
-          {slashCommandOpen &&
-            (() => {
-              const placement = getMentionPopupFixedPlacement({
-                inputRect:
-                  containerRef.current?.getBoundingClientRect() ?? null,
-                viewportHeight:
-                  window.visualViewport?.height ?? window.innerHeight,
-              });
-              // Fallback to absolute positioning when placement unavailable
-              if (!placement) {
-                return (
-                  <div
-                    role="listbox"
-                    className="absolute bottom-full left-1 z-30 mb-2 w-72 sm:w-80 overflow-hidden rounded-xl border shadow-lg"
-                    style={{
-                      backgroundColor: "var(--theme-bg-card)",
-                      borderColor: "var(--theme-border)",
-                      color: "var(--theme-text)",
-                      maxHeight: 320,
-                    }}
-                  >
-                    {renderSlashDropdownSections()}
-                  </div>
-                );
-              }
-              return (
-                <div
-                  role="listbox"
-                  className="fixed z-[100] overflow-hidden rounded-xl border shadow-lg"
-                  style={{
-                    left: placement.left,
-                    width: Math.min(placement.width, 320),
-                    bottom: placement.bottom,
-                    maxHeight: placement.maxHeight,
-                    backgroundColor: "var(--theme-bg-card)",
-                    borderColor: "var(--theme-border)",
-                    color: "var(--theme-text)",
-                  }}
-                >
-                  <div
-                    className="overflow-y-auto"
-                    style={{ maxHeight: placement.maxHeight }}
-                  >
-                    {renderSlashDropdownSections()}
-                  </div>
-                </div>
-              );
-            })()}
+          <SlashDropdownMenu
+            open={slashCommandOpen}
+            sections={slashDropdownSections}
+            items={slashDropdownItems}
+            runSkillNameSet={runSkillNameSet}
+            containerRef={containerRef}
+            onApplySelection={applySlashDropdownSelection}
+            highlightIndex={slashHighlightIndex}
+            onHighlightChange={setSlashHighlightIndex}
+          />
 
           <ChatInputToolbar
             activePanel={activePanel}

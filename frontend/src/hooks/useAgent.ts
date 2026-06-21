@@ -38,8 +38,8 @@ import { clearAllLoadingStates } from "./useAgent/messageParts";
 import { type EventHandlerContext } from "./useAgent/eventHandlers";
 import {
   connectToSSE,
-  reconnectSSE,
   clearReconnectTimeout,
+  useSSEReconnect,
   type SSEConnectionContext,
 } from "./useAgent/sseConnection";
 import { createOptimisticMessagesForSend } from "./useAgent/optimisticMessages";
@@ -888,62 +888,16 @@ export function useAgent(options?: UseAgentOptions): UseAgentReturn {
     setSelectedTeamId(teamId);
   }, []);
 
-  // Reconnect function
-  const handleReconnectSSE = useCallback(async () => {
-    const ctx = {
-      ...createSSEContext(),
-      sessionIdRef,
-      currentRunIdRef,
-      isReconnectFromHistoryRef,
-    };
-    await reconnectSSE(ctx);
-  }, [createSSEContext]);
-
-  // Handle visibility change
-  useEffect(() => {
-    const handleVisibilityChange = () => {
-      if (
-        document.visibilityState === "visible" &&
-        connectionStatus === "disconnected" &&
-        sessionIdRef.current &&
-        currentRunIdRef.current &&
-        streamingMessageIdRef.current
-      ) {
-        handleReconnectSSE();
-      }
-    };
-
-    document.addEventListener("visibilitychange", handleVisibilityChange);
-    return () => {
-      document.removeEventListener("visibilitychange", handleVisibilityChange);
-    };
-  }, [connectionStatus, handleReconnectSSE]);
-
-  // Handle network status changes
-  useEffect(() => {
-    const handleOnline = () => {
-      if (
-        connectionStatus === "disconnected" &&
-        sessionIdRef.current &&
-        currentRunIdRef.current &&
-        streamingMessageIdRef.current
-      ) {
-        handleReconnectSSE();
-      }
-    };
-
-    const handleOffline = () => {
-      setConnectionStatus("disconnected");
-    };
-
-    window.addEventListener("online", handleOnline);
-    window.addEventListener("offline", handleOffline);
-
-    return () => {
-      window.removeEventListener("online", handleOnline);
-      window.removeEventListener("offline", handleOffline);
-    };
-  }, [connectionStatus, handleReconnectSSE]);
+  // Reconnect function (managed by useSSEReconnect hook)
+  const handleReconnectSSE = useSSEReconnect({
+    createSSEContext,
+    sessionIdRef,
+    currentRunIdRef,
+    isReconnectFromHistoryRef,
+    streamingMessageIdRef,
+    connectionStatus,
+    setConnectionStatus,
+  });
 
   return {
     messages,

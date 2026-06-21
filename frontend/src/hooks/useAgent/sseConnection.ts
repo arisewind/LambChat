@@ -3,6 +3,7 @@
  * Handles SSE connection, reconnection, and stream management
  */
 
+import { useCallback, useEffect } from "react";
 import { fetchEventSource } from "@microsoft/fetch-event-source";
 import { uuid } from "../../utils/uuid";
 import { sessionApi } from "../../services/api";
@@ -15,6 +16,7 @@ import { getRefreshToken } from "../../services/api/token";
 import type { EventType, StreamEvent } from "./types";
 import { handleStreamEvent, type EventHandlerContext } from "./eventHandlers";
 import { clearAllLoadingStates } from "./messageParts";
+import type { Message, ConnectionStatus } from "../../types";
 
 /**
  * SSE Connection context
@@ -333,5 +335,98 @@ export async function reconnectSSE(
   }, delay);
 }
 
-// Import Message type for messagesRef
-import type { Message } from "../../types";
+/**
+ * Options for the useSSEReconnect hook
+ */
+export interface SSEReconnectOptions {
+  createSSEContext: () => SSEConnectionContext;
+  sessionIdRef: React.MutableRefObject<string | null>;
+  currentRunIdRef: React.MutableRefObject<string | null>;
+  isReconnectFromHistoryRef: React.MutableRefObject<boolean>;
+  streamingMessageIdRef: React.MutableRefObject<string | null>;
+  connectionStatus: ConnectionStatus;
+  setConnectionStatus: (status: ConnectionStatus) => void;
+}
+
+/**
+ * Hook that manages SSE reconnection on visibility change and network events.
+ * Returns a handleReconnectSSE function for manual use.
+ */
+export function useSSEReconnect(
+  opts: SSEReconnectOptions,
+): () => Promise<void> {
+  const handleReconnectSSE = useCallback(async () => {
+    const ctx = {
+      ...opts.createSSEContext(),
+      sessionIdRef: opts.sessionIdRef,
+      currentRunIdRef: opts.currentRunIdRef,
+      isReconnectFromHistoryRef: opts.isReconnectFromHistoryRef,
+    };
+    await reconnectSSE(ctx);
+  }, [
+    opts.createSSEContext,
+    opts.sessionIdRef,
+    opts.currentRunIdRef,
+    opts.isReconnectFromHistoryRef,
+  ]);
+
+  // Handle visibility change — reconnect when tab becomes visible
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (
+        document.visibilityState === "visible" &&
+        opts.connectionStatus === "disconnected" &&
+        opts.sessionIdRef.current &&
+        opts.currentRunIdRef.current &&
+        opts.streamingMessageIdRef.current
+      ) {
+        handleReconnectSSE();
+      }
+    };
+
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+    return () => {
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+    };
+  }, [
+    opts.connectionStatus,
+    handleReconnectSSE,
+    opts.sessionIdRef,
+    opts.currentRunIdRef,
+    opts.streamingMessageIdRef,
+  ]);
+
+  // Handle network status changes — reconnect on online, mark disconnected on offline
+  useEffect(() => {
+    const handleOnline = () => {
+      if (
+        opts.connectionStatus === "disconnected" &&
+        opts.sessionIdRef.current &&
+        opts.currentRunIdRef.current &&
+        opts.streamingMessageIdRef.current
+      ) {
+        handleReconnectSSE();
+      }
+    };
+
+    const handleOffline = () => {
+      opts.setConnectionStatus("disconnected");
+    };
+
+    window.addEventListener("online", handleOnline);
+    window.addEventListener("offline", handleOffline);
+
+    return () => {
+      window.removeEventListener("online", handleOnline);
+      window.removeEventListener("offline", handleOffline);
+    };
+  }, [
+    opts.connectionStatus,
+    handleReconnectSSE,
+    opts.sessionIdRef,
+    opts.currentRunIdRef,
+    opts.streamingMessageIdRef,
+  ]);
+
+  return handleReconnectSSE;
+}
