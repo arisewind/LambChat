@@ -558,7 +558,7 @@ export const ChatInput = memo(function ChatInput({
         scheduleTextareaResize();
       });
     },
-    [cursorPosition, input, scheduleTextareaResize],
+    [availableRunSkills, cursorPosition, input, scheduleTextareaResize],
   );
 
   const applyMentionSelection = useCallback(
