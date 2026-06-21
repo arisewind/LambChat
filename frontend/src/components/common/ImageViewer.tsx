@@ -286,7 +286,7 @@ export function ImageViewer({
 
         {isImageLoading && (
           <div className="pointer-events-none absolute inset-0 z-10 flex items-center justify-center">
-            <div className="skeleton-line w-48 h-32 rounded-lg" />
+            <div className="skeleton-line w-[70vw] h-[55vh] max-w-[60rem] max-h-[45rem] rounded-lg" />
           </div>
         )}
 

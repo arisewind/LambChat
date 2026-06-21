@@ -54,3 +54,31 @@ test("feishu channel form switches from persona to team selection for team agent
   assert.match(panelSource, /setTeamId\(null\)/);
   assert.match(channelTypesSource, /team_id\?: string \| null/);
 });
+
+test("feishu agent selection clears mutually exclusive team and persona state", () => {
+  assert.match(
+    panelSource,
+    /const\s+handleAgentIdChange\s*=\s*\(value:\s*string\s*\|\s*null\)\s*=>\s*\{[\s\S]*?setAgentId\(value\);[\s\S]*?if\s*\(value\s*===\s*"team"\)\s*\{[\s\S]*?setPersonaPresetId\(null\);[\s\S]*?\}\s*else\s*\{[\s\S]*?setTeamId\(null\);[\s\S]*?\}/,
+  );
+  assert.match(
+    panelSource,
+    /const\s+handlePersonaPresetIdChange\s*=\s*\(value:\s*string\s*\|\s*null\)\s*=>\s*\{[\s\S]*?setPersonaPresetId\(value\);[\s\S]*?if\s*\(value\)\s*\{[\s\S]*?setTeamId\(null\);[\s\S]*?\}/,
+  );
+  assert.match(panelSource, /onAgentIdChange=\{handleAgentIdChange\}/);
+  assert.match(
+    panelSource,
+    /setPersonaPresetId=\{handlePersonaPresetIdChange\}/,
+  );
+  assert.match(
+    formSource,
+    /onAgentIdChange:\s*\(value:\s*string\s*\|\s*null\)\s*=>\s*void/,
+  );
+  assert.match(
+    formSource,
+    /ChannelAgentSelect value=\{agentId\} onChange=\{onAgentIdChange\}/,
+  );
+  assert.doesNotMatch(
+    formSource,
+    /ChannelAgentSelect value=\{agentId\} onChange=\{setAgentId\}/,
+  );
+});

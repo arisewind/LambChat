@@ -291,6 +291,13 @@ export function FeishuPanel({
     }
   };
 
+  const handlePersonaPresetIdChange = (value: string | null) => {
+    setPersonaPresetId(value);
+    if (value) {
+      setTeamId(null);
+    }
+  };
+
   useEffect(() => {
     if (!registrationSessionId) {
       return;
@@ -620,10 +627,10 @@ export function FeishuPanel({
       setStreamReply={setStreamReply}
       setAutoTranscribeAudio={setAutoTranscribeAudio}
       setAudioTranscribePrompt={setAudioTranscribePrompt}
-      setAgentId={handleAgentIdChange}
+      onAgentIdChange={handleAgentIdChange}
       setModelId={setModelId}
       setTeamId={setTeamId}
-      setPersonaPresetId={setPersonaPresetId}
+      setPersonaPresetId={handlePersonaPresetIdChange}
       setCredentialMode={setCredentialMode}
       handleStartRegistration={handleStartRegistration}
       handleTest={handleTest}

@@ -509,14 +509,14 @@ export function ScheduledTaskPanel({
 
                       {/* Footer actions */}
                       <div
-                        className="mt-auto flex items-center gap-2 border-t border-[var(--glass-border)] pt-3 mt-3.5"
+                        className="mt-auto flex items-center gap-2 border-t border-[var(--glass-border)] pt-3"
                         onClick={(e) => e.stopPropagation()}
                       >
                         <div className="ml-auto" />
                         {canWrite && task.status === "active" && (
                           <button
                             onClick={() => handlePause(task)}
-                            className="h-8 w-8 rounded-lg text-[var(--theme-text-secondary)] hover:bg-amber-50 hover:text-amber-600 dark:hover:bg-amber-900/30 dark:hover:text-amber-400 transition-colors"
+                            className="flex items-center justify-center h-8 w-8 rounded-lg text-[var(--theme-text-secondary)] hover:bg-amber-50 hover:text-amber-600 dark:hover:bg-amber-900/30 dark:hover:text-amber-400 transition-colors"
                             title={t("scheduledTask.pause")}
                           >
                             <Pause size={14} />
@@ -525,7 +525,7 @@ export function ScheduledTaskPanel({
                         {canWrite && task.status === "paused" && (
                           <button
                             onClick={() => handleResume(task)}
-                            className="h-8 w-8 rounded-lg text-[var(--theme-text-secondary)] hover:bg-emerald-50 hover:text-emerald-600 dark:hover:bg-emerald-900/30 dark:hover:text-emerald-400 transition-colors"
+                            className="flex items-center justify-center h-8 w-8 rounded-lg text-[var(--theme-text-secondary)] hover:bg-emerald-50 hover:text-emerald-600 dark:hover:bg-emerald-900/30 dark:hover:text-emerald-400 transition-colors"
                             title={t("scheduledTask.resume")}
                           >
                             <Play size={14} />
@@ -534,7 +534,7 @@ export function ScheduledTaskPanel({
                         {canWrite && (
                           <button
                             onClick={() => handleRunNow(task)}
-                            className="h-8 w-8 rounded-lg text-[var(--theme-text-secondary)] hover:bg-blue-50 hover:text-blue-600 dark:hover:bg-blue-900/30 dark:hover:text-blue-400 transition-colors"
+                            className="flex items-center justify-center h-8 w-8 rounded-lg text-[var(--theme-text-secondary)] hover:bg-blue-50 hover:text-blue-600 dark:hover:bg-blue-900/30 dark:hover:text-blue-400 transition-colors"
                             title={t("scheduledTask.runNow")}
                           >
                             <RotateCcw size={14} />
@@ -543,7 +543,7 @@ export function ScheduledTaskPanel({
                         {canWrite && (
                           <button
                             onClick={() => setEditingTask(task)}
-                            className="h-8 w-8 rounded-lg text-[var(--theme-text-secondary)] hover:bg-blue-50 hover:text-blue-600 dark:hover:bg-blue-900/30 dark:hover:text-blue-400 transition-colors"
+                            className="flex items-center justify-center h-8 w-8 rounded-lg text-[var(--theme-text-secondary)] hover:bg-blue-50 hover:text-blue-600 dark:hover:bg-blue-900/30 dark:hover:text-blue-400 transition-colors"
                             title={t("scheduledTask.edit")}
                           >
                             <Pencil size={14} />
@@ -552,7 +552,7 @@ export function ScheduledTaskPanel({
                         {canDelete && (
                           <button
                             onClick={() => setDeleteTarget(task)}
-                            className="h-8 w-8 rounded-lg text-[var(--theme-text-secondary)] hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-900/30 dark:hover:text-red-400 transition-colors"
+                            className="flex items-center justify-center h-8 w-8 rounded-lg text-[var(--theme-text-secondary)] hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-900/30 dark:hover:text-red-400 transition-colors"
                             title={t("scheduledTask.delete")}
                           >
                             <Trash2 size={14} />

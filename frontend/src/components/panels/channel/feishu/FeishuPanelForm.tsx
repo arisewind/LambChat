@@ -60,7 +60,7 @@ interface FeishuPanelFormProps {
   setStreamReply: (value: boolean) => void;
   setAutoTranscribeAudio: (value: boolean) => void;
   setAudioTranscribePrompt: (value: string) => void;
-  setAgentId: (value: string | null) => void;
+  onAgentIdChange: (value: string | null) => void;
   setModelId: (value: string | null) => void;
   setTeamId: (value: string | null) => void;
   setPersonaPresetId: (value: string | null) => void;
@@ -141,7 +141,7 @@ export function FeishuPanelForm({
   setStreamReply,
   setAutoTranscribeAudio,
   setAudioTranscribePrompt,
-  setAgentId,
+  onAgentIdChange,
   setModelId,
   setTeamId,
   setPersonaPresetId,
@@ -606,7 +606,7 @@ export function FeishuPanelForm({
 
       {/* Agent & Model */}
       <div className="es-section">
-        <ChannelAgentSelect value={agentId} onChange={setAgentId} />
+        <ChannelAgentSelect value={agentId} onChange={onAgentIdChange} />
       </div>
       <div className="es-section">
         <ChannelModelSelect value={modelId} onChange={setModelId} />
