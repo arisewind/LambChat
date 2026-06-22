@@ -490,12 +490,15 @@
     "deleteSuccess": "설정이 삭제되었습니다",
     "deleteTitle": "채널 인스턴스 삭제",
     "description": "선호하는 채팅 플랫폼을 LambChat에 연결하세요",
+    "disabled": "비활성화됨",
     "disconnected": "연결 끊김",
     "enabled": "채널 활성화",
     "enabledDesc": "이 채널 활성화 또는 비활성화",
     "fieldRequired": "{{field.title}}은(는) 필수입니다",
     "instanceName": "인스턴스 이름",
     "instanceNamePlaceholder": "인스턴스 이름 입력",
+    "instanceCount_one": "{{count}}개 인스턴스",
+    "instanceCount_other": "{{count}}개 인스턴스",
     "leaveEmpty": "현재 값을 유지하려면 비워두세요",
     "loadError": "채널 설정을 불러오지 못했습니다",
     "loadTypesError": "사용 가능한 채널을 불러오지 못했습니다",
@@ -519,7 +522,9 @@
     "testError": "연결 테스트 실패",
     "testFailed": "연결 실패",
     "testSuccess": "연결 성공",
-    "title": "채널"
+    "title": "채널",
+    "webhookShort": "Hook",
+    "websocketShort": "WS"
   },
   "chat": {
     "addMoreFiles": "[TODO]chat.addMoreFiles",

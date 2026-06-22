@@ -490,12 +490,15 @@
     "deleteSuccess": "設定を削除しました",
     "deleteTitle": "チャンネルインスタンスを削除",
     "description": "お気に入りのチャットプラットフォームをLambChatに接続",
+    "disabled": "無効",
     "disconnected": "未接続",
     "enabled": "チャンネルを有効化",
     "enabledDesc": "このチャンネルを有効化または無効化",
     "fieldRequired": "{{field.title}}は必須です",
     "instanceName": "インスタンス名",
     "instanceNamePlaceholder": "インスタンス名を入力",
+    "instanceCount_one": "{{count}} インスタンス",
+    "instanceCount_other": "{{count}} インスタンス",
     "leaveEmpty": "現在の値を保持するには空欄のまま",
     "loadError": "チャンネル設定の読み込みに失敗しました",
     "loadTypesError": "利用可能なチャンネルの読み込みに失敗しました",
@@ -519,7 +522,9 @@
     "testError": "接続テストに失敗しました",
     "testFailed": "接続失敗",
     "testSuccess": "接続成功",
-    "title": "チャンネル"
+    "title": "チャンネル",
+    "webhookShort": "Hook",
+    "websocketShort": "WS"
   },
   "chat": {
     "addMoreFiles": "[TODO]chat.addMoreFiles",

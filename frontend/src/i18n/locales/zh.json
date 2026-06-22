@@ -503,12 +503,15 @@
     "deleteSuccess": "配置已删除",
     "deleteTitle": "删除渠道实例",
     "description": "连接您喜欢的聊天平台到 LambChat",
+    "disabled": "已禁用",
     "disconnected": "未连接",
     "enabled": "启用渠道",
     "enabledDesc": "启用或禁用此渠道",
     "fieldRequired": "此字段为必填项",
     "instanceName": "实例名称",
     "instanceNamePlaceholder": "输入实例名称",
+    "instanceCount_one": "{{count}} 个实例",
+    "instanceCount_other": "{{count}} 个实例",
     "leaveEmpty": "留空保持当前值",
     "loadError": "加载渠道配置失败",
     "loadTypesError": "加载可用渠道失败",
@@ -532,7 +535,9 @@
     "testError": "测试连接失败",
     "testFailed": "连接失败",
     "testSuccess": "连接成功",
-    "title": "渠道管理"
+    "title": "渠道管理",
+    "webhookShort": "Hook",
+    "websocketShort": "WS"
   },
   "chat": {
     "addMoreFiles": "添加更多文件",

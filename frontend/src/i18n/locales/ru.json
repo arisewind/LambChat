@@ -490,12 +490,15 @@
     "deleteSuccess": "Конфигурация удалена",
     "deleteTitle": "Удалить экземпляр канала",
     "description": "Подключите любимые чат-платформы к LambChat",
+    "disabled": "Отключено",
     "disconnected": "Отключено",
     "enabled": "Включить канал",
     "enabledDesc": "Включить или отключить этот канал",
     "fieldRequired": "{{field.title}} обязательно",
     "instanceName": "Название экземпляра",
     "instanceNamePlaceholder": "Введите название экземпляра",
+    "instanceCount_one": "{{count}} экземпляр",
+    "instanceCount_other": "{{count}} экземпляров",
     "leaveEmpty": "оставьте пустым, чтобы сохранить текущее значение",
     "loadError": "Не удалось загрузить конфигурацию канала",
     "loadTypesError": "Не удалось загрузить доступные каналы",
@@ -519,7 +522,9 @@
     "testError": "Не удалось проверить подключение",
     "testFailed": "Подключение не удалось",
     "testSuccess": "Подключение успешно",
-    "title": "Каналы"
+    "title": "Каналы",
+    "webhookShort": "Hook",
+    "websocketShort": "WS"
   },
   "chat": {
     "addMoreFiles": "[TODO]chat.addMoreFiles",

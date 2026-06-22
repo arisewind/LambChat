@@ -503,12 +503,15 @@
     "deleteSuccess": "Configuration deleted",
     "deleteTitle": "Delete Channel Instance",
     "description": "Connect your favorite chat platforms to LambChat",
+    "disabled": "Disabled",
     "disconnected": "Disconnected",
     "enabled": "Enable Channel",
     "enabledDesc": "Enable or disable this channel",
     "fieldRequired": "{{field.title}} is required",
     "instanceName": "Instance Name",
     "instanceNamePlaceholder": "Enter instance name",
+    "instanceCount_one": "{{count}} instance",
+    "instanceCount_other": "{{count}} instances",
     "leaveEmpty": "leave empty to keep current value",
     "loadError": "Failed to load channel configuration",
     "loadTypesError": "Failed to load available channels",
@@ -532,7 +535,9 @@
     "testError": "Failed to test connection",
     "testFailed": "Connection failed",
     "testSuccess": "Connection successful",
-    "title": "Channels"
+    "title": "Channels",
+    "webhookShort": "Hook",
+    "websocketShort": "WS"
   },
   "chat": {
     "addMoreFiles": "Add more files",
