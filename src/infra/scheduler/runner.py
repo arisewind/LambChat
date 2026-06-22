@@ -7,6 +7,7 @@ so that dynamically-created tasks run through the normal agent pipeline.
 from __future__ import annotations
 
 import asyncio
+import collections.abc
 import time
 import uuid
 from dataclasses import dataclass
@@ -40,7 +41,7 @@ from src.kernel.schemas.user import TokenPayload
 logger = get_logger(__name__)
 
 _POLL_INTERVAL = 2  # seconds between status checks when waiting for completion
-_DEFAULT_TIMEOUT = 1800  # 30 minutes
+_DEFAULT_TIMEOUT = 3600  # 60 minutes
 _ASSISTANT_EVENT_TYPES = {
     "message",
     "assistant:message",
@@ -52,6 +53,40 @@ _ASSISTANT_EVENT_TYPES = {
     "summary",
 }
 _ASSISTANT_ROLES = {"assistant", "ai"}
+
+# Track detached monitor tasks so they can be drained on shutdown.
+_detached_monitor_tasks: set[asyncio.Task[None]] = set()
+
+
+def _spawn_monitor(coro: collections.abc.Coroutine[None, None, None]) -> asyncio.Task[None]:
+    """Spawn a detached fire-and-forget task with crash-safe error handling."""
+
+    async def _safe_run() -> None:
+        try:
+            await coro
+        except Exception:
+            logger.exception("[Runner] detached monitor task failed (lock will expire via TTL)")
+
+    t = asyncio.create_task(_safe_run())
+    _detached_monitor_tasks.add(t)
+    t.add_done_callback(_detached_monitor_tasks.discard)
+    return t
+
+
+async def drain_detached_monitors(timeout: float = 10.0) -> None:
+    """Wait for in-flight monitor tasks to finish during shutdown."""
+    tasks = list(_detached_monitor_tasks)
+    if not tasks:
+        return
+    _, pending = await asyncio.wait(tasks, timeout=max(0.0, float(timeout)))
+    for t in pending:
+        t.cancel()
+    if pending:
+        logger.warning(
+            "[Runner] cancelled %d detached monitor task(s) on shutdown",
+            len(pending),
+        )
+        await asyncio.gather(*pending, return_exceptions=True)
 
 
 @dataclass(frozen=True)
@@ -86,7 +121,9 @@ class ScheduledTaskRunner:
     async def run(self, task_id: str, trigger_type: str = "cron") -> dict:
         """Entry point for scheduled / manual task execution.
 
-        Returns a dict like ``{"run_id": ..., "status": ..., "result": ...}``.
+        Submits the agent and returns immediately. Completion monitoring
+        (result recording, delivery, retries, lock release) runs in a
+        detached background task.
         """
         storage = get_scheduled_task_storage()
         task = await storage.get_task_for_execution(task_id)
@@ -143,7 +180,40 @@ class ScheduledTaskRunner:
         )
         await storage.create_run(record)
 
-        # 3. Execute
+        # 3. Spawn detached monitor and return immediately so the APScheduler
+        #    handler is not blocked by agent execution time.
+        _spawn_monitor(
+            self._monitor_and_finalize(
+                task=task,
+                run_id=run_id,
+                base_session_id=base_session_id,
+                lock_token=lock_token,
+                max_attempts=max_attempts,
+                trigger_type=trigger_type,
+                started_at=now,
+            )
+        )
+        logger.info(
+            "[Runner] task=%s run=%s submitted (monitor running in background)",
+            task_id,
+            run_id,
+        )
+        return {"run_id": run_id, "status": "submitted"}
+
+    async def _monitor_and_finalize(
+        self,
+        *,
+        task: ScheduledTask,
+        run_id: str,
+        base_session_id: str,
+        lock_token: str,
+        max_attempts: int,
+        trigger_type: str,
+        started_at: datetime,
+    ) -> None:
+        """Detached background coroutine: wait for agent completion,
+        record results, deliver to channel, retry on failure, release lock."""
+        storage = get_scheduled_task_storage()
         try:
             final_attempt: _AttemptResult | None = None
             for attempt in range(max_attempts):
@@ -175,7 +245,7 @@ class ScheduledTaskRunner:
                 if attempt + 1 < max_attempts:
                     logger.warning(
                         "[Runner] task=%s run=%s attempt=%d failed status=%s, retrying",
-                        task_id,
+                        task.id,
                         run_id,
                         attempt,
                         final_attempt.status.value,
@@ -186,7 +256,7 @@ class ScheduledTaskRunner:
             if delivery_result is not None:
                 final_attempt.result["delivery"] = delivery_result
             finished = utc_now()
-            duration = int((finished - now).total_seconds() * 1000)
+            duration = int((finished - started_at).total_seconds() * 1000)
             update_payload: dict[str, Any] = {
                 "status": final_attempt.status,
                 "output_result": final_attempt.result,
@@ -197,34 +267,28 @@ class ScheduledTaskRunner:
                 "duration_ms": duration,
             }
             await storage.update_run(run_id, update_payload)
-            await storage.update_task_run_stats(task_id, run_id, final_attempt.status)
+            await storage.update_task_run_stats(task.id, run_id, final_attempt.status)
 
             if final_attempt.status == RunStatus.SUCCESS:
                 logger.info(
                     "[Runner] task=%s run=%s completed in %dms",
-                    task_id,
+                    task.id,
                     run_id,
                     duration,
                 )
             else:
                 logger.warning(
                     "[Runner] task=%s run=%s finished status=%s after %dms: %s",
-                    task_id,
+                    task.id,
                     run_id,
                     final_attempt.status.value,
                     duration,
                     final_attempt.error_message,
                 )
-            return {
-                "run_id": run_id,
-                "status": final_attempt.status.value,
-                "result": final_attempt.result,
-                **({"error": final_attempt.error_message} if final_attempt.error_message else {}),
-            }
 
         except Exception as exc:
             finished = utc_now()
-            duration = int((finished - now).total_seconds() * 1000)
+            duration = int((finished - started_at).total_seconds() * 1000)
             await storage.update_run(
                 run_id,
                 {
@@ -234,18 +298,17 @@ class ScheduledTaskRunner:
                     "duration_ms": duration,
                 },
             )
-            await storage.update_task_run_stats(task_id, run_id, RunStatus.FAILED)
-            logger.exception("[Runner] task=%s run=%s failed after %dms", task_id, run_id, duration)
-            raise
+            await storage.update_task_run_stats(task.id, run_id, RunStatus.FAILED)
+            logger.exception("[Runner] task=%s run=%s failed after %dms", task.id, run_id, duration)
 
         finally:
-            await release_task_lock(task_id, lock_token)
+            await release_task_lock(task.id, lock_token)
             if task.trigger_type == TriggerType.DATE and trigger_type == TriggerType.DATE.value:
                 await storage.update_task(
-                    task_id,
+                    task.id,
                     {"status": ScheduledTaskStatus.PAUSED, "enabled": False},
                 )
-                get_runtime_scheduler().unregister_job(task_id)
+                get_runtime_scheduler().unregister_job(task.id)
 
     # ── Internal ───────────────────────────────────
 

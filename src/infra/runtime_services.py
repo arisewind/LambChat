@@ -119,10 +119,12 @@ async def close_s3_storage() -> None:
 
 
 async def close_runtime_scheduler() -> None:
+    from src.infra.scheduler.runner import drain_detached_monitors
     from src.infra.scheduler.runtime import close_runtime_scheduler as _close_runtime_scheduler
     from src.infra.scheduler.service import clear_managed_task_signatures
     from src.infra.scheduler.storage import close_scheduled_task_storage
 
+    await drain_detached_monitors()
     await _close_runtime_scheduler()
     clear_managed_task_signatures()
     close_scheduled_task_storage()

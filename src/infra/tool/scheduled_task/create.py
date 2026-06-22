@@ -146,9 +146,9 @@ async def scheduled_task_create(
     ] = None,
     timeout_seconds: Annotated[
         int,
-        "Maximum execution time in seconds. Range: 10-3600. Default: 1800s (30 min). "
+        "Maximum execution time in seconds. Range: 10-7200. Default: 3600s (60 min). "
         "Do not set this too short; omit it unless the user explicitly asks for a shorter timeout.",
-    ] = 1800,
+    ] = 3600,
     run_on_start: Annotated[
         bool,
         "Whether to run the task immediately after creation",
