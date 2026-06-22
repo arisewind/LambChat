@@ -748,6 +748,57 @@ async def test_team_role_subagent_prompt_includes_role_instructions_and_skills(
 
 
 @pytest.mark.asyncio
+async def test_team_agent_node_adds_code_interpreter_middleware_when_enabled(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _reset_fake_event_processor()
+    from src.agents.team_agent import nodes as team_nodes
+
+    fake_graph = _FakeDeepAgent()
+    _patch_common(monkeypatch, team_nodes, fake_graph)
+    monkeypatch.setattr(team_nodes.settings, "ENABLE_SANDBOX", False)
+    monkeypatch.setattr(team_nodes, "create_persistent_backend_factory", lambda **_kwargs: object())
+
+    async def fake_resolve_runtime_team(**_kwargs):
+        return None
+
+    monkeypatch.setattr(team_nodes, "resolve_runtime_team", fake_resolve_runtime_team)
+
+    code_middleware = object()
+    monkeypatch.setattr(
+        team_nodes,
+        "create_code_interpreter_middleware",
+        lambda agent_options: (
+            [code_middleware] if agent_options.get("enable_code_interpreter") is True else []
+        ),
+    )
+
+    context = SimpleNamespace(
+        user_id="user-1",
+        skills=[],
+        deferred_manager=None,
+        get_tools=lambda: [],
+        filter_tools=lambda: [],
+    )
+    config = {
+        "configurable": {
+            "context": context,
+            "presenter": object(),
+            "base_url": "",
+            "agent_options": {"enable_code_interpreter": True},
+        }
+    }
+
+    await team_nodes.team_router_node(
+        {"input": "run code", "session_id": "session-1", "attachments": []},
+        config,
+    )
+
+    assert fake_graph.captured_create_kwargs is not None
+    assert code_middleware in fake_graph.captured_create_kwargs["middleware"]
+
+
+@pytest.mark.asyncio
 async def test_team_role_subagent_inherits_global_skills_when_role_skills_are_empty(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:

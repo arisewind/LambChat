@@ -57,6 +57,7 @@ from src.infra.agent.middleware import (
     SandboxMCPMiddleware,
     SectionPromptMiddleware,
     ToolResultBinaryMiddleware,
+    create_code_interpreter_middleware,
     create_retry_middleware,
 )
 from src.infra.agent.middleware_subagent import SubagentActivityMiddleware
@@ -724,6 +725,7 @@ async def team_router_node(state: Dict[str, Any], config: RunnableConfig) -> Dic
         fallback_model=fallback_model_value,
         thinking=thinking_config,
     )
+    user_middleware.extend(create_code_interpreter_middleware(agent_options))
     if rubric_middleware is not None:
         user_middleware.append(rubric_middleware)
 

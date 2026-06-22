@@ -14,6 +14,7 @@ import {
   LsItem,
   GlobItem,
   ExecuteItem,
+  EvalItem,
   ImageGenerateItem,
   AudioTranscribeItem,
   ScheduledTaskItem,
@@ -216,6 +217,21 @@ export function MessagePartRenderer({
     if (part.name === "execute") {
       return (
         <ExecuteItem
+          args={part.args}
+          result={part.result}
+          success={part.success}
+          isPending={part.isPending}
+          cancelled={part.cancelled}
+          startedAt={part.startedAt}
+          completedAt={part.completedAt}
+        />
+      );
+    }
+    // Detect eval tool, use dedicated code preview component
+    if (part.name === "eval") {
+      return (
+        <EvalItem
+          toolName={part.name}
           args={part.args}
           result={part.result}
           success={part.success}
