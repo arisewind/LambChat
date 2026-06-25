@@ -65,6 +65,7 @@ import {
   isSubagentPanelAutoOpenDismissed,
   resetSubagentPanelAutoOpenDismissal,
   shouldAutoOpenSubagentPanel,
+  shouldExpandSubagentProcessByDefault,
 } from "./subagentPanelControl";
 import { formatDateTime, formatDuration } from "../../../utils/datetime";
 
@@ -534,7 +535,9 @@ function SubagentPanelContent({ agentId }: { agentId: string }) {
         {data.parts && data.parts.length > 0 && (
           <CollapsibleSection
             title={t("chat.message.processing")}
-            defaultExpanded={false}
+            defaultExpanded={shouldExpandSubagentProcessByDefault(
+              effectiveStatus,
+            )}
             action={<CopyButton text={extractPartsText(data.parts)} />}
           >
             <div className="space-y-2">
