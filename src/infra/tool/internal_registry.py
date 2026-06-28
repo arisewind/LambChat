@@ -301,6 +301,7 @@ async def get_internal_tool_infos(
                 allowed_roles=list(policy.allowed_roles) if policy else [],
                 role_quotas=dict(policy.role_quotas) if policy else {},
                 policy_configured=policy is not None,
+                inline_exposure=bool(policy.inline_exposure) if policy else False,
             )
         )
     return infos

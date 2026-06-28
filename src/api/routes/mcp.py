@@ -744,6 +744,7 @@ async def admin_update_tool_policy(
         server_name=name,
         tool_name=tool_name,
         disabled=data.disabled,
+        inline_exposure=data.inline_exposure,
         allowed_roles=data.allowed_roles,
         role_quotas=data.role_quotas,
         updated_by=user.sub,

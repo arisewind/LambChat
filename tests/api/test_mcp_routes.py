@@ -191,3 +191,52 @@ async def test_admin_toggle_tool_returns_bad_request_for_disabled_tool_overflow(
 
     assert response.status_code == 400
     assert "maximum 100" in response.json()["detail"]
+
+
+@pytest.mark.asyncio
+async def test_admin_update_tool_policy_accepts_inline_exposure() -> None:
+    class _FakeStorage:
+        def __init__(self) -> None:
+            self.calls = []
+
+        async def get_system_server(self, name: str):
+            assert name == "server-1"
+            return object()
+
+        async def set_tool_policy(self, **kwargs):
+            self.calls.append(kwargs)
+            from src.kernel.schemas.mcp import MCPToolPolicy
+
+            return MCPToolPolicy(
+                server_name=kwargs["server_name"],
+                tool_name=kwargs["tool_name"],
+                disabled=kwargs["disabled"],
+                inline_exposure=kwargs["inline_exposure"],
+            )
+
+    storage = _FakeStorage()
+    app = FastAPI()
+    app.include_router(mcp_route.admin_router, prefix="/api/admin/mcp")
+    app.dependency_overrides[api_deps.get_current_user_required] = _fake_admin
+    app.dependency_overrides[mcp_route.get_mcp_storage] = lambda: storage
+
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="http://testserver") as client:
+        response = await client.put(
+            "/api/admin/mcp/server-1/tools/extract/policy",
+            json={"disabled": False, "inline_exposure": True},
+        )
+
+    assert response.status_code == 200
+    assert response.json()["inline_exposure"] is True
+    assert storage.calls == [
+        {
+            "server_name": "server-1",
+            "tool_name": "extract",
+            "disabled": False,
+            "inline_exposure": True,
+            "allowed_roles": None,
+            "role_quotas": None,
+            "updated_by": "admin-1",
+        }
+    ]

@@ -510,6 +510,16 @@ test("mcp panel generic shell actions use shared buttons", () => {
   assert.doesNotMatch(source, /<input[\s\S]*type="checkbox"/);
 });
 
+test("mcp tool expanded settings expose inline function policy toggle", () => {
+  const source = readSource("../../mcp/MCPServerToolsSidebar.tsx");
+
+  assert.match(source, /server\.can_edit\s*&&\s*server\.is_system/);
+  assert.match(source, /mcp\.form\.inlineExposure/);
+  assert.match(source, /mcp\.form\.inlineExposureDescription/);
+  assert.match(source, /inline_exposure:\s*!\(tool\.inline_exposure/);
+  assert.match(source, /mcpApi\.updateToolPolicy[\s\S]*inline_exposure/);
+});
+
 test("core admin crud panels use shared panel controls for generic actions", () => {
   const sources = [
     readSource("../../panels/NotificationPanel.tsx"),

@@ -55,6 +55,13 @@ class MCPToolPolicy(BaseModel):
     server_name: Optional[str] = Field(None, description="Owning MCP server name")
     tool_name: Optional[str] = Field(None, description="Tool name without server prefix")
     disabled: bool = Field(False, description="Whether this tool is disabled globally")
+    inline_exposure: bool = Field(
+        False,
+        description=(
+            "Whether this tool should be exposed directly to the model instead of deferred "
+            "behind search_tools."
+        ),
+    )
     allowed_roles: list[str] = Field(
         default_factory=list,
         description="Roles allowed to use this tool. Empty list = all roles.",
@@ -72,6 +79,7 @@ class MCPToolPolicyUpdate(BaseModel):
     """Request to update one tool's access and quota policy."""
 
     disabled: Optional[bool] = None
+    inline_exposure: Optional[bool] = None
     allowed_roles: Optional[list[str]] = None
     role_quotas: Optional[dict[str, MCPRoleQuota]] = None
 
@@ -246,6 +254,10 @@ class MCPToolInfo(BaseModel):
     policy_configured: bool = Field(
         default=False,
         description="Whether this tool has an explicit tool-level policy.",
+    )
+    inline_exposure: bool = Field(
+        default=False,
+        description="Whether this tool is exposed directly instead of through deferred search.",
     )
 
 
