@@ -605,7 +605,7 @@ export function ToolResultPanel({
         aria-busy={!contentReady}
       >
         <div
-          className={`tool-console-body__content min-h-full transition-opacity duration-150 ${
+          className={`tool-console-body__content min-h-full h-full transition-opacity duration-150 ${
             contentReady ? "opacity-100" : "opacity-0"
           }`}
           aria-hidden={!contentReady}
