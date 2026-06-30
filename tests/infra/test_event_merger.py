@@ -332,6 +332,26 @@ async def test_event_merger_offloads_cpu_merge_work(
     assert results[0][2][0]["data"]["content"] == "ab"
 
 
+def test_event_merger_only_merges_contiguous_events_to_preserve_timeline() -> None:
+    merger = EventMerger(trace_storage=None)
+
+    events = [
+        {"event_type": "message:chunk", "data": {"content": "a", "text_id": "t1"}},
+        {"event_type": "tool:start", "data": {"name": "search"}},
+        {"event_type": "message:chunk", "data": {"content": "b", "text_id": "t1"}},
+        {"event_type": "message:chunk", "data": {"content": "c", "text_id": "t1"}},
+    ]
+
+    merged = merger._merge_events(events)
+
+    assert [event["event_type"] for event in merged] == [
+        "message:chunk",
+        "tool:start",
+        "message:chunk",
+    ]
+    assert [event["data"].get("content") for event in merged] == ["a", None, "bc"]
+
+
 @pytest.mark.asyncio
 async def test_event_merger_filters_out_giant_traces_before_loading_events(
     monkeypatch: pytest.MonkeyPatch,

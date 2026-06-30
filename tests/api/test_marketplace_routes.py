@@ -42,10 +42,17 @@ class _InstallMarketplace:
         yield {"SKILL.md": "# Marketplace version"}
 
 
+class _FailingInstallMarketplace(_InstallMarketplace):
+    async def iter_marketplace_file_batches(self, name: str):
+        raise RuntimeError("marketplace read failed")
+        yield {}
+
+
 class _ManualSkillStorage:
     def __init__(self) -> None:
         self.deleted: list[tuple[str, str]] = []
         self.upserted: list[tuple[str, dict[str, str], str]] = []
+        self.synced: list[tuple[str, dict[str, str], str]] = []
         self.meta_calls: list[tuple[str, str, dict[str, Any]]] = []
         self.invalidated: list[str] = []
 
@@ -58,6 +65,9 @@ class _ManualSkillStorage:
     async def upsert_skill_files_batch(self, name: str, files: dict[str, str], user_id: str) -> int:
         self.upserted.append((name, files, user_id))
         return len(files)
+
+    async def sync_skill_files(self, name: str, files: dict[str, str], user_id: str) -> None:
+        self.synced.append((name, files, user_id))
 
     async def set_skill_meta(self, name: str, user_id: str, **kwargs: Any) -> None:
         self.meta_calls.append((name, user_id, kwargs))
@@ -131,8 +141,9 @@ async def test_install_marketplace_skill_replaces_existing_manual_skill() -> Non
 
     assert result["skill_name"] == "planner"
     assert result["file_count"] == 1
-    assert storage.deleted == [("planner", "user-1")]
-    assert storage.upserted == [("planner", {"SKILL.md": "# Marketplace version"}, "user-1")]
+    assert storage.deleted == []
+    assert storage.upserted == []
+    assert storage.synced == [("planner", {"SKILL.md": "# Marketplace version"}, "user-1")]
     assert storage.meta_calls == [
         (
             "planner",
@@ -141,3 +152,27 @@ async def test_install_marketplace_skill_replaces_existing_manual_skill() -> Non
         )
     ]
     assert storage.invalidated == ["user-1"]
+
+
+@pytest.mark.asyncio
+async def test_install_marketplace_skill_keeps_manual_skill_when_marketplace_read_fails() -> None:
+    storage = _ManualSkillStorage()
+
+    with pytest.raises(RuntimeError, match="marketplace read failed"):
+        await marketplace_routes.install_marketplace_skill(
+            "planner",
+            user=TokenPayload(
+                sub="user-1",
+                username="reader",
+                roles=["user"],
+                permissions=["marketplace:read"],
+            ),
+            marketplace=_FailingInstallMarketplace(),
+            storage=storage,
+        )
+
+    assert storage.deleted == []
+    assert storage.upserted == []
+    assert storage.synced == []
+    assert storage.meta_calls == []
+    assert storage.invalidated == []

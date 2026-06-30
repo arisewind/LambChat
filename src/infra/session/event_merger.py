@@ -4,9 +4,9 @@ Event Merger - 事件合并器
 定期合并 trace 中的流式事件，减少事件数量，提升前后端性能。
 
 合并策略:
-- 按 (event_type, agent_id, depth, thinking_id, text_id) 分组合并可合并事件（message:chunk, thinking）
-- 相同 key 的事件无论是否连续都会合并，支持并发子 agent 交叉事件场景
-- 合并后的事件出现在该 key 首次出现的位置，不可合并的事件（如 tool:start）保持原位
+- 按 (event_type, agent_id, depth, thinking_id, text_id) 合并连续的可合并事件（message:chunk, thinking）
+- 只合并连续同 key 事件，避免把后续文本提前到中间的 tool/thinking 事件之前
+- 不可合并的事件（如 tool:start）保持原位
 - 合并后的事件标记为 merged=True，并记录 merged_count、started_at、ended_at
 - 只合并 metadata.merged != True 的已完成 trace（status != "running"）
 
@@ -469,53 +469,50 @@ class EventMerger:
         合并事件列表
 
         策略:
-        - 按 (event_type, agent_id, depth, thinking_id, text_id) 分组合并可合并事件
-        - 相同 key 的事件无论是否连续都会合并（支持并发子 agent 交叉事件）
-        - 保留原始顺序：合并后的事件出现在该 key 首次出现的位置
+        - 按 (event_type, agent_id, depth, thinking_id, text_id) 合并连续的可合并事件
+        - 保留原始时间线：遇到不可合并事件或 key 变化就结束当前合并段
         - 不可合并的事件（如 tool:start）保持原位
         """
         if not events:
             return []
 
-        # 第一轮：按 key 分组所有可合并事件，同时缓存 key 映射避免重复计算
-        groups: dict[tuple[Any, Any, Any, Any, Any], List[Dict[str, Any]]] = {}
-        key_cache: dict[
-            int, Optional[tuple[Any, Any, Any, Any, Any]]
-        ] = {}  # id(event) -> merge key or None
         mergeable = MERGEABLE_EVENT_TYPES
+        merged: list[Dict[str, Any]] = []
+        current_key: Optional[tuple[Any, Any, Any, Any, Any]] = None
+        current_group: list[Dict[str, Any]] = []
 
-        for event in events:
+        def merge_key(event: Dict[str, Any]) -> Optional[tuple[Any, Any, Any, Any, Any]]:
             event_type = event.get("event_type")
-            if event_type in mergeable:
-                data = event.get("data", {})
-                key = (
-                    event_type,
-                    data.get("agent_id"),
-                    data.get("depth"),
-                    data.get("thinking_id"),
-                    data.get("text_id"),
-                )
-                key_cache[id(event)] = key
-                group = groups.get(key)
-                if group is None:
-                    groups[key] = [event]
-                else:
-                    group.append(event)
-            else:
-                key_cache[id(event)] = None
+            if event_type not in mergeable:
+                return None
+            data = event.get("data", {})
+            return (
+                event_type,
+                data.get("agent_id"),
+                data.get("depth"),
+                data.get("thinking_id"),
+                data.get("text_id"),
+            )
 
-        # 第二轮：按原始顺序输出，同 key 只在首次出现时输出合并结果
-        merged = []
-        seen_keys: set[tuple] = set()
+        def flush_group() -> None:
+            nonlocal current_key, current_group
+            if current_group:
+                merged.append(self._merge_group(current_group))
+            current_key = None
+            current_group = []
 
         for event in events:
-            cached_key = key_cache[id(event)]
-            if cached_key is not None and cached_key not in seen_keys:
-                seen_keys.add(cached_key)
-                merged.append(self._merge_group(groups[cached_key]))
-            elif cached_key is None:
+            key = merge_key(event)
+            if key is None:
+                flush_group()
                 merged.append(event)
+                continue
+            if current_group and key != current_key:
+                flush_group()
+            current_key = key
+            current_group.append(event)
 
+        flush_group()
         return merged
 
     def _merge_group(self, group: List[Dict[str, Any]]) -> Dict[str, Any]:

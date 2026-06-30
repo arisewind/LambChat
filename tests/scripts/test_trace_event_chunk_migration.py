@@ -67,6 +67,27 @@ async def test_migrate_trace_doc_dry_run_does_not_write() -> None:
 
 
 @pytest.mark.asyncio
+async def test_migrate_trace_doc_preserves_legacy_events_until_requested() -> None:
+    class _Storage:
+        def __init__(self) -> None:
+            self.calls = []
+
+        async def replace_trace_events_with_chunks(self, trace_doc, events, **kwargs):
+            self.calls.append((trace_doc, events, kwargs))
+
+    storage = _Storage()
+    result = await migrate_trace_doc(
+        storage,
+        {"trace_id": "trace-1", "events": [_event("message", "a")]},
+        dry_run=False,
+        remove_legacy_events=False,
+    )
+
+    assert result == {"trace_id": "trace-1", "event_count": 1, "dry_run": False}
+    assert storage.calls[0][2] == {"remove_legacy_events": False}
+
+
+@pytest.mark.asyncio
 async def test_verify_trace_reports_missing_chunks_without_legacy_fallback() -> None:
     class _TraceCollection:
         async def find_one(self, query, projection):

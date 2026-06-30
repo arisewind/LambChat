@@ -23,17 +23,13 @@ Trace Storage - 按 trace 聚合事件存储
     "metadata": {}
 }
 
-全局序号说明:
-- 每个 session 有一个独立的递增序号计数器 (存储在 session_events_counter 集合)
-- 每个事件写入时获取全局序号，用于断点续读
 """
 
 import asyncio
 from typing import Any, Dict, List, Optional
 
-from pymongo import ReturnDocument
-
 from src.infra.logging import get_logger
+from src.infra.session.trace_event_chunks import TraceEventChunkMixin
 from src.infra.storage.mongodb import get_mongo_client
 from src.infra.utils.datetime import utc_now, utc_now_iso
 from src.kernel.config import settings
@@ -129,6 +125,13 @@ def _event_preview(event: Dict[str, Any] | None) -> Dict[str, Any] | None:
     return preview
 
 
+def _event_seq(event: Dict[str, Any], fallback: int) -> int:
+    try:
+        return int(event.get("seq", fallback))
+    except (TypeError, ValueError):
+        return fallback
+
+
 def _bounded_unique_strings(
     values: Optional[List[str]],
     limit: int = SESSION_EVENT_FILTER_LIST_LIMIT,
@@ -147,7 +150,7 @@ def _bounded_unique_strings(
     return bounded
 
 
-class TraceStorage:
+class TraceStorage(TraceEventChunkMixin):
     """
     Trace 存储类
 
@@ -373,216 +376,6 @@ class TraceStorage:
         except Exception as e:
             logger.error(f"Failed to append event to trace {trace_id}: {e}")
             return False
-
-    async def _has_event_chunks(self, trace_id: str) -> bool:
-        try:
-            chunk = await self.chunks_collection.find_one({"trace_id": trace_id}, {"_id": 1})
-            return chunk is not None
-        except Exception as e:
-            logger.debug("Failed to probe trace event chunks for %s: %s", trace_id, e)
-            return False
-
-    async def read_trace_events_compat(
-        self,
-        trace_id: str,
-        event_types: Optional[List[str]] = None,
-        max_events: Optional[int] = None,
-    ) -> List[Dict[str, Any]]:
-        """Read trace events from chunks when present, otherwise legacy traces.events."""
-        event_types = _bounded_unique_strings(event_types, SESSION_EVENT_FILTER_LIST_LIMIT)
-        allowed_types = set(event_types)
-        if max_events is not None:
-            max_events = _clamp_event_read_limit(max_events, default=TRACE_EVENTS_DEFAULT_LIMIT)
-            if max_events <= 0:
-                return []
-
-        def _accepts(event: Dict[str, Any]) -> bool:
-            return not allowed_types or event.get("event_type") in allowed_types
-
-        events: List[Dict[str, Any]] = []
-        if await self._has_event_chunks(trace_id):
-            cursor = self.chunks_collection.find(
-                {"trace_id": trace_id},
-                {"_id": 0, "events": 1, "chunk_index": 1},
-            ).sort("chunk_index", 1)
-            async for chunk in cursor:
-                chunk_events = sorted(
-                    enumerate(chunk.get("events", []) or []),
-                    key=lambda item: item[1].get("seq", item[0]),
-                )
-                for _index, event in chunk_events:
-                    if not _accepts(event):
-                        continue
-                    events.append(event)
-                    if max_events is not None and len(events) >= max_events:
-                        return events
-            return events
-
-        trace_doc = await self.collection.find_one(
-            {"trace_id": trace_id},
-            {"_id": 0, "events": 1},
-        )
-        for event in (trace_doc or {}).get("events", []) or []:
-            if not _accepts(event):
-                continue
-            events.append(event)
-            if max_events is not None and len(events) >= max_events:
-                break
-        return events
-
-    async def replace_trace_events_with_chunks(
-        self,
-        trace_doc: Dict[str, Any],
-        events: List[Dict[str, Any]],
-        *,
-        mark_storage_chunked: bool = True,
-    ) -> None:
-        """Replace all chunk docs for one trace with normalized event chunks."""
-        trace_id = str(trace_doc.get("trace_id") or "")
-        if not trace_id:
-            return
-
-        now = utc_now()
-        chunk_size = _get_event_chunk_size()
-        normalized_events: List[Dict[str, Any]] = []
-        for index, event in enumerate(events, start=1):
-            normalized_event = dict(event)
-            normalized_event["seq"] = index
-            normalized_events.append(normalized_event)
-
-        await self.chunks_collection.delete_many({"trace_id": trace_id})
-
-        chunk_docs: List[Dict[str, Any]] = []
-        for start in range(0, len(normalized_events), chunk_size):
-            chunk_events = normalized_events[start : start + chunk_size]
-            start_seq = int(chunk_events[0]["seq"])
-            end_seq = int(chunk_events[-1]["seq"])
-            chunk_docs.append(
-                {
-                    "trace_id": trace_id,
-                    "session_id": trace_doc.get("session_id", ""),
-                    "run_id": trace_doc.get("run_id", ""),
-                    "trace_started_at": trace_doc.get("started_at"),
-                    "chunk_index": _event_chunk_index(start_seq),
-                    "start_seq": start_seq,
-                    "end_seq": end_seq,
-                    "event_count": len(chunk_events),
-                    "events": chunk_events,
-                    "created_at": now,
-                    "updated_at": now,
-                }
-            )
-
-        if chunk_docs:
-            await self.chunks_collection.insert_many(chunk_docs)
-
-        first_user_message = next(
-            (event for event in normalized_events if event.get("event_type") == "user:message"),
-            None,
-        )
-        update_fields: Dict[str, Any] = {
-            "event_count": len(normalized_events),
-            "chunk_count": len(chunk_docs),
-            "first_event_preview": _event_preview(
-                normalized_events[0] if normalized_events else None
-            ),
-            "first_user_message_preview": _event_preview(first_user_message),
-            "last_event_preview": _event_preview(
-                normalized_events[-1] if normalized_events else None
-            ),
-            "updated_at": now,
-        }
-        if mark_storage_chunked:
-            update_fields["metadata.event_storage"] = "chunked"
-
-        await self.collection.update_one(
-            {"trace_id": trace_id},
-            {"$set": update_fields},
-        )
-
-    async def reserve_event_sequence_range(
-        self,
-        trace_id: str,
-        event_count: int,
-    ) -> Optional[Dict[str, Any]]:
-        """Atomically reserve a contiguous event seq range by incrementing event_count."""
-        if event_count <= 0:
-            return await self.collection.find_one({"trace_id": trace_id}, {"_id": 0})
-        now = utc_now()
-        return await self.collection.find_one_and_update(
-            {"trace_id": trace_id},
-            {
-                "$inc": {"event_count": event_count},
-                "$set": {"updated_at": now},
-            },
-            projection={"_id": 0},
-            return_document=ReturnDocument.AFTER,
-        )
-
-    async def append_events_to_chunks(
-        self,
-        trace_doc: Dict[str, Any],
-        events: List[Dict[str, Any]],
-        start_seq: int,
-    ) -> None:
-        """Append a reserved event batch to chunk documents."""
-        trace_id = str(trace_doc.get("trace_id") or "")
-        if not trace_id or not events:
-            return
-
-        now = utc_now()
-        grouped: Dict[int, List[Dict[str, Any]]] = {}
-        for offset, event in enumerate(events):
-            seq = start_seq + offset
-            normalized_event = dict(event)
-            normalized_event["seq"] = seq
-            grouped.setdefault(_event_chunk_index(seq), []).append(normalized_event)
-
-        for chunk_index in sorted(grouped):
-            chunk_events = grouped[chunk_index]
-            start = int(chunk_events[0]["seq"])
-            end = int(chunk_events[-1]["seq"])
-            await self.chunks_collection.update_one(
-                {"trace_id": trace_id, "chunk_index": chunk_index},
-                {
-                    "$setOnInsert": {
-                        "trace_id": trace_id,
-                        "session_id": trace_doc.get("session_id", ""),
-                        "run_id": trace_doc.get("run_id", ""),
-                        "trace_started_at": trace_doc.get("started_at"),
-                        "chunk_index": chunk_index,
-                        "start_seq": start,
-                        "created_at": now,
-                    },
-                    "$push": {"events": {"$each": chunk_events}},
-                    "$inc": {"event_count": len(chunk_events)},
-                    "$set": {
-                        "end_seq": end,
-                        "updated_at": now,
-                    },
-                },
-                upsert=True,
-            )
-
-        update_fields: Dict[str, Any] = {
-            "chunk_count": max(grouped) + 1,
-            "last_event_preview": _event_preview(events[-1]),
-            "updated_at": now,
-            "metadata.event_storage": "chunked",
-        }
-        if start_seq == 1:
-            update_fields["first_event_preview"] = _event_preview(events[0])
-        first_user_message = next(
-            (event for event in events if event.get("event_type") == "user:message"),
-            None,
-        )
-        if first_user_message is not None:
-            update_fields["first_user_message_preview"] = _event_preview(first_user_message)
-
-        await self.collection.update_one(
-            {"trace_id": trace_id},
-            {"$set": update_fields},
-        )
 
     async def _ensure_token_usage_event(self, trace_id: str) -> None:
         """Insert a zero token usage event before done when a trace has no usage event yet."""
@@ -838,9 +631,28 @@ class TraceStorage:
         """Fetch the latest matching event from one trace without returning the full events array."""
         try:
             if await self._has_event_chunks(trace_id):
+                bounded_event_types = _bounded_unique_strings(
+                    event_types,
+                    SESSION_EVENT_FILTER_LIST_LIMIT,
+                )
+                allowed_types = set(bounded_event_types)
+                cursor = self.chunks_collection.find(
+                    {"trace_id": trace_id},
+                    {"_id": 0, "events": 1, "chunk_index": 1},
+                ).sort("chunk_index", -1)
+                async for chunk in cursor:
+                    chunk_events = sorted(
+                        enumerate(chunk.get("events", []) or []),
+                        key=lambda item: _event_seq(item[1], item[0]),
+                        reverse=True,
+                    )
+                    for _index, event in chunk_events:
+                        if allowed_types and event.get("event_type") not in allowed_types:
+                            continue
+                        return event
                 events = await self.read_trace_events_compat(
                     trace_id,
-                    event_types=event_types,
+                    event_types=bounded_event_types,
                     max_events=None,
                 )
                 return events[-1] if events else None
@@ -1067,17 +879,16 @@ class TraceStorage:
                     "started_at": 1,
                 },
             ).sort("started_at", 1)
-            traces = await cursor.to_list(length=None)
 
             events: List[Dict[str, Any]] = []
-            for trace in traces:
+            async for trace in cursor:
                 trace_id = trace.get("trace_id")
                 if not trace_id:
                     continue
                 trace_events = await self.read_trace_events_compat(
                     trace_id,
                     event_types=event_types,
-                    max_events=None,
+                    max_events=None if max_events is None else max_events - len(events),
                 )
                 for event in trace_events:
                     item = {

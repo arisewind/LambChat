@@ -45,6 +45,22 @@ class _FakeTraceCursor:
         self.limit_value = value
         return self
 
+    def __aiter__(self):
+        self._iter_index = 0
+        return self
+
+    async def __anext__(self):
+        docs = self._docs
+        if self.skip_value:
+            docs = docs[self.skip_value :]
+        if self.limit_value is not None:
+            docs = docs[: self.limit_value]
+        if self._iter_index >= len(docs):
+            raise StopAsyncIteration
+        item = docs[self._iter_index]
+        self._iter_index += 1
+        return item
+
     async def to_list(self, length=None):
         self.to_list_length = length
         docs = self._docs
@@ -188,6 +204,24 @@ class _FakeSessionEventsAggregationCollection:
                 ],
             }
         return None
+
+
+class _NoMaterializeSessionEventsCollection(_FakeSessionEventsAggregationCollection):
+    class _Cursor(_FakeTraceCursor):
+        async def to_list(self, length=None):
+            raise AssertionError("get_session_events should stream trace metadata")
+
+    def __init__(self):
+        super().__init__()
+        self.cursor = self._Cursor(
+            [
+                {
+                    "trace_id": "trace-1",
+                    "run_id": "run-1",
+                    "started_at": "2026-04-25T00:00:00Z",
+                }
+            ]
+        )
 
 
 class _FakeTraceEventAggregationCollection:
@@ -430,6 +464,18 @@ async def test_get_session_events_does_not_limit_when_max_events_is_unset() -> N
 
     assert len(events) == 2
     assert collection.aggregate_calls == []
+
+
+@pytest.mark.asyncio
+async def test_get_session_events_streams_trace_metadata_cursor() -> None:
+    storage = TraceStorage()
+    collection = _NoMaterializeSessionEventsCollection()
+    storage._collection = collection
+    storage._chunks_collection = _FakeEmptyChunkCollection()
+
+    events = await storage.get_session_events("session-1", max_events=1)
+
+    assert len(events) == 1
 
 
 @pytest.mark.asyncio
