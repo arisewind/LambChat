@@ -12,6 +12,14 @@ logger = get_logger(__name__)
 
 
 class TraceEventChunkMixin:
+    @property
+    def collection(self) -> Any:
+        raise NotImplementedError
+
+    @property
+    def chunks_collection(self) -> Any:
+        raise NotImplementedError
+
     async def _has_event_chunks(self, trace_id: str) -> bool:
         try:
             chunk = await self.chunks_collection.find_one({"trace_id": trace_id}, {"_id": 1})
