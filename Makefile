@@ -130,7 +130,7 @@ test:
 	@echo "🧪 运行测试..."
 	uv run pytest
 
-check-all: pre-commit typecheck test
+check-all: pre-commit typecheck test build-all
 	@echo "✅ 所有检查通过"
 
 # 清理
