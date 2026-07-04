@@ -268,7 +268,7 @@ export function ChatInputToolbar({
         )}
       </div>
 
-      <div className="flex shrink-0 items-center gap-1.5 self-end">
+      <div className="flex shrink-0 items-center gap-3 self-end">
         {/* Mode labels — desktop only (sm:) */}
         {autoModeEnabled && (
           <button
@@ -277,7 +277,7 @@ export function ChatInputToolbar({
             className="hidden sm:inline-flex items-center gap-1 shrink-0 cursor-pointer rounded-full h-9 px-2.5 text-[11px] font-medium transition-colors duration-200"
             style={{
               color: "var(--theme-text-secondary)",
-              background: "var(--theme-primary-light)",
+              background: "var(--theme-bg-card)",
               border: "1px solid var(--theme-border)",
             }}
             title={t("mode.auto", "Auto Mode")}
@@ -292,7 +292,7 @@ export function ChatInputToolbar({
             className="hidden sm:inline-flex items-center gap-1 shrink-0 cursor-pointer rounded-full h-9 px-2.5 text-[11px] font-medium transition-colors duration-200"
             style={{
               color: "var(--theme-text-secondary)",
-              background: "var(--theme-primary-light)",
+              background: "var(--theme-bg-card)",
               border: "1px solid var(--theme-border)",
             }}
             title={t("mode.goal", "Goal Mode")}
@@ -322,7 +322,7 @@ export function ChatInputToolbar({
           {/* Status dot when modes are active */}
           {hasActiveMode && (
             <span
-              className="absolute -top-0.5 -right-0.5"
+              className="absolute -top-0 -right-0.5"
               style={{
                 width: 6,
                 height: 6,

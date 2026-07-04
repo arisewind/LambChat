@@ -228,6 +228,14 @@ class MainAgentContextMiddleware(AgentMiddleware):
         return self._backend
 
     @staticmethod
+    def _context_dir_for_backend(backend: Any) -> str:
+        for candidate in (backend, getattr(backend, "default", None)):
+            work_dir = getattr(candidate, "work_dir", None)
+            if isinstance(work_dir, str) and work_dir.strip():
+                return f"{work_dir.rstrip('/')}/subagent_context"
+        return "/subagent_context"
+
+    @staticmethod
     def _cache_key(request: Any, messages: list[Any]) -> tuple[Any, ...]:
         runtime = getattr(request, "runtime", None)
         message_ids = tuple(getattr(message, "id", None) or id(message) for message in messages)
@@ -289,7 +297,8 @@ class MainAgentContextMiddleware(AgentMiddleware):
             logger.warning("[MainAgentContext] Compression failed, keeping trimmed raw context")
 
         run_id = self._run_id_factory()
-        path = f"/subagent_context/main_agent_messages_{run_id}.md"
+        backend = self._get_backend(getattr(request, "runtime", None))
+        path = f"{self._context_dir_for_backend(backend)}/main_agent_messages_{run_id}.md"
         header = (
             f"# Main Agent Conversation Context (snapshot: {run_id})\n"
             f"Captured at: {time.strftime(_CONTEXT_TIMESTAMP_FORMAT)}\n\n"
@@ -297,7 +306,6 @@ class MainAgentContextMiddleware(AgentMiddleware):
         content = log.render(header)
 
         try:
-            backend = self._get_backend(getattr(request, "runtime", None))
             write_result = await backend.awrite(path, content)
             if getattr(write_result, "error", None):
                 logger.warning("[MainAgentContext] Context write failed: %s", write_result.error)

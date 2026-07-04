@@ -261,11 +261,15 @@
     min-height: 2.75rem;
   }
 }
+/* No hover background for feature menu items */
 .feature-menu-item:hover {
-  background: var(--theme-bg-subtle);
+  background: transparent;
+}
+#run-mode-popover .feature-menu-item:not([data-toggle]):hover {
+  background: transparent;
 }
 .feature-menu-item[data-active] {
-  background: var(--theme-primary-light);
+  background: transparent;
 }
 
 /* Item icon — no background box, just the icon */

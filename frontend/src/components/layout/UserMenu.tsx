@@ -114,7 +114,7 @@ export function UserMenu({ onShowProfile }: UserMenuProps) {
   }, [location.pathname]);
 
   const menuItemClass =
-    "flex w-full items-center gap-3 px-4 py-2.5 text-left text-sm transition-all duration-150 rounded-lg text-[var(--theme-text-secondary)] hover:text-[var(--theme-text)] hover:bg-[var(--theme-primary-light)] active:scale-[0.98]";
+    "flex w-full items-center gap-3 px-4 py-2.5 text-left text-sm transition-all duration-150 rounded-lg text-[var(--theme-text-secondary)] hover:text-[var(--theme-text)] active:scale-[0.98]";
 
   const navigateTo = (path: string) => {
     setShowMenu(false);
@@ -204,7 +204,7 @@ export function UserMenu({ onShowProfile }: UserMenuProps) {
                 onClick={() => navigateTo(item.path)}
                 className={`${menuItemClass} ${
                   location.pathname === item.path
-                    ? "bg-[var(--theme-primary-light)] text-[var(--theme-text)] font-medium"
+                    ? "text-[var(--theme-text)] font-medium"
                     : ""
                 }`}
               >
@@ -230,7 +230,7 @@ export function UserMenu({ onShowProfile }: UserMenuProps) {
                 onClick={() => navigateTo(item.path)}
                 className={`${menuItemClass} ${
                   location.pathname === item.path
-                    ? "bg-[var(--theme-primary-light)] text-[var(--theme-text)] font-medium"
+                    ? "text-[var(--theme-text)] font-medium"
                     : ""
                 }`}
               >

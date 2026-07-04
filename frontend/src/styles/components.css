@@ -253,12 +253,12 @@
 }
 
 .panel-filter-trigger:hover {
-  border-color: var(--theme-primary-light);
-  background: color-mix(in srgb, var(--theme-primary) 4%, var(--theme-bg-card));
+  border-color: var(--theme-border-hover);
+  background: color-mix(in srgb, var(--theme-text) 3%, var(--theme-bg-card));
 }
 
 .panel-filter-trigger--active {
-  border-color: var(--theme-primary);
+  border-color: var(--theme-border-hover);
   color: var(--theme-text);
   box-shadow: var(--shadow-inset-selected);
 }
@@ -405,11 +405,11 @@
 .panel-header-dropdown
   :is(button, [role="menuitem"], .skill-tag-chip):focus-visible,
 .panel-header__mobile-menu :is(button, a):focus-visible {
-  outline: 2px solid color-mix(in srgb, var(--theme-primary) 58%, transparent);
+  outline: 2px solid
+    color-mix(in srgb, var(--theme-text-secondary) 50%, transparent);
   outline-offset: 2px;
 }
 
-.panel-header__mobile-menu-item > button,
 .panel-header__mobile-menu-item > a {
   width: 100%;
   justify-content: flex-start;
@@ -863,7 +863,7 @@
 }
 
 .dark .panel-search {
-  background-color: var(--theme-primary-light);
+  background-color: var(--theme-bg-card);
 }
 
 /* Mobile bottom sheet modal */
@@ -1061,9 +1061,13 @@
 
 .ui-button:focus-visible,
 .btn-primary:focus-visible,
-.btn-secondary:focus-visible,
+.btn-secondary:focus-visible {
+  outline: 2px solid
+    color-mix(in srgb, var(--theme-text-secondary) 50%, transparent);
+  outline-offset: 2px;
+}
 .btn-danger:focus-visible {
-  outline: 2px solid color-mix(in srgb, var(--theme-primary) 58%, transparent);
+  outline: 2px solid color-mix(in srgb, #ef4444 50%, transparent);
   outline-offset: 2px;
 }
 
@@ -1974,13 +1978,13 @@
 
 .ui-select-option:hover:not(.ui-select-option--active),
 .glass-select-option:hover:not(.active) {
-  background: color-mix(in srgb, var(--theme-primary) 6%, transparent);
+  background: color-mix(in srgb, var(--theme-text) 5%, transparent);
   color: var(--theme-text);
 }
 
 .ui-select-option:active,
 .glass-select-option:active {
-  background: color-mix(in srgb, var(--theme-primary) 10%, transparent);
+  background: color-mix(in srgb, var(--theme-text) 8%, transparent);
 }
 
 .ui-select-option--active,
@@ -2304,26 +2308,14 @@
     box-shadow 0.2s ease;
 }
 .list-item-card:hover {
-  border-color: color-mix(
-    in srgb,
-    var(--theme-primary) 18%,
-    var(--theme-border)
-  );
+  border-color: color-mix(in srgb, var(--theme-text) 12%, var(--theme-border));
 }
 .list-item-card--expanded:hover {
-  border-color: color-mix(
-    in srgb,
-    var(--theme-primary) 30%,
-    var(--theme-border)
-  );
+  border-color: color-mix(in srgb, var(--theme-text) 18%, var(--theme-border));
 }
 .list-item-card--expanded {
-  box-shadow: 0 1px 3px color-mix(in srgb, var(--theme-primary) 8%, transparent);
-  border-color: color-mix(
-    in srgb,
-    var(--theme-primary) 30%,
-    var(--theme-border)
-  );
+  box-shadow: 0 1px 3px color-mix(in srgb, var(--theme-text) 6%, transparent);
+  border-color: color-mix(in srgb, var(--theme-text) 18%, var(--theme-border));
 }
 .list-item-card--disabled {
   opacity: 0.55;
@@ -3053,19 +3045,11 @@
 }
 
 .tool-detail-section:hover {
-  border-color: color-mix(
-    in srgb,
-    var(--theme-primary) 15%,
-    var(--theme-border)
-  );
+  border-color: color-mix(in srgb, var(--theme-text) 10%, var(--theme-border));
 }
 
 .tool-detail-section.is-expanded {
-  border-color: color-mix(
-    in srgb,
-    var(--theme-primary) 18%,
-    var(--theme-border)
-  );
+  border-color: color-mix(in srgb, var(--theme-text) 12%, var(--theme-border));
   background: var(--theme-bg-card);
   box-shadow:
     0 8px 24px -18px color-mix(in srgb, var(--theme-text) 18%, transparent),
@@ -3090,11 +3074,12 @@
 }
 
 .tool-detail-section__header:hover {
-  background-color: color-mix(in srgb, var(--theme-primary) 4%, transparent);
+  background-color: color-mix(in srgb, var(--theme-text) 4%, transparent);
 }
 
 .tool-detail-section__header:focus-visible {
-  outline: 2px solid color-mix(in srgb, var(--theme-primary) 50%, transparent);
+  outline: 2px solid
+    color-mix(in srgb, var(--theme-text-secondary) 40%, transparent);
   outline-offset: -2px;
   border-radius: 0.75rem;
 }
@@ -3111,8 +3096,7 @@
 .tool-console-panel[data-tool-panel-mode="mobile"] {
   background: linear-gradient(
       180deg,
-      color-mix(in srgb, var(--theme-bg-card) 96%, var(--theme-primary-light))
-        0%,
+      color-mix(in srgb, var(--theme-bg-card) 96%, var(--theme-bg-subtle)) 0%,
       var(--theme-bg-card) 10rem
     ),
     var(--theme-bg-card);

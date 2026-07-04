@@ -57,6 +57,6 @@ test("skill dropdown options use structured professional rows", () => {
     /\.ppe-skill-option\s*\{[\s\S]*min-height:\s*2\.75rem;/,
   );
   expect(personaCss).toMatch(
-    /\.ppe-skill-option--selected\s+\.ppe-skill-option__check-ring\s*\{[\s\S]*border-color:\s*var\(--theme-primary\);/,
+    /\.ppe-skill-option--selected\s+\.ppe-skill-option__check-ring\s*\{[\s\S]*border-color:\s*var\(--theme-text-secondary\);/,
   );
 });
