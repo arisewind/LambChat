@@ -102,6 +102,62 @@ async def test_main_agent_context_middleware_writes_context_file_for_task_call()
 
 
 @pytest.mark.asyncio
+async def test_main_agent_context_middleware_writes_context_under_backend_workspace() -> None:
+    writes: list[tuple[str, str]] = []
+
+    class _DefaultBackend:
+        work_dir = "/sandbox/sessions/session-1"
+
+    class _Backend:
+        default = _DefaultBackend()
+
+        async def awrite(self, path: str, content: str):
+            writes.append((path, content))
+            return SimpleNamespace(error=None, path=path)
+
+    class _Request(SimpleNamespace):
+        def override(self, **overrides: Any):
+            values = dict(self.__dict__)
+            values.update(overrides)
+            return _Request(**values)
+
+    middleware = MainAgentContextMiddleware(
+        backend=_Backend(),
+        token_limit=10_000,
+        run_id_factory=lambda: "ctxsandbox",
+    )
+    request = _Request(
+        runtime=SimpleNamespace(
+            state={"messages": [HumanMessage(content="Use the sandbox workspace")]},
+        ),
+        state={},
+        tool_call={
+            "id": "call-1",
+            "name": "task",
+            "args": {
+                "subagent_type": "general-purpose",
+                "description": "Inspect sandbox state.",
+            },
+        },
+    )
+
+    async def _handler(next_request: Any) -> str:
+        return next_request.tool_call["args"]["description"]
+
+    description = await middleware.awrap_tool_call(request, _handler)
+
+    assert len(writes) == 1
+    assert (
+        writes[0][0]
+        == "/sandbox/sessions/session-1/subagent_context/main_agent_messages_ctxsandbox.md"
+    )
+    assert (
+        "/sandbox/sessions/session-1/subagent_context/main_agent_messages_ctxsandbox.md"
+        in description
+    )
+
+
+@pytest.mark.asyncio
 async def test_main_agent_context_middleware_continues_when_compression_fails() -> None:
     writes: list[tuple[str, str]] = []
 

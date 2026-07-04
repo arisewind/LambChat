@@ -1,9 +1,10 @@
-import { useEffect, useRef, type CSSProperties } from "react";
+import { useEffect, useRef, useState, type CSSProperties } from "react";
 import { createPortal } from "react-dom";
 import { useTranslation } from "react-i18next";
 import {
   Bot,
   Brain,
+  ChevronDown,
   ToggleLeft,
   Zap,
   Target,
@@ -124,6 +125,7 @@ export function RunModePopover({
   }, [open]);
 
   const booleanOptionEntries = Object.entries(booleanAgentOptions ?? {});
+  const [settingsExpanded, setSettingsExpanded] = useState(false);
 
   if (!open) return null;
 
@@ -152,6 +154,7 @@ export function RunModePopover({
             <button
               type="button"
               className="feature-menu-item"
+              data-toggle
               data-active={autoModeEnabled ? "" : undefined}
               onClick={() => onToggleAutoMode(!autoModeEnabled)}
             >
@@ -168,6 +171,7 @@ export function RunModePopover({
             <button
               type="button"
               className="feature-menu-item"
+              data-toggle
               data-active={goalModeEnabled ? "" : undefined}
               onClick={() => onToggleGoalMode(!goalModeEnabled)}
             >
@@ -186,9 +190,10 @@ export function RunModePopover({
       {/* ── Settings group ── */}
       {hasSettings && (
         <div className="feature-menu-group" role="group">
-          <div
+          <button
+            type="button"
             className="feature-menu-group-header"
-            style={{ cursor: "default", pointerEvents: "none" }}
+            onClick={() => setSettingsExpanded((v) => !v)}
           >
             <span className="feature-menu-group-icon">
               <Settings2 size={18} />
@@ -196,8 +201,16 @@ export function RunModePopover({
             <span className="flex-1 text-left truncate">
               {t("featureMenu.settings", "Settings")}
             </span>
-          </div>
-          <div className="feature-menu-group-body" data-expanded>
+            <ChevronDown
+              size={16}
+              className="feature-menu-chevron"
+              data-open={settingsExpanded ? "true" : undefined}
+            />
+          </button>
+          <div
+            className="feature-menu-group-body"
+            data-expanded={settingsExpanded ? "" : undefined}
+          >
             <div className="feature-menu-group-inner">
               {/* Agent Mode */}
               {hasAgentSelector && (
@@ -271,6 +284,7 @@ export function RunModePopover({
                     key={key}
                     type="button"
                     className="feature-menu-item"
+                    data-toggle
                     data-active={enabled ? "" : undefined}
                     onClick={() => onToggleAgentOption?.(key, !enabled)}
                   >

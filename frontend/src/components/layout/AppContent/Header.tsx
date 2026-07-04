@@ -345,7 +345,7 @@ export function Header({
               >
                 <button
                   onClick={() => setLangMenuOpen(false)}
-                  className="flex w-full items-center gap-2 px-3 py-2.5 text-sm text-[var(--theme-text-secondary)] hover:text-[var(--theme-text)] hover:bg-[var(--theme-primary-light)] transition-colors"
+                  className="flex w-full items-center gap-2 px-3 py-2.5 text-sm text-[var(--theme-text-secondary)] hover:text-[var(--theme-text)] hover:bg-[var(--theme-bg-subtle)] transition-colors"
                 >
                   <ChevronLeft size={16} className="shrink-0" />
                   <span>{t("common.language")}</span>
@@ -377,8 +377,8 @@ export function Header({
                         }}
                         className={`flex w-full items-center gap-3 px-3 py-2.5 text-left text-sm transition-colors ${
                           isActive
-                            ? "text-[var(--theme-text)] bg-[var(--theme-primary-light)]"
-                            : "text-[var(--theme-text-secondary)] hover:text-[var(--theme-text)] hover:bg-[var(--theme-primary-light)]"
+                            ? "text-[var(--theme-text)] bg-[var(--theme-bg-subtle)]"
+                            : "text-[var(--theme-text-secondary)] hover:text-[var(--theme-text)] hover:bg-[var(--theme-bg-subtle)]"
                         }`}
                       >
                         <span className="truncate">{lang.name}</span>
@@ -425,7 +425,7 @@ function HeaderMenuItem({
   return (
     <button
       onClick={onClick}
-      className="flex w-full items-center gap-3 px-3 py-2.5 text-left text-sm transition-colors text-[var(--theme-text-secondary)] hover:text-[var(--theme-text)] hover:bg-[var(--theme-primary-light)]"
+      className="flex w-full items-center gap-3 px-3 py-2.5 text-left text-sm transition-colors text-[var(--theme-text-secondary)] hover:text-[var(--theme-text)] hover:bg-[var(--theme-bg-subtle)]"
     >
       {children}
     </button>

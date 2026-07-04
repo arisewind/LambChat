@@ -596,12 +596,14 @@ export const WelcomePage = memo(function WelcomePage({
                         }}
                       />
                       <span className="welcome-persona-info min-w-0 flex-1">
-                        <span className="welcome-persona-name-row relative flex items-center gap-1.5">
-                          <span
-                            className="welcome-persona-name truncate text-[13px] sm:text-[14px] font-bold leading-[1.3] transition-colors duration-300 group-hover:text-[var(--theme-text)] font-serif"
-                            style={{ color: "var(--theme-text)" }}
-                          >
-                            {team.name}
+                        <div className="flex items-center justify-between gap-2">
+                          <span className="welcome-persona-name-row relative flex items-center gap-1.5 min-w-0">
+                            <span
+                              className="welcome-persona-name truncate text-[13px] sm:text-[14px] font-bold leading-[1.3] transition-colors duration-300 group-hover:text-[var(--theme-text)] font-serif"
+                              style={{ color: "var(--theme-text)" }}
+                            >
+                              {team.name}
+                            </span>
                           </span>
                           <span
                             className="welcome-persona-tag shrink-0 inline-flex rounded-full px-1.5 py-[1px] text-[10px] leading-none font-medium"
@@ -614,7 +616,7 @@ export const WelcomePage = memo(function WelcomePage({
                               count: activeCount,
                             })}
                           </span>
-                        </span>
+                        </div>
                         <span
                           className="welcome-persona-description block mt-1 text-[12px] leading-[1.5]"
                           style={{
