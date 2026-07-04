@@ -10,7 +10,7 @@ test("thinking and subagent sidebars use a lightweight renderer for long or stre
   expect(source).toMatch(/SUBAGENT_PARTS_PREVIEW_LIMIT/);
   expect(source).toMatch(/const shouldUsePreview =/);
   expect(source).toMatch(/const shouldUsePartsPreview =/);
-  expect(source).toMatch(/max-w-prose/);
+  expect(source).toMatch(/w-full overflow-auto whitespace-pre-wrap/);
   expect(source).toMatch(/from-theme-bg-card/);
   expect(source).not.toMatch(/<pre className=/);
 
