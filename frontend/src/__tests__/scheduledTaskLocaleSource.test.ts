@@ -13,7 +13,7 @@ test("scheduled-task Chinese UI copy does not expose placeholders", () => {
     "当前会话暂无 Agent 创建的定时任务",
   );
 
-  for (const [key, value] of Object.entries(scheduledTask)) {
+  for (const value of Object.values(scheduledTask)) {
     expect(value).not.toMatch(/【待翻译】/);
   }
 });

@@ -22,10 +22,11 @@ export function useDropdownPos() {
       right: window.innerWidth - r.right,
     });
   }, []);
+  const isTrackingDropdown = pos !== null;
 
   // Once we have a position, dynamically track on resize/scroll
   useEffect(() => {
-    if (!pos) return;
+    if (!isTrackingDropdown) return;
     let raf = 0;
     const sync = () => {
       cancelAnimationFrame(raf);
@@ -46,7 +47,7 @@ export function useDropdownPos() {
       window.removeEventListener("resize", sync);
       window.removeEventListener("scroll", sync, true);
     };
-  }, [!!pos]);
+  }, [isTrackingDropdown]);
 
   return { ref, pos, update };
 }

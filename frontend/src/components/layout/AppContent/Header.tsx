@@ -97,7 +97,6 @@ export function Header({
 
   useEffect(() => {
     refreshNotifCount();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Close mobile menu on outside click

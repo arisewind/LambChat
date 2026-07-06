@@ -271,8 +271,3 @@ function FormattedValue({ value }: { value: unknown }) {
   }
   return <span className="italic opacity-70">{JSON.stringify(s)}</span>;
 }
-
-/** Get the full JSON text for clipboard */
-export function argsToClipboardText(args: Record<string, unknown>): string {
-  return JSON.stringify(args, null, 2);
-}

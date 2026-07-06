@@ -1,4 +1,4 @@
-import { getRunModePopoverPosition } from "../RunModePopover";
+import { getRunModePopoverPosition } from "../runModePopoverPosition";
 
 function rect(overrides: Partial<DOMRect>): DOMRect {
   return {

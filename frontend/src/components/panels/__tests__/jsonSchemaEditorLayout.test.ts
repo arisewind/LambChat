@@ -11,11 +11,6 @@ const settingsTypesSource = readFileSync(
   "utf8",
 );
 
-const settingDefinitionsSource = readFileSync(
-  join(import.meta.dirname, "../../../../../src/kernel/config/definitions.py"),
-  "utf8",
-);
-
 test("json schema fields can declare their layout width", () => {
   expect(settingsTypesSource).toMatch(/layout_width\?:\s*"compact" \| "full"/);
   expect(editorSource).toMatch(/getFieldLayoutClass\(field\)/);

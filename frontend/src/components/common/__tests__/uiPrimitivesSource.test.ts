@@ -14,13 +14,6 @@ function assertCssSelector(source: string, selector: string): void {
   expect(source).toMatch(new RegExp(`${escaped}[\\s\\S]*?\\{`));
 }
 
-function cssBlock(source: string, selector: string): string {
-  const escaped = selector.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-  const match = source.match(new RegExp(`${escaped}\\s*\\{([^}]*)\\}`));
-  expect(match).toBeTruthy();
-  return match[1];
-}
-
 test("common ui primitives are exposed from a single reusable entrypoint", () => {
   const commonIndex = readSource("../index.ts");
   const uiIndex = readSource("../ui/index.ts");
