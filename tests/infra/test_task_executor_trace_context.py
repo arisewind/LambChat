@@ -15,6 +15,8 @@ class _FakeHeartbeat:
 
 
 class _FakePresenter:
+    emitted_user_messages: list[tuple[str, object, object]] = []
+
     def __init__(self, config) -> None:
         self.config = config
         self.trace_id = config.trace_id or "trace-run-level"
@@ -23,8 +25,8 @@ class _FakePresenter:
     async def _ensure_trace(self) -> None:
         return None
 
-    async def emit_user_message(self, message: str, attachments=None) -> None:
-        return None
+    async def emit_user_message(self, message: str, attachments=None, enabled_skills=None) -> None:
+        self.emitted_user_messages.append((message, attachments, enabled_skills))
 
     async def save_event(self, event) -> None:
         return None
@@ -37,6 +39,7 @@ class _FakePresenter:
 async def test_task_executor_sets_run_trace_into_trace_context(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
+    _FakePresenter.emitted_user_messages = []
     executor = TaskExecutor(
         storage=SimpleNamespace(),
         run_info={},
@@ -106,6 +109,7 @@ async def test_task_executor_sets_run_trace_into_trace_context(
 async def test_task_executor_passes_resolved_agent_name_to_presenter(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
+    _FakePresenter.emitted_user_messages = []
     executor = TaskExecutor(
         storage=SimpleNamespace(),
         run_info={},
@@ -160,6 +164,7 @@ async def test_task_executor_passes_resolved_agent_name_to_presenter(
 async def test_task_executor_passes_auto_mode_to_agent_executor(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
+    _FakePresenter.emitted_user_messages = []
     executor = TaskExecutor(
         storage=SimpleNamespace(),
         run_info={},
@@ -194,3 +199,45 @@ async def test_task_executor_passes_auto_mode_to_agent_executor(
         existing_trace_id="trace-run-level",
         auto_mode=True,
     )
+
+
+@pytest.mark.asyncio
+async def test_task_executor_passes_enabled_skills_to_user_message(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _FakePresenter.emitted_user_messages = []
+    executor = TaskExecutor(
+        storage=SimpleNamespace(),
+        run_info={},
+        heartbeat_manager=_FakeHeartbeat(),
+    )
+
+    async def _no_op(*args, **kwargs) -> None:
+        return None
+
+    async def fake_agent_executor(*args, **kwargs):
+        if False:
+            yield None
+
+    monkeypatch.setattr("src.infra.writer.present.Presenter", _FakePresenter)
+    monkeypatch.setattr(
+        "src.infra.writer.present.PresenterConfig",
+        lambda **kwargs: SimpleNamespace(**kwargs),
+    )
+    monkeypatch.setattr(executor, "_update_session_status", _no_op)
+    monkeypatch.setattr(executor, "_send_task_notification", _no_op)
+    monkeypatch.setattr("src.infra.task.executor.get_dual_writer", lambda: SimpleNamespace())
+    monkeypatch.setattr("src.infra.task.cancellation.TaskCancellation.clear_interrupt", _no_op)
+
+    await executor.run_task(
+        session_id="session-1",
+        run_id="run-1",
+        agent_id="search",
+        message="hello",
+        user_id="user-1",
+        executor=fake_agent_executor,
+        existing_trace_id="trace-run-level",
+        enabled_skills=["planning"],
+    )
+
+    assert _FakePresenter.emitted_user_messages == [("hello", None, ["planning"])]
