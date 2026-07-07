@@ -6,11 +6,30 @@ const componentsSource = readFileSync(
 );
 
 function cssRule(selector: string) {
-  const escaped = selector.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-  const match = componentsSource.match(
-    new RegExp(`${escaped}\\s*\\{([\\s\\S]*?)\\n\\}`),
-  );
-  return match?.[1] ?? "";
+  const normalizeSelector = (value: string) =>
+    value
+      .replace(/\s+/g, " ")
+      .replace(/\s*,\s*/g, ",")
+      .replace(/\(\s*/g, "(")
+      .replace(/\s*\)/g, ")")
+      .trim();
+  const expectedSelector = normalizeSelector(selector);
+  const normalizedSource = componentsSource
+    .replace(/\/\*[\s\S]*?\*\//g, "")
+    .replace(/\s+/g, " ")
+    .replace(/\s*,\s*/g, ",")
+    .replace(/\(\s*/g, "(")
+    .replace(/\s*\)/g, ")");
+  const ruleStart = normalizedSource.indexOf(`${expectedSelector} {`);
+
+  if (ruleStart === -1) {
+    return "";
+  }
+
+  const bodyStart = ruleStart + `${expectedSelector} {`.length;
+  const bodyEnd = normalizedSource.indexOf(" }", bodyStart);
+
+  return normalizedSource.slice(bodyStart, bodyEnd);
 }
 
 test("right sidebar chrome is shared by editor and tool sidebars", () => {
@@ -20,7 +39,7 @@ test("right sidebar chrome is shared by editor and tool sidebars", () => {
 
   expect(sharedRule).toContain("--right-sidebar-ring:");
   expect(sharedRule).toMatch(
-    /height:\s*var\(--right-sidebar-height, calc\(100% - 1\.5rem\)\);/,
+    /height:\s*var\(--right-sidebar-height,\s*calc\(100% - 1\.5rem\)\);/,
   );
   expect(sharedRule).toMatch(/margin:\s*0\.75rem;/);
   expect(sharedRule).toMatch(/border-radius:\s*0\.75rem;/);
@@ -42,7 +61,7 @@ test("editor sidebar desktop chrome matches tool sidebar treatment", () => {
     /\.editor-sidebar\s*\{[\s\S]*?background:\s*linear-gradient/,
   );
   expect(editorRule).toMatch(
-    /width:\s*calc\(var\(--editor-sidebar-width, 30%\) - 1\.5rem\);/,
+    /width:\s*calc\(var\(--editor-sidebar-width,\s*30%\) - 1\.5rem\);/,
   );
   expect(editorRule).toMatch(/--right-sidebar-height:\s*calc\(/);
 });

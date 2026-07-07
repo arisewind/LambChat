@@ -138,7 +138,7 @@ test("tool result panel exposes console chrome styling hooks", () => {
     /\.tool-console-panel\[data-tool-panel-mode="sidebar"\]/,
   );
   expect(componentsSource).toMatch(
-    /:where\(\.editor-sidebar--sidebar, \.tool-console-panel\[data-tool-panel-mode="sidebar"\]\)\s*\{[\s\S]*height:\s*var\(--right-sidebar-height, calc\(100% - 1\.5rem\)\);[\s\S]*margin:\s*0\.75rem;/,
+    /:where\(\s*\.editor-sidebar--sidebar\s*,\s*\.tool-console-panel\[data-tool-panel-mode="sidebar"\]\s*\)\s*\{[\s\S]*height:\s*var\(--right-sidebar-height, calc\(100% - 1\.5rem\)\);[\s\S]*margin:\s*0\.75rem;/,
   );
   expect(componentsSource).toMatch(
     /\.tool-console-panel\[data-tool-panel-mode="sidebar"\]\[data-sidebar-panel\]\s*\{[\s\S]*width:\s*calc\(var\(--sidebar-preview-width, 60%\) - 1\.5rem\) !important;[\s\S]*max-width:\s*calc\(var\(--sidebar-preview-width, 60%\) - 1\.5rem\) !important;/,
