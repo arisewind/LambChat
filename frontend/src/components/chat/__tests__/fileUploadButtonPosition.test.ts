@@ -1,5 +1,5 @@
 import { expect, test } from "vitest";
-import { getFileUploadDropdownStyle } from "../FileUploadButton";
+import { getFileUploadDropdownStyle } from "../fileUploadDropdownStyle";
 
 function rect(overrides: Partial<DOMRect>): DOMRect {
   return {

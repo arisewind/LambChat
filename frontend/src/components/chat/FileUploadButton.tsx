@@ -1,5 +1,4 @@
 import { useState, useRef, useCallback, memo, useEffect } from "react";
-import type { CSSProperties } from "react";
 import { createPortal } from "react-dom";
 import { Paperclip, Image, Video, Music, FileText } from "lucide-react";
 import { useTranslation } from "react-i18next";
@@ -7,6 +6,7 @@ import toast from "react-hot-toast";
 import { useAuth } from "../../hooks/useAuth";
 import { useFileUpload } from "../../hooks/useFileUpload";
 import { useStickyDropdownPosition } from "../../hooks/useStickyDropdownPosition";
+import { getFileUploadDropdownStyle } from "./fileUploadDropdownStyle";
 import type { MessageAttachment, FileCategory } from "../../types";
 import { Permission } from "../../types";
 
@@ -46,36 +46,6 @@ const CATEGORY_ICONS: Record<FileCategory, React.ElementType> = {
   audio: Music,
   document: FileText,
 };
-
-const UPLOAD_DROPDOWN_WIDTH = 208;
-const UPLOAD_DROPDOWN_GUTTER = 8;
-
-export function getFileUploadDropdownStyle(
-  rect: DOMRect,
-  {
-    viewportWidth,
-    viewportHeight,
-  }: {
-    viewportWidth: number;
-    viewportHeight: number;
-  },
-): CSSProperties {
-  const width = Math.min(
-    UPLOAD_DROPDOWN_WIDTH,
-    Math.max(0, viewportWidth - UPLOAD_DROPDOWN_GUTTER * 2),
-  );
-  const left = Math.max(
-    UPLOAD_DROPDOWN_GUTTER,
-    Math.min(rect.left, viewportWidth - width - UPLOAD_DROPDOWN_GUTTER),
-  );
-  return {
-    position: "fixed",
-    bottom: viewportHeight - rect.top + 8,
-    left,
-    width,
-    zIndex: 9999,
-  };
-}
 
 export const FileUploadButton = memo(function FileUploadButton({
   attachments = [],
