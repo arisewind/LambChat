@@ -17,6 +17,7 @@ export {
   shouldScrollExternalNavigationFallbackToMessage,
 } from "./useMessageScroll.externalNavigation";
 export { didLatestStreamingAssistantFinish } from "./messageScrollUtils";
+export { getHistoryScrollSettlingFallbackTimeoutMs } from "./useMessageScroll.historySettling";
 
 export {
   createMessageScrollFollowState,

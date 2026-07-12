@@ -528,7 +528,7 @@ export function ChatView({
             />
             {shouldHideHistoryMeasurementFrame && (
               <div className="chat-history-settling-overlay">
-                <ChatSkeletonMessagesOnly count={8} />
+                <ChatSkeleton count={8} />
               </div>
             )}
           </>
@@ -550,7 +550,7 @@ export function ChatView({
       <PersistentToolPanelHost />
 
       {/* ChatInput at bottom (when messages exist, WelcomePage renders its own) */}
-      {messages.length > 0 && (
+      {messages.length > 0 && !shouldHideHistoryMeasurementFrame && (
         <div className="relative">
           <div
             className={`absolute ${FLOATING_SCROLL_BUTTON_OFFSET_CLASS} right-2 z-50 flex flex-col gap-2 sm:right-4`}

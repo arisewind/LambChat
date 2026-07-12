@@ -104,6 +104,10 @@ export const ScheduledTaskSidebarItem = forwardRef<
   const { t } = useTranslation();
   const [isExpanded, setIsExpanded] = useState(false);
   const [sessions, setSessions] = useState<BackendSession[]>([]);
+  const sessionsRef = useRef(sessions);
+  useEffect(() => {
+    sessionsRef.current = sessions;
+  }, [sessions]);
   const [isLoading, setIsLoading] = useState(false);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [hasMore, setHasMore] = useState(false);
@@ -139,6 +143,7 @@ export const ScheduledTaskSidebarItem = forwardRef<
 
         if (reset) {
           setSessions(dedupSessions(fetchedSessions));
+          localDeductionsRef.current = 0;
           setSkip(response.items.length);
           loadedCountRef.current = Math.max(PAGE_SIZE, fetchedSessions.length);
         } else {
@@ -174,6 +179,7 @@ export const ScheduledTaskSidebarItem = forwardRef<
       const response = await scheduledTaskApi.getSessions(task.id, 0, limit);
       const latest = response.items.map(toBackendSession);
       setSessions(dedupSessions(latest));
+      localDeductionsRef.current = 0;
       setSkip(response.items.length);
       loadedCountRef.current = Math.max(PAGE_SIZE, latest.length);
       setHasMore(response.items.length < response.total);
@@ -193,7 +199,23 @@ export const ScheduledTaskSidebarItem = forwardRef<
     setSessions((prev) => prev.filter((s) => s.id !== sessionId));
   }, []);
 
+  // Track locally-cleared unread counts so the fallback badge
+  // (used when not all sessions are loaded) stays accurate after mark-read.
+  const localDeductionsRef = useRef(0);
+
   const updateSession = useCallback((session: BackendSession) => {
+    // Compute deduction from latest sessions state (avoids side effect
+    // inside the state updater, which React may invoke twice in
+    // StrictMode, and ref mutations are not rolled back).
+    const current = sessionsRef.current;
+    const idx = current.findIndex((s) => s.id === session.id);
+    if (idx !== -1) {
+      const prevUnread = current[idx].unread_count ?? 0;
+      const nextUnread = session.unread_count ?? 0;
+      if (prevUnread > nextUnread) {
+        localDeductionsRef.current += prevUnread - nextUnread;
+      }
+    }
     setSessions((prev) => prev.map((s) => (s.id === session.id ? session : s)));
   }, []);
 
@@ -202,10 +224,14 @@ export const ScheduledTaskSidebarItem = forwardRef<
     loadedSessions: sessions,
     unreadBySession,
   });
+  const backendUnread = Math.max(
+    0,
+    (task.unread_count ?? 0) - localDeductionsRef.current,
+  );
   const displayedUnreadCount =
     hasLoadedRef.current && !hasMore
       ? unreadCount
-      : Math.max(task.unread_count ?? 0, unreadCount);
+      : Math.max(backendUnread, unreadCount);
 
   useEffect(() => {
     onUnreadCountChange?.(task.id, displayedUnreadCount);

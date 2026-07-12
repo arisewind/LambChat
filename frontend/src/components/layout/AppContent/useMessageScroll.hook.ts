@@ -10,6 +10,7 @@ import type { Message } from "../../../types";
 import type { ExternalNavigationTargetFile } from "./externalNavigationState";
 import {
   forceVirtuosoToBottom,
+  forceScrollerToPhysicalBottom,
   getScrollToBottomTimingOptions,
   didLatestStreamingAssistantFinish,
   shouldAutoScrollAfterViewportChange,
@@ -18,7 +19,10 @@ import {
   startVirtuosoScrollToBottom,
   type ScrollToBottomTimingMode,
 } from "./messageScrollUtils";
-import { useMessageScrollHistorySettling } from "./useMessageScroll.historySettling";
+import {
+  getHistoryScrollSettlingFallbackTimeoutMs,
+  useMessageScrollHistorySettling,
+} from "./useMessageScroll.historySettling";
 import { getMessageScrollViewportState } from "./useMessageScroll.viewport";
 import { useMessageScrollExternalNavigationEffect } from "./useMessageScroll.externalNavigationEffect";
 import {
@@ -191,7 +195,7 @@ export function useMessageScroll(
       options?: {
         clearManualDetachFromStream?: boolean;
         onInitialSettle?: () => void;
-        onComplete?: () => void;
+        onComplete?: (reason: "settled" | "aborted" | "max-attempts") => void;
       },
     ) => {
       const timing = getScrollToBottomTimingOptions({
@@ -259,11 +263,11 @@ export function useMessageScroll(
         onInitialSettle: () => {
           options?.onInitialSettle?.();
         },
-        onComplete: () => {
+        onComplete: (reason) => {
           autoScrollActiveRef.current = false;
           recoverUnexpectedTopJumpUntilRef.current =
             Date.now() + timing.observeAfterSettleMs;
-          options?.onComplete?.();
+          options?.onComplete?.(reason);
         },
       });
     },
@@ -579,7 +583,13 @@ export function useMessageScroll(
           externalNavigationToken,
         })
       ) {
-        startHistoryScrollSettling();
+        const timing = getScrollToBottomTimingOptions({
+          isMobileViewport,
+          mode: "history-finalize",
+        });
+        startHistoryScrollSettling(
+          getHistoryScrollSettlingFallbackTimeoutMs(timing),
+        );
       }
 
       let raf = 0;
@@ -594,7 +604,25 @@ export function useMessageScroll(
         settled = true;
         pendingHistoryScrollRef.current = false;
         requestScrollToBottom("history-finalize", {
-          onComplete: clearHistoryScrollSettling,
+          onComplete: (reason) => {
+            if (reason === "settled" || reason === "aborted") {
+              // "settled": natural settle at bottom — done.
+              // "aborted": user scrolled up during settling — respect
+              // their intent and do not force-scroll back down.
+              clearHistoryScrollSettling();
+              return;
+            }
+
+            // "max-attempts": budget exhausted without settling; force
+            // to physical bottom as a last resort.
+            forceScrollerToPhysicalBottom({
+              scroller: virtuosoScrollerRef.current,
+              footer: messagesEndRef.current,
+            });
+            requestAnimationFrame(() => {
+              clearHistoryScrollSettling();
+            });
+          },
         });
       };
 
@@ -608,6 +636,7 @@ export function useMessageScroll(
     clearHistoryScrollSettling,
     externalNavigationToken,
     isLoadingHistory,
+    isMobileViewport,
     messages.length,
     requestScrollToBottom,
     sessionId,

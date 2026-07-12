@@ -150,35 +150,46 @@ async def test_skills_store_backend_reads_disabled_skills_from_graph_config(
     assert [_field(entry, "path") for entry in _field(result, "entries")] == ["/visible/"]
 
 
-async def test_skills_store_backend_limits_root_and_reads_to_enabled_skills() -> None:
+async def test_skills_store_backend_enabled_skills_does_not_gate_file_operations() -> None:
+    """enabled_skills 仅用于提示词注入，不限制 SkillsStoreBackend 的文件操作。"""
     backend = SkillsStoreBackend(user_id="user-1", enabled_skills=["visible"])
     backend._storage = _FakeSkillStorage()
 
     result = await backend.als("/skills/")
 
-    assert [_field(entry, "path") for entry in _field(result, "entries")] == ["/visible/"]
+    # enabled_skills 不再过滤 ls，应能看到所有 skill
+    assert [_field(entry, "path") for entry in _field(result, "entries")] == [
+        "/hidden/",
+        "/visible/",
+    ]
 
     visible = await backend.aread("/skills/visible/SKILL.md")
     assert _field(visible, "file_data")["content"] == "visible skill"
 
     hidden = await backend.aread("/skills/hidden/SKILL.md")
-    assert _field(hidden, "error") == "Skill 'hidden' not found"
+    assert _field(hidden, "file_data")["content"] == "hidden skill"
 
     hidden_dir = await backend.als("/skills/hidden/")
-    assert _field(hidden_dir, "entries") == []
+    assert _field(hidden_dir, "entries") != []
 
 
-async def test_skills_store_backend_limits_search_to_enabled_skills() -> None:
+async def test_skills_store_backend_enabled_skills_does_not_gate_search() -> None:
+    """enabled_skills 仅用于提示词注入，不限制 grep/glob 操作。"""
     backend = SkillsStoreBackend(user_id="user-1", enabled_skills=["visible"])
     backend._storage = _FakeSkillStorage()
 
     grep_result = await backend.agrep("needle", "/skills/")
+    # enabled_skills 不再过滤搜索，应能搜到所有 skill
     assert [_field(match, "path") for match in _field(grep_result, "matches")] == [
-        "/visible/notes.txt"
+        "/hidden/notes.txt",
+        "/visible/notes.txt",
     ]
 
     glob_result = await backend.aglob("*", "/skills/")
-    assert [_field(entry, "path") for entry in _field(glob_result, "matches")] == ["/visible/"]
+    assert [_field(entry, "path") for entry in _field(glob_result, "matches")] == [
+        "/hidden/",
+        "/visible/",
+    ]
 
 
 async def test_skills_store_backend_root_grep_scans_skills_incrementally() -> None:
@@ -299,7 +310,8 @@ async def test_skills_store_backend_root_operations_limit_skill_name_queries() -
     ]
 
 
-async def test_skills_store_backend_reads_enabled_skills_from_runtime_config() -> None:
+async def test_skills_store_backend_enabled_skills_from_runtime_config_does_not_gate() -> None:
+    """runtime config 中的 enabled_skills 也不应限制 SkillsStoreBackend。"""
     backend = SkillsStoreBackend(
         user_id="user-1",
         runtime=_FakeRuntime(enabled_skills=["visible"]),
@@ -308,10 +320,14 @@ async def test_skills_store_backend_reads_enabled_skills_from_runtime_config() -
 
     result = await backend.als("/skills/")
 
-    assert [_field(entry, "path") for entry in _field(result, "entries")] == ["/visible/"]
+    # enabled_skills 不再过滤，应能看到所有 skill
+    assert [_field(entry, "path") for entry in _field(result, "entries")] == [
+        "/hidden/",
+        "/visible/",
+    ]
 
 
-async def test_skills_store_backend_reads_enabled_skills_from_graph_config(
+async def test_skills_store_backend_enabled_skills_from_graph_config_does_not_gate(
     monkeypatch,
 ) -> None:
     from src.infra.backend import skills_store as module
@@ -325,16 +341,25 @@ async def test_skills_store_backend_reads_enabled_skills_from_graph_config(
 
     result = await backend.als("/skills/")
 
-    assert [_field(entry, "path") for entry in _field(result, "entries")] == ["/visible/"]
+    # enabled_skills 不再过滤，应能看到所有 skill
+    assert [_field(entry, "path") for entry in _field(result, "entries")] == [
+        "/hidden/",
+        "/visible/",
+    ]
 
 
-async def test_skills_store_backend_empty_enabled_skills_hides_all_skills() -> None:
+async def test_skills_store_backend_empty_enabled_skills_does_not_hide_all() -> None:
+    """空 enabled_skills 列表不再隐藏所有 skill（enabled_skills 不限制文件操作）。"""
     backend = SkillsStoreBackend(user_id="user-1", enabled_skills=[])
     backend._storage = _FakeSkillStorage()
 
     result = await backend.als("/skills/")
 
-    assert _field(result, "entries") == []
+    # enabled_skills=[] 不再隐藏所有 skill，应能看到所有
+    assert [_field(entry, "path") for entry in _field(result, "entries")] == [
+        "/hidden/",
+        "/visible/",
+    ]
 
 
 async def test_skills_store_backend_read_reports_offset_past_eof() -> None:

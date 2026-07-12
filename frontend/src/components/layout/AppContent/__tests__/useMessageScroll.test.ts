@@ -17,6 +17,7 @@ import {
   getNextMessageScrollFollowStateForUserIntent,
   getNextMessageScrollFollowStateForUserScroll,
   didLatestStreamingAssistantFinish,
+  getHistoryScrollSettlingFallbackTimeoutMs,
   highlightElementForExternalNavigation,
   scrollElementIntoViewWithRetries,
   shouldArmPendingHistoryScroll,
@@ -689,6 +690,16 @@ test("waits until history loading completes before triggering the final bottom s
       messageCount: 12,
     }),
   ).toBe(true);
+});
+
+test("keeps the history skeleton for the full final scroll settle budget", () => {
+  expect(
+    getHistoryScrollSettlingFallbackTimeoutMs({
+      maxDurationMs: 1800,
+      observeAfterSettleMs: 2400,
+      settleWindowMs: 180,
+    }),
+  ).toBeGreaterThan(4380);
 });
 
 test("does not trigger a final history scroll when there is no pending scroll or no messages", () => {

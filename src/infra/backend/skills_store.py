@@ -166,30 +166,13 @@ class SkillsStoreBackend(BackendProtocol):
 
         return set()
 
-    def _get_enabled_skill_names(self) -> set[str] | None:
-        """获取当前会话显式允许的 skill 名称集合；None 表示使用全局可见性。"""
-        if self._enabled_skills is not None:
-            return {str(name) for name in self._enabled_skills}
-
-        try:
-            configurable = self._get_configurable()
-            if "enabled_skills" not in configurable:
-                return None
-            enabled_skills = configurable.get("enabled_skills")
-            if enabled_skills is None:
-                return None
-            if isinstance(enabled_skills, list):
-                return {str(name) for name in enabled_skills}
-        except Exception:
-            pass
-
-        return None
-
     def _is_skill_visible(self, skill_name: str) -> bool:
-        """检查 skill 是否在当前会话中可见。"""
-        enabled = self._get_enabled_skill_names()
-        if enabled is not None and skill_name not in enabled:
-            return False
+        """检查 skill 是否在当前会话中可操作。
+
+        仅通过 disabled_skills 黑名单过滤；enabled_skills 白名单仅用于
+        FastAgentContext / SearchAgentContext 的提示词注入，不在此处限制
+        文件操作，以免 agent 无法读取或修改 skills 路径下的文件。
+        """
         return skill_name not in self._get_disabled_skill_names()
 
     @staticmethod

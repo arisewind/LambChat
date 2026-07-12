@@ -55,6 +55,12 @@ test("history restore hides the unstable measurement frame without removing layo
 
 test("history restore keeps a skeleton visible until measured bottom is stable", () => {
   expect(chatViewSource).toMatch(
-    /<div className="chat-history-settling-overlay"[\s\S]*<ChatSkeletonMessagesOnly count=\{8\} \/>[\s\S]*<\/div>/,
+    /<div className="chat-history-settling-overlay"[\s\S]*<ChatSkeleton count=\{8\} \/>[\s\S]*<\/div>/,
+  );
+});
+
+test("history restore does not reveal the real input before messages are stable", () => {
+  expect(chatViewSource).toMatch(
+    /\{messages\.length > 0 && !shouldHideHistoryMeasurementFrame && \(/,
   );
 });
