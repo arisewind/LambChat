@@ -1,5 +1,71 @@
 # Changelog
 
+## v2.5.4 (2026-07-12)
+
+### ✨ New Features
+
+- **Image Analysis Tool** — Dedicated image analysis tool with configurable model ID and settings.
+- **Subagent Activity Logging** — Result handoff middleware with structured logging for subagent execution.
+- **Skill Chips in Chat Messages** — Visual skill chips rendered in messages with enable/disable handling.
+- **ToolArgsDisplay Component** — Rich rendering of tool-call arguments in the chat UI.
+- **MCP Tools Inline Exposure** — Inline exposure for MCP tools with updated related policies.
+- **Share Update Functionality** — Share dialog updates with improved privacy reminder coverage.
+- **EvalItem Component** — Code preview integration into MessagePartRenderer for evaluation display.
+- **Drag Overlay for File Uploads** — Drag overlay component in ChatInput for intuitive file drop.
+- **Panel Search Input** — Integrated PanelSearchInput across selectors and dialogs for consistent search.
+- **Enhanced Selector Modals & Skill Handling** — Improved skill selector, model selector, and persona picker UX.
+- **Scheduled Task Panel Attachment Support** — Attach files to scheduled tasks with improved sidebar display.
+- **Run Mode Popover Refactor** — Improved position logic and cleaner test coverage.
+- **Team Agent Specialized Subagents** — Enhanced team agent with specialized subagents and main-agent context handling.
+- **File Upload Dropdown Extraction** — File upload dropdown style logic extracted into a separate module for reuse.
+- **Session ID Handling** — Session ID propagated across components and tests for better traceability.
+- **i18n Updates** — Translations for channel status, instance count, and loading messages across multiple languages.
+
+### 🐛 Bug Fixes
+
+- Fix project preview height collapse in sidebar mode and tool panel iframe height chain.
+- Fix SummaryItem missing text-xs and font-medium classes.
+- Fix CI lint failures on PR #176.
+- Fix scheduled task single-execution timeout default raised to 30 minutes.
+- Fix cubesandbox dependency updated to v0.3.0, removing local path references.
+- Fix chat useEffect dependency for availableRunSkills.
+- Split useMessageScroll hook under 1000 lines for CI compliance.
+
+### ♻️ Refactors
+
+- Refactor theme colors and styles across components for consistency.
+- Extract components from ChatInput.tsx and useAgent.ts to pass CI line-length checks.
+- Refactor session workspace handling and improve internal tool configurations.
+- Simplify skills_store `_is_skill_visible` to disabled_skills blacklist only — removed enabled_skills whitelist check to avoid blocking agent file access.
+- Enhance message scroll settling with configurable fallback timeout and physical scroll recovery (`forceScrollerToPhysicalBottom`).
+- Enhance SkillSkeletons with banner overlay pills, gradient direction fix, and closer alignment to real SkillBaseCard layout.
+- Standardize panel skeleton card count and improve styling for collapsible sections.
+
+### 🔒 Security
+
+- ArtifactDeliveryMiddleware test coverage for delivery validation.
+
+### 🧪 Tests
+
+- Cancellation token usage and event handling tests.
+- ArtifactDeliveryMiddleware functionality tests.
+- Tool timeout prompt default updated to 3600s.
+- Formatted sidebar chrome CSS tolerance in tests.
+- Skills file payload build tests.
+- Session management and session_id handling tests.
+- emit_user_message enabled_skills tests.
+- File upload dropdown style logic tests.
+
+### 🔧 Infrastructure
+
+- Trace event chunk storage and thinking chunk buffering for improved streaming UX.
+- Sandbox management helper functions and re-export of `ensure_sandbox_mcp`.
+- Core, infrastructure, sandbox, and tools setting definitions added.
+- Scheduler timeout limits extended with improved task execution feedback.
+- CI: track trace migration scripts.
+
+---
+
 ## v2.5.3 (2026-06-21)
 
 ### ✨ New Features
