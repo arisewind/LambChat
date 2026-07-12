@@ -126,9 +126,10 @@ const EvalItem = memo(function EvalItem({
   const durationFooter = (
     <ToolDurationFooter startedAt={startedAt} completedAt={completedAt} />
   );
-  const title = isEvalToolName(toolName) ? "Eval" : toolName;
+  const evalLabel = t("chat.message.toolEval");
+  const title = isEvalToolName(toolName) ? evalLabel : toolName;
   const pillSummary = getEvalPillSummary(args, codePreview);
-  const pillLabel = pillSummary ? `Eval ${pillSummary}` : "Eval";
+  const pillLabel = pillSummary ? `${evalLabel} ${pillSummary}` : evalLabel;
 
   const detailContent = canExpand && (
     <div className="p-4 sm:p-5 space-y-4 tool-panel-content">

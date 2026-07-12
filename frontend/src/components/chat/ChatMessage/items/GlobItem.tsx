@@ -54,7 +54,9 @@ const GlobItem = memo(function GlobItem({
           {pattern}
         </span>
         {searchPath && (
-          <span className="text-theme-text-tertiary">in {searchPath}</span>
+          <span className="text-theme-text-tertiary">
+            {t("chat.message.toolInPath", { path: searchPath })}
+          </span>
         )}
       </ToolArgsBlock>
       {paths.length > 0 && (

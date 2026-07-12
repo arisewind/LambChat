@@ -82,7 +82,7 @@ const ExecuteItem = memo(function ExecuteItem({
         <span className="text-theme-text break-all min-w-0">{command}</span>
         {timeout && (
           <span className="shrink-0 px-2 py-0.5 rounded-md bg-theme-bg-subtle text-theme-text-secondary text-xs ring-1 ring-theme-border/50">
-            {timeout}s
+            {t("chat.message.toolTimeSeconds", { count: timeout })}
           </span>
         )}
       </div>
@@ -172,7 +172,7 @@ const ExecuteItem = memo(function ExecuteItem({
               </span>
               {timeout && (
                 <span className="shrink-0 px-1.5 py-0.5 rounded bg-theme-bg-subtle text-theme-text-secondary">
-                  {timeout}s
+                  {t("chat.message.toolTimeSeconds", { count: timeout })}
                 </span>
               )}
             </div>

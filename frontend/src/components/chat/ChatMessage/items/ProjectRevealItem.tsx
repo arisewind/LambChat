@@ -58,8 +58,11 @@ export function ProjectRevealItem({
     const seconds = Math.round(ms / 1000);
     const text =
       seconds < 60
-        ? `${seconds}s`
-        : `${Math.floor(seconds / 60)}m ${seconds % 60}s`;
+        ? t("chat.message.toolTimeSeconds", { count: seconds })
+        : t("chat.message.toolTimeMinutes", {
+            minutes: Math.floor(seconds / 60),
+            seconds: seconds % 60,
+          });
     return (
       <span className="inline-flex items-center gap-1 text-xs text-[var(--theme-text-secondary)] tabular-nums px-2">
         <Clock size={11} className="shrink-0" />

@@ -57,7 +57,7 @@ const LsItem = memo(function LsItem({
         <span className="truncate">{dirPath}</span>
         {hasEntries && (
           <span className="shrink-0 text-theme-text-tertiary">
-            {entries.length} items
+            {t("chat.message.toolItemCount", { count: entries.length })}
           </span>
         )}
       </ToolArgsBlock>

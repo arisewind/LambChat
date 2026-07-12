@@ -68,19 +68,24 @@ function getTypeIcon(type: string) {
   }
 }
 
-function formatDate(isoString: string): string {
+function formatDate(
+  isoString: string,
+  t: (key: string, opts?: Record<string, unknown>) => string,
+): string {
   try {
     const date = new Date(isoString);
     const now = new Date();
     const diffMs = now.getTime() - date.getTime();
     const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
-    if (diffDays === 0) return "today";
-    if (diffDays === 1) return "yesterday";
-    if (diffDays < 30) return `${diffDays}d ago`;
+    if (diffDays === 0) return t("chat.message.toolMemoryToday");
+    if (diffDays === 1) return t("chat.message.toolMemoryYesterday");
+    if (diffDays < 30)
+      return t("chat.message.toolMemoryDaysAgo", { count: diffDays });
     const diffMonths = Math.floor(diffDays / 30);
-    if (diffMonths < 12) return `${diffMonths}mo ago`;
+    if (diffMonths < 12)
+      return t("chat.message.toolMemoryMonthsAgo", { count: diffMonths });
     const diffYears = Math.floor(diffMonths / 12);
-    return `${diffYears}y ago`;
+    return t("chat.message.toolMemoryYearsAgo", { count: diffYears });
   } catch {
     return "";
   }
@@ -286,7 +291,7 @@ const MemoryRecallItem = memo(function MemoryRecallItem({
                       {/* Date */}
                       <span className="inline-flex items-center gap-1 text-xs text-theme-text-tertiary ml-auto">
                         <Clock size={10} className="opacity-50" />
-                        {formatDate(mem.created_at)}
+                        {formatDate(mem.created_at, t)}
                       </span>
                     </div>
 
@@ -415,7 +420,9 @@ const MemoryRecallItem = memo(function MemoryRecallItem({
                 })}
                 {memories.length > 5 && (
                   <div className="text-xs text-theme-text-tertiary px-2.5">
-                    +{memories.length - 5} more
+                    {t("chat.message.toolMoreFiles", {
+                      count: memories.length - 5,
+                    })}
                   </div>
                 )}
               </div>

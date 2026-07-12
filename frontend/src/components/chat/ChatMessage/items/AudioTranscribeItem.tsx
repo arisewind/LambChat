@@ -77,7 +77,7 @@ const AudioTranscribeItem = memo(function AudioTranscribeItem({
       {transcription && (
         <div className="relative group rounded-lg tool-code-block">
           <div
-            className="prose prose-stone dark:prose-invert max-w-none text-sm leading-relaxed prose-p:my-0.5 prose-headings:my-1"
+            className="prose prose-stone dark:prose-invert max-w-none text-sm leading-relaxed prose-p:my-0.5 prose-headings:my-1 p-3 sm:p-4"
             style={{ color: "var(--theme-text)" }}
           >
             <MarkdownContent content={transcription} />
@@ -145,7 +145,7 @@ const AudioTranscribeItem = memo(function AudioTranscribeItem({
             {transcription && (
               <div className="relative group rounded-md tool-code-block">
                 <div
-                  className="prose prose-stone dark:prose-invert max-w-none text-xs leading-relaxed prose-p:my-0.5 prose-headings:my-1"
+                  className="prose prose-stone dark:prose-invert max-w-none text-xs leading-relaxed prose-p:my-0.5 prose-headings:my-1 p-2.5"
                   style={{ color: "var(--theme-text)" }}
                 >
                   <MarkdownContent

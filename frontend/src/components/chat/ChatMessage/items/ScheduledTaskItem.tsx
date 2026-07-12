@@ -549,7 +549,12 @@ const ScheduledTaskItem = memo(function ScheduledTaskItem({
         >
           <div className="space-y-1.5">
             {tasks.map((tk, i) => {
-              const tkName = String(tk.name || `Task ${i + 1}`);
+              const tkName = String(
+                tk.name ||
+                  t("chat.message.toolScheduledTaskDefaultName", {
+                    index: i + 1,
+                  }),
+              );
               const tkTrigger = tk.trigger_type as string | undefined;
               const tkStatus = tk.status as string | undefined;
               const tkEnabled = tk.enabled as boolean | undefined;
@@ -679,7 +684,12 @@ const ScheduledTaskItem = memo(function ScheduledTaskItem({
       {isList && tasks.length > 0 && (
         <div className="space-y-1">
           {tasks.slice(0, 6).map((tk, i) => {
-            const tkName = String(tk.name || `Task ${i + 1}`);
+            const tkName = String(
+              tk.name ||
+                t("chat.message.toolScheduledTaskDefaultName", {
+                  index: i + 1,
+                }),
+            );
             const tkTrigger = tk.trigger_type as string | undefined;
             return (
               <div
@@ -703,7 +713,7 @@ const ScheduledTaskItem = memo(function ScheduledTaskItem({
           })}
           {tasks.length > 6 && (
             <span className="text-[10px] text-theme-text-tertiary pl-2">
-              +{tasks.length - 6} more
+              {t("chat.message.toolMoreFiles", { count: tasks.length - 6 })}
             </span>
           )}
         </div>

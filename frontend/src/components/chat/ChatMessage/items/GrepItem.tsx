@@ -93,7 +93,9 @@ const GrepItem = memo(function GrepItem({
           {pattern}
         </span>
         {searchPath && (
-          <span className="text-theme-text-tertiary">in {searchPath}</span>
+          <span className="text-theme-text-tertiary">
+            {t("chat.message.toolInPath", { path: searchPath })}
+          </span>
         )}
         {glob && (
           <span className="shrink-0 px-2 py-0.5 rounded-md bg-theme-bg-subtle text-theme-text-secondary text-xs ring-1 ring-theme-border/50">
@@ -120,7 +122,9 @@ const GrepItem = memo(function GrepItem({
             ))}
             {parsedResult.files.length > 20 && (
               <span className="text-xs text-theme-text-tertiary px-1 py-1">
-                +{parsedResult.files.length - 20} more
+                {t("chat.message.toolMoreFiles", {
+                  count: parsedResult.files.length - 20,
+                })}
               </span>
             )}
           </div>

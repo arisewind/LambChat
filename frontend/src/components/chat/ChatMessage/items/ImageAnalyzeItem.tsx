@@ -72,7 +72,7 @@ const ImageAnalyzeItem = memo(function ImageAnalyzeItem({
   const analysisBlock = analysis ? (
     <div className="relative group rounded-lg tool-code-block">
       <div
-        className="prose prose-stone dark:prose-invert max-w-none text-sm leading-relaxed prose-p:my-0.5 prose-headings:my-1"
+        className="prose prose-stone dark:prose-invert max-w-none text-sm leading-relaxed prose-p:my-0.5 prose-headings:my-1 p-3 sm:p-4"
         style={{ color: "var(--theme-text)" }}
       >
         <MarkdownContent content={analysis} />

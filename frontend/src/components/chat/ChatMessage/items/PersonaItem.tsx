@@ -471,7 +471,9 @@ const PersonaItem = memo(function PersonaItem({
                 </div>
                 {skillNames.length > 0 && (
                   <span className="shrink-0 text-[10px] text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-900/20 px-1.5 py-0.5 rounded-md">
-                    {skillNames.length} skills
+                    {t("chat.message.toolPersonaSkillCount", {
+                      count: skillNames.length,
+                    })}
                   </span>
                 )}
               </div>

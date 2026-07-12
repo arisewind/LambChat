@@ -169,7 +169,10 @@ const TeamItem = memo(function TeamItem({
         >
           <div className="grid auto-grid-cols gap-3">
             {personas.slice(0, 20).map((p, i) => {
-              const name = String(p.name || `Persona ${i + 1}`);
+              const name = String(
+                p.name ||
+                  t("chat.message.toolTeamDefaultPersona", { index: i + 1 }),
+              );
               const desc = String(p.description || "");
               const av = String(p.avatar || "");
               const pTags: string[] = Array.isArray(p.tags) ? p.tags : [];
@@ -483,7 +486,9 @@ const TeamItem = memo(function TeamItem({
               <div className="space-y-2">
                 {resultMembers.map((m, i) => {
                   const roleName = String(
-                    m.role_name || m.name || `Member ${i + 1}`,
+                    m.role_name ||
+                      m.name ||
+                      t("chat.message.toolTeamDefaultMember", { index: i + 1 }),
                   );
                   const roleAvatar = String(m.role_avatar || m.avatar || "");
                   const instructions = String(m.role_instructions || "");

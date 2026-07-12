@@ -123,7 +123,7 @@ const SandboxMcpItem = memo(function SandboxMcpItem({
           <div className="flex items-center gap-2 px-3 py-2 border-b border-theme-border/50">
             <KeyRound size={11} className="text-teal-500 dark:text-teal-400" />
             <span className="text-xs font-medium text-theme-text-secondary">
-              Env Keys
+              {t("chat.message.toolSandboxMcpEnvKeys")}
             </span>
             <span className="text-[10px] text-theme-text-tertiary ml-auto">
               {envKeyList.length}

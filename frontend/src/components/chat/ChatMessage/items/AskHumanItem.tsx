@@ -231,7 +231,9 @@ function AnswerSummary({
 
   const formatValue = (field: FormField, value: unknown): string => {
     if (field.type === "multi_select" && Array.isArray(value))
-      return (value as string[]).join("、");
+      return (value as string[]).join(
+        t("chat.message.toolAskHumanListSeparator"),
+      );
     if (field.type === "checkbox") return value ? "✓" : "✗";
     return String(value);
   };
@@ -482,7 +484,7 @@ const AskHumanItem = memo(function AskHumanItem({
       {hasFields && (
         <div className="flex flex-wrap gap-1">
           <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md text-[10px] font-medium bg-[#fef3c7] dark:bg-[#451a03] text-amber-700 dark:text-amber-300 ring-1 ring-inset ring-amber-200/50 dark:ring-amber-800/30">
-            {fields.length} fields
+            {t("chat.message.toolAskHumanFieldCount", { count: fields.length })}
           </span>
         </div>
       )}

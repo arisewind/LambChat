@@ -139,7 +139,7 @@ const ImageGenerateItem = memo(function ImageGenerateItem({
       <div className="flex flex-wrap gap-1.5">
         <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-violet-100/60 dark:bg-violet-900/20 text-violet-700 dark:text-violet-300 text-xs">
           <Tag size={9} className="opacity-50" />
-          image-generation
+          {t("chat.message.toolImageTag")}
         </span>
         {model && (
           <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-violet-100/60 dark:bg-violet-900/20 text-violet-700 dark:text-violet-300 text-xs">
@@ -184,7 +184,9 @@ const ImageGenerateItem = memo(function ImageGenerateItem({
               size={12}
               className="text-violet-500 dark:text-violet-400"
             />
-            <span className="min-w-0 flex-1 truncate">Prompt</span>
+            <span className="min-w-0 flex-1 truncate">
+              {t("chat.message.toolImagePrompt")}
+            </span>
             <CopyButton
               text={prompt}
               size={12}
@@ -236,7 +238,7 @@ const ImageGenerateItem = memo(function ImageGenerateItem({
                 >
                   <ImageWithSkeleton
                     src={resolvedUrl}
-                    alt={`Reference ${i + 1}`}
+                    alt={t("chat.message.toolImageRefAlt", { index: i + 1 })}
                     skipUrlResolve
                     inline
                     className="w-full aspect-square object-cover"
@@ -322,7 +324,7 @@ const ImageGenerateItem = memo(function ImageGenerateItem({
         </span>
         {images.length > 0 && (
           <span className="ml-auto shrink-0 text-[10px] text-violet-500 dark:text-violet-400">
-            {images.length} img
+            {t("chat.message.toolImageImgCount", { count: images.length })}
           </span>
         )}
       </div>
@@ -377,7 +379,7 @@ const ImageGenerateItem = memo(function ImageGenerateItem({
               >
                 <ImageWithSkeleton
                   src={resolvedUrl}
-                  alt={`Ref ${i + 1}`}
+                  alt={t("chat.message.toolImageRefAltShort", { index: i + 1 })}
                   skipUrlResolve
                   inline
                   className="w-full h-full object-cover"
