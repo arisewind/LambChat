@@ -283,13 +283,13 @@ async def test_internal_image_generate_tool_infos_include_supported_parameters(
         "input_fidelity",
         "size",
         "quality",
-        "n",
         "output_format",
     ):
         assert name in params
         assert params[name]["description"]
     assert "runtime" not in params
     assert "mask_url" not in params
+    assert "n" not in params
 
     reference_params = {
         param["name"]: param for param in info_by_name["image_edit_with_references"].parameters
