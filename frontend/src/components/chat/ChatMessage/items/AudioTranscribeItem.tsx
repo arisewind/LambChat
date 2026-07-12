@@ -2,7 +2,7 @@ import { memo, useMemo } from "react";
 import { Mic, Volume2, Languages } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { CollapsiblePill } from "../../../common";
-import { DeferredCodeMirrorViewer } from "../../../common/DeferredCodeMirrorViewer";
+import { MarkdownContent } from "../MarkdownContent";
 import { extractText } from "./toolUtils";
 import { openPersistentToolPanel } from "./persistentToolPanelState";
 import { ToolArgsBlock } from "./ToolArgsBlock";
@@ -76,11 +76,12 @@ const AudioTranscribeItem = memo(function AudioTranscribeItem({
 
       {transcription && (
         <div className="relative group rounded-lg tool-code-block">
-          <DeferredCodeMirrorViewer
-            value={transcription}
-            lineNumbers={false}
-            fontSize="0.8rem"
-          />
+          <div
+            className="prose prose-stone dark:prose-invert max-w-none text-sm leading-relaxed prose-p:my-0.5 prose-headings:my-1"
+            style={{ color: "var(--theme-text)" }}
+          >
+            <MarkdownContent content={transcription} />
+          </div>
           <ToolHoverCopyButton
             text={transcription}
             size={14}
@@ -143,15 +144,18 @@ const AudioTranscribeItem = memo(function AudioTranscribeItem({
 
             {transcription && (
               <div className="relative group rounded-md tool-code-block">
-                <DeferredCodeMirrorViewer
-                  value={
-                    transcription.length > 2000
-                      ? transcription.slice(0, 2000) + "\n..."
-                      : transcription
-                  }
-                  lineNumbers={false}
-                  fontSize="0.75rem"
-                />
+                <div
+                  className="prose prose-stone dark:prose-invert max-w-none text-xs leading-relaxed prose-p:my-0.5 prose-headings:my-1"
+                  style={{ color: "var(--theme-text)" }}
+                >
+                  <MarkdownContent
+                    content={
+                      transcription.length > 2000
+                        ? transcription.slice(0, 2000) + "\n..."
+                        : transcription
+                    }
+                  />
+                </div>
                 <ToolHoverCopyButton
                   text={transcription}
                   position="panelCompact"

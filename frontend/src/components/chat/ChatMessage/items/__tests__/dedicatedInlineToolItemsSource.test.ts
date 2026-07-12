@@ -92,7 +92,7 @@ test("image analyze item presents prompt, images, and analysis output", () => {
   expect(source).toMatch(/toolImageAnalyze/);
   expect(source).toMatch(/args\.image_urls/);
   expect(source).toMatch(/args\.prompt/);
-  expect(source).toMatch(/DeferredCodeMirrorViewer/);
+  expect(source).toMatch(/MarkdownContent/);
   expect(source).toMatch(/ScanSearch size=\{12\}/);
 });
 

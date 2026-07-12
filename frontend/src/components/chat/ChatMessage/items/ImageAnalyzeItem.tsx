@@ -2,7 +2,7 @@ import { memo, useMemo } from "react";
 import { Eye, ImageIcon, MessageSquareText, ScanSearch } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { CollapsiblePill } from "../../../common";
-import { DeferredCodeMirrorViewer } from "../../../common/DeferredCodeMirrorViewer";
+import { MarkdownContent } from "../MarkdownContent";
 import { openPersistentToolPanel } from "./persistentToolPanelState";
 import { extractText } from "./toolUtils";
 import { ToolArgsBlock } from "./ToolArgsBlock";
@@ -71,11 +71,12 @@ const ImageAnalyzeItem = memo(function ImageAnalyzeItem({
 
   const analysisBlock = analysis ? (
     <div className="relative group rounded-lg tool-code-block">
-      <DeferredCodeMirrorViewer
-        value={analysis}
-        lineNumbers={false}
-        fontSize="0.8rem"
-      />
+      <div
+        className="prose prose-stone dark:prose-invert max-w-none text-sm leading-relaxed prose-p:my-0.5 prose-headings:my-1"
+        style={{ color: "var(--theme-text)" }}
+      >
+        <MarkdownContent content={analysis} />
+      </div>
       <ToolHoverCopyButton
         text={analysis}
         size={14}
