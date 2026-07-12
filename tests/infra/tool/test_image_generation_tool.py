@@ -492,7 +492,7 @@ async def test_image_generate_normalizes_unsupported_portrait_size_for_generatio
         runtime=_Runtime("user-1"),
     )
 
-    assert captured["kwargs"]["json"]["size"] == "1024x1536"
+    assert captured["kwargs"]["json"]["size"] == "768x1024"
 
 
 @pytest.mark.asyncio
@@ -573,7 +573,7 @@ async def test_image_generate_normalizes_unsupported_portrait_size_for_edits(
         runtime=_Runtime("user-1"),
     )
 
-    assert captured["kwargs"]["data"]["size"] == "1024x1536"
+    assert captured["kwargs"]["data"]["size"] == "768x1024"
 
 
 async def test_image_generate_with_input_images_uses_edits_endpoint(

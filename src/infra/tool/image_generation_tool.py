@@ -553,7 +553,7 @@ async def image_generate(
     ] = "low",
     size: Annotated[
         str,
-        "Output image size in WxH format (e.g. 1024x1024, 1536x1024, 1024x1536, 768x1024). Also accepts ratio strings like auto, 1:1, 16:9, 9:16, 4:3, 3:4, etc.",
+        "Output image size. 1K sizes: 1024x1024, 1536x1024, 1024x1536, 1792x1024, 1024x1792. 2K sizes: 2048x2048, 3072x2048, 2048x3072, 2048x1152, 1152x2048, 2048x1536, 1536x2048. Also accepts ratio strings like auto, 1:1, 16:9, 9:16, 4:3, 3:4, etc.",
     ] = _DEFAULT_IMAGE_SIZE,
     quality: Annotated[
         str,
@@ -620,7 +620,7 @@ async def image_edit_with_references(
     ] = "high",
     size: Annotated[
         str,
-        "Output image size in WxH format (e.g. 1024x1024, 1536x1024, 1024x1536, 768x1024). Also accepts ratio strings like auto, 1:1, 16:9, 9:16, 4:3, 3:4, etc.",
+        "Output image size. 1K sizes: 1024x1024, 1536x1024, 1024x1536, 1792x1024, 1024x1792. 2K sizes: 2048x2048, 3072x2048, 2048x3072, 2048x1152, 1152x2048, 2048x1536, 1536x2048. Also accepts ratio strings like auto, 1:1, 16:9, 9:16, 4:3, 3:4, etc.",
     ] = _DEFAULT_IMAGE_SIZE,
     quality: Annotated[
         str,
