@@ -1,7 +1,6 @@
 import { useTranslation } from "react-i18next";
 import { RESPONSIVE_SHOTS } from "../data";
 import { SectionHeading } from "./SectionHeading";
-import { ImageWithSkeleton } from "../../chat/ChatMessage/ImageWithSkeleton";
 interface ResponsiveSectionProps {
   onOpenViewer: (src: string, alt: string) => void;
 }
@@ -28,13 +27,12 @@ export function ResponsiveSection({ onOpenViewer }: ResponsiveSectionProps) {
               className="blog-screenshot-card group relative rounded-2xl overflow-hidden cursor-pointer bg-white dark:bg-stone-900/50 p-3 sm:p-4 transition-all duration-500 hover:-translate-y-1.5"
               onClick={() => onOpenViewer(s.src, t(`landing.${s.altKey}`))}
             >
-              <ImageWithSkeleton
+              <img
                 src={s.src}
                 alt={t(`landing.${s.altKey}`)}
-                skipUrlResolve
-                inline
-                className="w-auto max-h-44 sm:max-h-72 lg:max-h-80 rounded-xl"
-                style={{ objectFit: "contain" }}
+                loading="lazy"
+                referrerPolicy="no-referrer"
+                className="w-auto max-w-full max-h-44 sm:max-h-72 lg:max-h-80 object-contain rounded-xl"
               />
             </div>
           ))}
