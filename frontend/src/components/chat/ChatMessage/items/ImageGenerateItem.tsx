@@ -1,6 +1,6 @@
 import { memo, useMemo, useState, useCallback } from "react";
 import { clsx } from "clsx";
-import { Sparkles, ImageIcon, Tag, Layers } from "lucide-react";
+import { Sparkles, ImageIcon, Tag, Layers, ImagePlus } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { CollapsiblePill, CopyButton, ImageViewer } from "../../../common";
 import { ImageWithSkeleton } from "../ImageWithSkeleton";
@@ -12,6 +12,7 @@ import { ToolInlineDetails } from "./ToolInlineDetails";
 import { ToolHoverCopyButton } from "./ToolHoverCopyButton";
 import { ToolDurationFooter } from "./ToolDurationFooter";
 import { useSessionImageGallery } from "../sessionImageGallery";
+import { getFullUrl } from "../../../../services/api/config";
 
 const ImageGenerateItem = memo(function ImageGenerateItem({
   args,
@@ -54,6 +55,14 @@ const ImageGenerateItem = memo(function ImageGenerateItem({
   const model = (args.model as string) || "";
   const style = (args.style as string) || "";
 
+  const inputImages: string[] = useMemo(() => {
+    const raw = args.input_images;
+    if (!raw) return [];
+    if (Array.isArray(raw))
+      return raw.filter((v): v is string => typeof v === "string");
+    return [];
+  }, [args.input_images]);
+
   const images = useMemo(() => {
     let parsed: unknown = result;
     if (typeof result === "string") {
@@ -80,7 +89,8 @@ const ImageGenerateItem = memo(function ImageGenerateItem({
     return text;
   }, [result, images.length]);
 
-  const canExpand = !!prompt || images.length > 0 || !!fallbackText;
+  const canExpand =
+    !!prompt || images.length > 0 || !!fallbackText || inputImages.length > 0;
   const status = isPending
     ? "loading"
     : cancelled
@@ -158,6 +168,12 @@ const ImageGenerateItem = memo(function ImageGenerateItem({
             {outputFormat}
           </span>
         )}
+        {inputImages.length > 0 && (
+          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-violet-100/60 dark:bg-violet-900/20 text-violet-700 dark:text-violet-300 text-xs">
+            <ImagePlus size={10} className="opacity-50" />
+            {t("chat.message.toolImageRefCount", { count: inputImages.length })}
+          </span>
+        )}
       </div>
 
       {/* ── Prompt ── */}
@@ -177,6 +193,60 @@ const ImageGenerateItem = memo(function ImageGenerateItem({
           </div>
           <div className="px-3 py-2 text-sm text-theme-text-secondary whitespace-pre-wrap break-words leading-relaxed">
             {prompt}
+          </div>
+        </div>
+      )}
+
+      {/* ── Reference Images ── */}
+      {inputImages.length > 0 && (
+        <div className="rounded-lg border border-theme-border overflow-hidden">
+          <div className="flex items-center gap-1.5 px-3 py-1.5 bg-theme-bg-subtle text-theme-text-tertiary text-xs">
+            <ImagePlus
+              size={12}
+              className="text-violet-500 dark:text-violet-400"
+            />
+            <span className="min-w-0 flex-1 truncate">
+              {t("chat.message.toolImageRefImages", "Reference Images")}
+            </span>
+            <span className="shrink-0 text-[10px] text-violet-500 dark:text-violet-400">
+              {inputImages.length}
+            </span>
+          </div>
+          <div
+            className="p-2 grid gap-2"
+            style={{
+              gridTemplateColumns: `repeat(${Math.min(
+                inputImages.length,
+                4,
+              )}, 1fr)`,
+            }}
+          >
+            {inputImages.map((imgUrl, i) => {
+              const resolvedUrl = getFullUrl(imgUrl) || imgUrl;
+              return (
+                <div
+                  key={i}
+                  className={clsx(
+                    "relative rounded-lg overflow-hidden",
+                    "border border-dashed border-violet-300/60 dark:border-violet-700/40",
+                    "hover:border-violet-400 dark:hover:border-violet-600/50",
+                    "transition-colors cursor-pointer",
+                  )}
+                  onClick={() => openImagePreview(resolvedUrl)}
+                >
+                  <ImageWithSkeleton
+                    src={resolvedUrl}
+                    alt={`Reference ${i + 1}`}
+                    skipUrlResolve
+                    inline
+                    className="w-full aspect-square object-cover"
+                  />
+                  <div className="absolute top-1 left-1 px-1.5 py-0.5 rounded bg-black/50 text-white text-[9px] font-medium">
+                    #{i + 1}
+                  </div>
+                </div>
+              );
+            })}
           </div>
         </div>
       )}
@@ -277,6 +347,11 @@ const ImageGenerateItem = memo(function ImageGenerateItem({
             {t("chat.message.toolImageCount", { count: images.length })}
           </span>
         )}
+        {inputImages.length > 0 && (
+          <span className="px-1.5 py-0.5 rounded bg-violet-100/60 dark:bg-violet-900/20 text-violet-700 dark:text-violet-300 text-[10px]">
+            {t("chat.message.toolImageRefCount", { count: inputImages.length })}
+          </span>
+        )}
         {size && (
           <span className="px-1.5 py-0.5 rounded bg-violet-100/60 dark:bg-violet-900/20 text-violet-700 dark:text-violet-300 text-[10px] font-mono">
             {size}
@@ -288,6 +363,38 @@ const ImageGenerateItem = memo(function ImageGenerateItem({
           </span>
         )}
       </div>
+
+      {/* Compact reference image thumbnails */}
+      {inputImages.length > 0 && (
+        <div className="flex gap-1.5 overflow-x-auto">
+          {inputImages.slice(0, 4).map((imgUrl, i) => {
+            const resolvedUrl = getFullUrl(imgUrl) || imgUrl;
+            return (
+              <div
+                key={i}
+                className="relative shrink-0 w-12 h-12 rounded-md overflow-hidden border border-dashed border-violet-300/60 dark:border-violet-700/40 cursor-pointer"
+                onClick={() => openImagePreview(resolvedUrl)}
+              >
+                <ImageWithSkeleton
+                  src={resolvedUrl}
+                  alt={`Ref ${i + 1}`}
+                  skipUrlResolve
+                  inline
+                  className="w-full h-full object-cover"
+                />
+                <div className="absolute top-0 left-0 px-0.5 py-px rounded-br bg-black/50 text-white text-[8px] leading-none font-medium">
+                  {i + 1}
+                </div>
+              </div>
+            );
+          })}
+          {inputImages.length > 4 && (
+            <div className="shrink-0 w-12 h-12 rounded-md bg-violet-100/60 dark:bg-violet-900/20 border border-dashed border-violet-300/60 dark:border-violet-700/40 flex items-center justify-center text-violet-600 dark:text-violet-400 text-[10px] font-medium">
+              +{inputImages.length - 4}
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Compact image grid */}
       {images.length > 0 && (
