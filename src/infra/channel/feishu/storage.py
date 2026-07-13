@@ -7,6 +7,7 @@ Stores user-level Feishu bot configurations with encrypted sensitive fields.
 from datetime import datetime
 from typing import Any, Optional
 
+from src.infra.channel.feishu.manager import get_feishu_channel_manager
 from src.infra.async_utils import run_blocking_io
 from src.infra.logging import get_logger
 from src.infra.mcp.encryption import decrypt_value, encrypt_value
@@ -165,8 +166,6 @@ class FeishuStorage:
             return FeishuConfigStatus(enabled=False, connected=False)
 
         # Check actual connection status from channel manager
-        from src.infra.channel.feishu.manager import get_feishu_channel_manager
-
         manager = get_feishu_channel_manager()
         is_channel_connected = manager.is_connected(user_id, config.instance_id)
 
