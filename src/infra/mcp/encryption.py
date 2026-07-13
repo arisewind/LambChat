@@ -167,7 +167,11 @@ def decrypt_value(value: Any) -> Any:
             try:
                 fernet_legacy = _get_fernet_legacy()
                 decrypted_bytes = fernet_legacy.decrypt(encrypted_bytes)
-                logger.info("使用旧版密钥解密成功，建议重新保存配置以使用新密钥")
+                logger.warning(
+                    "使用已弃用的旧版 SHA256 密钥解密成功。"
+                    "请重新保存此配置以迁移到更安全的 PBKDF2 加密。"
+                    "旧密钥支持将在未来版本中移除。"
+                )
                 return json.loads(decrypted_bytes.decode("utf-8"))
             except Exception as e:
                 # 两种密钥都失败

@@ -164,10 +164,15 @@ class FeishuStorage:
         if not config:
             return FeishuConfigStatus(enabled=False, connected=False)
 
-        # TODO: Check actual connection status from channel manager
+        # Check actual connection status from channel manager
+        from src.infra.channel.feishu.manager import get_feishu_channel_manager
+
+        manager = get_feishu_channel_manager()
+        is_channel_connected = manager.is_connected(user_id, config.instance_id)
+
         return FeishuConfigStatus(
             enabled=config.enabled,
-            connected=False,  # Will be updated by channel manager
+            connected=is_channel_connected,
         )
 
     async def list_enabled_configs(self) -> list[FeishuConfig]:
