@@ -45,7 +45,7 @@ class AuthMiddleware(BaseHTTPMiddleware):
         "/api/auth/reset-password",
         "/api/auth/verify-email",
         "/api/auth/resend-verification",
-        "/api/upload/file/",
+        "/api/upload/file/",  # 文件访问端点 - 设计为公开以支持文件分享和前端访问
         "/assets/",
         "/icons/",
         "/images/",

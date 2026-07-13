@@ -540,7 +540,7 @@
     "websocketShort": "WS"
   },
   "chat": {
-    "addMoreFiles": "[TODO]chat.addMoreFiles",
+    "addMoreFiles": "Добавить еще файлы",
     "assistant": "Ассистент",
     "attachFile": "Прикрепить файл",
     "attachments": "Вложения",
@@ -548,7 +548,7 @@
     "commands": {
       "agent": "Агент",
       "persona": "Персона",
-      "runSkillsCount": "[TODO]chat.commands.runSkillsCount",
+      "runSkillsCount": "{{count}} навыков для следующего сообщения",
       "team": "Команда",
       "tools": "Инструменты"
     },
