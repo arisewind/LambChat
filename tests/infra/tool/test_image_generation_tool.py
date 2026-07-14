@@ -9,6 +9,18 @@ from types import SimpleNamespace
 
 import pytest
 
+from src.infra.tool import image_generation_tool
+
+
+@pytest.fixture(autouse=True)
+def _reset_image_http_clients():
+    """每个测试前重置复用的 httpx client，避免缓存污染并让 monkeypatch 生效。"""
+    image_generation_tool._image_api_client = None
+    image_generation_tool._download_client = None
+    yield
+    image_generation_tool._image_api_client = None
+    image_generation_tool._download_client = None
+
 
 class _Runtime:
     def __init__(self, user_id: str | None, base_url: str = "https://app.example.com") -> None:
@@ -137,7 +149,7 @@ async def test_image_generate_calls_images_api_and_uploads_base64_result(
         async def upload_bytes(self, data: bytes, folder: str, filename: str, content_type: str):
             raise AssertionError("generated images should use upload_file")
 
-        async def upload_file(self, file, folder: str, filename: str, content_type: str):
+        async def upload_file(self, file, folder: str, filename: str, content_type: str, **kwargs):
             captured["upload"] = {
                 "data": file.read(),
                 "folder": folder,
@@ -466,7 +478,7 @@ async def test_image_generate_normalizes_unsupported_portrait_size_for_generatio
         async def upload_bytes(self, data: bytes, folder: str, filename: str, content_type: str):
             raise AssertionError("generated images should use upload_file")
 
-        async def upload_file(self, file, folder: str, filename: str, content_type: str):
+        async def upload_file(self, file, folder: str, filename: str, content_type: str, **kwargs):
             return SimpleNamespace(
                 key=f"{folder}/{filename}", url="https://oss.example.com/gen.png"
             )
@@ -546,7 +558,7 @@ async def test_image_generate_normalizes_unsupported_portrait_size_for_edits(
         async def upload_bytes(self, data: bytes, folder: str, filename: str, content_type: str):
             raise AssertionError("generated images should use upload_file")
 
-        async def upload_file(self, file, folder: str, filename: str, content_type: str):
+        async def upload_file(self, file, folder: str, filename: str, content_type: str, **kwargs):
             return SimpleNamespace(
                 key=f"{folder}/{filename}", url="https://oss.example.com/edit.png"
             )
@@ -628,7 +640,7 @@ async def test_image_generate_with_input_images_uses_edits_endpoint(
         async def upload_bytes(self, data: bytes, folder: str, filename: str, content_type: str):
             raise AssertionError("generated images should use upload_file")
 
-        async def upload_file(self, file, folder: str, filename: str, content_type: str):
+        async def upload_file(self, file, folder: str, filename: str, content_type: str, **kwargs):
             captured["upload"] = {
                 "data": file.read(),
                 "folder": folder,
@@ -737,7 +749,7 @@ async def test_image_generate_streams_input_image_downloads_for_edits(
             return _FakeResponse({"data": [{"b64_json": b64_image}]})
 
     class _FakeStorage:
-        async def upload_file(self, file, folder: str, filename: str, content_type: str):
+        async def upload_file(self, file, folder: str, filename: str, content_type: str, **kwargs):
             captured["result_upload"] = file.read()
             return SimpleNamespace(
                 key=f"{folder}/{filename}", url="https://oss.example.com/edit.png"
@@ -806,7 +818,7 @@ async def test_image_generate_decodes_base64_result_in_chunks_before_upload(
             return _FakeResponse()
 
     class _FakeStorage:
-        async def upload_file(self, file, folder: str, filename: str, content_type: str):
+        async def upload_file(self, file, folder: str, filename: str, content_type: str, **kwargs):
             captured["upload"] = file.read()
             return SimpleNamespace(
                 key=f"{folder}/{filename}", url="https://oss.example.com/generated.png"
@@ -866,7 +878,7 @@ async def test_image_generate_offloads_base64_result_spooled_file_io(
             return _FakeResponse()
 
     class _FakeStorage:
-        async def upload_file(self, file, folder: str, filename: str, content_type: str):
+        async def upload_file(self, file, folder: str, filename: str, content_type: str, **kwargs):
             assert bytes(file.data) == b"fake-png"
             return SimpleNamespace(
                 key=f"{folder}/{filename}", url="https://oss.example.com/generated.png"
@@ -966,7 +978,7 @@ async def test_image_generate_retries_retryable_api_status(
         async def upload_bytes(self, data: bytes, folder: str, filename: str, content_type: str):
             raise AssertionError("generated images should use upload_file")
 
-        async def upload_file(self, file, folder: str, filename: str, content_type: str):
+        async def upload_file(self, file, folder: str, filename: str, content_type: str, **kwargs):
             return SimpleNamespace(
                 key=f"{folder}/{filename}", url="https://oss.example.com/gen.png"
             )
@@ -1001,7 +1013,8 @@ async def test_image_generate_retries_retryable_api_status(
 
     assert result["success"] is True
     assert len(attempts) == 2
-    assert sleep_delays == [1.0]
+    assert len(sleep_delays) == 1
+    assert 1.0 <= sleep_delays[0] <= 1.5  # base 1.0s + jitter [0, 0.5]
 
 
 @pytest.mark.asyncio

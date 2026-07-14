@@ -7,6 +7,7 @@ import base64
 import binascii
 import json
 import mimetypes
+import random
 import re
 import sys
 from tempfile import SpooledTemporaryFile
@@ -42,12 +43,57 @@ DEFAULT_IMAGE_GENERATION_BASE_URL = "https://api.openai.com/v1"
 DEFAULT_IMAGE_GENERATION_MODEL = "gpt-image-2"
 IMAGE_API_MAX_ATTEMPTS = 3
 IMAGE_API_RETRY_BASE_DELAY_SECONDS = 1.0
+IMAGE_API_RETRY_JITTER_SECONDS = 0.5  # 重试抖动，防惊群
 _SPOOL_MAX_MEMORY_BYTES = 2 * 1024 * 1024
 _BASE64_DECODE_CHUNK_CHARS = 256 * 1024
 _IMAGE_DOWNLOAD_MAX_BYTES = 20 * 1024 * 1024
 
 
 _DEFAULT_IMAGE_SIZE = "1024x1024"
+
+
+# ---------------------------------------------------------------------------
+# 复用 httpx.AsyncClient（减少 TLS 握手 / DNS / 连接建立开销，提升稳定性）
+# ---------------------------------------------------------------------------
+_image_api_client: httpx.AsyncClient | None = None
+_download_client: httpx.AsyncClient | None = None
+
+
+def _get_image_api_client() -> httpx.AsyncClient:
+    """生图 API 调用复用 client（连接池预热，减少握手失败）。"""
+    global _image_api_client
+    if _image_api_client is None or getattr(_image_api_client, "is_closed", False):
+        read_timeout = float(getattr(settings, "IMAGE_GENERATION_TIMEOUT", 120) or 120)
+        _image_api_client = httpx.AsyncClient(
+            timeout=httpx.Timeout(connect=10.0, read=read_timeout, write=30.0, pool=5.0),
+            limits=httpx.Limits(max_connections=20, max_keepalive_connections=5),
+        )
+    return _image_api_client
+
+
+def _get_download_client() -> httpx.AsyncClient:
+    """参考图下载复用 client（follow_redirects，读超时 60s）。"""
+    global _download_client
+    if _download_client is None or getattr(_download_client, "is_closed", False):
+        _download_client = httpx.AsyncClient(
+            follow_redirects=True,
+            timeout=httpx.Timeout(connect=10.0, read=60.0, write=30.0, pool=5.0),
+            limits=httpx.Limits(max_connections=20, max_keepalive_connections=5),
+        )
+    return _download_client
+
+
+async def close_image_clients() -> None:
+    """关闭复用的 httpx client（应用关闭时调用）。"""
+    global _image_api_client, _download_client
+    for client in (_image_api_client, _download_client):
+        if client is not None and not getattr(client, "is_closed", False):
+            try:
+                await client.aclose()
+            except Exception as e:
+                logger.warning("关闭生图 httpx client 失败: %s", e)
+    _image_api_client = None
+    _download_client = None
 
 
 async def _json_dumps_result(data: dict[str, Any]) -> str:
@@ -114,7 +160,19 @@ def _is_retryable_image_api_status(status_code: int | None) -> bool:
 
 
 def _image_api_retry_delay(attempt: int) -> float:
-    return IMAGE_API_RETRY_BASE_DELAY_SECONDS * (2 ** max(0, attempt - 1))
+    base = IMAGE_API_RETRY_BASE_DELAY_SECONDS * (2 ** max(0, attempt - 1))
+    return base + random.uniform(0, IMAGE_API_RETRY_JITTER_SECONDS)
+
+
+def _parse_retry_after(value: str | None) -> float | None:
+    """解析 Retry-After 头（仅支持秒数形式；HTTP-date 形式返回 None）。"""
+    if not value:
+        return None
+    try:
+        seconds = float(value.strip())
+    except (TypeError, ValueError):
+        return None
+    return seconds if seconds >= 0 else None
 
 
 async def _post_image_api_with_retries(
@@ -134,6 +192,15 @@ async def _post_image_api_with_retries(
             if attempt >= IMAGE_API_MAX_ATTEMPTS or not _is_retryable_image_api_status(status_code):
                 raise
             delay = _image_api_retry_delay(attempt)
+            # 429 时尊重上游 Retry-After 头（取上游建议与本地退避的较小值）
+            _resp_headers = getattr(exc.response, "headers", None)
+            retry_after = (
+                _parse_retry_after(_resp_headers.get("Retry-After"))
+                if _resp_headers is not None
+                else None
+            )
+            if retry_after is not None:
+                delay = min(delay, retry_after)
             logger.warning(
                 "[image_generate] %s API returned retryable status %s "
                 "(attempt %d/%d), retrying in %.1fs",
@@ -179,29 +246,29 @@ async def _download_image_source(
         ext = (mimetypes.guess_extension(mime) or ".png").lstrip(".")
         return decoded, mime or "image/png", f"inline-image-{index + 1}.{ext}"
 
-    async with httpx.AsyncClient(follow_redirects=True, timeout=60) as client:
-        spooled = SpooledTemporaryFile(max_size=_SPOOL_MAX_MEMORY_BYTES, mode="w+b")
-        try:
-            total_size = 0
-            async with client.stream("GET", resolved) as response:
-                response.raise_for_status()
-                async for chunk in response.aiter_bytes():
-                    if not chunk:
-                        continue
-                    total_size += len(chunk)
-                    if total_size > _IMAGE_DOWNLOAD_MAX_BYTES:
-                        raise ValueError(
-                            f"Image download too large: {total_size} bytes "
-                            f"(max {_IMAGE_DOWNLOAD_MAX_BYTES})"
-                        )
-                    await run_blocking_io(spooled.write, chunk)
-                content_type = response.headers.get("content-type", "") or _guess_mime(resolved)
-            await run_blocking_io(spooled.seek, 0)
-            filename = _filename_from_url(resolved, index)
-            return spooled, content_type, filename
-        except Exception:
-            spooled.close()
-            raise
+    client = _get_download_client()
+    spooled = SpooledTemporaryFile(max_size=_SPOOL_MAX_MEMORY_BYTES, mode="w+b")
+    try:
+        total_size = 0
+        async with client.stream("GET", resolved) as response:
+            response.raise_for_status()
+            async for chunk in response.aiter_bytes():
+                if not chunk:
+                    continue
+                total_size += len(chunk)
+                if total_size > _IMAGE_DOWNLOAD_MAX_BYTES:
+                    raise ValueError(
+                        f"Image download too large: {total_size} bytes "
+                        f"(max {_IMAGE_DOWNLOAD_MAX_BYTES})"
+                    )
+                await run_blocking_io(spooled.write, chunk)
+            content_type = response.headers.get("content-type", "") or _guess_mime(resolved)
+        await run_blocking_io(spooled.seek, 0)
+        filename = _filename_from_url(resolved, index)
+        return spooled, content_type, filename
+    except Exception:
+        spooled.close()
+        raise
 
 
 def _decode_base64_to_spooled_file(data: str) -> SpooledTemporaryFile:
@@ -265,6 +332,7 @@ async def _upload_image_file(
         folder=f"generated-images/{user_id}",
         filename=filename,
         content_type=content_type,
+        skip_size_limit=True,
     )
     return {
         "key": result.key,
@@ -355,7 +423,6 @@ async def _call_generation_api(
 
     base_url = _resolve_base_url()
     model = _resolve_model()
-    timeout = getattr(settings, "IMAGE_GENERATION_TIMEOUT", 120) or 120
     user_id = get_user_id_from_runtime(runtime) or "anonymous"
 
     headers = {
@@ -371,14 +438,14 @@ async def _call_generation_api(
         "output_format": str(output_format),
     }
 
-    async with httpx.AsyncClient(timeout=timeout) as client:
-        body = await _post_image_api_with_retries(
-            client,
-            f"{base_url}/images/generations",
-            operation="generation",
-            headers=headers,
-            json=payload,
-        )
+    client = _get_image_api_client()
+    body = await _post_image_api_with_retries(
+        client,
+        f"{base_url}/images/generations",
+        operation="generation",
+        headers=headers,
+        json=payload,
+    )
 
     items = []
     if isinstance(body, dict):
@@ -428,7 +495,6 @@ async def _call_edit_api(
 
     base_url = _resolve_base_url()
     model = _resolve_model()
-    timeout = getattr(settings, "IMAGE_GENERATION_TIMEOUT", 120) or 120
     user_id = get_user_id_from_runtime(runtime) or "anonymous"
 
     source_files = []
@@ -454,15 +520,15 @@ async def _call_edit_api(
             "output_format": str(output_format),
         }
 
-        async with httpx.AsyncClient(timeout=timeout) as client:
-            body = await _post_image_api_with_retries(
-                client,
-                f"{base_url}/images/edits",
-                operation="edit",
-                headers={"Authorization": f"Bearer {api_key}"},
-                data=data,
-                files=files,
-            )
+        client = _get_image_api_client()
+        body = await _post_image_api_with_retries(
+            client,
+            f"{base_url}/images/edits",
+            operation="edit",
+            headers={"Authorization": f"Bearer {api_key}"},
+            data=data,
+            files=files,
+        )
     finally:
         for image_file in source_files:
             image_file.close()
