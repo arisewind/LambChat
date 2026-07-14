@@ -26,3 +26,21 @@ test("collapsible section header does not nest action buttons inside the toggle"
     /\.collapsible-section-card--default\s*\{[\s\S]*?background:\s*var\(--theme-bg-card\);[\s\S]*?box-shadow:/,
   );
 });
+
+test("expanded collapsible section cards fill the available panel height", () => {
+  const componentSource = readFileSync(
+    new URL("../SubagentBlocks.tsx", import.meta.url),
+    "utf8",
+  );
+
+  expect(componentSource).toMatch(
+    /className="flex min-h-0 flex-1 flex-col space-y-3"/,
+  );
+  expect(componentSource).toMatch(
+    /<div className="mt-2 flex-1 min-h-0 overflow-y-auto animate-\[fade-in_150ms_ease-out\]">/,
+  );
+  expect(componentSource).toMatch(/expanded && expandedClassName/);
+  expect(componentSource).toMatch(
+    /title=\{t\("chat\.message\.result"\)\}[\s\S]*?expandedClassName="flex min-h-0 flex-1 flex-col"/,
+  );
+});

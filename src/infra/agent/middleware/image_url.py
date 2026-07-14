@@ -14,7 +14,6 @@ from langchain.agents.middleware.types import (
 )
 
 from src.agents.core.node_utils import (
-    IMAGE_DATA_URL_INLINE_MAX_BYTES,
     _download_image_url_as_data_url,
 )
 from src.infra.logging import get_logger
@@ -47,18 +46,24 @@ def _with_data_url(block: dict, data_url: str) -> dict:
     if block.get("type") == "image":
         source = block.get("source")
         if isinstance(source, dict) and source.get("type") == "url":
+            data_mime_type = ""
+            if data_url.startswith("data:") and ";" in data_url:
+                data_mime_type = data_url[5:].split(";", 1)[0]
             return {
                 **block,
                 "source": {
                     "type": "base64",
-                    "media_type": source.get("media_type") or "image/jpeg",
+                    "media_type": data_mime_type or source.get("media_type") or "image/jpeg",
                     "data": data_url.split(",", 1)[1] if "," in data_url else data_url,
                 },
             }
 
     image_url = block.get("image_url")
     if isinstance(image_url, dict):
-        return {**block, "image_url": {**image_url, "url": data_url}}
+        return {
+            **block,
+            "image_url": {**image_url, "url": data_url},
+        }
     return {**block, "image_url": {"url": data_url}}
 
 
@@ -79,10 +84,6 @@ def _mime_type_from_block(block: dict) -> str:
 class ImageUrlToBase64Middleware(AgentMiddleware):
     """Convert every outbound image_url block to a base64 data URL."""
 
-    def __init__(self, *, max_inline_bytes: int = IMAGE_DATA_URL_INLINE_MAX_BYTES) -> None:
-        super().__init__()
-        self.max_inline_bytes = max_inline_bytes
-
     async def _convert_content_blocks(self, content: Any) -> Any:
         if not isinstance(content, list):
             return content
@@ -99,7 +100,6 @@ class ImageUrlToBase64Middleware(AgentMiddleware):
                 data_url = await _download_image_url_as_data_url(
                     url,
                     _mime_type_from_block(block),
-                    max_bytes=self.max_inline_bytes,
                 )
             except Exception as e:
                 logger.warning("Failed to convert image_url to base64: %s", e)

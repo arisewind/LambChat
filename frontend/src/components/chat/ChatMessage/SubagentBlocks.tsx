@@ -409,12 +409,16 @@ export function CollapsibleSection({
   defaultExpanded = true,
   action,
   variant = "default",
+  className,
+  expandedClassName,
   children,
 }: {
   title: string;
   defaultExpanded?: boolean;
   action?: React.ReactNode;
   variant?: "default" | "error";
+  className?: string;
+  expandedClassName?: string;
   children: React.ReactNode;
 }) {
   const [expanded, setExpanded] = useState(defaultExpanded);
@@ -425,6 +429,8 @@ export function CollapsibleSection({
     <div
       className={clsx(
         "collapsible-section-card p-3 sm:p-4 rounded-lg sm:rounded-xl",
+        className,
+        expanded && expandedClassName,
         isError
           ? "collapsible-section-card--error bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-900/50"
           : "collapsible-section-card--default bg-theme-bg-card border border-theme-border shadow-sm",
@@ -461,7 +467,9 @@ export function CollapsibleSection({
         {action && <div className="shrink-0">{action}</div>}
       </div>
       {expanded && (
-        <div className="mt-2 animate-[fade-in_150ms_ease-out]">{children}</div>
+        <div className="mt-2 flex-1 min-h-0 overflow-y-auto animate-[fade-in_150ms_ease-out]">
+          {children}
+        </div>
       )}
     </div>
   );
@@ -585,9 +593,9 @@ function SubagentPanelContent({ agentId }: { agentId: string }) {
     <div
       ref={scrollRef}
       onScroll={handleScroll}
-      className="relative h-full min-h-0 overflow-y-auto p-2 sm:p-4"
+      className="relative flex h-full min-h-0 flex-col overflow-y-auto p-2 sm:p-4"
     >
-      <div ref={contentRef} className="space-y-3">
+      <div ref={contentRef} className="flex min-h-0 flex-1 flex-col space-y-3">
         {data.input && (
           <CollapsibleSection
             title={t("chat.message.args")}
@@ -653,6 +661,7 @@ function SubagentPanelContent({ agentId }: { agentId: string }) {
           <CollapsibleSection
             title={t("chat.message.result")}
             action={<CopyButton text={data.result} />}
+            expandedClassName="flex min-h-0 flex-1 flex-col"
           >
             <div className="text-sm text-stone-700 dark:text-stone-300 leading-relaxed">
               <SidebarMarkdownContent content={data.result} />

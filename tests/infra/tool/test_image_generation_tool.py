@@ -5,15 +5,23 @@ import json
 import sys
 from datetime import datetime, timezone
 from pathlib import Path
+from tempfile import SpooledTemporaryFile
 from types import SimpleNamespace
 
 import pytest
 
 
 class _Runtime:
-    def __init__(self, user_id: str | None, base_url: str = "https://app.example.com") -> None:
+    def __init__(
+        self,
+        user_id: str | None,
+        base_url: str = "https://app.example.com",
+        backend=None,
+    ) -> None:
         context = SimpleNamespace(user_id=user_id) if user_id is not None else None
-        self.config = {"configurable": {"context": context, "base_url": base_url}}
+        self.config = {
+            "configurable": {"context": context, "base_url": base_url, "backend": backend}
+        }
 
 
 class _BlockingOnlySpooledFile:
@@ -773,6 +781,554 @@ async def test_image_generate_streams_input_image_downloads_for_edits(
 
 
 @pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "image_ref",
+    [
+        "https://files.example.com/reference.png",
+        "data:image/png;base64,aW1hZ2U=",
+        "/workspace/reference.png",
+    ],
+    ids=["url_compresses", "data_url_compresses", "backend_path_compresses"],
+)
+async def test_image_generate_compresses_oversized_input_images_before_edit_request(
+    monkeypatch: pytest.MonkeyPatch,
+    image_ref: str,
+) -> None:
+    from src.infra.tool import image_generation_tool
+
+    original = b"x" * (5 * 1024 * 1024 + 1)
+    compressed = b"compressed-jpeg"
+    captured: dict[str, object] = {}
+
+    async def fake_download(source: str, runtime, *, index: int = 0):
+        assert source == image_ref
+        image_file = SpooledTemporaryFile(mode="w+b")
+        image_file.write(original)
+        image_file.seek(0)
+        return image_file, "image/png", "reference.png"
+
+    def fake_compress(content: bytes, mime_type: str):
+        captured["compress_input"] = (content, mime_type)
+        return compressed, "image/jpeg"
+
+    class _FakeResponse:
+        def raise_for_status(self) -> None:
+            return None
+
+        def json(self) -> dict[str, object]:
+            return {"data": [{"b64_json": "unused"}]}
+
+    class _FakeHttpClient:
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, exc_type, exc, tb):
+            return None
+
+        async def post(self, request_url: str, **kwargs):
+            filename, image_file, content_type = kwargs["files"][0][1]
+            captured["multipart"] = (filename, image_file.read(), content_type)
+            return _FakeResponse()
+
+    async def fake_convert_result_item(*args, **kwargs):
+        return {"url": "/generated.png"}
+
+    monkeypatch.setattr(image_generation_tool, "_download_image_source", fake_download)
+    monkeypatch.setattr(
+        image_generation_tool,
+        "compress_image_bytes_if_needed",
+        fake_compress,
+        raising=False,
+    )
+    monkeypatch.setattr(image_generation_tool, "_convert_result_item", fake_convert_result_item)
+    monkeypatch.setattr(
+        image_generation_tool.httpx, "AsyncClient", lambda **kwargs: _FakeHttpClient()
+    )
+    monkeypatch.setattr(image_generation_tool.settings, "IMAGE_GENERATION_API_KEY", "sk-test")
+
+    result = await image_generation_tool._call_edit_api(
+        prompt="edit",
+        input_images=[image_ref],
+        background="auto",
+        input_fidelity="low",
+        size="1024x1024",
+        quality="auto",
+        output_format="png",
+        runtime=_Runtime("user-1"),
+    )
+
+    assert result["success"] is True
+    assert captured["compress_input"] == (original, "image/png")
+    assert captured["multipart"] == ("reference.jpg", compressed, "image/jpeg")
+
+
+@pytest.mark.asyncio
+async def test_image_generate_keeps_original_edit_source_when_compression_is_not_smaller(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from src.infra.tool import image_generation_tool
+
+    original = b"already-compact-image"
+    captured: dict[str, object] = {}
+    blocking_calls: list[str] = []
+
+    async def fake_run_blocking_io(func, *args, **kwargs):
+        blocking_calls.append(getattr(func, "__name__", repr(func)))
+        return func(*args, **kwargs)
+
+    async def fake_download(source: str, runtime, *, index: int = 0):
+        image_file = SpooledTemporaryFile(mode="w+b")
+        image_file.write(original)
+        image_file.seek(0)
+        return image_file, "image/png", "reference.png"
+
+    class _FakeResponse:
+        def raise_for_status(self) -> None:
+            return None
+
+        def json(self) -> dict[str, object]:
+            return {"data": [{"b64_json": "unused"}]}
+
+    class _FakeHttpClient:
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, exc_type, exc, tb):
+            return None
+
+        async def post(self, request_url: str, **kwargs):
+            filename, image_file, content_type = kwargs["files"][0][1]
+            captured["multipart"] = (filename, image_file.read(), content_type)
+            return _FakeResponse()
+
+    async def fake_convert_result_item(*args, **kwargs):
+        return {"url": "/generated.png"}
+
+    monkeypatch.setattr(image_generation_tool, "_download_image_source", fake_download)
+    monkeypatch.setattr(image_generation_tool, "run_blocking_io", fake_run_blocking_io)
+    monkeypatch.setattr(
+        image_generation_tool,
+        "compress_image_bytes_if_needed",
+        lambda content, mime_type: (content, mime_type),
+    )
+    monkeypatch.setattr(image_generation_tool, "_convert_result_item", fake_convert_result_item)
+    monkeypatch.setattr(
+        image_generation_tool.httpx, "AsyncClient", lambda **kwargs: _FakeHttpClient()
+    )
+    monkeypatch.setattr(image_generation_tool.settings, "IMAGE_GENERATION_API_KEY", "sk-test")
+
+    result = await image_generation_tool._call_edit_api(
+        prompt="edit",
+        input_images=["/workspace/reference.png"],
+        background="auto",
+        input_fidelity="low",
+        size="1024x1024",
+        quality="auto",
+        output_format="png",
+        runtime=_Runtime("user-1"),
+    )
+
+    assert result["success"] is True
+    assert captured["multipart"] == ("reference.png", original, "image/png")
+    assert "close" in blocking_calls
+
+
+@pytest.mark.asyncio
+async def test_compressed_edit_source_files_close_when_a_later_download_fails(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from src.infra.tool import image_generation_tool
+
+    originals: list[SpooledTemporaryFile] = []
+    replacements: list[SpooledTemporaryFile] = []
+
+    async def fake_download(source: str, runtime, *, index: int = 0):
+        if index == 1:
+            raise ValueError("second image failed")
+        image_file = SpooledTemporaryFile(mode="w+b")
+        image_file.write(b"oversized-image")
+        image_file.seek(0)
+        originals.append(image_file)
+        return image_file, "image/png", "reference.png"
+
+    def fake_spool(content: bytes):
+        image_file = SpooledTemporaryFile(mode="w+b")
+        image_file.write(content)
+        image_file.seek(0)
+        replacements.append(image_file)
+        return image_file
+
+    monkeypatch.setattr(image_generation_tool, "_download_image_source", fake_download)
+    monkeypatch.setattr(
+        image_generation_tool,
+        "compress_image_bytes_if_needed",
+        lambda content, mime_type: (b"compressed", "image/jpeg"),
+    )
+    monkeypatch.setattr(image_generation_tool, "_spool_backend_image", fake_spool)
+    monkeypatch.setattr(image_generation_tool.settings, "IMAGE_GENERATION_API_KEY", "sk-test")
+
+    with pytest.raises(ValueError, match="second image failed"):
+        await image_generation_tool._call_edit_api(
+            prompt="edit",
+            input_images=["/workspace/first.png", "/workspace/second.png"],
+            background="auto",
+            input_fidelity="low",
+            size="1024x1024",
+            quality="auto",
+            output_format="png",
+            runtime=_Runtime("user-1"),
+        )
+
+    assert originals and all(image_file.closed for image_file in originals)
+    assert replacements and all(image_file.closed for image_file in replacements)
+
+
+@pytest.mark.asyncio
+async def test_edit_source_closes_when_compression_is_cancelled(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from src.infra.tool import image_generation_tool
+
+    image_file = SpooledTemporaryFile(mode="w+b")
+    image_file.write(b"oversized-image")
+    image_file.seek(0)
+
+    def cancel_compression(content: bytes, mime_type: str):
+        raise asyncio.CancelledError
+
+    monkeypatch.setattr(
+        image_generation_tool,
+        "compress_image_bytes_if_needed",
+        cancel_compression,
+    )
+
+    with pytest.raises(asyncio.CancelledError):
+        await image_generation_tool._compress_image_source_if_needed(
+            image_file,
+            "image/png",
+            "reference.png",
+        )
+
+    assert image_file.closed
+
+
+@pytest.mark.asyncio
+async def test_close_image_files_attempts_every_close_after_one_fails() -> None:
+    from src.infra.tool import image_generation_tool
+
+    close_calls: list[str] = []
+
+    class _File:
+        def __init__(self, name: str, *, fail: bool = False) -> None:
+            self.name = name
+            self.fail = fail
+
+        def close(self) -> None:
+            close_calls.append(self.name)
+            if self.fail:
+                raise OSError(f"failed to close {self.name}")
+
+    with pytest.raises(OSError, match="failed to close first"):
+        await image_generation_tool._close_image_files(
+            [_File("first", fail=True), _File("second")],
+        )
+
+    assert close_calls == ["first", "second"]
+
+
+@pytest.mark.asyncio
+async def test_image_generate_uses_backend_path_for_reference_images(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from src.infra.tool import image_generation_tool
+
+    captured: dict[str, object] = {}
+    source_bytes = b"\x89PNG\r\n\x1a\nbackend-image"
+    generated_image = base64.b64encode(b"generated-image").decode("ascii")
+
+    class _FakeBackend:
+        async def adownload_files(self, paths: list[str]):
+            captured["backend_paths"] = paths
+            return [
+                SimpleNamespace(
+                    path="/workspace/reference.png",
+                    content=source_bytes,
+                    error=None,
+                )
+            ]
+
+    class _FakeResponse:
+        def __init__(self, payload: dict[str, object]) -> None:
+            self._payload = payload
+
+        def raise_for_status(self) -> None:
+            return None
+
+        def json(self) -> dict[str, object]:
+            return self._payload
+
+    class _FakeHttpClient:
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, exc_type, exc, tb):
+            return None
+
+        async def post(self, request_url: str, **kwargs):
+            captured["request_url"] = request_url
+            filename, image_file, content_type = kwargs["files"][0][1]
+            captured["source_file"] = (filename, image_file.read(), content_type)
+            return _FakeResponse({"data": [{"b64_json": generated_image}]})
+
+    class _FakeStorage:
+        async def upload_file(self, file, folder: str, filename: str, content_type: str):
+            return SimpleNamespace(
+                key=f"{folder}/{filename}", url="https://oss.example.com/generated.png"
+            )
+
+    async def fake_get_or_init_storage():
+        return _FakeStorage()
+
+    monkeypatch.setattr(
+        image_generation_tool.httpx, "AsyncClient", lambda **kwargs: _FakeHttpClient()
+    )
+    monkeypatch.setattr(image_generation_tool, "get_or_init_storage", fake_get_or_init_storage)
+    monkeypatch.setattr(image_generation_tool.settings, "IMAGE_GENERATION_API_KEY", "sk-test")
+    monkeypatch.setattr(
+        image_generation_tool.settings,
+        "IMAGE_GENERATION_BASE_URL",
+        "https://api.example.com/v1",
+    )
+
+    result = json.loads(
+        await image_generation_tool.image_generate.coroutine(
+            prompt="use this image as a reference",
+            input_images=["/workspace/reference.png"],
+            runtime=_Runtime("user-1", backend=_FakeBackend()),
+        )
+    )
+
+    assert result["success"] is True
+    assert captured["backend_paths"] == ["/workspace/reference.png"]
+    assert captured["request_url"] == "https://api.example.com/v1/images/edits"
+    filename, content, content_type = captured["source_file"]
+    assert filename == "reference.png"
+    assert content == source_bytes
+    assert content_type == "image/png"
+
+
+@pytest.mark.parametrize(
+    ("image_ref", "expected_path"),
+    [
+        ("/workspace/reference.png", "/workspace/reference.png"),
+        ("workspace/reference.png", "workspace/reference.png"),
+    ],
+)
+def test_backend_path_classifier_accepts_sandbox_reference_paths(
+    image_ref: str,
+    expected_path: str,
+) -> None:
+    from src.infra.tool.image_generation_tool import _backend_path_from_image_reference
+
+    assert _backend_path_from_image_reference(image_ref) == expected_path
+
+
+def test_backend_path_classifier_rejects_file_uri_reference() -> None:
+    from src.infra.tool.image_generation_tool import _backend_path_from_image_reference
+
+    assert _backend_path_from_image_reference("file:///workspace/reference%20image.png") is None
+
+
+def test_backend_path_classifier_rejects_protocol_relative_url() -> None:
+    from src.infra.tool.image_generation_tool import _backend_path_from_image_reference
+
+    assert _backend_path_from_image_reference("//cdn.example.com/reference.png") is None
+
+
+@pytest.mark.asyncio
+async def test_image_generation_preserves_root_relative_url_without_runtime_backend(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from src.infra.tool import image_generation_tool
+
+    captured: dict[str, object] = {}
+
+    class _FakeResponse:
+        headers = {"content-type": "image/png"}
+
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, exc_type, exc, tb):
+            return None
+
+        def raise_for_status(self) -> None:
+            return None
+
+        async def aiter_bytes(self):
+            yield b"image"
+
+    class _FakeHttpClient:
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, exc_type, exc, tb):
+            return None
+
+        def stream(self, method: str, request_url: str):
+            captured["request_url"] = request_url
+            return _FakeResponse()
+
+    monkeypatch.setattr(
+        image_generation_tool.httpx, "AsyncClient", lambda **kwargs: _FakeHttpClient()
+    )
+
+    image_file, content_type, filename = await image_generation_tool._download_image_source(
+        "/images/reference.png",
+        _Runtime("user-1", backend=None),
+    )
+
+    try:
+        assert captured["request_url"] == "https://app.example.com/images/reference.png"
+        assert content_type == "image/png"
+        assert filename == "reference.png"
+    finally:
+        image_file.close()
+
+
+@pytest.mark.asyncio
+async def test_backend_reference_image_rejects_oversized_content(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from src.infra.tool import image_generation_tool
+
+    class _FakeBackend:
+        async def adownload_files(self, paths: list[str]):
+            return [SimpleNamespace(path=paths[0], content=b"oversized", error=None)]
+
+    monkeypatch.setattr(image_generation_tool, "_IMAGE_DOWNLOAD_MAX_BYTES", 4)
+
+    with pytest.raises(ValueError, match="Image download too large"):
+        await image_generation_tool._download_image_source(
+            "/workspace/reference.png",
+            _Runtime("user-1", backend=_FakeBackend()),
+        )
+
+
+@pytest.mark.asyncio
+async def test_image_generation_reads_reference_image_from_e2b_sandbox_backend() -> None:
+    from src.infra.backend.e2b import E2BBackend
+    from src.infra.tool.image_generation_tool import _download_image_source
+
+    source_path = "/home/user/assets/reference.png"
+    source_bytes = b"\x89PNG\r\n\x1a\nsandbox-image"
+
+    class _FakeSandboxFiles:
+        def __init__(self) -> None:
+            self.read_calls: list[tuple[str, str]] = []
+
+        def list(self, path: str):
+            assert path == "/home/user/assets"
+            return [SimpleNamespace(path=source_path, size=len(source_bytes))]
+
+        def read(self, path: str, format: str):
+            self.read_calls.append((path, format))
+            return source_bytes
+
+    files = _FakeSandboxFiles()
+    backend = E2BBackend(
+        sandbox=SimpleNamespace(sandbox_id="e2b-test", files=files),
+        work_dir="/home/user",
+    )
+
+    image_file, content_type, filename = await _download_image_source(
+        source_path,
+        _Runtime("user-1", backend=backend),
+    )
+
+    try:
+        assert files.read_calls == [(source_path, "bytes")]
+        assert image_file.read() == source_bytes
+        assert content_type == "image/png"
+        assert filename == "reference.png"
+    finally:
+        image_file.close()
+
+
+@pytest.mark.asyncio
+async def test_image_generation_resolves_relative_reference_path_for_daytona_sandbox() -> None:
+    from deepagents.backends import CompositeBackend
+
+    from src.infra.backend.daytona import DaytonaBackend
+    from src.infra.tool.image_generation_tool import _download_image_source
+
+    source_bytes = b"\x89PNG\r\n\x1a\ndaytona-image"
+    captured: dict[str, object] = {}
+
+    class _FakeFilesystem:
+        def download_files(self, requests):
+            captured["sources"] = [request.source for request in requests]
+            return [SimpleNamespace(source=requests[0].source, result=source_bytes)]
+
+    backend = DaytonaBackend(
+        sandbox=SimpleNamespace(id="daytona-test", fs=_FakeFilesystem()),
+        work_dir="/home/daytona",
+    )
+    backend._file_size = lambda path: None
+    runtime_backend = CompositeBackend(default=backend, routes={})
+
+    image_file, content_type, filename = await _download_image_source(
+        "assets/reference.png",
+        _Runtime("user-1", backend=runtime_backend),
+    )
+
+    try:
+        assert captured["sources"] == ["/home/daytona/assets/reference.png"]
+        assert image_file.read() == source_bytes
+        assert content_type == "image/png"
+        assert filename == "reference.png"
+    finally:
+        image_file.close()
+
+
+@pytest.mark.asyncio
+async def test_image_generation_reads_relative_reference_image_from_cubesandbox() -> None:
+    from src.infra.backend.cubesandbox import CubeSandboxBackend
+    from src.infra.tool.image_generation_tool import _download_image_source
+
+    source_path = "/home/cube/assets/reference.png"
+    source_bytes = b"\x89PNG\r\n\x1a\ncube-image"
+
+    class _FakeSandboxFiles:
+        def __init__(self) -> None:
+            self.read_calls: list[str] = []
+
+        def read(self, path: str):
+            self.read_calls.append(path)
+            return source_bytes
+
+    files = _FakeSandboxFiles()
+    backend = CubeSandboxBackend(
+        sandbox=SimpleNamespace(sandbox_id="cube-test", files=files),
+        work_dir="/home/cube",
+    )
+    backend._file_size = lambda path: None
+
+    image_file, content_type, filename = await _download_image_source(
+        "assets/reference.png",
+        _Runtime("user-1", backend=backend),
+    )
+
+    try:
+        assert files.read_calls == [source_path]
+        assert image_file.read() == source_bytes
+        assert content_type == "image/png"
+        assert filename == "reference.png"
+    finally:
+        image_file.close()
+
+
+@pytest.mark.asyncio
 async def test_image_generate_decodes_base64_result_in_chunks_before_upload(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -916,6 +1472,7 @@ async def test_image_generate_offloads_base64_result_spooled_file_io(
     assert "_extract_image_payload" in calls
     assert "_file_size" in calls
     assert "seek" in calls
+    assert "close" in calls
     assert "dumps" in calls
 
 

@@ -7,19 +7,22 @@ import base64
 import binascii
 import json
 import mimetypes
+import os
 import re
 import sys
 from tempfile import SpooledTemporaryFile
 from typing import Annotated, Any
-from urllib.parse import urlparse
+from urllib.parse import urlparse, urlsplit
 
 import httpx
 from langchain_core.tools import BaseTool, InjectedToolArg
 
 from src.infra.async_utils import run_blocking_io
+from src.infra.image_utils import compress_image_bytes_if_needed
 from src.infra.logging import get_logger
 from src.infra.storage.s3.service import get_or_init_storage
 from src.infra.tool.backend_utils import (
+    get_backend_from_runtime,
     get_base_url_from_runtime,
     get_user_id_from_runtime,
 )
@@ -45,9 +48,14 @@ IMAGE_API_RETRY_BASE_DELAY_SECONDS = 1.0
 _SPOOL_MAX_MEMORY_BYTES = 2 * 1024 * 1024
 _BASE64_DECODE_CHUNK_CHARS = 256 * 1024
 _IMAGE_DOWNLOAD_MAX_BYTES = 20 * 1024 * 1024
+_UPLOAD_FILE_MARKER = "/api/upload/file/"
 
 
 _DEFAULT_IMAGE_SIZE = "1024x1024"
+
+
+class _BackendImageNotFoundError(ValueError):
+    """Raised when a sandbox path cannot be resolved to image bytes."""
 
 
 async def _json_dumps_result(data: dict[str, Any]) -> str:
@@ -88,6 +96,162 @@ def _filename_from_url(url: str, index: int) -> str:
     if name:
         return name
     return f"image-{index + 1}.png"
+
+
+def _backend_path_from_image_reference(image_ref: str) -> str | None:
+    ref = image_ref.strip()
+    if not ref or ref.startswith("data:") or _UPLOAD_FILE_MARKER in ref:
+        return None
+
+    parsed = urlsplit(ref)
+    scheme = (parsed.scheme or "").lower()
+    if parsed.netloc:
+        return None
+    if scheme in {"http", "https"}:
+        return None
+    if scheme:
+        return None
+    return ref
+
+
+def _resolve_backend_image_path(backend: Any, file_path: str) -> str:
+    if file_path.startswith("/"):
+        return file_path
+
+    candidate = backend
+    visited: set[int] = set()
+    while candidate is not None and id(candidate) not in visited:
+        visited.add(id(candidate))
+        work_dir = getattr(candidate, "work_dir", None)
+        if isinstance(work_dir, str) and work_dir:
+            return f"{work_dir.rstrip('/')}/{file_path.lstrip('/')}"
+        candidate = getattr(candidate, "default", None)
+
+    return file_path
+
+
+async def _download_file_from_backend(backend: Any, file_path: str) -> bytes | None:
+    if hasattr(backend, "adownload_files"):
+        try:
+            responses = await backend.adownload_files([file_path])
+            if responses:
+                response = responses[0]
+                if response.content is not None:
+                    return response.content
+                if response.error:
+                    logger.warning(
+                        "[image_generate] Backend download error for %s: %s",
+                        file_path,
+                        response.error,
+                    )
+        except Exception as exc:
+            logger.warning("[image_generate] adownload_files failed for %s: %s", file_path, exc)
+
+    if hasattr(backend, "download_files"):
+        try:
+            responses = await run_blocking_io(backend.download_files, [file_path])
+            if responses:
+                response = responses[0]
+                if response.content is not None:
+                    return response.content
+                if response.error:
+                    logger.warning(
+                        "[image_generate] Backend download error for %s: %s",
+                        file_path,
+                        response.error,
+                    )
+        except Exception as exc:
+            logger.warning("[image_generate] download_files failed for %s: %s", file_path, exc)
+
+    return None
+
+
+def _spool_backend_image(content: bytes) -> SpooledTemporaryFile:
+    if len(content) > _IMAGE_DOWNLOAD_MAX_BYTES:
+        _raise_image_too_large(len(content))
+    spooled = SpooledTemporaryFile(max_size=_SPOOL_MAX_MEMORY_BYTES, mode="w+b")
+    try:
+        spooled.write(content)
+        spooled.seek(0)
+        return spooled
+    except Exception:
+        spooled.close()
+        raise
+
+
+def _read_spooled_image(image_file: Any) -> bytes:
+    image_file.seek(0)
+    return bytes(image_file.read())
+
+
+def _jpeg_filename(filename: str) -> str:
+    stem, _ = os.path.splitext(filename)
+    return f"{stem or 'image'}.jpg"
+
+
+async def _close_image_files(
+    image_files: list[Any],
+    *,
+    suppress_errors: bool = False,
+) -> None:
+    first_error: BaseException | None = None
+    for image_file in image_files:
+        try:
+            await run_blocking_io(image_file.close)
+        except BaseException as exc:
+            if first_error is None:
+                first_error = exc
+    if first_error is not None and not suppress_errors:
+        raise first_error
+
+
+async def _compress_image_source_if_needed(
+    image_file: SpooledTemporaryFile,
+    content_type: str,
+    filename: str,
+) -> tuple[SpooledTemporaryFile, str, str]:
+    """Compress an edit source and transfer ownership of its file handle."""
+    replacement: SpooledTemporaryFile | None = None
+    try:
+        content = await run_blocking_io(_read_spooled_image, image_file)
+        compressed, compressed_type = await run_blocking_io(
+            compress_image_bytes_if_needed,
+            content,
+            content_type,
+        )
+        if compressed == content and compressed_type == content_type:
+            await run_blocking_io(image_file.seek, 0)
+            return image_file, content_type, filename
+
+        replacement = await run_blocking_io(_spool_backend_image, compressed)
+        await run_blocking_io(image_file.close)
+        return replacement, compressed_type, _jpeg_filename(filename)
+    except BaseException:
+        files_to_close = [image_file]
+        if replacement is not None:
+            files_to_close.insert(0, replacement)
+        await _close_image_files(files_to_close, suppress_errors=True)
+        raise
+
+
+async def _download_backend_image_source(
+    file_path: str,
+    runtime: ToolRuntime | None,
+    *,
+    index: int,
+) -> tuple[SpooledTemporaryFile, str, str]:
+    backend = get_backend_from_runtime(runtime)
+    if backend is None:
+        raise ValueError("Backend image paths require a runtime backend")
+
+    resolved_path = _resolve_backend_image_path(backend, file_path)
+    content = await _download_file_from_backend(backend, resolved_path)
+    if content is None:
+        raise _BackendImageNotFoundError(f"Could not download backend image: {resolved_path}")
+
+    image_file = await run_blocking_io(_spool_backend_image, content)
+    filename = os.path.basename(file_path.rstrip("/")) or f"image-{index + 1}.png"
+    return image_file, _guess_mime(filename), filename
 
 
 def _resolve_base_url() -> str:
@@ -167,8 +331,28 @@ async def _download_image_source(
     *,
     index: int = 0,
 ) -> tuple[SpooledTemporaryFile, str, str]:
+    backend_path = _backend_path_from_image_reference(url)
+    if backend_path is not None:
+        backend = get_backend_from_runtime(runtime)
+        if backend is not None:
+            try:
+                return await _download_backend_image_source(backend_path, runtime, index=index)
+            except _BackendImageNotFoundError:
+                if not backend_path.startswith("/"):
+                    raise
+                logger.debug(
+                    "[image_generate] Falling back to root-relative URL for %s",
+                    backend_path,
+                )
+        elif not backend_path.startswith("/"):
+            raise ValueError("Backend image paths require a runtime backend")
+
     resolved = url
-    if resolved.startswith("/"):
+    if resolved.startswith("//"):
+        base_url = get_base_url_from_runtime(runtime)
+        scheme = urlsplit(base_url).scheme or "https"
+        resolved = f"{scheme}:{resolved}"
+    elif resolved.startswith("/"):
         base_url = get_base_url_from_runtime(runtime)
         if base_url:
             resolved = f"{base_url}{resolved}"
@@ -199,8 +383,8 @@ async def _download_image_source(
             await run_blocking_io(spooled.seek, 0)
             filename = _filename_from_url(resolved, index)
             return spooled, content_type, filename
-        except Exception:
-            spooled.close()
+        except BaseException:
+            await run_blocking_io(spooled.close)
             raise
 
 
@@ -323,7 +507,7 @@ async def _convert_result_item(
             content_type=mime,
         )
     finally:
-        image_file.close()
+        await run_blocking_io(image_file.close)
     base_url = get_base_url_from_runtime(runtime)
     proxy_url = (
         f"{base_url}/api/upload/file/{uploaded['key']}"
@@ -440,6 +624,11 @@ async def _call_edit_api(
                 runtime,
                 index=index,
             )
+            image_file, content_type, filename = await _compress_image_source_if_needed(
+                image_file,
+                content_type,
+                filename,
+            )
             source_files.append(image_file)
             files.append(("image", (filename, image_file, content_type)))
 
@@ -464,8 +653,10 @@ async def _call_edit_api(
                 files=files,
             )
     finally:
-        for image_file in source_files:
-            image_file.close()
+        await _close_image_files(
+            source_files,
+            suppress_errors=sys.exc_info()[0] is not None,
+        )
 
     items = []
     if isinstance(body, dict):
