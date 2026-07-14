@@ -44,6 +44,7 @@ DEFAULT_IMAGE_GENERATION_MODEL = "gpt-image-2"
 IMAGE_API_MAX_ATTEMPTS = 3
 IMAGE_API_RETRY_BASE_DELAY_SECONDS = 1.0
 IMAGE_API_RETRY_JITTER_SECONDS = 0.5  # 重试抖动，防惊群
+IMAGE_API_RETRY_MAX_DELAY_SECONDS = 60  # 单次重试等待上限，防异常 Retry-After 长挂
 _SPOOL_MAX_MEMORY_BYTES = 2 * 1024 * 1024
 _BASE64_DECODE_CHUNK_CHARS = 256 * 1024
 _IMAGE_DOWNLOAD_MAX_BYTES = 20 * 1024 * 1024
@@ -192,7 +193,8 @@ async def _post_image_api_with_retries(
             if attempt >= IMAGE_API_MAX_ATTEMPTS or not _is_retryable_image_api_status(status_code):
                 raise
             delay = _image_api_retry_delay(attempt)
-            # 429 时尊重上游 Retry-After 头（取上游建议与本地退避的较小值）
+            # 429 时尊重上游 Retry-After 头：上游告知的是恢复窗口，必须不早于
+            # 它重试，故取本地退避与上游建议的较大值；再封顶防异常值长挂。
             _resp_headers = getattr(exc.response, "headers", None)
             retry_after = (
                 _parse_retry_after(_resp_headers.get("Retry-After"))
@@ -200,7 +202,7 @@ async def _post_image_api_with_retries(
                 else None
             )
             if retry_after is not None:
-                delay = min(delay, retry_after)
+                delay = min(max(delay, retry_after), IMAGE_API_RETRY_MAX_DELAY_SECONDS)
             logger.warning(
                 "[image_generate] %s API returned retryable status %s "
                 "(attempt %d/%d), retrying in %.1fs",
@@ -326,6 +328,14 @@ async def _upload_image_file(
 ) -> dict[str, Any]:
     storage = await get_or_init_storage()
     size = await run_blocking_io(_file_size, file_obj)
+    # 防御性冗余校验：与下载层一致的 20MB 上限。真正的流式卡口在
+    # _download_image_source / _decode_base64_to_spooled_file，这里只是
+    # 让已算出的 size 不再只是摆设，并兜住任何绕过下载层的异常输入。
+    if size > _IMAGE_DOWNLOAD_MAX_BYTES:
+        raise ValueError(
+            f"Generated image too large: {size} bytes "
+            f"(max {_IMAGE_DOWNLOAD_MAX_BYTES})"
+        )
     await run_blocking_io(file_obj.seek, 0)
     result = await storage.upload_file(
         file_obj,
