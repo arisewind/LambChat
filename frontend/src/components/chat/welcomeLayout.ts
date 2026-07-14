@@ -69,12 +69,13 @@ export function getWelcomeSuggestionButtonClass(_index: number): string {
   return "welcome-card welcome-suggestion-pill group relative flex items-center gap-2 sm:gap-3 md:gap-3 xl:gap-3.5 2xl:gap-3.5 rounded-xl border px-3 py-2 sm:px-4 sm:py-3 text-left cursor-pointer transition-all duration-300 overflow-hidden";
 }
 
+export const WELCOME_SUGGESTIONS_CLASS_NAME =
+  "welcome-suggestions relative mx-auto px-2 sm:px-0 sm:mt-2 md:mt-2.5 xl:mt-3 2xl:mt-3 w-full sm:max-w-[48rem] md:max-w-[50rem] lg:max-w-[52rem] xl:max-w-[54rem] 2xl:max-w-[56rem]";
+
 export function getWelcomeSuggestionsContainerClass(
   _variant: "personas" | "prompts",
 ): string {
-  const base =
-    "welcome-suggestions relative mx-auto px-2 sm:px-0 sm:mt-2 md:mt-2.5 xl:mt-3 2xl:mt-3 w-full sm:max-w-[44rem] md:max-w-[46rem] lg:max-w-[48rem] xl:max-w-[50rem] 2xl:max-w-[52rem]";
-  return base;
+  return WELCOME_SUGGESTIONS_CLASS_NAME;
 }
 
 export function resolveLocalizedText(

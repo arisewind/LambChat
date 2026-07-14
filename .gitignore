@@ -74,7 +74,6 @@ docs/deepagents
 docs/plans/
 node_modules/
 .claude/
-docs/superpowers/
 docs/plans/
 !docs/images/
 !docs/images/**/

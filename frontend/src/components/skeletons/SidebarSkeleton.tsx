@@ -196,7 +196,7 @@ function SidebarExpandedSkeleton() {
 }
 
 function SidebarRailIconSkeleton() {
-  return <div className="skeleton-line size-9 rounded-full mx-2" />;
+  return <div className="skeleton-line size-8 rounded-full mx-2" />;
 }
 
 function SidebarNavRowSkeleton({

@@ -78,18 +78,30 @@ test("welcome team plaza renders skeleton cards while teams are loading", () => 
     /\{showTeamCards &&\s*Array\.from\(\{ length: teamSkeletonCount \}\)/,
   );
   expect(chatSkeletonsSource).toMatch(
-    /className="[^"]*\bwelcome-persona-card\b[^"]*\bwelcome-persona-skeleton\b/,
+    /className=\{getWelcomePersonaSkeletonClass\(\)\}/,
   );
 });
 
 test("welcome team plaza treats the first unresolved team request as loading", () => {
   expect(welcomePageSource).toMatch(
-    /const \[teamCardsLoaded, setTeamCardsLoaded\] = useState\(false\);/,
+    /const \[teamRequestState, setTeamRequestState\] = useState</,
   );
-  expect(welcomePageSource).toMatch(/setTeamCardsLoaded\(false\);/);
-  expect(welcomePageSource).toMatch(/setTeamCardsLoaded\(true\);/);
+  expect(welcomePageSource).toMatch(
+    /teamCardsLoaded = teamRequestState\.isSettled;/,
+  );
   expect(welcomePageSource).toMatch(
     /const shouldShowTeamSkeletons =\s*showTeamCards && \(teamCardsLoading \|\| !teamCardsLoaded\);/,
+  );
+});
+
+test("welcome page invalidates team cards before paint and gates content on readiness", () => {
+  expect(welcomePageSource).toMatch(
+    /import \{[^}]*useLayoutEffect[^}]*\} from "react";/,
+  );
+  expect(welcomePageSource).toMatch(/useLayoutEffect\([\s\S]*beginTeamRequest/);
+  expect(welcomePageSource).toMatch(/isWelcomeContentReady\(/);
+  expect(welcomePageSource).toMatch(
+    /if \(!welcomeContentReady\) \{\s*return <WelcomeSkeleton \/>;\s*\}/,
   );
 });
 
