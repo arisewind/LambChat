@@ -1,7 +1,8 @@
 import { readFileSync } from "node:fs";
+
 test("collapsible section header does not nest action buttons inside the toggle", () => {
   const componentSource = readFileSync(
-    new URL("../SubagentBlocks.tsx", import.meta.url),
+    new URL("../CollapsibleSection.tsx", import.meta.url),
     "utf8",
   );
   const componentsCss = readFileSync(
@@ -28,19 +29,23 @@ test("collapsible section header does not nest action buttons inside the toggle"
 });
 
 test("expanded collapsible section cards fill the available panel height", () => {
-  const componentSource = readFileSync(
-    new URL("../SubagentBlocks.tsx", import.meta.url),
+  const sectionSource = readFileSync(
+    new URL("../CollapsibleSection.tsx", import.meta.url),
+    "utf8",
+  );
+  const panelSource = readFileSync(
+    new URL("../SubagentPanelContent.tsx", import.meta.url),
     "utf8",
   );
 
-  expect(componentSource).toMatch(
+  expect(panelSource).toMatch(
     /className="flex min-h-0 flex-1 flex-col space-y-3"/,
   );
-  expect(componentSource).toMatch(
+  expect(sectionSource).toMatch(
     /<div className="mt-2 flex-1 min-h-0 overflow-y-auto animate-\[fade-in_150ms_ease-out\]">/,
   );
-  expect(componentSource).toMatch(/expanded && expandedClassName/);
-  expect(componentSource).toMatch(
+  expect(sectionSource).toMatch(/expanded && expandedClassName/);
+  expect(panelSource).toMatch(
     /title=\{t\("chat\.message\.result"\)\}[\s\S]*?expandedClassName="flex min-h-0 flex-1 flex-col"/,
   );
 });
