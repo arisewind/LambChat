@@ -228,7 +228,7 @@ export function ChatInputToolbar({
           !(currentAgent === "team" && onSelectTeam && selectedTeamId) && (
             <ToolbarChip
               icon={<AgentIcon icon={agentIcon || "Bot"} size={18} />}
-              label={t(`agents.${currentAgent}.name`) || agentName || ""}
+              label={agentName || t(`agents.${currentAgent}.name`) || ""}
               onClick={() => onActivePanelChange("agent")}
             />
           )}

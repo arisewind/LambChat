@@ -2,6 +2,8 @@ import { useCallback, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useParams, useNavigate } from "react-router-dom";
 import toast from "react-hot-toast";
+import i18n from "../../../i18n";
+import { resolveAgentDisplayName } from "../../agent/agentCatalog";
 import {
   Bot,
   Clock,
@@ -413,9 +415,7 @@ export function ScheduledTaskPanel({
             ) : (
               <div className="grid auto-grid-cols gap-3">
                 {tasks.map((task) => {
-                  const agentName =
-                    agents.find((a) => a.id === task.agent_id)?.name ??
-                    task.agent_id;
+                  const agent = agents.find((a) => a.id === task.agent_id);
                   const modelName = formatTaskModel(task);
                   const contextName = formatTaskContext(task);
 
@@ -450,7 +450,9 @@ export function ScheduledTaskPanel({
                         </span>
                         <span className="glass-tag">
                           <Bot size={12} />
-                          {t(agentName)}
+                          {agent
+                            ? resolveAgentDisplayName(agent, i18n.language, t)
+                            : task.agent_id}
                         </span>
                         {modelName && (
                           <span className="glass-tag">

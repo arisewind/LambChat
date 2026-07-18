@@ -121,7 +121,7 @@ export function FileRevealItem({
         {text}
       </span>
     );
-  }, [startedAt, completedAt]);
+  }, [startedAt, completedAt, t]);
   const [imageViewerSrc, setImageViewerSrc] = useState<string | null>(null);
   const [videoViewerSrc, setVideoViewerSrc] = useState<string | null>(null);
   const [mediaLoaded, setMediaLoaded] = useState(false);

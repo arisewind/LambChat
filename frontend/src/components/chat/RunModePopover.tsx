@@ -217,7 +217,7 @@ export function RunModePopover({
                     {t("agent.selectMode", "Agent Mode")}
                   </span>
                   <span className="feature-menu-item-badge">
-                    {agentName ? t(agentName) : ""}
+                    {agentName || ""}
                   </span>
                   <ChevronRight size={14} className="feature-menu-chevron" />
                 </button>

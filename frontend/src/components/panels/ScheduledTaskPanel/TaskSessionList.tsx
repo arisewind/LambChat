@@ -2,6 +2,8 @@ import { useCallback, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router-dom";
 import toast from "react-hot-toast";
+import i18n from "../../../i18n";
+import { resolveAgentDisplayName } from "../../agent/agentCatalog";
 import { ArrowLeft, Bot, ChevronRight, MessageSquare } from "lucide-react";
 import { PanelHeader } from "../../common/PanelHeader";
 import { Pagination } from "../../common/Pagination";
@@ -106,9 +108,10 @@ export function TaskSessionList({
         ) : (
           <div className="scheduled-task-list">
             {sessions.map((session) => {
-              const agentName =
-                agents.find((a) => a.id === session.agent_id)?.name ??
-                session.agent_id;
+              const agent = agents.find((a) => a.id === session.agent_id);
+              const agentName = agent
+                ? resolveAgentDisplayName(agent, i18n.language, t)
+                : session.agent_id;
 
               return (
                 <button
@@ -137,7 +140,7 @@ export function TaskSessionList({
                         <>
                           <span className="inline-flex items-center gap-1">
                             <Bot size={10} />
-                            {t(agentName)}
+                            {agentName}
                           </span>
                           {session.created_at && (
                             <>

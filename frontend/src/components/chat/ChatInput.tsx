@@ -2,12 +2,14 @@ import { useState, useRef, useEffect, useCallback, useMemo, memo } from "react";
 import toast from "react-hot-toast";
 import { Ban, Plus } from "lucide-react";
 import { useTranslation } from "react-i18next";
+import i18n from "../../i18n";
 import { ImageViewer } from "../common";
 import { ConfirmDialog } from "../common/ConfirmDialog";
 import { ContactAdminDialog } from "../common/ContactAdminDialog";
 import { useFileUpload } from "../../hooks/useFileUpload";
 import { useMentionState } from "../../hooks/useMentionState";
 import { useMentionSearch } from "../../hooks/useMentionSearch";
+import { resolveAgentDisplayName } from "../agent/agentCatalog";
 import { useTeamMentionSearch } from "../../hooks/useTeamMentionSearch";
 import { useInputHistory } from "../../hooks/useInputHistory";
 import { useTextareaResize } from "../../hooks/useTextareaResize";
@@ -816,7 +818,12 @@ export const ChatInput = memo(function ChatInput({
             hasPersonaSelector={!!onUsePersonaPreset}
             personaName={selectedPersonaName}
             hasAgentSelector={agents.length > 1 && !!onSelectAgent}
-            agentName={agents.find((a) => a.id === currentAgent)?.name}
+            agentName={(() => {
+              const agent = agents.find((a) => a.id === currentAgent);
+              return agent
+                ? resolveAgentDisplayName(agent, i18n.language, t)
+                : undefined;
+            })()}
             agentIcon={agents.find((a) => a.id === currentAgent)?.icon}
             hasThinkingOption={
               !!(
