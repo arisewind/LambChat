@@ -211,7 +211,21 @@ CORE_SETTING_DEFINITIONS: dict[str, dict] = {
         "category": SettingCategory.LLM,
         "subcategory": "cache",
         "description": "settingDesc.PROMPT_CACHE_MAX_TOOLS",
-        "default": 1,
+        "default": 2,
+    },
+    "DEEPAGENT_SUMMARIZATION_TRIGGER_RATIO": {
+        "type": SettingType.NUMBER,
+        "category": SettingCategory.LLM,
+        "subcategory": "cache",
+        "description": "settingDesc.DEEPAGENT_SUMMARIZATION_TRIGGER_RATIO",
+        "default": 0.70,
+    },
+    "DEEPAGENT_SUMMARIZATION_KEEP_RATIO": {
+        "type": SettingType.NUMBER,
+        "category": SettingCategory.LLM,
+        "subcategory": "cache",
+        "description": "settingDesc.DEEPAGENT_SUMMARIZATION_KEEP_RATIO",
+        "default": 0.15,
     },
     # ============================================
     # Session Settings

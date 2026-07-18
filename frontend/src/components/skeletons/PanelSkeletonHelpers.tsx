@@ -1,6 +1,7 @@
 import { SkeletonLine } from "./primitives";
 
 export const PANEL_CARD_SKELETON_COUNT = 24;
+export const PANEL_ROW_SKELETON_COUNT = 24;
 
 type PanelPaginationVariant = "default" | "wide" | "compact" | "transparent";
 

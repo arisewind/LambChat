@@ -170,11 +170,7 @@ function SessionScheduledTaskPanelBody({
                 <button
                   onClick={() => {
                     closePersistentToolPanel();
-                    const params = new URLSearchParams({
-                      taskId: task.id,
-                      taskName: task.name,
-                    });
-                    navigate(`/scheduled-tasks?${params.toString()}`);
+                    navigate(`/scheduled-tasks/${task.id}`);
                   }}
                   className="scheduled-task-button scheduled-task-button--secondary"
                   title={t("scheduledTask.details", "详情")}

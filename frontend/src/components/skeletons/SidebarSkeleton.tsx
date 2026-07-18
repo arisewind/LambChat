@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 
 import { SIDEBAR_COLLAPSED_STORAGE_KEY } from "../../hooks/useAuth";
+import { PANEL_ROW_SKELETON_COUNT } from "./PanelSkeletonHelpers";
 
 /** Sidebar skeleton — matches real SessionSidebar layout */
 export function SidebarSkeleton() {
@@ -60,14 +61,7 @@ function SidebarRailSkeleton() {
 /** Skeleton for the expanded sidebar */
 function SidebarExpandedSkeleton() {
   return (
-    <div
-      className="hidden sm:flex w-64 shrink-0 flex-col rounded-r-lg overflow-hidden"
-      style={{
-        borderRight:
-          "1px solid color-mix(in srgb, var(--theme-border) 60%, transparent)",
-        backgroundColor: "color-mix(in srgb, var(--theme-bg) 50%, transparent)",
-      }}
-    >
+    <div className="hidden sm:flex w-64 shrink-0 flex-col overflow-hidden bg-[var(--theme-bg-sidebar)] border-r border-stone-300/70 dark:border-stone-800/60">
       {/* Header area — app icon (h-7) + name + collapse button */}
       <div className="flex items-center justify-between px-3 pt-3 pb-2">
         <div className="flex h-7 items-center gap-1.5">
@@ -106,7 +100,7 @@ function SidebarExpandedSkeleton() {
           <SidebarNavRowSkeleton labelWidth="w-20" />
           {/* Project items */}
           <div className="space-y-px">
-            {[0, 1, 2].map((i) => (
+            {Array.from({ length: PANEL_ROW_SKELETON_COUNT }, (_, i) => (
               <div
                 key={i}
                 className="flex items-center gap-3 px-[9px] h-10 rounded-[10px]"
@@ -121,7 +115,7 @@ function SidebarExpandedSkeleton() {
           </div>
 
           {/* Separator */}
-          <div className="h-px bg-stone-300/70 dark:bg-stone-700/40 mx-2 my-1" />
+          <div className="h-px bg-stone-200/60 dark:bg-stone-700/40 mx-2 my-1" />
 
           {/* Section header — Scheduled Tasks */}
           <div className="mt-1 flex items-center justify-between px-[9px] h-9">
@@ -132,7 +126,7 @@ function SidebarExpandedSkeleton() {
           <SidebarNavRowSkeleton labelWidth="w-18" />
           {/* Scheduled task items */}
           <div className="space-y-px">
-            {[0, 1, 2].map((i) => (
+            {Array.from({ length: PANEL_ROW_SKELETON_COUNT }, (_, i) => (
               <div
                 key={`st-${i}`}
                 className="flex items-center gap-3 px-[9px] h-10 rounded-[10px]"
@@ -147,7 +141,7 @@ function SidebarExpandedSkeleton() {
           </div>
 
           {/* Separator */}
-          <div className="h-px bg-stone-300/70 dark:bg-stone-700/40 mx-2 my-1" />
+          <div className="h-px bg-stone-200/60 dark:bg-stone-700/40 mx-2 my-1" />
 
           {/* Section header — Chats */}
           <div className="mt-1 flex items-center justify-between px-[9px] h-9">
@@ -156,7 +150,7 @@ function SidebarExpandedSkeleton() {
           </div>
           {/* Chat items */}
           <div className="space-y-px">
-            {[0, 1, 2, 3].map((i) => (
+            {Array.from({ length: PANEL_ROW_SKELETON_COUNT }, (_, i) => (
               <div
                 key={i}
                 className="flex items-center gap-2 px-[9px] h-10 rounded-[10px]"
@@ -165,11 +159,11 @@ function SidebarExpandedSkeleton() {
                   className="skeleton-line h-[13px] rounded-md flex-1"
                   style={{
                     width:
-                      i === 0
+                      i % 4 === 0
                         ? "70%"
-                        : i === 1
+                        : i % 4 === 1
                           ? "85%"
-                          : i === 2
+                          : i % 4 === 2
                             ? "55%"
                             : "65%",
                   }}
@@ -183,10 +177,10 @@ function SidebarExpandedSkeleton() {
       {/* Bottom user area */}
       <div className="shrink-0 px-2 py-1 border-t border-stone-300/70 dark:border-stone-800/60">
         <div className="flex items-center gap-3 px-2 py-3 rounded-xl">
-          <div className="skeleton-line size-8 rounded-full shrink-0 ring-1 ring-stone-300 dark:ring-stone-700" />
+          <div className="skeleton-line size-8 rounded-full shrink-0 ring-1 ring-stone-200 dark:ring-stone-700" />
           <div className="flex-1 min-w-0">
             <div className="skeleton-line h-3.5 w-16 rounded-md" />
-            <div className="skeleton-line h-2.5 w-12 rounded-md mt-1" />
+            <div className="skeleton-line h-3 w-12 rounded-md mt-1" />
           </div>
           <div className="skeleton-line size-4 rounded-sm shrink-0" />
         </div>

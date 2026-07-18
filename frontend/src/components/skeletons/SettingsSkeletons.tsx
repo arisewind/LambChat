@@ -1,6 +1,9 @@
 import { SkeletonLine } from "./primitives";
 import { PanelHeaderSkeleton } from "./PanelHeaderSkeleton";
-import { PanelSegmentedTabsSkeleton } from "./PanelSkeletonHelpers";
+import {
+  PANEL_ROW_SKELETON_COUNT,
+  PanelSegmentedTabsSkeleton,
+} from "./PanelSkeletonHelpers";
 
 function AgentListSkeletonRows({
   withCheckbox = false,
@@ -9,7 +12,7 @@ function AgentListSkeletonRows({
 }) {
   return (
     <div className="glass-card divide-y divide-[var(--glass-border)] overflow-hidden rounded-xl">
-      {Array.from({ length: 5 }).map((_, i) => (
+      {Array.from({ length: PANEL_ROW_SKELETON_COUNT }).map((_, i) => (
         <div
           key={i}
           className="flex items-center justify-between gap-3 px-4 py-3.5"
@@ -44,7 +47,7 @@ function AgentListSkeletonRows({
 function ModelRowsSkeleton({ compact = false }: { compact?: boolean }) {
   return (
     <div className={compact ? "space-y-3" : "space-y-3"}>
-      {Array.from({ length: compact ? 5 : 8 }).map((_, i) => (
+      {Array.from({ length: PANEL_ROW_SKELETON_COUNT }).map((_, i) => (
         <div key={i} className="glass-card rounded-xl">
           <div className="block p-3.5 sm:hidden">
             <div className="mb-2 flex items-center justify-between gap-2">
@@ -132,7 +135,7 @@ export function ModelSectionSkeleton() {
           <div className="px-3.5 py-2 sm:px-4">
             <SkeletonLine width="w-28" className="!h-6 !rounded-full" />
           </div>
-          {Array.from({ length: 5 }).map((_, i) => (
+          {Array.from({ length: PANEL_ROW_SKELETON_COUNT }).map((_, i) => (
             <div
               key={i}
               className="flex min-h-14 items-center gap-3 px-3.5 py-3 sm:px-4 sm:gap-3.5"

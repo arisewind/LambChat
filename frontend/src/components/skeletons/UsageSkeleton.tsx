@@ -1,6 +1,9 @@
 import { SkeletonLine } from "./primitives";
 import { PanelHeaderSkeleton } from "./PanelHeaderSkeleton";
-import { PanelPaginationSkeleton } from "./PanelSkeletonHelpers";
+import {
+  PANEL_ROW_SKELETON_COUNT,
+  PanelPaginationSkeleton,
+} from "./PanelSkeletonHelpers";
 
 /** Shared skeleton for a single insight item inside InsightStrip (border-r border-b grid item) */
 function InsightItemSkeleton() {
@@ -306,7 +309,7 @@ export function UsagePanelSkeleton() {
                 />
               </div>
               {/* Table rows */}
-              {Array.from({ length: 8 }).map((_, i) => (
+              {Array.from({ length: PANEL_ROW_SKELETON_COUNT }).map((_, i) => (
                 <div
                   key={i}
                   className="flex items-center gap-4 px-4 py-2.5"
@@ -367,7 +370,7 @@ export function UsagePanelSkeleton() {
           {/* Tablet rows skeleton (sm -> lg) — matches TabletRow structure */}
           <div className="hidden sm:block lg:hidden">
             <div className="space-y-2">
-              {Array.from({ length: 6 }).map((_, i) => (
+              {Array.from({ length: PANEL_ROW_SKELETON_COUNT }).map((_, i) => (
                 <div
                   key={i}
                   className="usage-surface flex items-center gap-3 rounded-xl px-3.5 py-3"
@@ -425,7 +428,7 @@ export function UsagePanelSkeleton() {
 
           {/* Mobile card skeleton (< sm) — matches MobileCard structure */}
           <div className="space-y-4 pb-5 sm:hidden">
-            {Array.from({ length: 4 }).map((_, i) => (
+            {Array.from({ length: PANEL_ROW_SKELETON_COUNT }).map((_, i) => (
               <div
                 key={i}
                 className="usage-surface usage-mobile-card overflow-hidden rounded-2xl"

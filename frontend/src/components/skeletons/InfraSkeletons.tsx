@@ -2,6 +2,7 @@ import { SkeletonLine } from "./primitives";
 import { PanelHeaderSkeleton } from "./PanelHeaderSkeleton";
 import {
   PANEL_CARD_SKELETON_COUNT,
+  PANEL_ROW_SKELETON_COUNT,
   PanelPaginationSkeleton,
 } from "./PanelSkeletonHelpers";
 
@@ -118,7 +119,7 @@ export function FeedbackPanelSkeleton() {
       <div className="flex-1 overflow-y-auto py-2 sm:py-4 px-4 sm:px-6">
         {/* Desktop */}
         <div className="hidden space-y-3 sm:block">
-          {Array.from({ length: 7 }).map((_, i) => (
+          {Array.from({ length: PANEL_ROW_SKELETON_COUNT }).map((_, i) => (
             <div key={i} className="glass-card rounded-xl p-5">
               <div className="flex items-center justify-between gap-2">
                 <div className="flex items-center gap-2 sm:gap-3 min-w-0">
@@ -148,7 +149,7 @@ export function FeedbackPanelSkeleton() {
         </div>
         {/* Mobile */}
         <div className="space-y-3 sm:hidden">
-          {Array.from({ length: 4 }).map((_, i) => (
+          {Array.from({ length: PANEL_ROW_SKELETON_COUNT }).map((_, i) => (
             <div key={i} className="glass-card rounded-xl p-4">
               <div className="flex items-center justify-between gap-2">
                 <div className="flex items-center gap-2 min-w-0">
@@ -268,7 +269,7 @@ export function TaskSessionListSkeleton() {
       <PanelHeaderSkeleton hasSearch={false} hasSubtitle />
       <div className="flex-1 overflow-y-auto px-4 py-3 sm:p-6">
         <div className="scheduled-task-list">
-          {Array.from({ length: 8 }).map((_, i) => (
+          {Array.from({ length: PANEL_ROW_SKELETON_COUNT }).map((_, i) => (
             <div
               key={i}
               className="glass-card scheduled-task-session-card w-full text-left border border-[var(--theme-border)]"

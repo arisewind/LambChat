@@ -91,6 +91,11 @@ def test_turn_dynamic_system_sections_are_volatile_for_cache() -> None:
         {"type": "text", "text": "<memory_index>\n- preference\n</memory_index>"},
         {"type": "text", "text": "## MCP Tools (Deferred)\n\n- github:create_issue"},
         {"type": "text", "text": "## User Runtime Context\n\nCurrent date: 2026-05-17"},
+        {"type": "text", "text": "## Active Goal\nObjective: fix the bug"},
+        {
+            "type": "text",
+            "text": "### Auto Mode (Autonomous Execution)\n\nYou are running in auto mode.",
+        },
     ]
 
     for block in volatile_blocks:
@@ -148,6 +153,33 @@ def test_retag_tools_tags_multiple_tail_tools() -> None:
     assert retagged[2].extras == {"cache_control": {"type": "ephemeral"}}
 
 
+def test_retag_tools_reorders_volatile_before_stable() -> None:
+    """Volatile tools (deferred/discovered) must come before stable tools
+    so cache breakpoints always cover the stable tail."""
+    tools = [
+        _FakeTool(name="read_file", description="stable read tool"),
+        _FakeTool(name="write_file", description="stable write tool"),
+        _FakeTool(
+            name="github:create_issue",
+            description="dynamic deferred tool",
+            extras={"_lambchat_prompt_cache_volatile": True},
+        ),
+    ]
+
+    retagged = PromptCachingMiddleware._retag_tools(
+        tools, {"type": "ephemeral"}, max_cached_tools=2
+    )
+
+    assert retagged is not None
+    # Volatile tool first
+    assert retagged[0].name == "github:create_issue"
+    # Stable tools after, last 2 tagged
+    assert retagged[1].name == "read_file"
+    assert retagged[1].extras == {"cache_control": {"type": "ephemeral"}}
+    assert retagged[2].name == "write_file"
+    assert retagged[2].extras == {"cache_control": {"type": "ephemeral"}}
+
+
 def test_retag_tools_skips_explicitly_volatile_tools() -> None:
     tools = [
         _FakeTool(name="stable_tool", description="stable"),
@@ -163,8 +195,11 @@ def test_retag_tools_skips_explicitly_volatile_tools() -> None:
     )
 
     assert retagged is not None
-    assert retagged[0].extras == {"cache_control": {"type": "ephemeral"}}
-    assert retagged[1].extras == {"_lambchat_prompt_cache_volatile": True}
+    # Volatile first
+    assert retagged[0].name == "github:create_issue"
+    # Stable tool tagged
+    assert retagged[1].name == "stable_tool"
+    assert retagged[1].extras == {"cache_control": {"type": "ephemeral"}}
 
 
 def test_cacheable_tool_count_ignores_volatile_deferred_tools() -> None:

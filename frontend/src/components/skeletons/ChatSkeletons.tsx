@@ -1,8 +1,9 @@
 import {
-  WELCOME_SUGGESTIONS_CLASS_NAME,
+  WELCOME_PERSONA_CLASS_NAME,
   getWelcomePersonaSkeletonClass,
 } from "../chat/welcomeLayout";
 import { SkeletonLine } from "./primitives";
+import { PANEL_CARD_SKELETON_COUNT } from "./PanelSkeletonHelpers";
 import { SidebarSkeleton } from "./SidebarSkeleton";
 
 const appSafeAreaTop =
@@ -192,11 +193,11 @@ function ChatInputShellSkeleton() {
 /** Skeleton that mimics a chat conversation layout (user + assistant alternating) with input */
 export function ChatSkeleton({ count = 5 }: { count?: number }) {
   const userMsgs = [
-    { bubble: "w-[85%] sm:w-[75%]", lines: ["w-full", "w-[82%]"] },
-    { bubble: "w-[70%] sm:w-[60%]", lines: ["w-full"] },
-    { bubble: "w-[90%] sm:w-[80%]", lines: ["w-full", "w-[75%]"] },
-    { bubble: "w-[75%] sm:w-[65%]", lines: ["w-full"] },
-    { bubble: "w-[80%] sm:w-[70%]", lines: ["w-full", "w-[88%]"] },
+    { bubble: "w-[65%] sm:w-[55%]", lines: ["w-full", "w-[82%]"] },
+    { bubble: "w-[50%] sm:w-[40%]", lines: ["w-full"] },
+    { bubble: "w-[70%] sm:w-[60%]", lines: ["w-full", "w-[75%]"] },
+    { bubble: "w-[55%] sm:w-[45%]", lines: ["w-full"] },
+    { bubble: "w-[60%] sm:w-[50%]", lines: ["w-full", "w-[88%]"] },
   ];
 
   return (
@@ -222,11 +223,11 @@ export function ChatSkeleton({ count = 5 }: { count?: number }) {
 /** Messages-only skeleton (for streaming footer, no input box) */
 export function ChatSkeletonMessagesOnly({ count = 3 }: { count?: number }) {
   const userMsgs = [
-    { bubble: "w-[85%] sm:w-[75%]", lines: ["w-full", "w-[82%]"] },
-    { bubble: "w-[70%] sm:w-[60%]", lines: ["w-full"] },
-    { bubble: "w-[90%] sm:w-[80%]", lines: ["w-full", "w-[75%]"] },
-    { bubble: "w-[75%] sm:w-[65%]", lines: ["w-full"] },
-    { bubble: "w-[80%] sm:w-[70%]", lines: ["w-full", "w-[88%]"] },
+    { bubble: "w-[65%] sm:w-[55%]", lines: ["w-full", "w-[82%]"] },
+    { bubble: "w-[50%] sm:w-[40%]", lines: ["w-full"] },
+    { bubble: "w-[70%] sm:w-[60%]", lines: ["w-full", "w-[75%]"] },
+    { bubble: "w-[55%] sm:w-[45%]", lines: ["w-full"] },
+    { bubble: "w-[60%] sm:w-[50%]", lines: ["w-full", "w-[88%]"] },
   ];
 
   return (
@@ -278,7 +279,7 @@ export function WelcomeSkeleton() {
       </div>
 
       {/* Persona cards skeleton — matches real initial state (no persona selected) */}
-      <div className={WELCOME_SUGGESTIONS_CLASS_NAME}>
+      <div className={WELCOME_PERSONA_CLASS_NAME}>
         {/* Label + manage */}
         <div className="welcome-suggestions-header flex items-center justify-between mb-2 sm:mb-2.5 md:mb-2.5 xl:mb-3 2xl:mb-3">
           <div className="flex items-center gap-1.5">
@@ -303,7 +304,7 @@ export function WelcomeSkeleton() {
         </div>
         {/* Persona card grid skeleton */}
         <div className="welcome-persona-gallery welcome-persona-gallery--loading relative pb-1 sm:pb-0">
-          {Array.from({ length: 12 }).map((_, i) => (
+          {Array.from({ length: PANEL_CARD_SKELETON_COUNT }).map((_, i) => (
             <div
               key={i}
               className={getWelcomePersonaSkeletonClass()}

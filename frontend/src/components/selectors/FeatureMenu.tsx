@@ -122,6 +122,22 @@ export const FeatureMenu = memo(function FeatureMenu({
   const [isOpen, setIsOpen] = useState(false);
   const triggerRef = useRef<HTMLButtonElement>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
+  // Auto-reopen the FeatureMenu after a full-screen selector modal closes,
+  // but only if this menu was the one that triggered the modal.
+  const menuTriggeredPanel = useRef(false);
+  useEffect(() => {
+    if (activePanel && isOpen) {
+      menuTriggeredPanel.current = true;
+    }
+  }, [activePanel, isOpen]);
+  const prevActivePanel = useRef(activePanel);
+  useEffect(() => {
+    if (prevActivePanel.current && !activePanel && menuTriggeredPanel.current) {
+      setIsOpen(true);
+      menuTriggeredPanel.current = false;
+    }
+    prevActivePanel.current = activePanel;
+  }, [activePanel]);
 
   const dropdownStyle = useStickyDropdownPosition(
     triggerRef,

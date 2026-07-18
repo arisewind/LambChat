@@ -30,8 +30,10 @@ def apply_deepagents_patches() -> None:
         if fallback_max_input_tokens <= 0:
             return defaults
 
-        trigger_tokens = max(int(fallback_max_input_tokens * 0.85), 1)
-        keep_tokens = max(int(fallback_max_input_tokens * 0.10), 1)
+        trigger_ratio = float(getattr(settings, "DEEPAGENT_SUMMARIZATION_TRIGGER_RATIO", 0.70))
+        keep_ratio = float(getattr(settings, "DEEPAGENT_SUMMARIZATION_KEEP_RATIO", 0.15))
+        trigger_tokens = max(int(fallback_max_input_tokens * trigger_ratio), 1)
+        keep_tokens = max(int(fallback_max_input_tokens * keep_ratio), 1)
         return {
             "trigger": ("tokens", trigger_tokens),
             "keep": ("tokens", keep_tokens),

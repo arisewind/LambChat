@@ -290,10 +290,11 @@ function MemoryPage() {
 }
 
 function ScheduledTasksPage() {
+  const { taskId } = useParams<{ taskId?: string }>();
   useSEO({
     title: "seo.scheduledTasks.title",
     description: "seo.scheduledTasks.description",
-    path: "/scheduled-tasks",
+    path: taskId ? `/scheduled-tasks/${taskId}` : "/scheduled-tasks",
   });
   return <AppContent key="scheduled-tasks" activeTab="scheduled-tasks" />;
 }
@@ -640,7 +641,7 @@ function App() {
               }
             />
             <Route
-              path="/scheduled-tasks"
+              path="/scheduled-tasks/:taskId?"
               element={
                 <ProtectedRoute
                   permissions={[Permission.SCHEDULED_TASK_READ]}

@@ -17,11 +17,9 @@ import { formatDateTimeShort } from "../../../utils/datetime";
 export function TaskSessionList({
   taskId,
   taskName,
-  onBack,
 }: {
   taskId: string;
   taskName: string;
-  onBack: () => void;
 }) {
   const { t } = useTranslation();
   const navigate = useNavigate();
@@ -82,7 +80,7 @@ export function TaskSessionList({
         }
         actions={
           <button
-            onClick={onBack}
+            onClick={() => navigate("/scheduled-tasks", { replace: true })}
             className="scheduled-task-button scheduled-task-button--secondary"
           >
             <ArrowLeft size={16} />

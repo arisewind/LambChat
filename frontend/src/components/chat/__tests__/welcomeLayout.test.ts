@@ -77,20 +77,29 @@ test("keeps mobile welcome cards readable with stable touch targets", () => {
 });
 
 test("widens welcome suggestion containers only from the sm breakpoint", () => {
-  const expectedResponsiveWidths = [
+  const promptWidths = [
     "sm:max-w-[48rem]",
     "md:max-w-[50rem]",
     "lg:max-w-[52rem]",
     "xl:max-w-[54rem]",
     "2xl:max-w-[56rem]",
   ];
+  const personaWidths = [
+    "sm:max-w-[52rem]",
+    "md:max-w-[54rem]",
+    "lg:max-w-[58rem]",
+    "xl:max-w-[62rem]",
+    "2xl:max-w-[66rem]",
+  ];
 
-  for (const variant of ["prompts", "personas"] as const) {
-    const className = getWelcomeSuggestionsContainerClass(variant);
+  const promptClass = getWelcomeSuggestionsContainerClass("prompts");
+  expect(promptClass).toContain(promptWidths.join(" "));
+  expect(promptClass).not.toMatch(/(?:^|\s)max-w-\[/);
 
-    expect(className).toContain(expectedResponsiveWidths.join(" "));
-    expect(className).not.toMatch(/(?:^|\s)max-w-\[/);
-  }
+  const personaClass = getWelcomeSuggestionsContainerClass("personas");
+  expect(personaClass).toContain(personaWidths.join(" "));
+  expect(personaClass).not.toMatch(/(?:^|\s)max-w-\[/);
+  expect(personaClass).not.toContain(promptWidths.join(" "));
 });
 
 test("defines the complete shared welcome suggestion container class", () => {
@@ -105,23 +114,23 @@ test("defines the complete shared welcome suggestion container class", () => {
   expect(WELCOME_SUGGESTIONS_CLASS_NAME).not.toMatch(/(?:^|\s)max-w-\S+/);
 });
 
-test("uses the shared welcome suggestion width class in the chat skeleton", () => {
-  const { WELCOME_SUGGESTIONS_CLASS_NAME } =
+test("uses the persona width class in the chat skeleton", () => {
+  const { WELCOME_PERSONA_CLASS_NAME } =
     welcomeLayout as typeof welcomeLayout & {
-      WELCOME_SUGGESTIONS_CLASS_NAME: string;
+      WELCOME_PERSONA_CLASS_NAME: string;
     };
 
   expect(getWelcomeSuggestionsContainerClass("personas")).toBe(
-    WELCOME_SUGGESTIONS_CLASS_NAME,
+    WELCOME_PERSONA_CLASS_NAME,
   );
-  expect(getWelcomeSuggestionsContainerClass("prompts")).toBe(
-    WELCOME_SUGGESTIONS_CLASS_NAME,
-  );
-  expect(chatSkeletonsSource).toMatch(
-    /import\s*\{[^}]*\bWELCOME_SUGGESTIONS_CLASS_NAME\b[^}]*\}\s*from\s*["']\.\.\/chat\/welcomeLayout["'];/,
+  expect(getWelcomeSuggestionsContainerClass("prompts")).not.toBe(
+    WELCOME_PERSONA_CLASS_NAME,
   );
   expect(chatSkeletonsSource).toMatch(
-    /className=\{WELCOME_SUGGESTIONS_CLASS_NAME\}/,
+    /import\s*\{[^}]*\bWELCOME_PERSONA_CLASS_NAME\b[^}]*\}\s*from\s*["']\.\.\/chat\/welcomeLayout["'];/,
+  );
+  expect(chatSkeletonsSource).toMatch(
+    /className=\{WELCOME_PERSONA_CLASS_NAME\}/,
   );
 });
 
@@ -220,8 +229,11 @@ test("shows welcome choice skeletons only while the first page is loading", () =
   expect(getWelcomePersonaSkeletonCount(false, 0)).toBe(0);
 });
 
-test("renders twelve welcome skeleton cards in shared chat loading state", () => {
-  expect(chatSkeletonsSource).toMatch(/Array\.from\(\{\s*length:\s*12\s*\}\)/);
+test("renders welcome skeleton cards using PANEL_CARD_SKELETON_COUNT", () => {
+  expect(chatSkeletonsSource).toMatch(/PANEL_CARD_SKELETON_COUNT/);
+  expect(chatSkeletonsSource).toMatch(
+    /Array\.from\(\{\s*length:\s*PANEL_CARD_SKELETON_COUNT\s*\}\)/,
+  );
 });
 
 test("expands welcome choice gallery while skeleton cards are loading", () => {

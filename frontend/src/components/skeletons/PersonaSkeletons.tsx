@@ -1,6 +1,9 @@
 import { SkeletonLine } from "./primitives";
 import { PanelHeaderSkeleton } from "./PanelHeaderSkeleton";
-import { PanelPaginationSkeleton } from "./PanelSkeletonHelpers";
+import {
+  PANEL_CARD_SKELETON_COUNT,
+  PanelPaginationSkeleton,
+} from "./PanelSkeletonHelpers";
 
 export function PersonaPlazaSkeleton() {
   return (
@@ -8,7 +11,7 @@ export function PersonaPlazaSkeleton() {
       <PanelHeaderSkeleton hasSearch />
       <div className="skill-content-area flex-1 overflow-y-auto py-2 sm:py-4 px-4 sm:p-6 lg:px-8 lg:py-8">
         <div className="grid auto-grid-cols gap-4 sm:gap-5">
-          {Array.from({ length: 12 }).map((_, i) => (
+          {Array.from({ length: PANEL_CARD_SKELETON_COUNT }).map((_, i) => (
             <div key={i} className="scb">
               {/* Banner */}
               <div

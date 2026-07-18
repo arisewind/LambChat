@@ -314,7 +314,7 @@ class LLMClient:
                     provider,
                     model_name,
                 )
-        if provider == "openai":
+        if protocol == "openai":
             model_kwargs = dict(openai_kwargs.get("model_kwargs") or kwargs.pop("model_kwargs", {}))
             model_kwargs.setdefault("prompt_cache_key", _prompt_cache_key(provider, model_name))
             model_kwargs.setdefault("prompt_cache_retention", "24h")
