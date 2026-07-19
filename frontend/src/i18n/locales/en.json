@@ -651,6 +651,8 @@
       "toolAskHuman": "Ask Human",
       "toolAskHumanFieldCount": "{{count}} fields",
       "toolAskHumanListSeparator": ", ",
+      "askHumanOtherLabel": "Other",
+      "askHumanOtherPlaceholder": "Any other thoughts or suggestions beyond the options above?",
       "toolAudioTranscribe": "Transcribe",
       "toolCalls": "Tool Calls",
       "toolCreateTeam": "Create Team",

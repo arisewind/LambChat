@@ -100,6 +100,23 @@ class ToolEventMixin:
                     )
             return
 
+        # For ask_human with allow_other, inject the _other textarea field
+        # into the args so the frontend can render it in the tool call item.
+        if tool_name == "ask_human" and inp.get("allow_other"):
+            inp = {
+                **inp,
+                "fields": [
+                    *(inp.get("fields") or []),
+                    {
+                        "name": "_other",
+                        "label": "其他意见",
+                        "type": "textarea",
+                        "placeholder": "除上述选项外，您还有其他想法或建议吗？",
+                        "required": False,
+                    },
+                ],
+            }
+
         self._started_tool_call_ids.add(tool_call_id)
         await self._presenter_emit(
             self.presenter.present_tool_start(

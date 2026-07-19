@@ -358,10 +358,10 @@ class CubeSandboxAdapter:
             return False
 
     def extend_timeout(self, sandbox, timeout: int) -> None:
-        # CubeSandbox's native SDK does not expose set_timeout; connect/create
-        # carry the desired timeout. Keep this method for SessionSandboxManager
-        # lifecycle symmetry.
-        del sandbox, timeout
+        try:
+            sandbox.set_timeout(timeout)
+        except Exception as e:
+            logger.warning("[CubeSandbox] set_timeout(%s) failed: %s", timeout, e)
 
     def get_sandbox_info(self, sandbox) -> dict:
         try:

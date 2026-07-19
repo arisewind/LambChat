@@ -293,7 +293,42 @@ const AskHumanItem = memo(function AskHumanItem({
   const parsedResult = useMemo(() => parseResult(result), [result]);
 
   const { message, fields, timeout } = parsed;
-  const hasFields = fields.length > 0;
+
+  // Supplement _other field when backend didn't include it
+  // (e.g. cached events before the backend fix, or non-standard flows).
+  const effectiveFields = useMemo(() => {
+    const needOther = parsed.allow_other || !!parsedResult?.values?._other;
+    if (!needOther) return fields;
+    if (fields.some((f) => f.name === "_other")) return fields;
+    return [
+      ...fields,
+      {
+        name: "_other",
+        label: t("chat.message.askHumanOtherLabel"),
+        type: "textarea" as const,
+        required: false,
+        placeholder: t("chat.message.askHumanOtherPlaceholder"),
+      },
+    ];
+  }, [parsed.allow_other, parsedResult?.values?._other, fields, t]);
+
+  // Resolve i18n for system fields (e.g. _other label from backend)
+  const resolvedFields = useMemo(
+    () =>
+      effectiveFields.map((f) =>
+        f.name === "_other"
+          ? {
+              ...f,
+              label: t("chat.message.askHumanOtherLabel"),
+              placeholder:
+                f.placeholder || t("chat.message.askHumanOtherPlaceholder"),
+            }
+          : f,
+      ),
+    [effectiveFields, t],
+  );
+
+  const hasFields = effectiveFields.length > 0;
   const canExpand = !!message || hasFields || !!result;
 
   // Derive pill status
@@ -373,7 +408,7 @@ const AskHumanItem = memo(function AskHumanItem({
           <>
             <div className="approval-divider" />
             <div className="approval-form space-y-3">
-              {fields.map((field) => (
+              {resolvedFields.map((field) => (
                 <FieldDisplay
                   key={field.name}
                   field={field}
@@ -392,7 +427,7 @@ const AskHumanItem = memo(function AskHumanItem({
             <div className="approval-divider" />
             <div className="approval-result-section">
               <AnswerSummary
-                fields={fields}
+                fields={resolvedFields}
                 values={parsedResult.values}
                 t={t}
               />
@@ -484,7 +519,9 @@ const AskHumanItem = memo(function AskHumanItem({
       {hasFields && (
         <div className="flex flex-wrap gap-1">
           <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md text-[10px] font-medium bg-[#fef3c7] dark:bg-[#451a03] text-amber-700 dark:text-amber-300 ring-1 ring-inset ring-amber-200/50 dark:ring-amber-800/30">
-            {t("chat.message.toolAskHumanFieldCount", { count: fields.length })}
+            {t("chat.message.toolAskHumanFieldCount", {
+              count: effectiveFields.length,
+            })}
           </span>
         </div>
       )}
