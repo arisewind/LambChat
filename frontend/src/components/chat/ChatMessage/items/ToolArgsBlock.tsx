@@ -45,7 +45,7 @@ export function ToolArgsBlock({
         .filter(Boolean)
         .join(" ")}
     >
-      <span className="min-w-0 flex-1">{children}</span>
+      <span className="min-w-0 flex-1 overflow-x-auto">{children}</span>
       {copyText && (
         <button
           type="button"

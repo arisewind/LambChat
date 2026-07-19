@@ -2,7 +2,7 @@ import { memo, useMemo } from "react";
 import { clsx } from "clsx";
 import { Users, Tag, Zap } from "lucide-react";
 import { useTranslation } from "react-i18next";
-import { CollapsiblePill } from "../../../common";
+import { CollapsiblePill, CopyButton } from "../../../common";
 import { ImageWithSkeleton } from "../ImageWithSkeleton";
 import { extractText } from "./toolUtils";
 import { openPersistentToolPanel } from "./persistentToolPanelState";
@@ -431,7 +431,7 @@ const TeamItem = memo(function TeamItem({
                       </h3>
                       {resultId && (
                         <div className="text-[10px] sm:text-xs text-theme-text-tertiary/70 font-mono truncate mt-0.5 flex items-center gap-1">
-                          <span className="truncate">
+                          <span className="min-w-0 truncate block">
                             {resultId.slice(0, 12)}…
                           </span>
                         </div>
@@ -565,10 +565,10 @@ const TeamItem = memo(function TeamItem({
                             {instructions}
                           </p>
                           {instructions.length > 150 && (
-                            <ToolHoverCopyButton
+                            <CopyButton
                               text={instructions}
-                              position="result"
-                              copyButtonClassName="!bg-theme-bg !rounded-md !border !border-theme-border mt-1.5"
+                              size={10}
+                              className="shrink-0 text-theme-text-tertiary hover:text-theme-text-secondary mt-1.5"
                             />
                           )}
                         </div>

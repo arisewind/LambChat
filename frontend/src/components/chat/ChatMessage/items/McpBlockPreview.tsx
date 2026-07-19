@@ -69,8 +69,8 @@ export function BlockPreviewPortal() {
     title = preview.fileName || t("chat.message.toolFile");
     content = (
       <div className="p-4 sm:p-5 space-y-3">
-        <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-theme-bg-subtle text-sm text-theme-text-tertiary font-mono truncate">
-          <span className="truncate">{preview.url}</span>
+        <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-theme-bg-subtle text-sm text-theme-text-tertiary font-mono overflow-hidden">
+          <span className="min-w-0 flex-1 truncate">{preview.url}</span>
         </div>
         <a
           href={preview.url}
@@ -396,12 +396,12 @@ export function ToolResultContent({
                 href={url}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="text-xs font-medium text-theme-text hover:underline truncate"
+                className="text-xs font-medium text-theme-text hover:underline min-w-0 flex-1 truncate"
               >
                 {title || url}
               </a>
             ) : (
-              <span className="text-xs font-medium text-theme-text truncate">
+              <span className="text-xs font-medium text-theme-text min-w-0 flex-1 truncate">
                 {title}
               </span>
             )}
