@@ -95,7 +95,7 @@ const GlobItem = memo(function GlobItem({
                 )}
                 <span
                   className={clsx(
-                    "truncate",
+                    "min-w-0 flex-1 truncate",
                     isDir
                       ? "text-theme-text font-medium"
                       : "text-theme-text-secondary",
@@ -178,7 +178,7 @@ const GlobItem = memo(function GlobItem({
                       )}
                       <span
                         className={clsx(
-                          "truncate",
+                          "min-w-0 flex-1 truncate",
                           isDir
                             ? "text-theme-text font-medium"
                             : "text-theme-text-secondary",

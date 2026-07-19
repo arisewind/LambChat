@@ -132,8 +132,7 @@ export function Header({
 
   return (
     <>
-      <header className="relative z-50 flex items-center px-3 sm:px-5 py-3 shrink-0 rounded-bl-xl">
-        {/* Left */}
+      <header className="relative z-50 flex items-center px-3 sm:px-5 py-3 -mb-2 shrink-0 rounded-bl-xl after:pointer-events-none after:absolute after:inset-x-0 after:bottom-0 after:h-2 after:bg-[linear-gradient(to_bottom,var(--theme-bg),transparent)]">
         <div className="flex items-center gap-2 flex-shrink-0">
           {activeTab === "chat" ? (
             <>

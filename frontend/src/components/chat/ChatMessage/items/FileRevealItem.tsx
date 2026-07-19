@@ -410,7 +410,7 @@ export function FileRevealItem({
             <div className={`p-1.5 rounded-md shrink-0 ${bg}`}>
               <FileIcon size={14} className={color} />
             </div>
-            <span className="text-xs font-medium text-theme-text-secondary truncate flex-1">
+            <span className="text-xs font-medium text-theme-text-secondary min-w-0 truncate flex-1">
               {fileName}
             </span>
             {parsed.description && (

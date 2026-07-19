@@ -2,7 +2,7 @@ import { memo, useMemo } from "react";
 import { clsx } from "clsx";
 import { UserRound, Tag, Sparkles, Zap, MessageSquare } from "lucide-react";
 import { useTranslation } from "react-i18next";
-import { CollapsiblePill } from "../../../common";
+import { CollapsiblePill, CopyButton } from "../../../common";
 import { ImageWithSkeleton } from "../ImageWithSkeleton";
 import { extractText } from "./toolUtils";
 import { openPersistentToolPanel } from "./persistentToolPanelState";
@@ -334,10 +334,10 @@ const PersonaItem = memo(function PersonaItem({
             <MarkdownContent content={systemPrompt} />
           </div>
           <div className="flex justify-end mt-2">
-            <ToolHoverCopyButton
+            <CopyButton
               text={systemPrompt}
-              position="result"
-              copyButtonClassName="!bg-theme-bg !rounded-lg !border !border-theme-border"
+              size={10}
+              className="shrink-0 text-theme-text-tertiary hover:text-theme-text-secondary"
             />
           </div>
         </DetailSection>

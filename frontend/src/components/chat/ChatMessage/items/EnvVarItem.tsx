@@ -133,7 +133,7 @@ const EnvVarItem = memo(function EnvVarItem({
                     className="text-emerald-500 dark:text-emerald-400"
                   />
                 </div>
-                <span className="text-sm font-mono text-theme-text truncate flex-1">
+                <span className="text-sm font-mono text-theme-text min-w-0 truncate flex-1">
                   {k}
                 </span>
                 <span className="text-[11px] text-theme-text-tertiary font-mono shrink-0 tracking-widest">
