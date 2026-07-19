@@ -9,12 +9,12 @@ import asyncio
 import json
 import os
 from collections.abc import Mapping
-from typing import Any, Optional
+from typing import Any, Optional, cast
 
 from langchain_core.runnables import RunnableConfig
 from langchain_core.tools import BaseTool
 from langchain_mcp_adapters.client import MultiServerMCPClient
-from pydantic import PrivateAttr
+from pydantic import BaseModel, PrivateAttr
 
 from src.infra.async_utils import run_blocking_io
 from src.infra.logging import get_logger
@@ -126,6 +126,10 @@ def _attach_sanitized_schema(tool: BaseTool) -> BaseTool:
         # args_schema 可能是 dict（非 Pydantic 模型），无法创建子类
         return tool
 
+    # 上面 isinstance 检查确保 args_schema 是一个类；LangChain 的 BaseTool.args_schema
+    # 约定为 pydantic 模型类，这里收窄类型以便访问 model_json_schema 等 classmethod。
+    args_schema = cast("type[BaseModel]", args_schema)
+
     try:
         original_schema = args_schema.model_json_schema()
     except Exception:
@@ -180,9 +184,9 @@ def _attach_sanitized_schema(tool: BaseTool) -> BaseTool:
 
 
 def _create_sanitized_model_class(
-    args_schema: type,
+    args_schema: type[BaseModel],
     exclude_fields: set[str],
-) -> type:
+) -> type[BaseModel]:
     """创建不含 None 值字段的新 Pydantic 模型类。
 
     使用 ``pydantic.create_model`` 基于原始模型的字段定义（排除有问题的字段）
@@ -190,7 +194,7 @@ def _create_sanitized_model_class(
     且 LangChain 的 ``_create_subset_model`` 基于新模型的注解创建子集模型时也不会
     引入 None 值。
     """
-    from pydantic import BaseModel, Field, create_model
+    from pydantic import Field, create_model
     from pydantic_core import PydanticUndefined
 
     new_fields: dict[str, Any] = {}
@@ -219,7 +223,7 @@ def _create_sanitized_model_class(
 
 
 def _monkey_patch_model_json_schema(
-    args_schema: type,
+    args_schema: type[BaseModel],
     sanitized_schema: dict[str, Any],
 ) -> None:
     """回退方案：直接在原始类上 monkey-patch ``model_json_schema``。
