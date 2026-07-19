@@ -7,50 +7,12 @@ to a JSON schema containing ``None``-valued properties (e.g. ``urls``).
 
 from __future__ import annotations
 
-import importlib.util
-import sys
-from pathlib import Path
 from typing import Any
 
-# ---------------------------------------------------------------------------
-# Load mcp_client module directly (bypassing src.infra.tool.__init__ which
-# imports heavy optional deps).  We only need the two pure-Python helpers.
-# ---------------------------------------------------------------------------
-
-_MCP_CLIENT_PATH = (
-    Path(__file__).resolve().parents[3]
-    / "src"
-    / "infra"
-    / "tool"
-    / "mcp_client.py"
+from src.infra.tool.mcp_client import (
+    _attach_sanitized_schema,
+    _sanitize_json_schema,
 )
-
-
-def _load_mcp_client_helpers() -> Any:
-    # Preload only the modules mcp_client.py needs at import time for the
-    # helper functions we test.  We stub out src.infra.tool so the package
-    # __init__ does not pull in openai/langchain-heavy modules.
-    if "src.infra.tool" not in sys.modules:
-        import types
-
-        pkg = types.ModuleType("src.infra.tool")
-        pkg.__path__ = []  # type: ignore[attr-defined]
-        sys.modules["src.infra.tool"] = pkg
-
-    spec = importlib.util.spec_from_file_location(
-        "src.infra.tool.mcp_client", _MCP_CLIENT_PATH
-    )
-    assert spec is not None and spec.loader is not None
-    module = importlib.util.module_from_spec(spec)
-    sys.modules["src.infra.tool.mcp_client"] = module
-    spec.loader.exec_module(module)
-    return module
-
-
-_mcp_client = _load_mcp_client_helpers()
-_sanitize_json_schema = _mcp_client._sanitize_json_schema
-_attach_sanitized_schema = _mcp_client._attach_sanitized_schema
-
 
 # ---------------------------------------------------------------------------
 # _sanitize_json_schema
