@@ -59,6 +59,90 @@ def _get_effective_config_max_tools() -> int:
         return 200
 
 
+def _sanitize_json_schema(schema: Any) -> Any:
+    """递归清洗 JSON schema，移除值为 None 的 property。
+
+    某些 MCP server 声明的工具参数字段没有明确 type（或为 Optional 类型），
+    经 langchain-mcp-adapters 序列化后，JSON schema 中对应 property 的值可能为 None。
+    这对 Anthropic / OpenAI 协议无害，但 ``langchain-google-genai`` 在
+    ``types.Schema.model_validate`` 阶段会拒绝 None 值的 property，抛出
+    ``pydantic.ValidationError``，导致 Gemini 后端完全无法使用该工具。
+
+    本函数递归遍历 schema dict，删除所有值为 None 的 property / items / format 等，
+    确保传给任意模型 provider 的 schema 都是合法的。
+
+    参考: issue #186
+    """
+
+    if isinstance(schema, dict):
+        cleaned: dict[str, Any] = {}
+        for key, value in schema.items():
+            if value is None:
+                continue
+            if key == "properties" and isinstance(value, dict):
+                cleaned[key] = {
+                    prop_name: _sanitize_json_schema(prop_schema)
+                    for prop_name, prop_schema in value.items()
+                    if prop_schema is not None
+                }
+            else:
+                cleaned[key] = _sanitize_json_schema(value)
+        return cleaned
+    if isinstance(schema, list):
+        return [_sanitize_json_schema(item) for item in schema if item is not None]
+    return schema
+
+
+def _attach_sanitized_schema(tool: BaseTool) -> BaseTool:
+    """为工具的 args_schema 注入清洗后的 model_json_schema。
+
+    通过创建 args_schema 的动态子类并覆盖 ``model_json_schema``，使 LangChain
+    在将工具转换为 function declaration 时拿到不含 None 值的 schema。
+
+    幂等：重复调用不会叠加包装。
+    """
+
+    args_schema = getattr(tool, "args_schema", None)
+    if args_schema is None:
+        return tool
+    if getattr(args_schema, "_lambchat_schema_sanitized", False):
+        return tool
+
+    try:
+        original_schema = args_schema.model_json_schema()
+    except Exception:
+        # schema 生成失败由上层 get_tools 的验证逻辑处理
+        return tool
+
+    sanitized = _sanitize_json_schema(original_schema)
+    if sanitized == original_schema:
+        # 无需清洗，避免不必要的子类化
+        return tool
+
+    # 创建动态子类，覆盖 model_json_schema 返回清洗后的 dict
+    original_model_json_schema = args_schema.model_json_schema
+
+    def _cleaned_model_json_schema(*args: Any, **kwargs: Any) -> dict[str, Any]:
+        return sanitized
+
+    _cleaned_model_json_schema._lambchat_original = original_model_json_schema  # type: ignore[attr-defined]
+    _cleaned_model_json_schema._lambchat_schema_sanitized = True  # type: ignore[attr-defined]
+
+    try:
+        # 在模型类上直接绑定（classmethod → plain function on class）
+        args_schema.model_json_schema = _cleaned_model_json_schema  # type: ignore[method-assign]
+        args_schema._lambchat_schema_sanitized = True  # type: ignore[attr-defined]
+    except (AttributeError, TypeError):
+        # 某些情况下 args_schema 可能不可变，回退到跳过清洗
+        return tool
+
+    logger.debug(
+        "[MCP] Sanitized args_schema for tool '%s' (removed None-valued properties)",
+        getattr(tool, "name", "<unknown>"),
+    )
+    return tool
+
+
 class MCPToolWithRetry(BaseTool):
     """
     MCP 工具包装器，添加重试逻辑
@@ -647,6 +731,11 @@ class MCPClientManager:
                 )
                 skipped_tools.append(tool.name)
                 continue
+
+            # 清洗 args_schema 中值为 None 的 property，避免 Gemini 后端
+            # (langchain-google-genai) 的 types.Schema 校验抛出 ValidationError。
+            # 参考: issue #186
+            tool = _attach_sanitized_schema(tool)
 
             filtered_tools.append(tool)
 
