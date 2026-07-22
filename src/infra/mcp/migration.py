@@ -70,9 +70,7 @@ async def migrate_legacy_encryption() -> dict[str, int]:
                             )
                 if updates:
                     try:
-                        await collection.update_one(
-                            {"_id": doc["_id"]}, {"$set": updates}
-                        )
+                        await collection.update_one({"_id": doc["_id"]}, {"$set": updates})
                         stats["migrated"] += 1
                     except Exception as e:
                         stats["errors"] += 1
@@ -83,9 +81,7 @@ async def migrate_legacy_encryption() -> dict[str, int]:
                             e,
                         )
         except Exception as e:
-            logger.error(
-                "[encryption-migration] 扫描集合 %s 失败: %s", collection_name, e
-            )
+            logger.error("[encryption-migration] 扫描集合 %s 失败: %s", collection_name, e)
 
     logger.info("[encryption-migration] 迁移完成: %s", stats)
     return stats

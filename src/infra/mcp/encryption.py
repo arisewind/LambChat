@@ -165,18 +165,14 @@ def decrypt_value(value: Any) -> Any:
         except Exception:
             # 新密钥失败：若管理员已开启硬过期（MCP_ENCRYPTION_LEGACY_EXPIRE_DAYS>0），
             # 说明迁移完成，直接拒绝旧密钥回退，强制重新保存配置。
-            legacy_expire_days = int(
-                getattr(settings, "MCP_ENCRYPTION_LEGACY_EXPIRE_DAYS", 0) or 0
-            )
+            legacy_expire_days = int(getattr(settings, "MCP_ENCRYPTION_LEGACY_EXPIRE_DAYS", 0) or 0)
             if legacy_expire_days > 0:
                 logger.error(
                     "旧密钥回退已被禁用（MCP_ENCRYPTION_LEGACY_EXPIRE_DAYS=%d），"
                     "请重新保存该配置以迁移到 PBKDF2 加密",
                     legacy_expire_days,
                 )
-                raise DecryptionError(
-                    "旧密钥回退已禁用，请重新保存该配置以使用新加密"
-                )
+                raise DecryptionError("旧密钥回退已禁用，请重新保存该配置以使用新加密")
             # 旧密钥（SHA256）向后兼容回退
             try:
                 fernet_legacy = _get_fernet_legacy()

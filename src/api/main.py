@@ -508,9 +508,7 @@ async def lifespan(app: FastAPI):
         except Exception as e:
             logger.warning("旧加密数据迁移任务失败: %s", e)
 
-    app.state.legacy_encryption_migration_task = asyncio.create_task(
-        _migrate_legacy_encryption()
-    )
+    app.state.legacy_encryption_migration_task = asyncio.create_task(_migrate_legacy_encryption())
 
     # 初始化 SessionStorage 搜索索引，并异步回填历史会话
     from src.infra.session.backfill import SessionSearchBackfillWorker
