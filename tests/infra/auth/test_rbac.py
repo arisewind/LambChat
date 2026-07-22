@@ -21,12 +21,7 @@ class TestCheckPermission:
         assert check_permission([perm, "other"], perm) is True
 
     def test_missing_permission(self):
-        assert (
-            check_permission(
-                [Permission.CHAT_READ.value], Permission.CHAT_WRITE.value
-            )
-            is False
-        )
+        assert check_permission([Permission.CHAT_READ.value], Permission.CHAT_WRITE.value) is False
 
     def test_empty_permissions(self):
         assert check_permission([], Permission.CHAT_READ.value) is False
@@ -87,6 +82,4 @@ class TestRBACManager:
         # admin 拥有全部权限
         assert len(roles["admin"]["permissions"]) == len(list(Permission))
         # guest 权限是 user 的子集（只读 ⊂ 读写）
-        assert set(roles["guest"]["permissions"]).issubset(
-            set(roles["user"]["permissions"])
-        )
+        assert set(roles["guest"]["permissions"]).issubset(set(roles["user"]["permissions"]))

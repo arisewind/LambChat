@@ -6,12 +6,16 @@
 设计要点：
 - 不动解密热路径（decrypt_value 仍支持旧密钥回退），仅在启动时后台批量重写。
 - 通过 is_legacy_encrypted 精确识别旧密钥记录，避免对已迁移或明文数据做无谓重写。
-- 硬过期由 MCP_ENCRYPTION_LEGACY_EXPIRE_DAYS 控制（默认 0=仅警告，>0=禁用回退），
+- 硬过期开关由 MCP_ENCRYPTION_DISABLE_LEGACY 控制（默认 False=仅警告，True=禁用回退），
   管理员确认迁移完成后手动开启，此后旧密钥数据将被拒绝解密。
+- 并发前提：本迁移设计为单实例运行。多副本部署时迁移幂等（旧密钥→新密钥，
+  重写后 is_legacy_encrypted 返回 False 自动跳过），最坏情况仅重复重写、不损坏数据；
+  若需强一致可在外层加分布式锁（Redis SET NX EX）。
 """
 
 from __future__ import annotations
 
+import time
 from typing import Any
 
 from src.infra.logging import get_logger
@@ -36,6 +40,7 @@ MIGRATION_TARGETS: list[tuple[str, list[str]]] = [
 
 async def migrate_legacy_encryption() -> dict[str, int]:
     """扫描所有迁移目标，把旧密钥加密字段重写为新密钥。返回统计。"""
+    start = time.monotonic()
     stats = {"scanned": 0, "migrated": 0, "errors": 0}
     try:
         client = get_mongo_client()
@@ -83,5 +88,6 @@ async def migrate_legacy_encryption() -> dict[str, int]:
         except Exception as e:
             logger.error("[encryption-migration] 扫描集合 %s 失败: %s", collection_name, e)
 
-    logger.info("[encryption-migration] 迁移完成: %s", stats)
+    elapsed = time.monotonic() - start
+    logger.info("[encryption-migration] 迁移完成: %s（耗时 %.2fs）", stats, elapsed)
     return stats

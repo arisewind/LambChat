@@ -28,7 +28,7 @@ def fresh_encryption(monkeypatch):
     """配置密钥并重置 Fernet 缓存，确保测试隔离。"""
     monkeypatch.setattr(settings, "JWT_SECRET_KEY", "test-secret-key-for-encryption-tests")
     monkeypatch.setattr(settings, "MCP_ENCRYPTION_SALT", "test-salt-16bytes-min")
-    monkeypatch.setattr(settings, "MCP_ENCRYPTION_LEGACY_EXPIRE_DAYS", 0)
+    monkeypatch.setattr(settings, "MCP_ENCRYPTION_DISABLE_LEGACY", False)
     encryption._fernet_cache = None
     encryption._fernet_legacy_cache = None
     yield
@@ -90,18 +90,14 @@ class TestLegacyCompatibility:
 
 
 class TestHardExpiry:
-    def test_legacy_fallback_disabled_when_expire_days_positive(
-        self, fresh_encryption, monkeypatch
-    ):
-        monkeypatch.setattr(settings, "MCP_ENCRYPTION_LEGACY_EXPIRE_DAYS", 30)
+    def test_legacy_fallback_disabled_when_disable_legacy_true(self, fresh_encryption, monkeypatch):
+        monkeypatch.setattr(settings, "MCP_ENCRYPTION_DISABLE_LEGACY", True)
         legacy = _legacy_encrypt({"k": "v"})
         with pytest.raises(DecryptionError):
             decrypt_value(legacy)
 
-    def test_new_key_still_works_when_expire_days_positive(
-        self, fresh_encryption, monkeypatch
-    ):
-        monkeypatch.setattr(settings, "MCP_ENCRYPTION_LEGACY_EXPIRE_DAYS", 30)
+    def test_new_key_still_works_when_disable_legacy_true(self, fresh_encryption, monkeypatch):
+        monkeypatch.setattr(settings, "MCP_ENCRYPTION_DISABLE_LEGACY", True)
         secret = {"k": "v"}
         assert decrypt_value(encrypt_value(secret)) == secret
 

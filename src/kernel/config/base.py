@@ -106,8 +106,8 @@ class Settings(BaseSettings):
     MCP_EFFECTIVE_CONFIG_MAX_SERVERS: int = 100
     MCP_EFFECTIVE_CONFIG_MAX_TOOLS: int = 200
     MCP_ENCRYPTION_SALT: Optional[str] = None  # 默认随机生成，确保加密一致性
-    MCP_ENCRYPTION_LEGACY_EXPIRE_DAYS: int = (
-        0  # 旧 SHA256 密钥硬过期天数；0=仅警告不过期，>0=超期后拒绝回退解密
+    MCP_ENCRYPTION_DISABLE_LEGACY: bool = (
+        False  # True=禁用旧 SHA256 密钥回退解密；迁移完成后由管理员手动开启
     )
     DEEPAGENT_DEFAULT_MAX_INPUT_TOKENS: int = 64000
 
