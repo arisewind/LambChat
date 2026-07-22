@@ -333,8 +333,7 @@ async def _upload_image_file(
     # 让已算出的 size 不再只是摆设，并兜住任何绕过下载层的异常输入。
     if size > _IMAGE_DOWNLOAD_MAX_BYTES:
         raise ValueError(
-            f"Generated image too large: {size} bytes "
-            f"(max {_IMAGE_DOWNLOAD_MAX_BYTES})"
+            f"Generated image too large: {size} bytes (max {_IMAGE_DOWNLOAD_MAX_BYTES})"
         )
     await run_blocking_io(file_obj.seek, 0)
     result = await storage.upload_file(
