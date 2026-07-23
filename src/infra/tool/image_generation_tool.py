@@ -99,6 +99,8 @@ async def close_image_clients() -> None:
                 logger.warning("关闭生图 httpx client 失败: %s", e)
     _image_api_client = None
     _download_client = None
+
+
 class _BackendImageNotFoundError(ValueError):
     """Raised when a sandbox path cannot be resolved to image bytes."""
 
