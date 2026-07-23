@@ -195,6 +195,42 @@ async def test_image_analyze_supports_backend_file_paths(monkeypatch):
 
 
 @pytest.mark.asyncio
+async def test_image_analyze_compresses_oversized_backend_file_before_data_url(monkeypatch):
+    from src.infra.tool import image_analysis_tool
+
+    original = b"x" * (5 * 1024 * 1024 + 1)
+    compressed = b"compressed-jpeg"
+    captured: dict[str, object] = {}
+
+    class _FakeBackend:
+        async def adownload_files(self, paths: list[str]):
+            return [SimpleNamespace(path=paths[0], content=original, error=None)]
+
+    def fake_compress(content: bytes, mime_type: str):
+        captured["compress_input"] = (content, mime_type)
+        return compressed, "image/jpeg"
+
+    monkeypatch.setattr(
+        image_analysis_tool, "get_image_download_max_bytes", lambda: 10 * 1024 * 1024
+    )
+    monkeypatch.setattr(
+        image_analysis_tool,
+        "compress_image_bytes_if_needed",
+        fake_compress,
+        raising=False,
+    )
+
+    attachments = await image_analysis_tool._inline_backend_image_paths(
+        [{"type": "image", "url": "/workspace/chart.png"}],
+        _Runtime(backend=_FakeBackend()),
+    )
+
+    assert captured["compress_input"] == (original, "image/png")
+    assert attachments[0]["mime_type"] == "image/jpeg"
+    assert attachments[0]["data_url"] == "data:image/jpeg;base64,Y29tcHJlc3NlZC1qcGVn"
+
+
+@pytest.mark.asyncio
 async def test_image_analyze_rejects_non_vision_model(monkeypatch):
     from src.infra.tool import image_analysis_tool
 

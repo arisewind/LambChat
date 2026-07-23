@@ -15,7 +15,7 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import { useTranslation } from "react-i18next";
-import { CollapsiblePill } from "../../../common";
+import { CollapsiblePill, CopyButton } from "../../../common";
 import { extractText } from "./toolUtils";
 import { openPersistentToolPanel } from "./persistentToolPanelState";
 import { ToolInlineDetails } from "./ToolInlineDetails";
@@ -311,14 +311,13 @@ const MemoryStoreItem = memo(function MemoryStoreItem({
       {(resultMemoryId || existingMemoryId) && (
         <div className="flex items-center gap-2 px-3.5">
           <span className="text-[10px] text-theme-text-tertiary">ID</span>
-          <span className="text-[10px] font-mono text-theme-text-secondary truncate flex-1">
+          <span className="text-[10px] font-mono text-theme-text-secondary min-w-0 truncate flex-1">
             {resultMemoryId || existingMemoryId}
           </span>
-          <ToolHoverCopyButton
+          <CopyButton
             text={resultMemoryId || existingMemoryId}
-            position="result"
             size={10}
-            copyButtonClassName="!bg-theme-bg/80 !rounded-md !border !border-theme-border"
+            className="shrink-0 text-theme-text-tertiary hover:text-theme-text-secondary"
           />
         </div>
       )}

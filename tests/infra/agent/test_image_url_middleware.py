@@ -1,13 +1,29 @@
 from langchain_core.messages import HumanMessage
+from langchain_openai import ChatOpenAI
 
-from src.infra.agent.middleware.image_url import ImageUrlToBase64Middleware
+from src.infra.agent.middleware.image_url import ImageUrlToBase64Middleware, _with_data_url
+
+
+def test_anthropic_image_block_uses_compressed_data_url_mime_type():
+    converted = _with_data_url(
+        {
+            "type": "image",
+            "source": {
+                "type": "url",
+                "url": "https://app.example.com/source.png",
+                "media_type": "image/png",
+            },
+        },
+        "data:image/jpeg;base64,Y29tcHJlc3NlZA==",
+    )
+
+    assert converted["source"]["media_type"] == "image/jpeg"
 
 
 async def test_image_url_middleware_converts_model_request_blocks(monkeypatch):
-    async def fake_download(url, mime_type, *, max_bytes):
+    async def fake_download(url, mime_type):
         assert url == "https://app.example.com/api/upload/file/uploads/img.png"
         assert mime_type == "image/png"
-        assert max_bytes > 0
         return "data:image/png;base64,aW1hZ2U="
 
     monkeypatch.setattr(
@@ -47,3 +63,7 @@ async def test_image_url_middleware_converts_model_request_blocks(monkeypatch):
     converted = seen["request"].messages[0]
     assert converted is not message
     assert converted.content[1]["image_url"]["url"] == "data:image/png;base64,aW1hZ2U="
+    assert "original_url" not in converted.content[1]
+
+    payload = ChatOpenAI(api_key="test")._get_request_payload([converted])
+    assert "original_url" not in payload["messages"][0]["content"][1]

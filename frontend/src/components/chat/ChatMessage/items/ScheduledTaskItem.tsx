@@ -672,7 +672,7 @@ const ScheduledTaskItem = memo(function ScheduledTaskItem({
             size={10}
             className="shrink-0 text-emerald-500 dark:text-emerald-400"
           />
-          <span className="text-theme-text-tertiary truncate">
+          <span className="text-theme-text-tertiary truncate min-w-0 flex-1 overflow-hidden">
             {resultMessage.length > 120
               ? resultMessage.slice(0, 117) + "…"
               : resultMessage}
@@ -700,7 +700,7 @@ const ScheduledTaskItem = memo(function ScheduledTaskItem({
                   size={10}
                   className="shrink-0 text-[var(--theme-primary)]"
                 />
-                <span className="text-[10px] text-theme-text truncate flex-1">
+                <span className="text-[10px] text-theme-text min-w-0 truncate flex-1">
                   {tkName}
                 </span>
                 {tkTrigger && (

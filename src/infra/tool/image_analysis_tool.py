@@ -14,11 +14,12 @@ from urllib.parse import unquote, urlsplit
 from langchain_core.tools import BaseTool, InjectedToolArg
 
 from src.agents.core.node_utils import (
-    IMAGE_DATA_URL_INLINE_MAX_BYTES,
     build_human_message,
+    get_image_download_max_bytes,
     inline_image_attachments_as_data_urls,
 )
 from src.infra.async_utils import run_blocking_io
+from src.infra.image_utils import compress_image_bytes_if_needed
 from src.infra.llm.client import LLMClient
 from src.infra.logging import get_logger
 from src.infra.tool.backend_utils import get_backend_from_runtime, get_base_url_from_runtime
@@ -170,12 +171,12 @@ async def _inline_backend_image_paths(
         if content is None:
             resolved.append(attachment)
             continue
-        if len(content) > IMAGE_DATA_URL_INLINE_MAX_BYTES:
+        if len(content) > get_image_download_max_bytes():
             logger.warning(
                 "[image_analyze] Refusing oversized backend image: %s size=%s max=%s",
                 backend_path,
                 len(content),
-                IMAGE_DATA_URL_INLINE_MAX_BYTES,
+                get_image_download_max_bytes(),
             )
             resolved.append(attachment)
             continue
@@ -188,16 +189,21 @@ async def _inline_backend_image_paths(
             resolved.append(attachment)
             continue
 
-        encoded = await run_blocking_io(base64.b64encode, content)
-        data_url = f"data:{mime_type};base64,{encoded.decode('ascii')}"
+        compressed_content, compressed_mime_type = await run_blocking_io(
+            compress_image_bytes_if_needed,
+            content,
+            mime_type,
+        )
+        encoded = await run_blocking_io(base64.b64encode, compressed_content)
+        data_url = f"data:{compressed_mime_type};base64,{encoded.decode('ascii')}"
         resolved.append(
             {
                 **attachment,
                 "name": os.path.basename(backend_path.rstrip("/")) or attachment.get("name"),
-                "mime_type": mime_type,
+                "mime_type": compressed_mime_type,
                 "url": None,
                 "data_url": data_url,
-                "size": len(content),
+                "size": len(compressed_content),
             }
         )
 

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import logging
 from collections.abc import Awaitable, Callable
 from typing import Any
 
@@ -20,6 +21,8 @@ from src.kernel.config import settings
 
 _MAX_ANTHROPIC_CACHE_BREAKPOINTS = 4
 _PROMPT_CACHE_VOLATILE_TOOL_EXTRA = "_lambchat_prompt_cache_volatile"
+
+logger = logging.getLogger(__name__)
 
 
 class PromptCachingMiddleware(AgentMiddleware):
@@ -130,6 +133,8 @@ class PromptCachingMiddleware(AgentMiddleware):
             "<memory_index>",
             "## mcp tools (deferred)",
             "## user runtime context",
+            "## active goal",
+            "### auto mode",
         )
         return any(text.startswith(prefix) for prefix in volatile_prefixes)
 
@@ -214,35 +219,46 @@ class PromptCachingMiddleware(AgentMiddleware):
     def _retag_tools(
         tools: list[Any] | None, cache_control: dict, *, max_cached_tools: int = 4
     ) -> list[Any] | None:
-        """Strip stale cache_control from tools and tag the final stable N tools."""
+        """Strip stale cache_control, reorder volatile-first, tag the final stable N tools.
+
+        Volatile tools (marked with ``_PROMPT_CACHE_VOLATILE_TOOL_EXTRA``) are placed
+        before stable tools so that cache breakpoints always cover the stable tail.
+        This ensures that deferred/discovered tools don't push stable tools out of
+        the cache window.
+        """
         if not tools:
             return tools
 
-        # Find and remove existing cache_control from tools
-        cleaned = []
-        tool_indices: list[int] = []
-        for i, tool in enumerate(tools):
+        # Partition into volatile and stable, clean stale cache_control
+        volatile_tools: list[Any] = []
+        stable_tools: list[Any] = []
+        for tool in tools:
             if isinstance(tool, BaseTool):
                 extras = tool.extras or {}
-                if PromptCachingMiddleware._is_cacheable_tool(tool):
-                    tool_indices.append(i)
                 if "cache_control" in extras:
-                    new_extras = {k: v for k, v in extras.items() if k != "cache_control"}
-                    cleaned.append(tool.model_copy(update={"extras": new_extras}))
-                    continue
-            cleaned.append(tool)
+                    tool = tool.model_copy(
+                        update={"extras": {k: v for k, v in extras.items() if k != "cache_control"}}
+                    )
+                if PromptCachingMiddleware._is_cacheable_tool(tool):
+                    stable_tools.append(tool)
+                else:
+                    volatile_tools.append(tool)
+            else:
+                volatile_tools.append(tool)
 
         if max_cached_tools <= 0:
-            return cleaned
+            return volatile_tools + stable_tools
 
-        # Tag the last N tools
-        for idx in tool_indices[-max_cached_tools:]:
-            tool = cleaned[idx]
+        # Tag the last N stable tools
+        for idx in range(
+            len(stable_tools) - min(max_cached_tools, len(stable_tools)), len(stable_tools)
+        ):
+            tool = stable_tools[idx]
             if isinstance(tool, BaseTool):
                 new_extras = {**(tool.extras or {}), "cache_control": cache_control}
-                cleaned[idx] = tool.model_copy(update={"extras": new_extras})
+                stable_tools[idx] = tool.model_copy(update={"extras": new_extras})
 
-        return cleaned
+        return volatile_tools + stable_tools
 
     # ---- main entry -------------------------------------------------------
 
@@ -270,6 +286,16 @@ class PromptCachingMiddleware(AgentMiddleware):
             self._max_cached_tools,
             tool_count,
             _MAX_ANTHROPIC_CACHE_BREAKPOINTS - system_budget,
+        )
+
+        logger.debug(
+            "[PromptCache] budget: system=%d/%d tool=%d/%d (total_breakpoints=%d, max=%d)",
+            system_budget,
+            system_block_count,
+            tool_budget,
+            tool_count,
+            system_budget + tool_budget,
+            _MAX_ANTHROPIC_CACHE_BREAKPOINTS,
         )
 
         new_system = self._retag_system_message(

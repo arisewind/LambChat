@@ -1,7 +1,9 @@
 import { useCallback, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { useSearchParams } from "react-router-dom";
+import { useParams, useNavigate } from "react-router-dom";
 import toast from "react-hot-toast";
+import i18n from "../../../i18n";
+import { resolveAgentDisplayName } from "../../agent/agentCatalog";
 import {
   Bot,
   Clock,
@@ -71,7 +73,8 @@ export function ScheduledTaskPanel({
   const { availableModels: settingsAvailableModels } = useSettingsContext();
   const canWrite = hasPermission(Permission.SCHEDULED_TASK_WRITE);
   const canDelete = hasPermission(Permission.SCHEDULED_TASK_DELETE);
-  const [searchParams, setSearchParams] = useSearchParams();
+  const { taskId } = useParams<{ taskId?: string }>();
+  const navigate = useNavigate();
   const [tasks, setTasks] = useState<ScheduledTask[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [total, setTotal] = useState(0);
@@ -100,10 +103,11 @@ export function ScheduledTaskPanel({
     defaults.modelValue ||
     fallbackDefaultModel?.value ||
     "";
-  const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
-  const [selectedTaskName, setSelectedTaskName] = useState<string>("");
-  const taskIdFromQuery = searchParams.get("taskId");
-  const taskNameFromQuery = searchParams.get("taskName");
+
+  // Resolve task name from route param + loaded tasks
+  const selectedTaskName = taskId
+    ? tasks.find((t) => t.id === taskId)?.name || t("scheduledTask.title")
+    : "";
 
   // Fetch agents once for the form selector
   useEffect(() => {
@@ -162,18 +166,6 @@ export function ScheduledTaskPanel({
   useEffect(() => {
     fetchTasks();
   }, [fetchTasks]);
-
-  useEffect(() => {
-    if (!taskIdFromQuery) return;
-
-    const taskName =
-      taskNameFromQuery ||
-      tasks.find((task) => task.id === taskIdFromQuery)?.name ||
-      t("scheduledTask.title");
-
-    setSelectedTaskId(taskIdFromQuery);
-    setSelectedTaskName(taskName);
-  }, [taskIdFromQuery, taskNameFromQuery, tasks, t]);
 
   // Reset to page 1 when filter changes
   useEffect(() => {
@@ -373,22 +365,14 @@ export function ScheduledTaskPanel({
   };
 
   // Show skeleton during initial data loading — consistent with other panels
-  if (isLoading && tasks.length === 0 && !selectedTaskId) {
+  if (isLoading && tasks.length === 0 && !taskId) {
     return <ScheduledTaskPanelSkeleton />;
   }
 
   return (
     <div className="glass-shell scheduled-task-panel flex h-full flex-col min-h-0">
-      {selectedTaskId ? (
-        <TaskSessionList
-          taskId={selectedTaskId}
-          taskName={selectedTaskName}
-          onBack={() => {
-            setSelectedTaskId(null);
-            setSelectedTaskName("");
-            setSearchParams({});
-          }}
-        />
+      {taskId ? (
+        <TaskSessionList taskId={taskId} taskName={selectedTaskName} />
       ) : (
         <>
           <PanelHeader
@@ -431,9 +415,7 @@ export function ScheduledTaskPanel({
             ) : (
               <div className="grid auto-grid-cols gap-3">
                 {tasks.map((task) => {
-                  const agentName =
-                    agents.find((a) => a.id === task.agent_id)?.name ??
-                    task.agent_id;
+                  const agent = agents.find((a) => a.id === task.agent_id);
                   const modelName = formatTaskModel(task);
                   const contextName = formatTaskContext(task);
 
@@ -442,8 +424,7 @@ export function ScheduledTaskPanel({
                       key={task.id}
                       className="glass-card group relative flex flex-col rounded-xl p-4 sm:p-5 cursor-pointer transition-all duration-200 animate-glass-enter"
                       onClick={() => {
-                        setSelectedTaskId(task.id);
-                        setSelectedTaskName(task.name);
+                        navigate(`/scheduled-tasks/${task.id}`);
                       }}
                     >
                       {/* Title row */}
@@ -469,7 +450,9 @@ export function ScheduledTaskPanel({
                         </span>
                         <span className="glass-tag">
                           <Bot size={12} />
-                          {t(agentName)}
+                          {agent
+                            ? resolveAgentDisplayName(agent, i18n.language, t)
+                            : task.agent_id}
                         </span>
                         {modelName && (
                           <span className="glass-tag">

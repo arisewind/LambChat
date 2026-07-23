@@ -6,9 +6,19 @@ from langchain_core.messages import HumanMessage
 from src.agents.core import node_utils
 from src.agents.core.node_utils import (
     build_human_message,
+    get_image_download_max_bytes,
     inline_image_attachments_as_data_urls,
     resolve_model_image_url_to_base64,
 )
+
+
+def test_image_download_limit_uses_configured_image_upload_size(monkeypatch):
+    monkeypatch.setattr(
+        "src.kernel.config.settings.FILE_UPLOAD_MAX_SIZE_IMAGE",
+        37,
+    )
+
+    assert get_image_download_max_bytes() == 37 * 1024 * 1024
 
 
 def image_attachment(**overrides):
@@ -120,8 +130,74 @@ async def test_inline_image_attachments_converts_existing_url_when_enabled(monke
     )
 
     assert storage.downloaded_keys == ["uploads/img.png"]
-    assert attachments[0]["url"] is None
+    assert attachments[0]["url"] == "/api/upload/file/uploads/img.png"
     assert attachments[0]["data_url"] == "data:image/png;base64,aW1hZ2UtYnl0ZXM="
+
+
+@pytest.mark.asyncio
+async def test_inline_image_attachments_sends_under_5mb_image_without_2mb_cutoff(monkeypatch):
+    class ThreeMegabyteImageStorage:
+        async def download_to_file(self, _key, file, *, chunk_size=1024 * 1024):
+            del chunk_size
+            file.write(b"x" * (3 * 1024 * 1024))
+            file.seek(0)
+            return 3 * 1024 * 1024
+
+    async def fake_get_or_init_storage():
+        return ThreeMegabyteImageStorage()
+
+    monkeypatch.setattr(
+        "src.infra.storage.s3.service.get_or_init_storage",
+        fake_get_or_init_storage,
+    )
+    monkeypatch.setattr(node_utils, "get_image_download_max_bytes", lambda: 4 * 1024 * 1024)
+
+    attachments = await inline_image_attachments_as_data_urls(
+        [image_attachment(url="", size=3 * 1024 * 1024)],
+    )
+
+    assert attachments[0]["url"] == ""
+    assert attachments[0]["data_url"].startswith("data:image/png;base64,")
+
+
+@pytest.mark.asyncio
+async def test_inline_image_attachments_compresses_over_5mb_for_llm_without_replacing_url(
+    monkeypatch,
+):
+    class SixMegabyteImageStorage:
+        async def download_to_file(self, _key, file, *, chunk_size=1024 * 1024):
+            del chunk_size
+            file.write(b"x" * (6 * 1024 * 1024))
+            file.seek(0)
+            return 6 * 1024 * 1024
+
+    async def fake_get_or_init_storage():
+        return SixMegabyteImageStorage()
+
+    compressed_inputs: list[bytes] = []
+
+    def fake_compress(content, mime_type):
+        compressed_inputs.append(content)
+        return b"temporary-compressed-image", "image/jpeg"
+
+    monkeypatch.setattr(
+        "src.infra.storage.s3.service.get_or_init_storage",
+        fake_get_or_init_storage,
+    )
+    monkeypatch.setattr(node_utils, "get_image_download_max_bytes", lambda: 7 * 1024 * 1024)
+    monkeypatch.setattr(node_utils, "compress_image_bytes_if_needed", fake_compress)
+
+    original_url = "/api/upload/file/uploads/img.png"
+    attachments = await inline_image_attachments_as_data_urls(
+        [image_attachment(size=6 * 1024 * 1024, url=original_url)],
+        force_data_url=True,
+    )
+
+    assert len(compressed_inputs) == 1
+    assert attachments[0]["url"] == original_url
+    assert (
+        attachments[0]["data_url"] == "data:image/jpeg;base64,dGVtcG9yYXJ5LWNvbXByZXNzZWQtaW1hZ2U="
+    )
 
 
 class FakeImageStorage:
@@ -189,7 +265,13 @@ async def test_inline_image_attachments_offloads_base64_file_encoding(monkeypatc
     attachments = await inline_image_attachments_as_data_urls([image_attachment(url="")])
 
     assert attachments[0]["data_url"] == "data:image/png;base64,aW1hZ2UtYnl0ZXM="
-    assert calls == ["seek", "_base64_encode_file"]
+    assert calls == [
+        "seek",
+        "_read_binary_file",
+        "close",
+        "compress_image_bytes_if_needed",
+        "_base64_encode_bytes",
+    ]
 
 
 @pytest.mark.asyncio
@@ -220,10 +302,10 @@ async def test_inline_image_attachments_skips_large_key_without_download(monkeyp
         "src.infra.storage.s3.service.get_or_init_storage",
         fail_get_or_init_storage,
     )
+    monkeypatch.setattr(node_utils, "get_image_download_max_bytes", lambda: 8)
 
     attachments = await inline_image_attachments_as_data_urls(
         [image_attachment(url="", size=64)],
-        max_inline_bytes=8,
     )
 
     assert "url" not in {key: value for key, value in attachments[0].items() if value}.keys()
@@ -256,17 +338,17 @@ async def test_inline_image_attachments_skips_encoding_when_downloaded_file_exce
         fake_get_or_init_storage,
     )
     monkeypatch.setattr(node_utils, "run_blocking_io", fake_run_blocking_io, raising=False)
+    monkeypatch.setattr(node_utils, "get_image_download_max_bytes", lambda: 8)
 
     attachment = image_attachment(url="")
     attachment.pop("size")
 
     attachments = await inline_image_attachments_as_data_urls(
         [attachment],
-        max_inline_bytes=8,
     )
 
     assert "data_url" not in attachments[0]
-    assert encode_calls == []
+    assert encode_calls == ["close"]
 
 
 @pytest.mark.asyncio
@@ -339,7 +421,7 @@ async def test_resolve_model_image_url_to_base64_uses_model_profile(monkeypatch)
 
 
 # ---------------------------------------------------------------------------
-# Fix #1: build_human_message prefers data_url over url when url is None
+# build_human_message prefers temporary data URLs without clearing original URLs
 # ---------------------------------------------------------------------------
 
 
@@ -395,7 +477,7 @@ async def test_force_data_url_keeps_original_url_in_text_summary(monkeypatch):
 
 @pytest.mark.asyncio
 async def test_force_data_url_cleared_url_not_double_downloaded_by_middleware(monkeypatch):
-    """After force_data_url clears url, the middleware should skip data: URLs."""
+    """Temporary data URLs preserve the original attachment URL."""
     storage = FakeImageStorage()
 
     async def fake_get_or_init_storage():
@@ -410,8 +492,7 @@ async def test_force_data_url_cleared_url_not_double_downloaded_by_middleware(mo
         [image_attachment()],
         force_data_url=True,
     )
-    # The middleware checks url.startswith("data:") — url is now None so no re-download
-    assert attachments[0]["url"] is None
+    assert attachments[0]["url"] == "/api/upload/file/uploads/img.png"
     assert attachments[0]["data_url"].startswith("data:")
 
 
@@ -444,9 +525,7 @@ async def test_download_image_url_rejects_private_address():
     from src.agents.core.node_utils import _download_image_url_as_data_url
 
     # httpx is available but URL is private — should return None
-    result = await _download_image_url_as_data_url(
-        "http://127.0.0.1/secret.png", "image/png", max_bytes=1024
-    )
+    result = await _download_image_url_as_data_url("http://127.0.0.1/secret.png", "image/png")
     assert result is None
 
 
@@ -454,9 +533,7 @@ async def test_download_image_url_rejects_private_address():
 async def test_download_image_url_rejects_non_http_scheme():
     from src.agents.core.node_utils import _download_image_url_as_data_url
 
-    result = await _download_image_url_as_data_url(
-        "file:///etc/passwd", "image/png", max_bytes=1024
-    )
+    result = await _download_image_url_as_data_url("file:///etc/passwd", "image/png")
     assert result is None
 
 

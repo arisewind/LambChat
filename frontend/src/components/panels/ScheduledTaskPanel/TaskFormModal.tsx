@@ -1,6 +1,8 @@
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import toast from "react-hot-toast";
+import i18n from "../../../i18n";
+import { resolveAgentDisplayName } from "../../agent/agentCatalog";
 import {
   CalendarClock,
   Pencil,
@@ -357,7 +359,9 @@ export function TaskFormModal({
                 { value: "", label: t("scheduledTask.agentPlaceholder") },
                 ...agents.map((agent) => ({
                   value: agent.id,
-                  label: t(agent.name),
+                  label:
+                    resolveAgentDisplayName(agent, i18n.language, t) ||
+                    agent.id,
                 })),
               ]}
             />

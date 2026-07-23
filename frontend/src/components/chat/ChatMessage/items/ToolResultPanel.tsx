@@ -273,7 +273,7 @@ export function ToolResultPanel({
     return () => {
       frameIds.forEach((frameId) => cancelAnimationFrame(frameId));
     };
-  }, [open, children]);
+  }, [open, registryKey]);
 
   // Override handleResizeStart to call onUserInteraction
   const handleResize = useCallback(

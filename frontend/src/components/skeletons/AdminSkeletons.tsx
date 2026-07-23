@@ -2,6 +2,7 @@ import { SkeletonLine } from "./primitives";
 import { PanelHeaderSkeleton } from "./PanelHeaderSkeleton";
 import {
   PANEL_CARD_SKELETON_COUNT,
+  PANEL_ROW_SKELETON_COUNT,
   PanelPaginationSkeleton,
 } from "./PanelSkeletonHelpers";
 
@@ -32,7 +33,7 @@ export function UsersPanelSkeleton() {
               <SkeletonLine width="w-20 xl:w-28" className="!h-3 !rounded" />
               <SkeletonLine width="w-16 xl:w-20" className="!h-3 !rounded" />
             </div>
-            {Array.from({ length: 8 }).map((_, i) => (
+            {Array.from({ length: PANEL_ROW_SKELETON_COUNT }).map((_, i) => (
               <div
                 key={i}
                 className="flex items-center gap-4 px-6 py-4"
@@ -70,7 +71,7 @@ export function UsersPanelSkeleton() {
         </div>
         {/* Mobile cards */}
         <div className="space-y-3 sm:hidden">
-          {Array.from({ length: 4 }).map((_, i) => (
+          {Array.from({ length: PANEL_ROW_SKELETON_COUNT }).map((_, i) => (
             <div key={i} className="glass-card rounded-xl p-4">
               <div className="flex items-start gap-3">
                 <div className="skeleton-line size-10 rounded-full shrink-0" />

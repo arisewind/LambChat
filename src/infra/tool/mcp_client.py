@@ -18,6 +18,12 @@ from pydantic import PrivateAttr
 
 from src.infra.async_utils import run_blocking_io
 from src.infra.logging import get_logger
+from src.infra.tool.mcp_schema_sanitizer import (  # noqa: F401
+    _attach_sanitized_schema,
+    _create_sanitized_model_class,
+    _monkey_patch_model_json_schema,
+    _sanitize_json_schema,
+)
 from src.kernel.config import settings
 from src.kernel.schemas.mcp import MCPRoleQuota, MCPToolPolicy
 
@@ -57,6 +63,11 @@ def _get_effective_config_max_tools() -> int:
         return max(1, int(value))
     except (TypeError, ValueError):
         return 200
+
+
+# MCP 工具参数 schema 清洗函数（_sanitize_json_schema 等）原定义在本文件内，
+# 因文件行数超过 1000 行限制已拆分到 src.infra.tool.mcp_schema_sanitizer。
+# 上方通过 re-export 暴露这些符号，保持向后兼容（如测试的导入路径）。
 
 
 class MCPToolWithRetry(BaseTool):
@@ -647,6 +658,11 @@ class MCPClientManager:
                 )
                 skipped_tools.append(tool.name)
                 continue
+
+            # 清洗 args_schema 中值为 None 的 property，避免 Gemini 后端
+            # (langchain-google-genai) 的 types.Schema 校验抛出 ValidationError。
+            # 参考: issue #186
+            tool = _attach_sanitized_schema(tool)
 
             filtered_tools.append(tool)
 

@@ -17,6 +17,8 @@ import { PanelLoadingState } from "../common/PanelLoadingState";
 import { Button, Input, Select, Textarea } from "../common";
 import toast from "react-hot-toast";
 import { useTranslation } from "react-i18next";
+import i18n from "../../i18n";
+import { resolveAgentDisplayName } from "../agent/agentCatalog";
 import { useSettingsContext } from "../../contexts/SettingsContext";
 import { JsonSchemaEditor } from "./JsonSchemaEditor";
 import { SystemHealthSection } from "./SystemHealthSection";
@@ -752,7 +754,12 @@ export function SettingsPanel() {
                                   setting.key === "DEFAULT_AGENT"
                                     ? agents.map((agent) => ({
                                         value: agent.id,
-                                        label: t(agent.name || agent.id),
+                                        label:
+                                          resolveAgentDisplayName(
+                                            agent,
+                                            i18n.language,
+                                            t,
+                                          ) || agent.id,
                                       }))
                                     : setting.key === "DEFAULT_USER_ROLE"
                                       ? roles.map((role) => ({

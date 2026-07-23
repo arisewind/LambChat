@@ -192,7 +192,7 @@ const MemoryRecallItem = memo(function MemoryRecallItem({
       {resultQuery && (
         <div className="flex items-center gap-2.5 px-3.5 py-2.5 rounded-xl bg-[color-mix(in_srgb,var(--theme-primary)_7%,var(--theme-bg-card))] border border-[color-mix(in_srgb,var(--theme-primary)_16%,var(--theme-border))] shadow-[0_10px_24px_-22px_color-mix(in_srgb,var(--theme-primary)_45%,transparent)]">
           <Search size={14} className="text-[var(--theme-primary)] shrink-0" />
-          <span className="text-sm sm:text-base text-theme-text truncate flex-1">
+          <span className="text-sm sm:text-base text-theme-text min-w-0 truncate flex-1">
             {resultQuery}
           </span>
           {searchMode && (
@@ -380,7 +380,7 @@ const MemoryRecallItem = memo(function MemoryRecallItem({
                   size={12}
                   className="text-[var(--theme-primary)] shrink-0"
                 />
-                <span className="text-xs text-theme-text-secondary truncate flex-1">
+                <span className="text-xs text-theme-text-secondary min-w-0 truncate flex-1">
                   {resultQuery.length > 50
                     ? resultQuery.slice(0, 47) + "…"
                     : resultQuery}
@@ -406,7 +406,7 @@ const MemoryRecallItem = memo(function MemoryRecallItem({
                       >
                         {t(`memory.type.${mem.type}`, mem.type)}
                       </span>
-                      <span className="text-xs text-theme-text-secondary truncate flex-1">
+                      <span className="text-xs text-theme-text-secondary min-w-0 truncate flex-1">
                         {mem.title ||
                           (mem.summary
                             ? mem.summary.slice(0, 40)

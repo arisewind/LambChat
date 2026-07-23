@@ -1,9 +1,11 @@
 import { useState } from "react";
 import { Bot, ChevronDown, Cpu, Star, Trash2 } from "lucide-react";
 import { useTranslation } from "react-i18next";
+import i18n from "../../i18n";
 import type { TeamMember } from "../../types/team";
 import type { ModelOption } from "../../services/api/model";
 import type { AgentInfo } from "../../types/agent";
+import { resolveAgentDisplayName } from "../agent/agentCatalog";
 import {
   PersonaAvatarIcon,
   PersonaAvatarImage,
@@ -55,14 +57,16 @@ export function TeamMemberCard({
     ? availableAgents.find((agent) => agent.id === member.agent_id)
     : null;
   const agentLabel = member.agent_id
-    ? t(selectedAgent?.name || member.agent_id)
+    ? selectedAgent
+      ? resolveAgentDisplayName(selectedAgent, i18n.language, t)
+      : member.agent_id
     : t("team.followTeamMode", "跟随团队模式");
 
   const agentOptions: SelectOption[] = [
     { value: "", label: t("team.followTeamMode", "跟随团队模式") },
     ...availableAgents.map((agent) => ({
       value: agent.id,
-      label: t(agent.name || agent.id),
+      label: resolveAgentDisplayName(agent, i18n.language, t) || agent.id,
     })),
   ];
 

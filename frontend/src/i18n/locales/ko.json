@@ -651,6 +651,8 @@
       "toolAskHuman": "사용자 확인",
       "toolAskHumanFieldCount": "{{count}}개 필드",
       "toolAskHumanListSeparator": ", ",
+      "askHumanOtherLabel": "기타 의견",
+      "askHumanOtherPlaceholder": "위 옵션 외에 다른 생각이나 제안이 있으신가요?",
       "toolAudioTranscribe": "전사",
       "toolCalls": "도구 호출",
       "toolCreateTeam": "팀 생성",

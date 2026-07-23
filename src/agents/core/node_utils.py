@@ -20,12 +20,26 @@ from langgraph.constants import CONFIG_KEY_CHECKPOINTER
 
 from src.infra.agent import AgentEventProcessor
 from src.infra.async_utils import run_blocking_io
+from src.infra.image_utils import compress_image_bytes_if_needed
 from src.infra.logging import get_logger
 
 logger = get_logger(__name__)
-IMAGE_DATA_URL_INLINE_MAX_BYTES = 2 * 1024 * 1024
+DEFAULT_IMAGE_DOWNLOAD_MAX_BYTES = 25 * 1024 * 1024
 IMAGE_DATA_URL_SPOOL_MAX_MEMORY_BYTES = 256 * 1024
 IMAGE_DATA_URL_ENCODE_CHUNK_BYTES = 192 * 1024
+
+
+def get_image_download_max_bytes() -> int:
+    """Return the configured image upload limit in bytes."""
+    try:
+        from src.kernel.config import settings
+
+        configured_mb = int(getattr(settings, "FILE_UPLOAD_MAX_SIZE_IMAGE", 0) or 0)
+        if configured_mb > 0:
+            return configured_mb * 1024 * 1024
+    except Exception:
+        pass
+    return DEFAULT_IMAGE_DOWNLOAD_MAX_BYTES
 
 
 def build_nested_graph_configurable(
@@ -236,31 +250,44 @@ def _base64_encode_file(file) -> str:
     return "".join(parts)
 
 
+def _read_binary_file(file: Any) -> bytes:
+    return bytes(file.read())
+
+
+def _base64_encode_bytes(content: bytes) -> str:
+    return base64.b64encode(content).decode("ascii")
+
+
 async def _download_image_as_data_url(
     storage,
     key: object,
     mime_type: str,
-    *,
-    max_bytes: int,
 ) -> str | None:
-    with SpooledTemporaryFile(
+    max_bytes = get_image_download_max_bytes()
+    spooled = SpooledTemporaryFile(
         max_size=IMAGE_DATA_URL_SPOOL_MAX_MEMORY_BYTES,
         mode="w+b",
-    ) as spooled:
+    )
+    try:
         downloaded_size = await storage.download_to_file(str(key), spooled)
         if isinstance(downloaded_size, int) and downloaded_size > max_bytes:
             return None
         await run_blocking_io(spooled.seek, 0)
-        encoded = await run_blocking_io(_base64_encode_file, spooled)
+        content = await run_blocking_io(_read_binary_file, spooled)
+        if len(content) > max_bytes:
+            return None
+    finally:
+        await run_blocking_io(spooled.close)
+    content, mime_type = await run_blocking_io(compress_image_bytes_if_needed, content, mime_type)
+    encoded = await run_blocking_io(_base64_encode_bytes, content)
     return f"data:{mime_type};base64,{encoded}"
 
 
 async def _download_image_url_as_data_url(
     url: str,
     mime_type: str,
-    *,
-    max_bytes: int,
 ) -> str | None:
+    max_bytes = get_image_download_max_bytes()
     key = _upload_key_from_image_url(url)
     if key:
         from src.infra.storage.s3.service import get_or_init_storage
@@ -270,7 +297,6 @@ async def _download_image_url_as_data_url(
             storage,
             key,
             mime_type,
-            max_bytes=max_bytes,
         )
 
     if _is_private_url(url):
@@ -283,10 +309,11 @@ async def _download_image_url_as_data_url(
         logger.warning("Cannot inline remote image URL without httpx: %s", url)
         return None
 
-    with SpooledTemporaryFile(
+    spooled = SpooledTemporaryFile(
         max_size=IMAGE_DATA_URL_SPOOL_MAX_MEMORY_BYTES,
         mode="w+b",
-    ) as spooled:
+    )
+    try:
         downloaded_size = 0
         async with httpx.AsyncClient(follow_redirects=True, timeout=30.0) as client:
             async with client.stream("GET", url) as response:
@@ -300,7 +327,13 @@ async def _download_image_url_as_data_url(
                         return None
                     await run_blocking_io(spooled.write, chunk)
         await run_blocking_io(spooled.seek, 0)
-        encoded = await run_blocking_io(_base64_encode_file, spooled)
+        content = await run_blocking_io(_read_binary_file, spooled)
+        if len(content) > max_bytes:
+            return None
+    finally:
+        await run_blocking_io(spooled.close)
+    content, mime_type = await run_blocking_io(compress_image_bytes_if_needed, content, mime_type)
+    encoded = await run_blocking_io(_base64_encode_bytes, content)
     return f"data:{mime_type};base64,{encoded}"
 
 
@@ -308,7 +341,6 @@ async def inline_image_attachments_as_data_urls(
     attachments: list[dict] | None,
     *,
     base_url: str = "",
-    max_inline_bytes: int = IMAGE_DATA_URL_INLINE_MAX_BYTES,
     force_data_url: bool = False,
 ) -> list[dict]:
     """Return image attachments with URLs preferred over in-memory data URLs."""
@@ -337,14 +369,13 @@ async def inline_image_attachments_as_data_urls(
 
         if existing_url and force_data_url:
             size = attachment.get("size")
-            if isinstance(size, int) and size > max_inline_bytes:
+            if isinstance(size, int) and size > get_image_download_max_bytes():
                 inlined.append(attachment)
                 continue
             try:
                 data_url = await _download_image_url_as_data_url(
                     str(existing_url),
                     mime_type,
-                    max_bytes=max_inline_bytes,
                 )
                 if data_url is None:
                     inlined.append(attachment)
@@ -358,7 +389,6 @@ async def inline_image_attachments_as_data_urls(
                     **attachment,
                     "data_url": data_url,
                     "original_url": existing_url,
-                    "url": None,
                 }
             )
             continue
@@ -377,7 +407,7 @@ async def inline_image_attachments_as_data_urls(
             continue
 
         size = attachment.get("size")
-        if isinstance(size, int) and size > max_inline_bytes:
+        if isinstance(size, int) and size > get_image_download_max_bytes():
             inlined.append(attachment)
             continue
 
@@ -386,12 +416,7 @@ async def inline_image_attachments_as_data_urls(
                 from src.infra.storage.s3.service import get_or_init_storage
 
                 storage = await get_or_init_storage()
-            data_url = await _download_image_as_data_url(
-                storage,
-                key,
-                mime_type,
-                max_bytes=max_inline_bytes,
-            )
+            data_url = await _download_image_as_data_url(storage, key, mime_type)
             if data_url is None:
                 inlined.append(attachment)
                 continue
@@ -404,7 +429,6 @@ async def inline_image_attachments_as_data_urls(
             {
                 **attachment,
                 "data_url": data_url,
-                "url": None,
             }
         )
 
@@ -481,7 +505,7 @@ def build_human_message(
     for attachment in attachments:
         url = attachment.get("url")
         data_url = attachment.get("data_url")
-        image_url = url or data_url
+        image_url = data_url or url
         if supports_vision and _is_image_attachment(attachment) and image_url:
             image_index = len(multimodal_images) + 1
             multimodal_images.append(
@@ -490,7 +514,7 @@ def build_human_message(
                     "image_url": {"url": image_url},
                 }
             )
-            if attachment.get("original_url"):
+            if data_url and url:
                 text_summary_attachments.append({**attachment, "image_index": image_index})
         elif url:
             text_summary_attachments.append(attachment)

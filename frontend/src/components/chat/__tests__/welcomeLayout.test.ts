@@ -1,6 +1,7 @@
 import { readFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import * as welcomeLayout from "../welcomeLayout.ts";
 import {
   getSelectedPersonaStarterPrompts,
   getSelectedTeamStarterPrompts,
@@ -75,12 +76,109 @@ test("keeps mobile welcome cards readable with stable touch targets", () => {
   );
 });
 
-test("keeps starter prompt container narrower than persona gallery", () => {
-  expect(getWelcomeSuggestionsContainerClass("prompts")).toMatch(
-    /sm:max-w-\[44rem\]/,
+test("widens welcome suggestion containers only from the sm breakpoint", () => {
+  const promptWidths = [
+    "sm:max-w-[48rem]",
+    "md:max-w-[50rem]",
+    "lg:max-w-[52rem]",
+    "xl:max-w-[54rem]",
+    "2xl:max-w-[56rem]",
+  ];
+  const personaWidths = [
+    "sm:max-w-[52rem]",
+    "md:max-w-[54rem]",
+    "lg:max-w-[58rem]",
+    "xl:max-w-[62rem]",
+    "2xl:max-w-[66rem]",
+  ];
+
+  const promptClass = getWelcomeSuggestionsContainerClass("prompts");
+  expect(promptClass).toContain(promptWidths.join(" "));
+  expect(promptClass).not.toMatch(/(?:^|\s)max-w-\[/);
+
+  const personaClass = getWelcomeSuggestionsContainerClass("personas");
+  expect(personaClass).toContain(personaWidths.join(" "));
+  expect(personaClass).not.toMatch(/(?:^|\s)max-w-\[/);
+  expect(personaClass).not.toContain(promptWidths.join(" "));
+});
+
+test("defines the complete shared welcome suggestion container class", () => {
+  const { WELCOME_SUGGESTIONS_CLASS_NAME } =
+    welcomeLayout as typeof welcomeLayout & {
+      WELCOME_SUGGESTIONS_CLASS_NAME: string;
+    };
+
+  expect(WELCOME_SUGGESTIONS_CLASS_NAME).toBe(
+    "welcome-suggestions relative mx-auto px-2 sm:px-0 sm:mt-2 md:mt-2.5 xl:mt-3 2xl:mt-3 w-full sm:max-w-[48rem] md:max-w-[50rem] lg:max-w-[52rem] xl:max-w-[54rem] 2xl:max-w-[56rem]",
   );
-  expect(getWelcomeSuggestionsContainerClass("personas")).toMatch(
-    /sm:max-w-\[44rem\]/,
+  expect(WELCOME_SUGGESTIONS_CLASS_NAME).not.toMatch(/(?:^|\s)max-w-\S+/);
+});
+
+test("uses the persona width class in the chat skeleton", () => {
+  const { WELCOME_PERSONA_CLASS_NAME } =
+    welcomeLayout as typeof welcomeLayout & {
+      WELCOME_PERSONA_CLASS_NAME: string;
+    };
+
+  expect(getWelcomeSuggestionsContainerClass("personas")).toBe(
+    WELCOME_PERSONA_CLASS_NAME,
+  );
+  expect(getWelcomeSuggestionsContainerClass("prompts")).not.toBe(
+    WELCOME_PERSONA_CLASS_NAME,
+  );
+  expect(chatSkeletonsSource).toMatch(
+    /import\s*\{[^}]*\bWELCOME_PERSONA_CLASS_NAME\b[^}]*\}\s*from\s*["']\.\.\/chat\/welcomeLayout["'];/,
+  );
+  expect(chatSkeletonsSource).toMatch(
+    /className=\{WELCOME_PERSONA_CLASS_NAME\}/,
+  );
+});
+
+test("uses the welcome persona skeleton class helper in the chat skeleton", () => {
+  expect(chatSkeletonsSource).toMatch(
+    /import\s*\{[^}]*\bgetWelcomePersonaSkeletonClass\b[^}]*\}\s*from\s*["']\.\.\/chat\/welcomeLayout["'];/,
+  );
+  expect(chatSkeletonsSource).toMatch(
+    /className=\{getWelcomePersonaSkeletonClass\(\)\}/,
+  );
+});
+
+test("keeps chat input skeleton structure 1:1 with real ChatInput", () => {
+  expect(chatSkeletonsSource).toMatch(
+    /function ChatInputShellSkeleton\(\)[\s\S]*?className="chat-input-container flex flex-col relative w-full rounded-3xl px-1 border transition-all duration-300"/,
+  );
+  expect(chatSkeletonsSource).toMatch(
+    /className="bg-transparent w-full pt-\[10px\] text-\[15px\] leading-relaxed min-h-\[40px\] sm:min-h-\[44px\]"/,
+  );
+  expect(chatSkeletonsSource).toMatch(
+    /className="flex max-w-full flex-nowrap justify-between gap-2 px-2 pb-3 pt-3 mx-0\.5"/,
+  );
+  expect(chatSkeletonsSource).toMatch(
+    /className="chat-tool-btn group shrink min-w-0 pointer-events-none"/,
+  );
+  expect(chatSkeletonsSource).toMatch(
+    /className="skeleton-line h-9 w-9 rounded-full shrink-0"/,
+  );
+  // Default idle toolbar: FeatureMenu + Agent chip | Settings + Send (no mode labels)
+  expect(chatSkeletonsSource).not.toMatch(/Mode label — desktop only/);
+});
+
+test("reuses the same chat input skeleton for welcome and conversation", () => {
+  // WelcomeSkeleton mounts ChatInputSkeleton instead of a separate markup tree
+  expect(chatSkeletonsSource).toMatch(
+    /export function WelcomeSkeleton\(\)[\s\S]*?<ChatInputSkeleton[\s\S]*?formClassName="mx-auto w-full px-2"/,
+  );
+  // Shared shell uses conversation skeleton-line, not welcome-specific shimmer class
+  const shellMatch = chatSkeletonsSource.match(
+    /function ChatInputShellSkeleton\(\) \{[\s\S]*?\n\}/,
+  );
+  expect(shellMatch?.[0]).toMatch(
+    /className="skeleton-line h-\[15px\] w-3\/5 rounded-full mt-\[3px\]"/,
+  );
+  expect(shellMatch?.[0]).not.toMatch(/welcome-skeleton-line/);
+  // Conversation skeleton also uses the shared ChatInputSkeleton
+  expect(chatSkeletonsSource).toMatch(
+    /export function ChatSkeleton\([\s\S]*?<ChatInputSkeleton \/>/,
   );
 });
 
@@ -131,8 +229,11 @@ test("shows welcome choice skeletons only while the first page is loading", () =
   expect(getWelcomePersonaSkeletonCount(false, 0)).toBe(0);
 });
 
-test("renders twelve welcome skeleton cards in shared chat loading state", () => {
-  expect(chatSkeletonsSource).toMatch(/Array\.from\(\{\s*length:\s*12\s*\}\)/);
+test("renders welcome skeleton cards using PANEL_CARD_SKELETON_COUNT", () => {
+  expect(chatSkeletonsSource).toMatch(/PANEL_CARD_SKELETON_COUNT/);
+  expect(chatSkeletonsSource).toMatch(
+    /Array\.from\(\{\s*length:\s*PANEL_CARD_SKELETON_COUNT\s*\}\)/,
+  );
 });
 
 test("expands welcome choice gallery while skeleton cards are loading", () => {

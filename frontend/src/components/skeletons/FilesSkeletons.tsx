@@ -1,4 +1,5 @@
 import { SkeletonLine } from "./primitives";
+import { PANEL_ROW_SKELETON_COUNT } from "./PanelSkeletonHelpers";
 import { SidebarSkeleton } from "./SidebarSkeleton";
 
 const appSafeAreaTop =
@@ -46,7 +47,7 @@ export function FilesContentSkeleton() {
               <div className="skeleton-line h-[16px] sm:h-[18px] w-8 sm:w-10 rounded-md" />
             </div>
             <div className="grid auto-grid-cols gap-3 items-start">
-              {[0, 1, 2, 3, 4, 5].map((i) => (
+              {Array.from({ length: PANEL_ROW_SKELETON_COUNT }).map((_, i) => (
                 <FileCardSkeleton key={i} i={i} />
               ))}
             </div>
@@ -62,7 +63,7 @@ export function FilesContentSkeleton() {
               <div className="skeleton-line h-[16px] sm:h-[18px] w-8 sm:w-10 rounded-md" />
             </div>
             <div className="grid auto-grid-cols gap-3 items-start">
-              {[0, 1, 2, 3].map((i) => (
+              {Array.from({ length: PANEL_ROW_SKELETON_COUNT }).map((_, i) => (
                 <FileCardSkeleton key={i} i={i} />
               ))}
             </div>

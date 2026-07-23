@@ -651,6 +651,8 @@
       "toolAskHuman": "Вопрос пользователю",
       "toolAskHumanFieldCount": "{{count}} полей",
       "toolAskHumanListSeparator": ", ",
+      "askHumanOtherLabel": "Другое",
+      "askHumanOtherPlaceholder": "Есть ли другие мысли или предложения помимо указанных вариантов?",
       "toolAudioTranscribe": "Транскрипция",
       "toolCalls": "Вызовы инструментов",
       "toolCreateTeam": "Создать команду",

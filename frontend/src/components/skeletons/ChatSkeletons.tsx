@@ -1,4 +1,9 @@
+import {
+  WELCOME_PERSONA_CLASS_NAME,
+  getWelcomePersonaSkeletonClass,
+} from "../chat/welcomeLayout";
 import { SkeletonLine } from "./primitives";
+import { PANEL_CARD_SKELETON_COUNT } from "./PanelSkeletonHelpers";
 import { SidebarSkeleton } from "./SidebarSkeleton";
 
 const appSafeAreaTop =
@@ -120,33 +125,65 @@ function AssistantMessageSkeleton() {
   );
 }
 
-/** Skeleton for the chat input area (reused in ChatSkeleton) */
-function ChatInputSkeleton() {
+/** Skeleton for the chat input area (reused in ChatSkeleton / WelcomeSkeleton) */
+function ChatInputSkeleton({
+  formClassName = "mx-auto max-w-4xl lg:max-w-5xl xl:max-w-6xl px-2",
+  shellClassName = "shrink-0",
+}: {
+  formClassName?: string;
+  shellClassName?: string;
+} = {}) {
   return (
-    <div className="shrink-0">
+    <div className={shellClassName}>
       <div className="chat-input-shell sm:px-4 pb-3 sm:pb-5">
-        <div className="mx-auto max-w-4xl lg:max-w-5xl xl:max-w-6xl px-2">
+        <div className={formClassName}>
+          <ChatInputShellSkeleton />
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/** Shared ChatInput shell skeleton — identical for welcome + conversation */
+function ChatInputShellSkeleton() {
+  return (
+    <div
+      className="chat-input-container flex flex-col relative w-full rounded-3xl px-1 border transition-all duration-300"
+      style={{
+        backgroundColor: "var(--theme-bg-card)",
+      }}
+    >
+      {/* Textarea area — 1:1 with real: div.px-2.5.pt-1 > div.relative > textarea */}
+      <div className="px-2.5 pt-1">
+        <div className="relative">
           <div
-            className="flex flex-col w-full rounded-3xl px-1 border"
-            style={{
-              backgroundColor: "var(--theme-bg-card)",
-            }}
+            className="bg-transparent w-full pt-[10px] text-[15px] leading-relaxed min-h-[40px] sm:min-h-[44px]"
+            style={{ paddingLeft: 4 }}
           >
-            {/* Textarea area */}
-            <div className="px-2.5 py-2 flex items-start gap-2">
-              <div className="skeleton-line h-3 w-3/5 rounded-full flex-1 mt-3 min-h-[30px]" />
-            </div>
-            {/* Toolbar — matches real ChatInputToolbar layout */}
-            <div className="flex max-w-full flex-nowrap justify-between gap-2 px-2 pb-3 pt-3 mx-0.5">
-              <div className="flex min-h-10 min-w-0 flex-1 items-center gap-1 overflow-x-auto sm:gap-2">
-                <div className="skeleton-line h-9 w-9 rounded-full shrink-0" />
-                <div className="skeleton-line h-9 w-16 rounded-full shrink-0" />
-              </div>
-              <div className="flex shrink-0 items-center gap-3 self-end">
-                <div className="skeleton-line h-9 w-9 rounded-full shrink-0" />
-              </div>
+            <div className="skeleton-line h-[15px] w-3/5 rounded-full mt-[3px]" />
+          </div>
+        </div>
+      </div>
+      {/* Toolbar — 1:1 with real ChatInputToolbar default idle state */}
+      <div className="flex max-w-full flex-nowrap justify-between gap-2 px-2 pb-3 pt-3 mx-0.5">
+        <div className="flex min-h-10 min-w-0 flex-1 items-center gap-1 overflow-x-auto no-scrollbar sm:gap-2">
+          {/* FeatureMenu button (chat-tool-btn: min 2.25rem, p-2, rounded-full) */}
+          <div className="skeleton-line h-9 w-9 rounded-full shrink-0" />
+          {/* Agent chip (chat-tool-btn + avatar 18px + text-sm label) */}
+          <div className="chat-tool-btn group shrink min-w-0 pointer-events-none">
+            <div className="flex flex-row items-center gap-2 min-w-0">
+              <span className="relative h-[18px] w-[18px] shrink-0 inline-flex items-center justify-center overflow-hidden">
+                <div className="skeleton-line h-[18px] w-[18px] rounded-full" />
+              </span>
+              <div className="skeleton-line h-3.5 w-20 sm:w-24 rounded-full" />
             </div>
           </div>
+        </div>
+        <div className="flex shrink-0 items-center gap-3 self-end">
+          {/* Settings / Run Mode button (chat-tool-btn) */}
+          <div className="skeleton-line h-9 w-9 rounded-full shrink-0" />
+          {/* Send button (h-9 w-9 rounded-full) */}
+          <div className="skeleton-line h-9 w-9 rounded-full shrink-0" />
         </div>
       </div>
     </div>
@@ -156,11 +193,11 @@ function ChatInputSkeleton() {
 /** Skeleton that mimics a chat conversation layout (user + assistant alternating) with input */
 export function ChatSkeleton({ count = 5 }: { count?: number }) {
   const userMsgs = [
-    { bubble: "w-[85%] sm:w-[75%]", lines: ["w-full", "w-[82%]"] },
-    { bubble: "w-[70%] sm:w-[60%]", lines: ["w-full"] },
-    { bubble: "w-[90%] sm:w-[80%]", lines: ["w-full", "w-[75%]"] },
-    { bubble: "w-[75%] sm:w-[65%]", lines: ["w-full"] },
-    { bubble: "w-[80%] sm:w-[70%]", lines: ["w-full", "w-[88%]"] },
+    { bubble: "w-[65%] sm:w-[55%]", lines: ["w-full", "w-[82%]"] },
+    { bubble: "w-[50%] sm:w-[40%]", lines: ["w-full"] },
+    { bubble: "w-[70%] sm:w-[60%]", lines: ["w-full", "w-[75%]"] },
+    { bubble: "w-[55%] sm:w-[45%]", lines: ["w-full"] },
+    { bubble: "w-[60%] sm:w-[50%]", lines: ["w-full", "w-[88%]"] },
   ];
 
   return (
@@ -186,11 +223,11 @@ export function ChatSkeleton({ count = 5 }: { count?: number }) {
 /** Messages-only skeleton (for streaming footer, no input box) */
 export function ChatSkeletonMessagesOnly({ count = 3 }: { count?: number }) {
   const userMsgs = [
-    { bubble: "w-[85%] sm:w-[75%]", lines: ["w-full", "w-[82%]"] },
-    { bubble: "w-[70%] sm:w-[60%]", lines: ["w-full"] },
-    { bubble: "w-[90%] sm:w-[80%]", lines: ["w-full", "w-[75%]"] },
-    { bubble: "w-[75%] sm:w-[65%]", lines: ["w-full"] },
-    { bubble: "w-[80%] sm:w-[70%]", lines: ["w-full", "w-[88%]"] },
+    { bubble: "w-[65%] sm:w-[55%]", lines: ["w-full", "w-[82%]"] },
+    { bubble: "w-[50%] sm:w-[40%]", lines: ["w-full"] },
+    { bubble: "w-[70%] sm:w-[60%]", lines: ["w-full", "w-[75%]"] },
+    { bubble: "w-[55%] sm:w-[45%]", lines: ["w-full"] },
+    { bubble: "w-[60%] sm:w-[50%]", lines: ["w-full", "w-[88%]"] },
   ];
 
   return (
@@ -233,33 +270,16 @@ export function WelcomeSkeleton() {
         />
       </div>
 
-      {/* ChatInput skeleton */}
-      <div className="welcome-input w-full sm:max-w-[44rem] md:max-w-[46rem] lg:max-w-[48rem] xl:max-w-[50rem] 2xl:max-w-[52rem]">
-        <div
-          className="flex flex-col w-full rounded-3xl px-1 border"
-          style={{
-            backgroundColor: "var(--theme-bg-card)",
-          }}
-        >
-          {/* Textarea area */}
-          <div className="px-2.5 py-2 flex items-start gap-2">
-            <div className="welcome-skeleton-line h-3 w-3/5 flex-1 mt-3 min-h-[30px]" />
-          </div>
-          {/* Toolbar — matches real ChatInputToolbar layout */}
-          <div className="flex max-w-full flex-nowrap justify-between gap-2 px-2 pb-3 pt-3 mx-0.5">
-            <div className="flex min-h-10 min-w-0 flex-1 items-center gap-1 overflow-x-auto sm:gap-2">
-              <div className="welcome-skeleton-line h-9 w-9 rounded-full shrink-0" />
-              <div className="welcome-skeleton-line h-9 w-16 sm:w-20 rounded-full shrink-0" />
-            </div>
-            <div className="flex shrink-0 items-center gap-3 self-end">
-              <div className="welcome-skeleton-line h-9 w-9 rounded-full shrink-0" />
-            </div>
-          </div>
-        </div>
+      {/* ChatInput skeleton — same component as conversation input skeleton */}
+      <div className="welcome-input flex w-full flex-col mx-auto sm:max-w-[44rem] md:max-w-[46rem] lg:max-w-[48rem] xl:max-w-[50rem] 2xl:max-w-[52rem]">
+        <ChatInputSkeleton
+          shellClassName="w-full"
+          formClassName="mx-auto w-full px-2"
+        />
       </div>
 
       {/* Persona cards skeleton — matches real initial state (no persona selected) */}
-      <div className="welcome-suggestions relative mx-auto px-2 sm:px-0 sm:mt-2 md:mt-2.5 xl:mt-3 2xl:mt-3 w-full sm:max-w-[44rem] md:max-w-[46rem] lg:max-w-[48rem] xl:max-w-[50rem] 2xl:max-w-[52rem]">
+      <div className={WELCOME_PERSONA_CLASS_NAME}>
         {/* Label + manage */}
         <div className="welcome-suggestions-header flex items-center justify-between mb-2 sm:mb-2.5 md:mb-2.5 xl:mb-3 2xl:mb-3">
           <div className="flex items-center gap-1.5">
@@ -273,7 +293,7 @@ export function WelcomeSkeleton() {
             />
           </div>
           <div className="flex items-center gap-2">
-            <div className="flex items-center gap-0.5 px-2 py-1 rounded-lg">
+            <div className="flex items-center gap-2 py-1 rounded-lg">
               <div
                 className="welcome-skeleton-line w-14 sm:w-16"
                 style={{ height: "12px" }}
@@ -284,10 +304,10 @@ export function WelcomeSkeleton() {
         </div>
         {/* Persona card grid skeleton */}
         <div className="welcome-persona-gallery welcome-persona-gallery--loading relative pb-1 sm:pb-0">
-          {Array.from({ length: 12 }).map((_, i) => (
+          {Array.from({ length: PANEL_CARD_SKELETON_COUNT }).map((_, i) => (
             <div
               key={i}
-              className="welcome-card welcome-persona-card welcome-persona-skeleton relative flex min-w-[15.75rem] snap-start flex-col py-3 px-3 rounded-2xl border text-left overflow-hidden sm:min-w-0"
+              className={getWelcomePersonaSkeletonClass()}
               style={{
                 backgroundColor: "var(--theme-bg-card)",
                 borderColor: "var(--theme-border)",

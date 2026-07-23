@@ -1,5 +1,6 @@
 import { SkeletonLine } from "./primitives";
 import { PanelHeaderSkeleton } from "./PanelHeaderSkeleton";
+import { PANEL_CARD_SKELETON_COUNT } from "./PanelSkeletonHelpers";
 
 export function MemoryPanelSkeleton() {
   return (
@@ -7,7 +8,7 @@ export function MemoryPanelSkeleton() {
       <PanelHeaderSkeleton hasSearch hasSubtitle />
       <div className="flex-1 overflow-y-auto py-2 sm:py-4 px-4 sm:p-6">
         <div className="grid gap-3 auto-grid-cols">
-          {Array.from({ length: 8 }).map((_, i) => (
+          {Array.from({ length: PANEL_CARD_SKELETON_COUNT }).map((_, i) => (
             <div
               key={i}
               className="glass-card group relative flex flex-col rounded-xl p-4 sm:p-5"

@@ -140,7 +140,7 @@ export function CollapsiblePill({
   const displayedLabel = formatLabel ? formattedLabel : label;
 
   return (
-    <div className="my-1 min-w-0 max-w-full">
+    <div className="my-1 min-w-0 max-w-full overflow-hidden">
       <button
         type="button"
         onClick={handleToggle}

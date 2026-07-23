@@ -69,7 +69,7 @@ export function ProjectRevealItem({
         {text}
       </span>
     );
-  }, [startedAt, completedAt]);
+  }, [startedAt, completedAt, t]);
   const { projectName, mode, template, error, fileCount, projectPath, parsed } =
     useMemo(
       () =>

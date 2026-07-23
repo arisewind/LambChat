@@ -319,7 +319,7 @@ const ImageGenerateItem = memo(function ImageGenerateItem({
         )}
       >
         <span className="text-sm leading-none shrink-0">🎨</span>
-        <span className="text-xs text-violet-700 dark:text-violet-300 font-medium truncate">
+        <span className="text-xs text-violet-700 dark:text-violet-300 font-medium truncate min-w-0 flex-1 overflow-hidden">
           {t("chat.message.toolImageGenerate")}
         </span>
         {images.length > 0 && (

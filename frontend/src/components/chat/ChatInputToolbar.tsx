@@ -119,6 +119,26 @@ export function ChatInputToolbar({
   const [selectedTeam, setSelectedTeam] = useState<Team | null>(null);
   const [totalTeamCount, setTotalTeamCount] = useState(0);
   const [modePopoverOpen, setModePopoverOpen] = useState(false);
+  // Auto-reopen the RunModePopover after a full-screen selector modal closes,
+  // but only if this popover was the one that triggered the modal.
+  const popoverTriggeredPanel = useRef(false);
+  useEffect(() => {
+    if (activePanel && modePopoverOpen) {
+      popoverTriggeredPanel.current = true;
+    }
+  }, [activePanel, modePopoverOpen]);
+  const prevActivePanel = useRef(activePanel);
+  useEffect(() => {
+    if (
+      prevActivePanel.current &&
+      !activePanel &&
+      popoverTriggeredPanel.current
+    ) {
+      setModePopoverOpen(true);
+      popoverTriggeredPanel.current = false;
+    }
+    prevActivePanel.current = activePanel;
+  }, [activePanel]);
 
   const hasActiveMode = autoModeEnabled || goalModeEnabled;
 
@@ -208,7 +228,7 @@ export function ChatInputToolbar({
           !(currentAgent === "team" && onSelectTeam && selectedTeamId) && (
             <ToolbarChip
               icon={<AgentIcon icon={agentIcon || "Bot"} size={18} />}
-              label={t(`agents.${currentAgent}.name`) || agentName || ""}
+              label={agentName || t(`agents.${currentAgent}.name`) || ""}
               onClick={() => onActivePanelChange("agent")}
             />
           )}

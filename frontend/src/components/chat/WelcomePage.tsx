@@ -1,4 +1,12 @@
-import { memo, useMemo, useState, useCallback, useRef, useEffect } from "react";
+import {
+  memo,
+  useMemo,
+  useState,
+  useCallback,
+  useRef,
+  useEffect,
+  useLayoutEffect,
+} from "react";
 import {
   RefreshCw,
   Sparkles,
@@ -35,6 +43,14 @@ import {
   getTeamFallbackAvatar,
   getTeamFallbackTag,
 } from "../team/teamAvatarUtils";
+import { WelcomeSkeleton } from "../skeletons/ChatSkeletons";
+import {
+  beginTeamRequest,
+  isWelcomeContentReady,
+  settleTeamRequestFailure,
+  settleTeamRequestSuccess,
+  type TeamRequestState,
+} from "./welcomeReadyState";
 
 const WELCOME_ICON_SRC = "/images/lamb.webp";
 
@@ -117,9 +133,10 @@ export const WelcomePage = memo(function WelcomePage({
   const [contactAdminOpen, setContactAdminOpen] = useState(false);
   const [mentionQuery, setMentionQuery] = useState<string | null>(null);
   const [pendingInput, setPendingInput] = useState<string | null>(null);
-  const [teamCards, setTeamCards] = useState<Team[]>([]);
-  const [teamCardsLoading, setTeamCardsLoading] = useState(false);
-  const [teamCardsLoaded, setTeamCardsLoaded] = useState(false);
+  const [teamRequestState, setTeamRequestState] = useState<
+    TeamRequestState<Team>
+  >({ requestId: 0, cards: [], isLoading: false, isSettled: false });
+  const teamRequestIdRef = useRef(0);
   const rootRef = useRef<HTMLDivElement>(null);
   const galleryRef = useRef<HTMLDivElement>(null);
 
@@ -154,34 +171,38 @@ export const WelcomePage = memo(function WelcomePage({
     [personaPresets, selectedPersonaPresetId],
   );
 
+  const teamCards = teamRequestState.cards;
+  const teamCardsLoading = teamRequestState.isLoading;
+  const teamCardsLoaded = teamRequestState.isSettled;
+
   const welcomeTeamCards = useMemo(
     () => getWelcomeTeamCards(teamCards, selectedTeamId),
     [teamCards, selectedTeamId],
   );
 
+  useLayoutEffect(() => {
+    if (currentAgent !== "team") return;
+    const requestId = teamRequestIdRef.current + 1;
+    teamRequestIdRef.current = requestId;
+    setTeamRequestState((state) => beginTeamRequest(state, requestId));
+  }, [currentAgent]);
+
   useEffect(() => {
-    if (currentAgent !== "team") {
-      setTeamCardsLoaded(false);
-      return;
-    }
-    let cancelled = false;
-    setTeamCardsLoaded(false);
-    setTeamCardsLoading(true);
+    if (currentAgent !== "team") return;
+    const requestId = teamRequestIdRef.current;
     teamApi
       .list(0, 50)
       .then((res) => {
-        if (!cancelled) setTeamCards(res.teams);
+        setTeamRequestState((state) =>
+          settleTeamRequestSuccess(state, requestId, res.teams),
+        );
       })
-      .catch((err) => console.error("Failed to load teams:", err))
-      .finally(() => {
-        if (!cancelled) {
-          setTeamCardsLoaded(true);
-          setTeamCardsLoading(false);
-        }
+      .catch((err) => {
+        console.error("Failed to load teams:", err);
+        setTeamRequestState((state) =>
+          settleTeamRequestFailure(state, requestId),
+        );
       });
-    return () => {
-      cancelled = true;
-    };
   }, [currentAgent]);
 
   const filteredCards = useMemo(() => {
@@ -215,7 +236,7 @@ export const WelcomePage = memo(function WelcomePage({
     [],
   );
 
-  const { settings } = useSettingsContext();
+  const { settings, isLoading: settingsLoading } = useSettingsContext();
 
   const defaultSuggestions = useMemo(() => {
     const rawValue = settings?.settings?.frontend?.find(
@@ -357,6 +378,16 @@ export const WelcomePage = memo(function WelcomePage({
   // Whether the gallery has real card content (used for container width variant)
   const showChoiceCards =
     (showPersonaCards && !isPersonaEmpty) || (showTeamCards && !isTeamEmpty);
+  const welcomeContentReady = isWelcomeContentReady({
+    settingsLoading,
+    currentAgent,
+    personaPresetsLoading,
+    teamRequestSettled: teamCardsLoaded,
+  });
+
+  if (!welcomeContentReady) {
+    return <WelcomeSkeleton />;
+  }
 
   return (
     <div
@@ -459,7 +490,7 @@ export const WelcomePage = memo(function WelcomePage({
               {showTeamCards && !isTeamEmpty && (
                 <button
                   onClick={() => navigate("/team")}
-                  className="flex items-center gap-0.5 px-2 py-1 rounded-lg text-[11px] sm:text-[12px] md:text-[12px] font-medium transition-all duration-300 cursor-pointer font-serif"
+                  className="flex items-center gap-2 py-1 rounded-lg text-[11px] sm:text-[12px] md:text-[12px] font-medium transition-all duration-300 cursor-pointer font-serif"
                   style={{
                     color: "var(--theme-text-secondary)",
                     backgroundColor: "transparent",
@@ -485,7 +516,7 @@ export const WelcomePage = memo(function WelcomePage({
               {showPersonaCards && !isPersonaEmpty && (
                 <button
                   onClick={() => navigate("/persona")}
-                  className="flex items-center gap-0.5 px-2 py-1 rounded-lg text-[11px] sm:text-[12px] md:text-[12px] font-medium transition-all duration-300 cursor-pointer font-serif"
+                  className="flex items-center gap-2 py-1 rounded-lg text-[11px] sm:text-[12px] md:text-[12px] font-medium transition-all duration-300 cursor-pointer font-serif"
                   style={{
                     color: "var(--theme-text-secondary)",
                     backgroundColor: "transparent",
@@ -655,7 +686,6 @@ export const WelcomePage = memo(function WelcomePage({
               ))}
             {showPersonaCards &&
               displayCards.map((preset, i) => {
-                const primaryTag = preset.tags[0] || "";
                 return (
                   <button
                     key={preset.id}
@@ -690,17 +720,6 @@ export const WelcomePage = memo(function WelcomePage({
                           >
                             {preset.name}
                           </span>
-                          {primaryTag && (
-                            <span
-                              className="welcome-persona-tag shrink-0 inline-flex rounded-full px-1.5 py-[1px] text-[10px] leading-none font-medium"
-                              style={{
-                                backgroundColor: "var(--theme-primary-light)",
-                                color: "var(--theme-primary)",
-                              }}
-                            >
-                              {primaryTag}
-                            </span>
-                          )}
                         </span>
                         {preset.description && (
                           <span

@@ -97,7 +97,7 @@ const LsItem = memo(function LsItem({
                 )}
                 <span
                   className={clsx(
-                    "truncate",
+                    "min-w-0 flex-1 truncate",
                     isDir
                       ? "text-theme-text font-medium"
                       : "text-theme-text-secondary",
@@ -191,7 +191,7 @@ const LsItem = memo(function LsItem({
                       )}
                       <span
                         className={clsx(
-                          "truncate",
+                          "min-w-0 flex-1 truncate",
                           isDir
                             ? "text-theme-text font-medium"
                             : "text-theme-text-secondary",

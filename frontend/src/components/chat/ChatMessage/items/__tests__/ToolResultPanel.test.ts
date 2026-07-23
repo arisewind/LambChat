@@ -199,6 +199,18 @@ test("tool result panel masks rich content until the first panel paint settles",
   expect(componentSource).toMatch(/tool-console-body__loading/s);
 });
 
+test("tool result panel resets first-paint state for a new registry panel but not streamed content", () => {
+  const componentSource = readFileSync(
+    new URL("../ToolResultPanel.tsx", import.meta.url),
+    "utf8",
+  );
+
+  expect(componentSource).toMatch(
+    /useEffect\(\(\) => \{[\s\S]*?setContentReady\(false\)[\s\S]*?\}, \[open, registryKey\]\);/,
+  );
+  expect(componentSource).not.toMatch(/\}, \[open, children\]\);/);
+});
+
 test("tool detail sections keep visible separation in light mode", () => {
   const componentsSource = readFileSync(
     new URL("../../../../../styles/components.css", import.meta.url),

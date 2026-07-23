@@ -557,30 +557,47 @@ export function ApprovalPanel({
             <>
               <div className="approval-divider" />
               <div className="approval-form space-y-3">
-                {currentApproval.fields.map((field) => (
-                  <div key={field.name} className="space-y-1">
-                    {field.type !== "checkbox" && (
-                      <label
-                        className="block text-xs font-medium"
-                        style={{ color: "var(--theme-text-secondary)" }}
-                      >
-                        {field.label}
-                        {field.required && (
-                          <span className="ml-0.5" style={{ color: "#ef4444" }}>
-                            *
-                          </span>
-                        )}
-                      </label>
-                    )}
-                    <FormFieldRenderer
-                      field={field}
-                      value={currentFormValues[field.name]}
-                      onChange={(value) => handleFieldChange(field.name, value)}
-                      disabled={isLoading}
-                      onInteract={handleInteract(currentApproval.id)}
-                    />
-                  </div>
-                ))}
+                {currentApproval.fields.map((field) => {
+                  const isOther = field.name === "_other";
+                  const displayField = isOther
+                    ? {
+                        ...field,
+                        label: t("chat.message.askHumanOtherLabel"),
+                        placeholder:
+                          field.placeholder ||
+                          t("chat.message.askHumanOtherPlaceholder"),
+                      }
+                    : field;
+                  return (
+                    <div key={field.name} className="space-y-1">
+                      {displayField.type !== "checkbox" && (
+                        <label
+                          className="block text-xs font-medium"
+                          style={{ color: "var(--theme-text-secondary)" }}
+                        >
+                          {displayField.label}
+                          {displayField.required && (
+                            <span
+                              className="ml-0.5"
+                              style={{ color: "#ef4444" }}
+                            >
+                              *
+                            </span>
+                          )}
+                        </label>
+                      )}
+                      <FormFieldRenderer
+                        field={displayField}
+                        value={currentFormValues[field.name]}
+                        onChange={(value) =>
+                          handleFieldChange(field.name, value)
+                        }
+                        disabled={isLoading}
+                        onInteract={handleInteract(currentApproval.id)}
+                      />
+                    </div>
+                  );
+                })}
               </div>
             </>
           )}

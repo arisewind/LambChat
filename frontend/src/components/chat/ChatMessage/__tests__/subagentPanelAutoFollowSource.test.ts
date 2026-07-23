@@ -1,6 +1,6 @@
 import { readFileSync } from "node:fs";
 const source = readFileSync(
-  new URL("../SubagentBlocks.tsx", import.meta.url),
+  new URL("../SubagentPanelContent.tsx", import.meta.url),
   "utf8",
 );
 

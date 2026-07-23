@@ -85,7 +85,9 @@ class Settings(BaseSettings):
     LLM_RETRY_DELAY: float = 1.0
     LLM_MODEL_CACHE_SIZE: int = 50  # 模型实例缓存大小，防止内存泄漏
     PROMPT_CACHE_MAX_SYSTEM_BLOCKS: int = 4
-    PROMPT_CACHE_MAX_TOOLS: int = 1
+    PROMPT_CACHE_MAX_TOOLS: int = 2
+    DEEPAGENT_SUMMARIZATION_TRIGGER_RATIO: float = 0.70  # 触发摘要的上下文占比（原 0.85）
+    DEEPAGENT_SUMMARIZATION_KEEP_RATIO: float = 0.15  # 摘要后保留的上下文占比（原 0.10）
 
     # MCP Settings
     ENABLE_MCP: bool = True

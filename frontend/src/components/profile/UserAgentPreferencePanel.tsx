@@ -167,10 +167,14 @@ export function UserAgentPreferencePanel() {
           />
           <span className="truncate">
             {t("agentConfig.currentPreference", {
-              agentName: t(
-                availableAgents.find((a) => a.id === currentPreference)?.name ||
-                  currentPreference,
-              ),
+              agentName: (() => {
+                const agent = availableAgents.find(
+                  (a) => a.id === currentPreference,
+                );
+                return agent
+                  ? resolveAgentDisplayName(agent, i18n.language, t)
+                  : currentPreference;
+              })(),
             })}
           </span>
         </div>

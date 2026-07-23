@@ -651,6 +651,8 @@
       "toolAskHuman": "询问用户",
       "toolAskHumanFieldCount": "{{count}} 个字段",
       "toolAskHumanListSeparator": "、",
+      "askHumanOtherLabel": "其他意见",
+      "askHumanOtherPlaceholder": "除上述选项外，您还有其他想法或建议吗？",
       "toolAudioTranscribe": "转录",
       "toolCalls": "工具调用",
       "toolCreateTeam": "创建团队",

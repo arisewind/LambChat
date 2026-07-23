@@ -651,6 +651,8 @@
       "toolAskHuman": "ユーザーに確認",
       "toolAskHumanFieldCount": "{{count}} フィールド",
       "toolAskHumanListSeparator": "、",
+      "askHumanOtherLabel": "その他",
+      "askHumanOtherPlaceholder": "上記の選択肢以外に、他のご意見やご提案はありますか？",
       "toolAudioTranscribe": "文字起こし",
       "toolCalls": "ツール呼び出し",
       "toolCreateTeam": "チーム作成",

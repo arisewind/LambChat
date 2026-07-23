@@ -101,7 +101,7 @@ test("backend-provided avatar URLs are resolved before image rendering", () => {
     "../../../components/layout/AppContent/MessageOutlinePanel.tsx",
     "../../../components/persona/PersonaAvatarIcon.tsx",
     "../../../components/chat/ChatMessage/AssistantAvatar.tsx",
-    "../../../components/chat/ChatMessage/SubagentBlocks.tsx",
+    "../../../components/chat/ChatMessage/subagentRoleMeta.ts",
   ];
 
   for (const file of files) {
