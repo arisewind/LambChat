@@ -1093,7 +1093,7 @@ async def test_image_generate_uses_backend_path_for_reference_images(
             return _FakeResponse({"data": [{"b64_json": generated_image}]})
 
     class _FakeStorage:
-        async def upload_file(self, file, folder: str, filename: str, content_type: str):
+        async def upload_file(self, file, folder: str, filename: str, content_type: str, **kwargs):
             return SimpleNamespace(
                 key=f"{folder}/{filename}", url="https://oss.example.com/generated.png"
             )
