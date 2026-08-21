@@ -2,7 +2,7 @@ import { clsx } from "clsx";
 import { useEffect, useRef, useState, memo } from "react";
 import { createPortal } from "react-dom";
 import toast from "react-hot-toast";
-import { Copy, GitBranch, Info, Sparkles, Target } from "lucide-react";
+import { Check, Copy, GitBranch, Info, Sparkles, Target } from "lucide-react";
 import { useStickyDropdownPosition } from "../../../hooks/useStickyDropdownPosition";
 import type {
   Message,
@@ -16,6 +16,11 @@ import { MarkdownContent } from "./MarkdownContent";
 import { ToolCallItem } from "./ToolCallItem";
 import { UserMessageBubble } from "./UserMessageBubble";
 import { MessagePartRenderer } from "./MessagePartRenderer";
+import {
+  isRevealFileImagePart,
+  type RevealFileImageInfo,
+} from "./revealFileImageUtils";
+import { MessageImageGallery } from "./MessageImageGallery";
 import { RevealArtifactsSummary } from "./RevealArtifactsSummary";
 import { FeedbackButtons } from "./FeedbackButtons";
 import { AssistantAvatar } from "./AssistantAvatar";
@@ -420,6 +425,69 @@ function GoalDetailsButton({
   );
 }
 
+/** Groups consecutive image reveal_file parts for gallery rendering. */
+function groupPartsForGallery(parts: MessagePart[]): Array<
+  | {
+      type: "gallery";
+      images: RevealFileImageInfo[];
+      startPartIndex: number;
+    }
+  | { type: "single"; part: MessagePart; partIndex: number }
+> {
+  const groups: Array<
+    | {
+        type: "gallery";
+        images: RevealFileImageInfo[];
+        startPartIndex: number;
+      }
+    | { type: "single"; part: MessagePart; partIndex: number }
+  > = [];
+  let imageBuffer: RevealFileImageInfo[] | null = null;
+  let bufferStartIndex = 0;
+
+  for (let i = 0; i < parts.length; i++) {
+    const part = parts[i];
+
+    // Check if this part is an image reveal_file
+    if (part.type === "tool") {
+      const imageInfo = isRevealFileImagePart(part);
+      if (imageInfo) {
+        if (!imageBuffer) {
+          imageBuffer = [];
+          bufferStartIndex = i;
+        }
+        imageBuffer.push(imageInfo);
+        continue;
+      }
+    }
+
+    // Non-image part: flush buffer if any
+    if (imageBuffer) {
+      groups.push({
+        type: "gallery",
+        images: imageBuffer,
+        startPartIndex: bufferStartIndex,
+      });
+      imageBuffer = null;
+    }
+
+    if (part.type !== "recommend_questions") {
+      groups.push({ type: "single", part, partIndex: i });
+    }
+  }
+
+  // Flush remaining buffer
+  if (imageBuffer) {
+    groups.push({
+      type: "gallery",
+      images: imageBuffer,
+      startPartIndex: bufferStartIndex,
+    });
+  }
+
+  return groups;
+}
+
 export const ChatMessage = memo(function ChatMessage({
   message,
   sessionId,
@@ -442,6 +510,7 @@ export const ChatMessage = memo(function ChatMessage({
   const { isAuthenticated } = useAuth();
   const isUser = message.role === "user";
   const isStreaming = message.isStreaming && !message.content;
+  const [copied, setCopied] = useState(false);
   const modelDetails = resolveTokenUsageModelDetails({
     modelId: message.tokenUsage?.model_id,
     model: message.tokenUsage?.model,
@@ -458,7 +527,7 @@ export const ChatMessage = memo(function ChatMessage({
         data-outline-anchor="true"
         data-outline-id={createMessageAnchorId(message.id)}
         className={clsx(
-          "scroll-mt-6 rounded-2xl transition-[box-shadow] duration-300 data-[external-navigation-highlighted=true]:ring-2 data-[external-navigation-highlighted=true]:ring-amber-500/75 data-[external-navigation-highlighted=true]:shadow-[0_0_20px_rgba(245,158,11,0.2)] dark:data-[external-navigation-highlighted=true]:ring-amber-400/55 dark:data-[external-navigation-highlighted=true]:shadow-[0_0_20px_rgba(251,191,36,0.1)] space-y-3 sm:space-y-4",
+          "scroll-mt-6 rounded-2xl transition-[box-shadow] duration-300 data-[external-navigation-highlighted=true]:shadow-[0_0_16px_color-mix(in_srgb,var(--theme-primary)_20%,transparent)] space-y-3 sm:space-y-4",
           !isFirst && "pt-2",
         )}
       >
@@ -494,11 +563,14 @@ export const ChatMessage = memo(function ChatMessage({
       data-outline-anchor="true"
       data-outline-id={createMessageAnchorId(message.id)}
       className={clsx(
-        "group w-full animate-[fade-in_0.3s_ease-out] scroll-mt-6 rounded-2xl transition-[background-color,box-shadow] duration-300 data-[external-navigation-highlighted=true]:bg-amber-50/85 data-[external-navigation-highlighted=true]:ring-2 data-[external-navigation-highlighted=true]:ring-amber-500/60 dark:data-[external-navigation-highlighted=true]:bg-amber-500/12 dark:data-[external-navigation-highlighted=true]:ring-amber-400/50",
+        "group w-full scroll-mt-6 rounded-2xl transition-[background-color,box-shadow] duration-300 data-[external-navigation-highlighted=true]:bg-[var(--theme-primary)]/8",
+        isLastMessage &&
+          message.isStreaming &&
+          "animate-[fade-in_0.3s_ease-out]",
         !isFirst && "pt-2",
       )}
     >
-      <div className="mx-auto flex flex-col max-w-4xl lg:max-w-5xl xl:max-w-6xl px-4 sm:px-6">
+      <div className="mx-auto flex flex-col max-w-4xl lg:max-w-5xl xl:max-w-6xl px-4 sm:px-8">
         {/* Content */}
         <div className="min-w-0 min-h-0 py-1 sm:py-2">
           {/* Header: Avatar + Role label + Stop button */}
@@ -530,26 +602,31 @@ export const ChatMessage = memo(function ChatMessage({
 
           {hasParts ? (
             <div className="space-y-3 my-2">
-              {message.parts!.map((part: MessagePart, index: number) =>
-                part.type === "recommend_questions" ? null : (
+              {groupPartsForGallery(message.parts!).map((group) =>
+                group.type === "gallery" ? (
+                  <MessageImageGallery
+                    key={`gallery-${group.startPartIndex}`}
+                    images={group.images}
+                  />
+                ) : (
                   <MessagePartRenderer
-                    key={index}
-                    part={part}
+                    key={group.partIndex}
+                    part={group.part}
                     messageId={message.id}
-                    partIndex={index}
+                    partIndex={group.partIndex}
                     isStreaming={message.isStreaming}
-                    isLast={index === message.parts!.length - 1}
+                    isLast={group.partIndex === message.parts!.length - 1}
                     activePreview={activePreview}
                     onOpenPreview={onOpenPreview}
                     onRecommendQuestionClick={onRecommendQuestionClick}
                     onRetryCancelled={
-                      part.type === "cancelled" && onRetryCancelledMessage
+                      group.part.type === "cancelled" && onRetryCancelledMessage
                         ? () => void onRetryCancelledMessage(message.id)
                         : undefined
                     }
                     allowAutoPreview={shouldAllowAutoPreviewForPart({
                       messageId: message.id,
-                      partIndex: index,
+                      partIndex: group.partIndex,
                       latestAutoPreview: latestAutoPreview ?? null,
                     })}
                   />
@@ -619,18 +696,21 @@ export const ChatMessage = memo(function ChatMessage({
                 const textContent = getAssistantTextContent();
                 if (textContent) {
                   copyToClipboard(textContent);
+                  setCopied(true);
                   toast.success(t("chat.message.copied"));
+                  setTimeout(() => setCopied(false), 2000);
                 }
               }}
               className={clsx(
                 "p-1.5 rounded-md transition-colors",
                 !isLastMessage && "sm:opacity-0 sm:group-hover:opacity-100",
-                "hover:bg-stone-200 dark:hover:bg-stone-700",
-                "text-stone-400 dark:text-stone-500 hover:text-stone-600 dark:hover:text-stone-300",
+                copied
+                  ? "text-emerald-500 dark:text-emerald-400"
+                  : "hover:bg-stone-200 dark:hover:bg-stone-700 text-stone-400 dark:text-stone-500 hover:text-stone-600 dark:hover:text-stone-300",
               )}
-              title={t("chat.message.copy")}
+              title={copied ? t("chat.message.copied") : t("chat.message.copy")}
             >
-              <Copy size={16} />
+              {copied ? <Check size={16} /> : <Copy size={16} />}
             </button>
             {sessionId && onForkMessage && (
               <button

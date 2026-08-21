@@ -225,15 +225,15 @@
   "agents": {
     "fast": {
       "description": "サンドボックスなし、高速レスポンス、日常会話向け",
-      "name": "Fast Agent"
+      "name": "ファストエージェント"
     },
     "search": {
       "description": "コードインタープリター＆サンドボックス対応、複雑なタスク向け",
-      "name": "Search Agent"
+      "name": "検索エージェント"
     },
     "team": {
       "description": "ロールベースでサブエージェントにタスクをルーティング。チーム未設定時は単一エージェントモードにフォールバック。",
-      "name": "Team Agent"
+      "name": "チームエージェント"
     }
   },
   "appName": "LambChat",
@@ -392,6 +392,7 @@
     "fileUploadNoPermission": "{{category}} ファイルをアップロードする権限がありません。",
     "fileUrlFailed": "ファイルURLの生成に失敗しました。",
     "instanceNameRequired": "インスタンス名は必須です。",
+    "invalidAttachments": "1つ以上の添付ファイルが利用できなくなっています。削除して再度アップロードしてください。",
     "invalidCredentials": "ユーザー名またはパスワードが正しくありません。",
     "invalidDisabledTools": "無効な無効化ツール一覧です。",
     "invalidEnvKeyFormat": "環境変数キーの形式が無効です。",
@@ -627,6 +628,7 @@
       "forkFailed": "フォークに失敗しました",
       "forkSuccess": "新しいセッションにフォークしました",
       "generating": "生成中",
+      "generatingImage": "画像を生成中",
       "interrupted": "回答を停止しました",
       "mermaidError": "Mermaidエラー",
       "model": "モデル",
@@ -1276,9 +1278,13 @@
     "composerRetry": "再試行",
     "composerUploadFailed": "アップロード失敗",
     "composerUploading": "アップロード中",
+    "preparing": "画像を処理中…",
+    "serverProcessing": "サーバーで処理中…",
     "dragDrop": "ドラッグ＆ドロップまたはクリックしてアップロード",
     "dragDropHint": "ファイルをここにドラッグ＆ドロップ",
     "dragDropOr": "または下のボタンをクリックして選択",
+    "clipboardImageUnavailable": "クリップボードの画像を読み取れません。画像をもう一度コピーするか、保存してからアップロードしてください。",
+    "emptyFile": "ファイルが空のためアップロードできません。",
     "effectiveLimits": "制限：画像 {{image}}MB / 動画 {{video}}MB / 音声 {{audio}}MB / ドキュメント {{document}}MB / 最大 {{maxFiles}} ファイル",
     "fileTooLarge": "ファイルサイズが制限を超えています",
     "maxFilesSummary": "1回のアップロード最大 {{maxFiles}} ファイル",
@@ -1888,6 +1894,7 @@
     "sendOnEnter": "メッセージ送信",
     "sendWithEnter": "Enter で送信、Shift+Enter で改行",
     "sendWithEnterCtrl": "Ctrl+Enter で送信、Enter で改行",
+    "sepiaTheme": "セピア（保護）",
     "setDefault": "デフォルトに設定",
     "supported": "対応",
     "termsItem1": "<a>生成人工知能サービス管理暫定弁法</a>に基づき、生成AIが生成するコンテンツは社会主義的核心価値観を反映し、政治的発言、ポルノ、銃器暴力、「科学上网」、軍事・戦争コンテンツなどの違法または不適切な情報を生成してはなりません。本プラットフォームのコンテンツはAIによって生成されます。ユーザーは情報の真実性を判断する必要があります。人種、民族、信仰、国籍、地域、性別、年齢、職業に基づく誘導、欺瞞、差別を行う生成AIの使用は厳禁です。知的財産権と商業道徳を尊重し、アルゴリズム、データ、プラットフォームの優位性を利用した不正競争を行わないでください。",
@@ -2270,9 +2277,10 @@
     "LANGSMITH_PROJECT": "LangSmithプロジェクト名",
     "LANGSMITH_SAMPLE_RATE": "LangSmithサンプリングレート（0.0-1.0）",
     "LANGSMITH_TRACING": "LangSmithトレースを有効化",
-    "LLM_MAX_RETRIES": "LLM APIの最大リトライ回数（429等のエラー処理用）",
+    "LLM_MAX_RETRIES": "最初のLLM呼び出し失敗後の再試行回数（タイムアウト、ネットワーク、レート制限、5xx）",
     "LLM_MODEL_CACHE_SIZE": "LLMモデルインスタンスキャッシュサイズ（各インスタンス約10-30MB）。デフォルト50、マルチユーザー/マルチパラメータシナリオに対応。小さすぎると頻繁な作成/破棄、大きすぎるとメモリ消費増加。",
     "LLM_RETRY_DELAY": "LLM APIのリトライ基本待機時間（秒、指数バックオフ開始値）",
+    "LLM_REQUEST_TIMEOUT": "最初のストリーミングイベントまたは完全な非ストリーミング応答を待つ最大秒数",
     "LOCAL_STORAGE_PATH": "S3が有効でない場合のローカルストレージパス（デフォルト：./uploads）",
     "LOG_LEVEL": "ログレベル（DEBUG, INFO, WARNING, ERROR）",
     "MCP_EFFECTIVE_CONFIG_MAX_SERVERS": "有効な設定で許可される最大 MCP サーバー数",
@@ -2346,8 +2354,6 @@
     "POSTGRES_POOL_MIN_SIZE": "PostgreSQL接続プール最小サイズ",
     "POSTGRES_PORT": "PostgreSQLポート",
     "POSTGRES_USER": "PostgreSQLユーザー名",
-    "PROMPT_CACHE_MAX_SYSTEM_BLOCKS": "キャッシュするシステムプロンプトブロックの最大数",
-    "PROMPT_CACHE_MAX_TOOLS": "キャッシュするツール定義の最大数",
     "RECOMMEND_QUESTIONS_MAX_BACKGROUND_TASKS": "おすすめ質問生成の最大並行バックグラウンドタスク数",
     "REDIS_PASSWORD": "Redisパスワード",
     "REDIS_URL": "Redis接続URL",
@@ -2531,6 +2537,11 @@
   },
   "sidebar": {
     "addToFavorites": "お気に入りに追加",
+    "pinToTop": "ピン留め",
+    "pinToggleFailed": "ピン留め状態の更新に失敗しました",
+    "pinned": "ピン留めしました",
+    "unpinFromTop": "ピン留めを外す",
+    "unpinned": "ピン留めを外しました",
     "batchDeleteConfirm": "選択した{{count}}件のセッションを削除しますか？この操作は取り消せません。",
     "batchDeletePartialFailed": "{{count}}件のセッションの削除に失敗しました",
     "batchDeleted": "{{count}}件のセッションを削除しました",
@@ -2934,7 +2945,8 @@
   },
   "theme": {
     "switchToDark": "ダークモードに切り替え",
-    "switchToLight": "ライトモードに切り替え"
+    "switchToLight": "ライトモードに切り替え",
+    "switchToSepia": "セピアモードに切り替え"
   },
   "tools": {
     "add": "追加",

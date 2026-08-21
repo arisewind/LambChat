@@ -17,7 +17,6 @@ import {
   getNextMessageScrollFollowStateForUserIntent,
   getNextMessageScrollFollowStateForUserScroll,
   didLatestStreamingAssistantFinish,
-  getHistoryScrollSettlingFallbackTimeoutMs,
   highlightElementForExternalNavigation,
   scrollElementIntoViewWithRetries,
   shouldArmPendingHistoryScroll,
@@ -35,12 +34,31 @@ test("clears the user-scrolled flag when virtuoso reports bottom reached", () =>
         userScrolledUp: true,
         autoScrollActive: true,
         streamLockActive: true,
-        manualDetachFromStream: true,
+        manualDetachFromStream: false,
       }),
       atBottom: true,
     }),
   ).toEqual({
     userScrolledUp: false,
+    autoScrollActive: true,
+    streamLockActive: true,
+    manualDetachFromStream: false,
+  });
+});
+
+test("preserves user-scrolled flag when user has explicitly detached from stream follow", () => {
+  expect(
+    getNextMessageScrollFollowStateForAtBottomChange({
+      state: createMessageScrollFollowState({
+        userScrolledUp: true,
+        autoScrollActive: true,
+        streamLockActive: true,
+        manualDetachFromStream: true,
+      }),
+      atBottom: true,
+    }),
+  ).toEqual({
+    userScrolledUp: true,
     autoScrollActive: true,
     streamLockActive: true,
     manualDetachFromStream: true,
@@ -692,16 +710,6 @@ test("waits until history loading completes before triggering the final bottom s
   ).toBe(true);
 });
 
-test("keeps the history skeleton for the full final scroll settle budget", () => {
-  expect(
-    getHistoryScrollSettlingFallbackTimeoutMs({
-      maxDurationMs: 1800,
-      observeAfterSettleMs: 2400,
-      settleWindowMs: 180,
-    }),
-  ).toBeGreaterThan(4380);
-});
-
 test("does not trigger a final history scroll when there is no pending scroll or no messages", () => {
   expect(
     shouldFinalizeHistoryLoadScroll({
@@ -720,11 +728,10 @@ test("does not trigger a final history scroll when there is no pending scroll or
   ).toBe(false);
 });
 
-test("arms the history finalize scroll only once per loading cycle", () => {
+test("arms history positioning once per loading generation", () => {
   expect(
     shouldArmPendingHistoryScroll({
       isLoadingHistory: true,
-      sessionId: "session-1",
       historyScrollArmed: false,
     }),
   ).toBe(true);
@@ -732,7 +739,6 @@ test("arms the history finalize scroll only once per loading cycle", () => {
   expect(
     shouldArmPendingHistoryScroll({
       isLoadingHistory: true,
-      sessionId: "session-1",
       historyScrollArmed: true,
     }),
   ).toBe(false);
@@ -740,7 +746,6 @@ test("arms the history finalize scroll only once per loading cycle", () => {
   expect(
     shouldArmPendingHistoryScroll({
       isLoadingHistory: false,
-      sessionId: "session-1",
       historyScrollArmed: false,
     }),
   ).toBe(false);
@@ -748,10 +753,9 @@ test("arms the history finalize scroll only once per loading cycle", () => {
   expect(
     shouldArmPendingHistoryScroll({
       isLoadingHistory: true,
-      sessionId: null,
       historyScrollArmed: false,
     }),
-  ).toBe(false);
+  ).toBe(true);
 });
 
 test("infers a batched history load when a new session receives its first messages", () => {
@@ -761,6 +765,8 @@ test("infers a batched history load when a new session receives its first messag
       sessionId: "session-2",
       previousMessageCount: 0,
       messageCount: 8,
+      previousHistoryLoadGeneration: 1,
+      historyLoadGeneration: 2,
       isLoadingHistory: false,
       externalNavigationToken: null,
     }),
@@ -772,6 +778,8 @@ test("infers a batched history load when a new session receives its first messag
       sessionId: "session-1",
       previousMessageCount: 7,
       messageCount: 8,
+      previousHistoryLoadGeneration: 1,
+      historyLoadGeneration: 2,
       isLoadingHistory: false,
       externalNavigationToken: null,
     }),
@@ -783,8 +791,23 @@ test("infers a batched history load when a new session receives its first messag
       sessionId: "session-2",
       previousMessageCount: 0,
       messageCount: 8,
+      previousHistoryLoadGeneration: 1,
+      historyLoadGeneration: 2,
       isLoadingHistory: false,
       externalNavigationToken: "reveal:file",
+    }),
+  ).toBe(false);
+
+  expect(
+    shouldInferBatchedHistoryLoadReady({
+      previousSessionId: null,
+      sessionId: "new-session",
+      previousMessageCount: 0,
+      messageCount: 1,
+      previousHistoryLoadGeneration: 0,
+      historyLoadGeneration: 0,
+      isLoadingHistory: false,
+      externalNavigationToken: null,
     }),
   ).toBe(false);
 });
@@ -950,7 +973,7 @@ test("detaches the active desktop stream immediately on an explicit upward wheel
   expect(nextState.userScrolledUp).toBe(true);
   expect(nextState.autoScrollActive).toBe(false);
   expect(nextState.streamLockActive).toBe(false);
-  expect(nextState.manualDetachFromStream).toBe(false);
+  expect(nextState.manualDetachFromStream).toBe(true);
 });
 
 test("detaches the active desktop stream on the first slight upward scroll", () => {
@@ -973,7 +996,7 @@ test("detaches the active desktop stream on the first slight upward scroll", () 
   expect(nextState.userScrolledUp).toBe(true);
   expect(nextState.autoScrollActive).toBe(false);
   expect(nextState.streamLockActive).toBe(false);
-  expect(nextState.manualDetachFromStream).toBe(false);
+  expect(nextState.manualDetachFromStream).toBe(true);
 });
 
 test("does not re-arm streaming follow mode while mobile detach lock is active", () => {

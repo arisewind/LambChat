@@ -25,6 +25,12 @@ test("ChatInput uses one rich composer for inline long-text references", () => {
   expect(chatInputSource).not.toMatch(/<textarea/);
 });
 
+test("ChatInput wires file paste to the existing upload flow", () => {
+  expect(chatInputSource).toMatch(
+    /filePaste=\{\{[\s\S]*?validateCount,[\s\S]*?onFiles: uploadFiles,[\s\S]*?onInvalidImage:/,
+  );
+});
+
 test("rich composer loads outside the eager app bundle without losing the draft", () => {
   expect(chatInputSource).toMatch(/lazy\(async \(\) =>/);
   expect(chatInputSource).toMatch(

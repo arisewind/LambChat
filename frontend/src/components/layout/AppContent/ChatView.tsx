@@ -20,7 +20,6 @@ import {
 import { useMessageScroll } from "./useMessageScroll";
 import {
   getAtBottomThresholdPx,
-  getInitialBottomItemLocation,
   getMessageListFooterSpacerClass,
 } from "./messageScrollUtils";
 import { getNextMessageListSessionKey } from "./useMessageScroll";
@@ -32,6 +31,11 @@ import type { MessageAttachment } from "../../../types";
 import type { ChatViewProps } from "./ChatViewProps";
 import { useCurrentTeam, resolveChatAssistantIdentity } from "./ChatViewProps";
 import { useChatOutline } from "./useChatOutline";
+import { shouldShowMessageOutline } from "./messageOutline";
+import {
+  MessageTimelineRail,
+  updateTimelineRange,
+} from "./MessageTimelineRail";
 import { useRevealPreview } from "./useRevealPreview";
 import { findCancelledRetryTarget } from "../../chat/ChatMessage/cancelledRetry";
 import {
@@ -52,6 +56,7 @@ export function ChatView({
   currentRunId,
   isLoading,
   isLoadingHistory,
+  historyLoadGeneration,
   connectionStatus,
   canSendMessage,
   tools,
@@ -167,7 +172,6 @@ export function ChatView({
   const [messageListSessionKey, setMessageListSessionKey] = useState(
     sessionId ?? "__new_session__",
   );
-  const [visibleRange, setVisibleRange] = useState<ListRange | null>(null);
 
   const {
     messagesContainerRef,
@@ -176,7 +180,7 @@ export function ChatView({
     messagesEndRef,
     isNearBottom,
     isNearTop,
-    isHistoryScrollSettling,
+    manualDetachFromStreamRef,
     handleVirtuosoAtBottomChange,
     scrollToBottom,
     scrollToTop,
@@ -189,6 +193,7 @@ export function ChatView({
     externalNavigationTargetRunPending,
     externalScrollToBottom,
     isLoadingHistory,
+    historyLoadGeneration,
     null,
   );
 
@@ -224,13 +229,45 @@ export function ChatView({
   );
 
   // --- Outline panel (side effects managed by hook) ---
-  useChatOutline(
-    messages,
-    visibleRange,
-    virtuosoRef,
-    assistantIdentity.avatar,
-    outlineToggleRef,
-    t,
+  const { outlineItems, handleVisibleRangeChange: handleOutlineRangeChange } =
+    useChatOutline(
+      messages,
+      virtuosoRef,
+      assistantIdentity.avatar,
+      outlineToggleRef,
+      t,
+    );
+
+  // --- Timeline rail (mini-map navigation strip) ---
+  const showTimelineRail = shouldShowMessageOutline(messages);
+
+  const handleVisibleRangeChange = useCallback(
+    (range: ListRange) => {
+      handleOutlineRangeChange(range);
+      updateTimelineRange(range);
+    },
+    [handleOutlineRangeChange],
+  );
+
+  const handleTimelineNavigate = useCallback(
+    (anchorId: string, messageIndex: number) => {
+      virtuosoRef.current?.scrollToIndex({
+        index: messageIndex,
+        behavior: "smooth",
+        align: "start",
+      });
+      requestAnimationFrame(() => {
+        const el = document.getElementById(anchorId);
+        if (el) {
+          el.scrollIntoView({ behavior: "smooth", block: "start" });
+          el.setAttribute("data-external-navigation-highlighted", "true");
+          setTimeout(() => {
+            el.removeAttribute("data-external-navigation-highlighted");
+          }, 1600);
+        }
+      });
+    },
+    [virtuosoRef],
   );
 
   // --- Reveal preview ---
@@ -260,8 +297,6 @@ export function ChatView({
   );
   const isMobileViewport =
     typeof window !== "undefined" ? window.innerWidth < 640 : false;
-  const shouldHideHistoryMeasurementFrame =
-    isLoadingHistory || isHistoryScrollSettling;
 
   // --- Message action handlers ---
   const handleForkMessage = useCallback(
@@ -307,22 +342,19 @@ export function ChatView({
   );
 
   // --- Virtuoso rendering ---
-  const handleVirtuosoRangeChanged = useCallback((range: ListRange) => {
-    setVisibleRange((current) =>
-      current?.startIndex === range.startIndex &&
-      current?.endIndex === range.endIndex
-        ? current
-        : range,
-    );
-  }, []);
   const handleVirtuosoFollowOutput = useCallback(
     (isAtBottom: boolean) => {
-      if (shouldHideHistoryMeasurementFrame) {
+      if (isLoadingHistory) {
         return isAtBottom ? "auto" : false;
+      }
+      // When the user has explicitly scrolled up during streaming, do not let
+      // Virtuoso's built-in followOutput pull the view back to the bottom.
+      if (manualDetachFromStreamRef.current) {
+        return false;
       }
       return isAtBottom ? "smooth" : false;
     },
-    [shouldHideHistoryMeasurementFrame],
+    [isLoadingHistory],
   );
 
   const virtuosoComponents = useMemo(
@@ -414,7 +446,9 @@ export function ChatView({
       _options?: Record<string, boolean | string | number>,
       sendAttachments?: MessageAttachment[],
       runOptions?: { enabledSkills?: string[] },
-    ) => onSendMessage(content, sendAttachments, runOptions),
+      submissionCallbacks?: Parameters<ChatViewProps["onSendMessage"]>[3],
+    ) =>
+      onSendMessage(content, sendAttachments, runOptions, submissionCallbacks),
     onStop: onStopGeneration,
     isLoading: sessionRunning,
     canSend: canSendMessage,
@@ -518,33 +552,26 @@ export function ChatView({
             />
           )
         ) : (
-          <>
-            <Virtuoso
-              key={messageListSessionKey}
-              ref={virtuosoRef}
-              className={`dark:divide-stone-800 overflow-x-hidden ${
-                shouldHideHistoryMeasurementFrame
-                  ? "chat-history-scroll-settling"
-                  : ""
-              }`}
-              data={messages}
-              computeItemKey={(_, message) => message.id}
-              atBottomStateChange={handleVirtuosoAtBottomChange}
-              atBottomThreshold={getAtBottomThresholdPx(isMobileViewport)}
-              followOutput={handleVirtuosoFollowOutput}
-              rangeChanged={handleVirtuosoRangeChanged}
-              components={virtuosoComponents}
-              itemContent={virtuosoItemContent}
-              initialTopMostItemIndex={getInitialBottomItemLocation(
-                messages.length,
-              )}
-            />
-            {shouldHideHistoryMeasurementFrame && (
-              <div className="chat-history-settling-overlay">
-                <ChatSkeleton count={8} />
-              </div>
-            )}
-          </>
+          <Virtuoso
+            key={messageListSessionKey}
+            ref={virtuosoRef}
+            className="dark:divide-stone-800 overflow-x-hidden"
+            style={undefined}
+            data={messages}
+            computeItemKey={(_, message) => message.id}
+            atBottomStateChange={handleVirtuosoAtBottomChange}
+            atBottomThreshold={getAtBottomThresholdPx(isMobileViewport)}
+            followOutput={handleVirtuosoFollowOutput}
+            rangeChanged={handleVisibleRangeChange}
+            components={virtuosoComponents}
+            itemContent={virtuosoItemContent}
+          />
+        )}
+        {showTimelineRail && (
+          <MessageTimelineRail
+            items={outlineItems}
+            onNavigate={handleTimelineNavigate}
+          />
         )}
       </main>
 
@@ -564,7 +591,7 @@ export function ChatView({
       <PersistentToolPanelHost />
 
       {/* ChatInput at bottom (when messages exist, WelcomePage renders its own) */}
-      {messages.length > 0 && !shouldHideHistoryMeasurementFrame && (
+      {messages.length > 0 && (
         <div className="relative">
           <div
             className={`absolute ${FLOATING_SCROLL_BUTTON_OFFSET_CLASS} right-2 z-50 flex flex-col gap-2 sm:right-4`}

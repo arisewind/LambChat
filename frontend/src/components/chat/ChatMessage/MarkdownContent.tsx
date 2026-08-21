@@ -181,7 +181,7 @@ function CodeBlock({
       </div>
 
       {/* Code content */}
-      <div className="ai-code-block__body bg-white dark:bg-[#282c34] [&_.cm-line]:leading-5 [&_.cm-gutterElement]:leading-5 overflow-hidden rounded-b-xl">
+      <div className="ai-code-block__body bg-theme-bg-code [&_.cm-line]:leading-5 [&_.cm-gutterElement]:leading-5 overflow-hidden rounded-b-xl">
         <DeferredCodeMirrorViewer
           value={codeString}
           language={language || undefined}
@@ -573,7 +573,7 @@ export const MarkdownContent = memo(function MarkdownContent({
                 src={resolvedSrc}
                 alt={alt}
                 loading="eager"
-                className="max-w-full h-auto rounded-lg shadow hover:opacity-90 transition-opacity"
+                className="max-w-lg h-auto rounded-lg shadow hover:opacity-90 transition-opacity cursor-zoom-in"
                 onClick={() => {
                   if (!resolvedSrc) return;
                   sessionImageGallery?.openImage(resolvedSrc, alt || undefined);

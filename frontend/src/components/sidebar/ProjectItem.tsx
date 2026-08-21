@@ -22,6 +22,7 @@ import { ProjectMenu } from "./ProjectMenu";
 import { LoadingSpinner } from "../common/LoadingSpinner";
 import { DynamicIcon } from "../common/DynamicIcon";
 import { isSessionFavorite } from "./sessionFavorites";
+import { isSessionPinned } from "./sessionPin";
 import { shouldAutoExpandProject } from "./autoExpandProject";
 import {
   getUnreadCountForFavorites,
@@ -47,6 +48,7 @@ interface ProjectItemProps {
   onDeleteSession: (sessionId: string) => void;
   onMoveSession: (sessionId: string, projectId: string | null) => void;
   onToggleFavorite?: (sessionId: string) => void;
+  onTogglePin?: (sessionId: string) => void;
   onShareSession?: (sessionId: string) => void;
   onShareProject?: (projectId: string) => void;
   onRenameProject: (projectId: string, name: string) => void;
@@ -76,6 +78,7 @@ export const ProjectItem = forwardRef<ProjectItemHandle, ProjectItemProps>(
       onDeleteSession,
       onMoveSession,
       onToggleFavorite,
+      onTogglePin,
       onShareSession,
       onShareProject,
       onRenameProject,
@@ -116,6 +119,7 @@ export const ProjectItem = forwardRef<ProjectItemHandle, ProjectItemProps>(
     const listState = useFilteredSessionList(
       favoritesOnly ? { favoritesOnly: true } : { projectId: project.id },
       scrollRoot,
+      isExpanded,
     );
     const {
       sessions,
@@ -136,15 +140,6 @@ export const ProjectItem = forwardRef<ProjectItemHandle, ProjectItemProps>(
           loadedSessions: sessions,
           unreadBySession,
         });
-
-    // Only fetch when expanded (lazy loading)
-    const hasLoadedRef = useRef(false);
-    useEffect(() => {
-      if (isExpanded && !hasLoadedRef.current) {
-        hasLoadedRef.current = true;
-        refresh();
-      }
-    }, [isExpanded, refresh]);
 
     // Auto-expand when a new session is created in this project
     useEffect(() => {
@@ -437,6 +432,10 @@ export const ProjectItem = forwardRef<ProjectItemHandle, ProjectItemProps>(
                     }
                     onSessionUpdate={updateSession}
                     isFavorite={isSessionFavorite(session)}
+                    onTogglePin={
+                      onTogglePin ? () => onTogglePin(session.id) : undefined
+                    }
+                    isPinned={isSessionPinned(session)}
                     onDragStartTouch={undefined}
                     isDraggingTouch={draggingSessionId === session.id}
                     selectionMode={selectionMode}

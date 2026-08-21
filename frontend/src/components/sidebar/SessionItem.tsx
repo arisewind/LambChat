@@ -21,8 +21,10 @@ interface SessionItemProps {
   onMoveToProject: (projectId: string | null) => void;
   onShare?: () => void;
   onToggleFavorite?: () => void;
+  onTogglePin?: () => void;
   onSessionUpdate: (session: BackendSession) => void;
   isFavorite?: boolean;
+  isPinned?: boolean;
   currentProjectId?: string | null;
   onDragStart?: (session: BackendSession) => void;
   onDragEnd?: () => void;
@@ -46,8 +48,10 @@ function SessionItemComponent({
   onMoveToProject,
   onShare,
   onToggleFavorite,
+  onTogglePin,
   onSessionUpdate,
   isFavorite = false,
+  isPinned = false,
   currentProjectId,
   onDragStart,
   onDragEnd,
@@ -65,6 +69,10 @@ function SessionItemComponent({
   const [menuAnchor, setMenuAnchor] = useState<HTMLElement | null>(null);
   const [isDragging, setIsDragging] = useState(false);
   const [isTouched, setIsTouched] = useState(false);
+  const [cursorPosition, setCursorPosition] = useState<{
+    x: number;
+    y: number;
+  } | null>(null);
   const touchShowTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const longPressTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const touchStartRef = useRef<{ x: number; y: number } | null>(null);
@@ -148,6 +156,8 @@ function SessionItemComponent({
   const handleMenuClick = (e: React.MouseEvent) => {
     e.stopPropagation();
     setMenuAnchor(menuButtonRef.current);
+    // Button-opened menus anchor to the button, not the cursor
+    setCursorPosition(null);
     setIsMenuOpen(true);
   };
 
@@ -196,11 +206,18 @@ function SessionItemComponent({
     }
   };
 
-  // Prevent context menu during drag
-  const handleContextMenu = (e: React.MouseEvent | React.TouchEvent) => {
+  // Right-click opens the menu anchored at the cursor; suppress during drag
+  const handleContextMenu = (e: React.MouseEvent) => {
+    if (isEditing) return; // Allow native context menu during rename
     if (isDragging) {
       e.preventDefault();
+      return;
     }
+    e.preventDefault();
+    setCursorPosition({ x: e.clientX, y: e.clientY });
+    // SessionMenu renders nothing without an anchor element, so provide one
+    setMenuAnchor(menuButtonRef.current);
+    setIsMenuOpen(true);
   };
 
   // Cleanup timers
@@ -292,7 +309,7 @@ function SessionItemComponent({
         )}
 
         {/* Title - editable or display */}
-        <div className="min-w-0 flex-1">
+        <div className="min-w-0 flex-1 flex items-center gap-2">
           {isEditing ? (
             <input
               ref={inputRef}
@@ -319,6 +336,12 @@ function SessionItemComponent({
             </div>
           )}
         </div>
+
+        {/* Task running indicator - same position/size as unread badge */}
+        {(session.metadata?.task_status === "running" ||
+          session.metadata?.task_status === "pending") && (
+          <span className="shrink-0 inline-flex items-center justify-center w-4 h-4 rounded-full border-2 border-amber-500/25 border-t-amber-500 dark:border-t-amber-400 animate-spin" />
+        )}
 
         {/* Unread dot - hidden when session is active (user is viewing it) */}
         {!selectionMode &&
@@ -356,14 +379,20 @@ function SessionItemComponent({
           session={session}
           projects={projects}
           isOpen={isMenuOpen}
-          onClose={() => setIsMenuOpen(false)}
+          onClose={() => {
+            setIsMenuOpen(false);
+            setCursorPosition(null);
+          }}
           onRename={handleStartEdit}
           onDelete={onDelete}
           onMoveToProject={onMoveToProject}
           onShare={onShare}
           onToggleFavorite={onToggleFavorite}
+          onTogglePin={onTogglePin}
           anchorEl={menuAnchor}
           isFavorite={isFavorite}
+          isPinned={isPinned}
+          cursorPosition={cursorPosition ?? undefined}
           currentProjectId={currentProjectId}
         />
       )}
@@ -380,6 +409,7 @@ function areSessionItemPropsEqual(
     prev.isActive === next.isActive &&
     prev.projects === next.projects &&
     prev.isFavorite === next.isFavorite &&
+    prev.isPinned === next.isPinned &&
     prev.currentProjectId === next.currentProjectId &&
     prev.isDraggingTouch === next.isDraggingTouch &&
     prev.selectionMode === next.selectionMode &&

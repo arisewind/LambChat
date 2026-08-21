@@ -22,6 +22,7 @@ export interface BackendSession {
   name?: string;
   metadata: Record<string, unknown>;
   unread_count?: number;
+  task_status?: string | null;
 }
 
 // Session list response type
@@ -36,6 +37,14 @@ export interface SessionListResponse {
 export interface SessionRunsQuery {
   limit?: number;
   trace_id?: string;
+}
+
+export interface SessionEventsQuery {
+  event_types?: string[];
+  run_id?: string;
+  exclude_run_id?: string;
+  include_active_user_message?: boolean;
+  compact_message_chunks?: boolean;
 }
 
 export interface RunGoalSpec {
@@ -141,6 +150,31 @@ export function buildSessionRunsUrl(
   }`;
 }
 
+export function buildSessionEventsUrl(
+  sessionId: string,
+  options?: SessionEventsQuery,
+): string {
+  const searchParams = new URLSearchParams();
+  if (options?.event_types && options.event_types.length > 0) {
+    searchParams.set("event_types", options.event_types.join(","));
+  }
+  if (options?.run_id) searchParams.set("run_id", options.run_id);
+  if (options?.exclude_run_id) {
+    searchParams.set("exclude_run_id", options.exclude_run_id);
+  }
+  if (options?.include_active_user_message) {
+    searchParams.set("include_active_user_message", "true");
+  }
+  if (options?.compact_message_chunks) {
+    searchParams.set("compact_message_chunks", "true");
+  }
+
+  const queryString = searchParams.toString();
+  return `${API_BASE}/api/sessions/${sessionId}/events${
+    queryString ? `?${queryString}` : ""
+  }`;
+}
+
 export const sessionApi = {
   /**
    * List all sessions with pagination
@@ -193,30 +227,10 @@ export const sessionApi = {
   async getEvents(
     sessionId: string,
     options?: {
-      event_types?: string[];
-      run_id?: string;
-      exclude_run_id?: string;
-      include_active_user_message?: boolean;
       signal?: AbortSignal;
-    },
+    } & SessionEventsQuery,
   ): Promise<SessionEventsResponse & { run_id?: string }> {
-    const searchParams = new URLSearchParams();
-    if (options?.event_types && options.event_types.length > 0) {
-      searchParams.set("event_types", options.event_types.join(","));
-    }
-    if (options?.run_id) {
-      searchParams.set("run_id", options.run_id);
-    }
-    if (options?.exclude_run_id) {
-      searchParams.set("exclude_run_id", options.exclude_run_id);
-    }
-    if (options?.include_active_user_message) {
-      searchParams.set("include_active_user_message", "true");
-    }
-
-    const url = `${API_BASE}/api/sessions/${sessionId}/events${
-      searchParams.toString() ? `?${searchParams}` : ""
-    }`;
+    const url = buildSessionEventsUrl(sessionId, options);
     return authFetch<SessionEventsResponse & { run_id?: string }>(url, {
       signal: options?.signal,
     });
@@ -374,6 +388,19 @@ export const sessionApi = {
     session: BackendSession;
   }> {
     return authFetch(`${API_BASE}/api/sessions/${sessionId}/favorite`, {
+      method: "POST",
+    });
+  },
+
+  /**
+   * Toggle session pin state
+   */
+  async togglePin(sessionId: string): Promise<{
+    status: string;
+    is_pinned: boolean;
+    session: BackendSession;
+  }> {
+    return authFetch(`${API_BASE}/api/sessions/${sessionId}/pin`, {
       method: "POST",
     });
   },

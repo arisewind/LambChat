@@ -100,6 +100,14 @@ export function getNextMessageScrollFollowStateForAtBottomChange({
     return state;
   }
 
+  // When the user has explicitly detached from stream-follow (e.g. scrolled up
+  // during streaming), reaching the bottom via followOutput must NOT clear their
+  // intent — otherwise followOutput and atBottomChange form a feedback loop that
+  // prevents the user from ever staying scrolled up.
+  if (state.manualDetachFromStream) {
+    return state;
+  }
+
   return {
     ...state,
     userScrolledUp: false,
@@ -132,7 +140,7 @@ export function getNextMessageScrollFollowStateForBottomScroll({
 
 export function getNextMessageScrollFollowStateForUserIntent({
   state,
-  isMobileViewport,
+  isMobileViewport: _isMobileViewport,
   streamingAssistantActive,
 }: {
   state: MessageScrollFollowState;
@@ -153,14 +161,13 @@ export function getNextMessageScrollFollowStateForUserIntent({
     autoScrollActive: false,
     streamLockActive: false,
     manualDetachFromStream:
-      state.manualDetachFromStream ||
-      (isMobileViewport && streamingAssistantActive),
+      state.manualDetachFromStream || streamingAssistantActive,
   };
 }
 
 export function getNextMessageScrollFollowStateForUserGesture({
   state,
-  isMobileViewport,
+  isMobileViewport: _isMobileViewport,
   streamingAssistantActive,
 }: {
   state: MessageScrollFollowState;
@@ -181,8 +188,7 @@ export function getNextMessageScrollFollowStateForUserGesture({
     autoScrollActive: false,
     streamLockActive: false,
     manualDetachFromStream:
-      state.manualDetachFromStream ||
-      (isMobileViewport && streamingAssistantActive),
+      state.manualDetachFromStream || streamingAssistantActive,
   };
 }
 
@@ -229,8 +235,7 @@ export function getNextMessageScrollFollowStateForUserScroll({
     autoScrollActive: false,
     streamLockActive: false,
     manualDetachFromStream:
-      state.manualDetachFromStream ||
-      (isMobileViewport && streamingAssistantActive),
+      state.manualDetachFromStream || streamingAssistantActive,
   };
 }
 
@@ -279,7 +284,6 @@ interface ShouldFinalizeHistoryLoadScrollOptions {
 
 interface ShouldArmPendingHistoryScrollOptions {
   isLoadingHistory: boolean;
-  sessionId?: string | null;
   historyScrollArmed: boolean;
 }
 
@@ -288,23 +292,17 @@ interface ShouldInferBatchedHistoryLoadReadyOptions {
   sessionId?: string | null;
   previousMessageCount: number;
   messageCount: number;
+  previousHistoryLoadGeneration: number;
+  historyLoadGeneration: number;
   isLoadingHistory: boolean;
-  externalNavigationToken?: string | null;
-}
-
-interface ShouldStartHistoryScrollSettlingOptions {
-  pendingHistoryScroll: boolean;
-  isLoadingHistory: boolean;
-  messageCount: number;
   externalNavigationToken?: string | null;
 }
 
 export function shouldArmPendingHistoryScroll({
   isLoadingHistory,
-  sessionId,
   historyScrollArmed,
 }: ShouldArmPendingHistoryScrollOptions): boolean {
-  return !!sessionId && isLoadingHistory && !historyScrollArmed;
+  return isLoadingHistory && !historyScrollArmed;
 }
 
 export function shouldFinalizeHistoryLoadScroll({
@@ -320,29 +318,18 @@ export function shouldInferBatchedHistoryLoadReady({
   sessionId,
   previousMessageCount,
   messageCount,
+  previousHistoryLoadGeneration,
+  historyLoadGeneration,
   isLoadingHistory,
   externalNavigationToken,
 }: ShouldInferBatchedHistoryLoadReadyOptions): boolean {
   return (
+    previousHistoryLoadGeneration !== historyLoadGeneration &&
     previousSessionId !== sessionId &&
     !!sessionId &&
     previousMessageCount === 0 &&
     messageCount > 0 &&
     !isLoadingHistory &&
-    !externalNavigationToken
-  );
-}
-
-export function shouldStartHistoryScrollSettling({
-  pendingHistoryScroll,
-  isLoadingHistory,
-  messageCount,
-  externalNavigationToken,
-}: ShouldStartHistoryScrollSettlingOptions): boolean {
-  return (
-    pendingHistoryScroll &&
-    !isLoadingHistory &&
-    messageCount > 0 &&
     !externalNavigationToken
   );
 }

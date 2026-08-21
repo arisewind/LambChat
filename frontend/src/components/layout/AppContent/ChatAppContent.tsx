@@ -26,16 +26,15 @@ import { useDragAndDrop } from "./useDragAndDrop";
 import { useWebSocketNotifications } from "./useWebSocketNotifications";
 import { useAgentOptions } from "./useAgentOptions";
 import { useSessionSync } from "./useSessionSync";
+import { useExternalNavigationTarget } from "./useExternalNavigationTarget";
+import { resolveModelSelection, type ModelSelection } from "./modelSelection";
 import {
-  getExternalNavigationPreviewRequest,
-  getExternalNavigationTargetFile,
-  shouldScrollToBottomAfterExternalNavigation,
-} from "./externalNavigationState";
-import {
-  reconcileCurrentModelSelection,
-  resolveDefaultModelSelection,
-} from "./modelSelection";
-import { getRestoredModelSelection } from "./sessionState";
+  applyLatestSessionLoadResult,
+  getRestoredModelSelection,
+  isLatestSessionLoad,
+  shouldApplyRestoredModelSelection,
+  withoutModelSelection,
+} from "./sessionState";
 import { getTeamRouteRequest } from "./teamRouteState";
 import { resolvePersonaAgentId } from "../../../hooks/useAgent/agentSelection";
 import { AppShell } from "./AppShell";
@@ -70,7 +69,8 @@ export function ChatAppContent({
   const { t } = useTranslation();
   const location = useLocation();
   const [searchParams, setSearchParams] = useSearchParams();
-  const { enableSkills, availableModels, defaultModel } = useSettingsContext();
+  const { enableSkills, availableModels, systemDefaultModelId, defaultModel } =
+    useSettingsContext();
   const { hasPermission, isAuthenticated } = useAuth();
 
   const { isPageDragging, pageDragAttachments, setPageDragAttachments } =
@@ -168,6 +168,7 @@ export function ChatAppContent({
     currentRunId,
     isLoading,
     isLoadingHistory,
+    historyLoadGeneration,
     agents,
     currentAgent,
     allowedModelIds: agentAllowedModelIds,
@@ -284,9 +285,23 @@ export function ChatAppContent({
   const [currentModelValue, setCurrentModelValue] = useState<string>(
     () => localStorage.getItem("defaultModel") || defaultModel,
   );
+  const [sessionModelSelection, setSessionModelSelection] =
+    useState<ModelSelection | null>(null);
 
-  const isSessionRestoredRef = useRef(false);
+  const modelSelectionRevisionRef = useRef(0);
+  const activeSessionLoadRef = useRef<{
+    loadId: number;
+    revisionAtLoadStart: number;
+  } | null>(null);
   const lastTeamRouteRequestRef = useRef<string | null>(null);
+
+  const handleSessionLoadStart = useCallback((loadId: number) => {
+    activeSessionLoadRef.current = {
+      loadId,
+      revisionAtLoadStart: modelSelectionRevisionRef.current,
+    };
+    setSessionModelSelection(null);
+  }, []);
 
   // Restore persona from localStorage when navigating from /persona page
   useEffect(() => {
@@ -353,26 +368,24 @@ export function ChatAppContent({
   }, [location.state, searchParams, selectTeam, setSearchParams, switchAgent]);
 
   useEffect(() => {
-    if (isSessionRestoredRef.current) return;
-    const nextSelection = reconcileCurrentModelSelection({
-      availableModels,
-      currentModelId,
-      currentModelValue,
-      storedDefaultId: localStorage.getItem("defaultModelId") || "",
-      storedDefaultValue: localStorage.getItem("defaultModel") || "",
-      fallbackDefaultValue: defaultModel,
+    const nextSelection = resolveModelSelection({
+      availableModels: filteredModels,
+      sessionModelId: sessionModelSelection?.modelId,
+      sessionModelValue: sessionModelSelection?.modelValue,
+      userDefaultId: localStorage.getItem("defaultModelId") || "",
+      userDefaultValue: localStorage.getItem("defaultModel") || "",
+      systemDefaultId: systemDefaultModelId,
+      systemDefaultValue: defaultModel,
     });
 
-    if (nextSelection.modelId && nextSelection.modelId !== currentModelId) {
-      setCurrentModelId(nextSelection.modelId);
-    }
-    if (
-      nextSelection.modelValue &&
-      nextSelection.modelValue !== currentModelValue
-    ) {
-      setCurrentModelValue(nextSelection.modelValue);
-    }
-  }, [availableModels, currentModelId, currentModelValue, defaultModel]);
+    setCurrentModelId(nextSelection.modelId);
+    setCurrentModelValue(nextSelection.modelValue);
+  }, [
+    defaultModel,
+    filteredModels,
+    sessionModelSelection,
+    systemDefaultModelId,
+  ]);
 
   useEffect(() => {
     handleToggleAgentOption("model", currentModelValue);
@@ -400,6 +413,8 @@ export function ChatAppContent({
 
   const handleSelectModel = useCallback(
     (modelId: string, modelValue: string) => {
+      modelSelectionRevisionRef.current += 1;
+      setSessionModelSelection({ modelId, modelValue });
       setCurrentModelId(modelId);
       setCurrentModelValue(modelValue);
     },
@@ -416,7 +431,7 @@ export function ChatAppContent({
       : undefined,
     personaPresetId: sessionConfig.personaPresetId,
     agentOptions: {
-      ...agentOptionValues,
+      ...withoutModelSelection(agentOptionValues),
       ...(currentModelValue ? { model: currentModelValue } : {}),
       ...(currentModelId ? { model_id: currentModelId } : {}),
     },
@@ -624,115 +639,80 @@ export function ChatAppContent({
         scheduledTaskId,
       );
     },
+    onSessionTaskStatus: (data) => {
+      sidebarRef.current?.updateSessionMetadata(data.session_id, {
+        task_status: data.task_status,
+      });
+    },
   });
 
-  const [externalNavigationTargetRunId, setExternalNavigationTargetRunId] =
-    useState<string | null>(null);
-  const [
-    externalNavigationTargetRunPending,
-    setExternalNavigationTargetRunPending,
-  ] = useState(false);
-  const externalNavigationTargetFile = getExternalNavigationTargetFile(
-    location.state,
-  );
-  const externalNavigationPreviewRequest = getExternalNavigationPreviewRequest(
-    location.state,
-  );
-  const externalScrollToBottom = shouldScrollToBottomAfterExternalNavigation(
-    location.state,
-  );
-  const externalNavigationRunId = searchParams.get("run_id")?.trim() || null;
-  const externalNavigationToken =
-    externalNavigationTargetFile ||
-    externalScrollToBottom ||
-    externalNavigationRunId
-      ? location.key
-      : null;
-  const resolvedExternalNavigationTargetRunId =
-    externalNavigationTargetRunId || externalNavigationRunId;
-
-  useEffect(() => {
-    const targetTraceId = externalNavigationTargetFile?.traceId ?? undefined;
-
-    if (!sessionId || !targetTraceId) {
-      setExternalNavigationTargetRunId(null);
-      setExternalNavigationTargetRunPending(false);
-      return;
-    }
-
-    let cancelled = false;
-    setExternalNavigationTargetRunPending(true);
-
-    const resolveTargetRunId = async () => {
-      try {
-        const { sessionApi } = await import("../../../services/api");
-        const response = await sessionApi.getRuns(sessionId, {
-          trace_id: targetTraceId,
-        });
-        if (cancelled) {
-          return;
-        }
-
-        const matchedRun =
-          response.runs.find((run) => run.trace_id === targetTraceId) ?? null;
-        setExternalNavigationTargetRunId(matchedRun?.run_id ?? null);
-        setExternalNavigationTargetRunPending(false);
-      } catch (err) {
-        if (!cancelled) {
-          console.warn(
-            "[AppContent] Failed to resolve external navigation run:",
-            err,
-          );
-          setExternalNavigationTargetRunId(null);
-          setExternalNavigationTargetRunPending(false);
-        }
-      }
-    };
-
-    resolveTargetRunId();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [sessionId, externalNavigationTargetFile?.traceId]);
+  const externalNavigation = useExternalNavigationTarget({
+    sessionId,
+    locationState: location.state,
+    locationKey: location.key,
+    routeRunId: searchParams.get("run_id"),
+  });
 
   const handleConfigRestored = useCallback(
-    (config: {
-      agent_id?: string;
-      agent_options?: Record<string, boolean | string | number>;
-      disabled_skills?: string[];
-      enabled_skills?: string[];
-      persona_preset_id?: string;
-      persona_preset_name?: string;
-      persona_snapshot?: import("../../../types").PersonaPresetSnapshot;
-      disabled_mcp_tools?: string[];
-      disabled_tools?: string[];
-      team_id?: string;
-    }) => {
+    (
+      config: {
+        agent_id?: string;
+        agent_options?: Record<string, boolean | string | number>;
+        disabled_skills?: string[];
+        enabled_skills?: string[];
+        persona_preset_id?: string;
+        persona_preset_name?: string;
+        persona_snapshot?: import("../../../types").PersonaPresetSnapshot;
+        disabled_mcp_tools?: string[];
+        disabled_tools?: string[];
+        team_id?: string;
+      },
+      loadId: number,
+    ) => {
+      const activeLoad = activeSessionLoadRef.current;
+      if (
+        !isLatestSessionLoad({
+          restoredLoadId: loadId,
+          activeLoadId: activeLoad?.loadId ?? null,
+        })
+      ) {
+        return;
+      }
+
       console.log("[AppContent] Restoring session config:", config);
 
-      isSessionRestoredRef.current = true;
+      const restoredModelSelection = getRestoredModelSelection(config);
+      const restoredAgentOptions = withoutModelSelection(
+        config.agent_options ?? {},
+      );
 
       if (config.agent_id) {
         switchAgent(config.agent_id);
       }
 
-      restoreSessionConfig(config);
+      restoreSessionConfig({
+        ...config,
+        ...(config.agent_options
+          ? { agent_options: restoredAgentOptions }
+          : {}),
+      });
 
       // Fetch latest persona snapshot by ID (API-first for normal views;
       // shared page uses its own SharedPage component and is unaffected).
       // The snapshot in metadata serves as a fallback until the API responds.
       if (config.persona_preset_id) {
-        personaPresetApi
-          .use(config.persona_preset_id)
-          .then((snapshot) => {
+        void applyLatestSessionLoadResult({
+          load: personaPresetApi.use(config.persona_preset_id),
+          restoredLoadId: loadId,
+          getActiveLoadId: () => activeSessionLoadRef.current?.loadId ?? null,
+          apply: (snapshot) => {
             if (snapshot) {
               setPersonaPreset(config.persona_preset_id!, snapshot);
             }
-          })
-          .catch(() => {
-            /* preset may have been deleted — keep metadata snapshot */
-          });
+          },
+        }).catch(() => {
+          /* preset may have been deleted — keep metadata snapshot */
+        });
       }
 
       if (config.team_id) {
@@ -742,14 +722,19 @@ export function ChatAppContent({
       }
 
       if (config.agent_options) {
-        restoreAgentOptions(config.agent_options);
+        restoreAgentOptions(restoredAgentOptions);
 
-        const restoredModelSelection = getRestoredModelSelection(config);
-        if (restoredModelSelection.modelId) {
-          setCurrentModelId(restoredModelSelection.modelId);
-        }
-        if (restoredModelSelection.modelValue) {
-          setCurrentModelValue(restoredModelSelection.modelValue);
+        if (
+          (restoredModelSelection.modelId ||
+            restoredModelSelection.modelValue) &&
+          shouldApplyRestoredModelSelection({
+            restoredLoadId: loadId,
+            activeLoadId: activeLoad?.loadId ?? null,
+            revisionAtLoadStart: activeLoad?.revisionAtLoadStart ?? -1,
+            currentRevision: modelSelectionRevisionRef.current,
+          })
+        ) {
+          setSessionModelSelection(restoredModelSelection);
         }
       }
     },
@@ -767,15 +752,21 @@ export function ChatAppContent({
     sessionId,
     loadHistory,
     clearMessages,
+    onSessionLoadStart: handleSessionLoadStart,
     onConfigRestored: handleConfigRestored,
   });
 
   const handleNewSessionWithReset = useCallback(() => {
-    const nextSelection = resolveDefaultModelSelection({
-      availableModels,
-      storedDefaultId: localStorage.getItem("defaultModelId") || "",
-      storedDefaultValue: localStorage.getItem("defaultModel") || "",
-      fallbackDefaultValue: defaultModel,
+    activeSessionLoadRef.current = null;
+    modelSelectionRevisionRef.current += 1;
+    setSessionModelSelection(null);
+
+    const nextSelection = resolveModelSelection({
+      availableModels: filteredModels,
+      userDefaultId: localStorage.getItem("defaultModelId") || "",
+      userDefaultValue: localStorage.getItem("defaultModel") || "",
+      systemDefaultId: systemDefaultModelId,
+      systemDefaultValue: defaultModel,
     });
 
     handleNewSession();
@@ -786,11 +777,12 @@ export function ChatAppContent({
     setCurrentModelId(nextSelection.modelId);
     setCurrentModelValue(nextSelection.modelValue);
   }, [
-    availableModels,
     defaultModel,
+    filteredModels,
     handleNewSession,
     resetToDefaults,
     resetAgentOptionDefaults,
+    systemDefaultModelId,
   ]);
 
   const handleMobileClose = useCallback(
@@ -880,6 +872,7 @@ export function ChatAppContent({
           currentRunId={currentRunId}
           isLoading={isLoading}
           isLoadingHistory={isLoadingHistory}
+          historyLoadGeneration={historyLoadGeneration}
           connectionStatus={connectionStatus}
           canSendMessage={canSendMessage}
           tools={effectiveTools}
@@ -931,8 +924,19 @@ export function ChatAppContent({
           approvals={approvals}
           onRespondApproval={respondToApproval}
           approvalLoading={approvalLoading}
-          onSendMessage={(content, sendAttachments, runOptions) =>
-            void sendMessage(content, undefined, sendAttachments, runOptions)
+          onSendMessage={(
+            content,
+            sendAttachments,
+            runOptions,
+            submissionCallbacks,
+          ) =>
+            void sendMessage(
+              content,
+              undefined,
+              sendAttachments,
+              runOptions,
+              submissionCallbacks,
+            )
           }
           onStopGeneration={stopGeneration}
           activeGoal={activeGoal}
@@ -944,14 +948,20 @@ export function ChatAppContent({
           onToggleGoalMode={setGoalModeEnabled}
           attachments={pageDragAttachments}
           onAttachmentsChange={setPageDragAttachments}
-          externalNavigationToken={externalNavigationToken}
-          externalNavigationTargetFile={externalNavigationTargetFile}
-          externalNavigationPreview={externalNavigationPreviewRequest}
-          externalNavigationTargetRunId={resolvedExternalNavigationTargetRunId}
-          externalNavigationTargetRunPending={
-            externalNavigationTargetRunPending
+          externalNavigationToken={externalNavigation.externalNavigationToken}
+          externalNavigationTargetFile={
+            externalNavigation.externalNavigationTargetFile
           }
-          externalScrollToBottom={externalScrollToBottom}
+          externalNavigationPreview={
+            externalNavigation.externalNavigationPreview
+          }
+          externalNavigationTargetRunId={
+            externalNavigation.externalNavigationTargetRunId
+          }
+          externalNavigationTargetRunPending={
+            externalNavigation.externalNavigationTargetRunPending
+          }
+          externalScrollToBottom={externalNavigation.externalScrollToBottom}
           outlineToggleRef={outlineToggleRef}
         />
         <BlockPreviewPortal />

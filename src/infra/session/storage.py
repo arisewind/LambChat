@@ -7,6 +7,7 @@ from datetime import datetime
 from typing import Any, Dict, Optional
 
 from bson import ObjectId
+from pymongo import ReturnDocument
 
 from src.infra.async_utils import run_blocking_io
 from src.infra.session.favorites import (
@@ -22,6 +23,9 @@ from src.infra.session.search_index import (
     compose_session_search_index,
     merge_search_state,
 )
+from src.infra.session.session_attachment_operations import (
+    SessionAttachmentOperationsMixin,
+)
 from src.infra.utils.datetime import utc_now
 from src.kernel.config import settings
 from src.kernel.schemas.session import Session, SessionCreate, SessionUpdate
@@ -30,7 +34,7 @@ SESSION_BATCH_LOOKUP_LIMIT = 100
 SESSION_LIST_LOOKUP_LIMIT = 100
 
 
-class SessionStorage:
+class SessionStorage(SessionAttachmentOperationsMixin):
     """
     会话存储类
 
@@ -429,13 +433,19 @@ class SessionStorage:
             else:
                 query["$or"] = favorite_query
 
-        # Get total count
-        total = await self.collection.count_documents(query)
-
-        cursor = self.collection.find(query).skip(skip).limit(limit).sort("updated_at", -1)
+        cursor = (
+            self.collection.find(query)
+            .skip(skip)
+            .limit(limit)
+            .sort([("metadata.is_pinned", -1), ("updated_at", -1)])
+        )
+        total, session_dicts = await asyncio.gather(
+            self.collection.count_documents(query),
+            cursor.to_list(length=limit),
+        )
         sessions = []
 
-        for session_dict in await cursor.to_list(length=limit):
+        for session_dict in session_dicts:
             session = self._build_session(session_dict, favorites_project_id)
             if search:
                 match_preview = build_search_preview(session_dict.get("search_text"), search)
@@ -554,6 +564,27 @@ class SessionStorage:
         )
         return result.modified_count > 0
 
+    async def mark_read_for_user(self, session_id: str, user_id: str) -> bool:
+        """Mark a session read only when it belongs to the supplied user."""
+        await self.ensure_indexes_if_needed()
+        identity_query: dict[str, Any]
+        try:
+            object_id = ObjectId(session_id)
+        except Exception:
+            identity_query = {"session_id": session_id}
+        else:
+            identity_query = {
+                "$or": [
+                    {"session_id": session_id},
+                    {"_id": object_id},
+                ]
+            }
+        result = await self.collection.update_one(
+            {**identity_query, "user_id": user_id},
+            {"$set": {"unread_count": 0}},
+        )
+        return result.matched_count > 0
+
     async def mark_all_read(
         self,
         user_id: str,
@@ -569,7 +600,7 @@ class SessionStorage:
             query["metadata.scheduled_task_id"] = scheduled_task_id
         result = await self.collection.update_many(
             query,
-            {"$set": {"unread_count": 0, "updated_at": utc_now()}},
+            {"$set": {"unread_count": 0}},
         )
         return result.modified_count
 
@@ -907,3 +938,48 @@ class SessionStorage:
             return None
 
         return self._build_session(result, favorites_project_id)
+
+    async def toggle_pin(
+        self,
+        session_id: str,
+        user_id: str,
+    ) -> Optional[Session]:
+        """Toggle a session's pinned-to-top state."""
+
+        session = await self.get_by_session_id(session_id)
+        if not session:
+            try:
+                session = await self.get_by_id(session_id)
+            except Exception:
+                session = None
+
+        if not session or session.user_id != user_id:
+            return None
+
+        current_pinned = bool(session.metadata.get("is_pinned", False))
+        next_pinned = not current_pinned
+        update_dict: dict[str, Any] = {
+            "updated_at": utc_now(),
+            "metadata.is_pinned": next_pinned,
+        }
+
+        result = await self.collection.find_one_and_update(
+            {"session_id": session_id, "user_id": user_id},
+            {"$set": update_dict},
+            return_document=ReturnDocument.AFTER,
+        )
+
+        if not result:
+            try:
+                result = await self.collection.find_one_and_update(
+                    {"_id": ObjectId(session_id), "user_id": user_id},
+                    {"$set": update_dict},
+                    return_document=ReturnDocument.AFTER,
+                )
+            except Exception:
+                return None
+
+        if not result:
+            return None
+
+        return self._build_session(result)
