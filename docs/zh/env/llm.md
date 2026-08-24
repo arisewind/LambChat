@@ -4,18 +4,17 @@
 
 ## 模型提供商密钥
 
-这些变量由底层 LLM SDK 库直接使用（不经过 Settings 类）：
+这些变量由底层 LLM SDK 库直接使用（不经过 Settings 类）。当模型未在模型配置 UI 中设置 API Key 时，它们作为回退凭据使用：
 
 | 变量名 | 说明 |
 |--------|------|
-| `LLM_API_KEY` | 默认 LLM API 密钥（由 LiteLLM 使用） |
-| `LLM_API_BASE` | 默认 LLM API 基础 URL（由 LiteLLM 使用） |
-| `LLM_MODEL` | 默认 LLM 模型名称，如 `anthropic/claude-sonnet-4-6` |
 | `ANTHROPIC_API_KEY` | Anthropic API 密钥（由 `langchain-anthropic` 使用） |
+| `ANTHROPIC_AUTH_TOKEN` | Anthropic Bearer Token，`ANTHROPIC_API_KEY` 的替代项 |
 | `ANTHROPIC_BASE_URL` | Anthropic 兼容的 API 基础 URL |
+| `GOOGLE_API_KEY` | Google Gemini API 密钥（由 `langchain-google-genai` 使用） |
 
 ::: tip
-LambChat 支持通过 UI 进行多模型管理。以上环境变量设置的是**默认**提供商。用户可以在运行时通过设置面板添加额外的提供商和模型。
+LambChat 支持通过 UI 进行多模型管理。模型及其 API Key 在模型配置 UI 中设置；以上环境变量仅作为提供商 SDK 的回退凭据。
 :::
 
 ## 重试与缓存设置
@@ -27,9 +26,6 @@ LambChat 支持通过 UI 进行多模型管理。以上环境变量设置的是*
 | `LLM_RETRY_DELAY` | `1.0` | 首次重试等待时间（秒，后续指数退避）。 |
 | `LLM_REQUEST_TIMEOUT` | `120` | 流式首事件或完整非流式响应的最长等待秒数；首事件到达后不限制流式总时长。 |
 | `LLM_MODEL_CACHE_SIZE` | `50` | 模型实例缓存大小。防止重复实例化导致的内存泄漏。 |
-| `LLM_MAX_INPUT_TOKENS` | _(无)_ | 可选：DeepAgent 自动摘要的上下文窗口大小。 |
-| `LLM_TEMPERATURE` | _(无)_ | 可选：LLM 调用的默认温度。 |
-| `LLM_MAX_TOKENS` | _(无)_ | 可选：LLM 调用的最大输出 token 数。 |
 
 ## DeepAgent 上下文设置
 
@@ -41,9 +37,7 @@ LambChat 支持通过 UI 进行多模型管理。以上环境变量设置的是*
 
 ```bash
 # .env
-LLM_API_KEY=sk-your-api-key
-LLM_API_BASE=https://api.openai.com/v1
-LLM_MODEL=gpt-4o
+ANTHROPIC_API_KEY=sk-your-api-key
 LLM_MAX_RETRIES=3
 LLM_RETRY_DELAY=1.0
 LLM_REQUEST_TIMEOUT=120

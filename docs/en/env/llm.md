@@ -4,18 +4,17 @@ Settings for controlling how LambChat interacts with language models.
 
 ## Model Provider Keys
 
-These are consumed by the underlying LLM SDK libraries directly (not by the Settings class):
+These are consumed by the underlying LLM SDK libraries directly (not by the Settings class). They serve as fallback credentials when a model has no API key configured in the Model Config UI:
 
 | Variable | Description |
 |----------|-------------|
-| `LLM_API_KEY` | Default LLM API key (consumed by LiteLLM) |
-| `LLM_API_BASE` | Default LLM API base URL (consumed by LiteLLM) |
-| `LLM_MODEL` | Default LLM model name, e.g. `anthropic/claude-sonnet-4-6` |
 | `ANTHROPIC_API_KEY` | Anthropic API key (consumed by `langchain-anthropic`) |
+| `ANTHROPIC_AUTH_TOKEN` | Anthropic bearer token, alternative to `ANTHROPIC_API_KEY` |
 | `ANTHROPIC_BASE_URL` | Anthropic-compatible API base URL |
+| `GOOGLE_API_KEY` | Google Gemini API key (consumed by `langchain-google-genai`) |
 
 ::: tip
-LambChat supports multi-model management through the UI. The env vars above set the **default** provider. Users can add additional providers and models at runtime through the settings panel.
+LambChat supports multi-model management through the UI. Models and their API keys are configured in the Model Config UI; the env vars above only act as fallback credentials for provider SDKs.
 :::
 
 ## Retry & Cache Settings
@@ -27,9 +26,6 @@ LambChat supports multi-model management through the UI. The env vars above set 
 | `LLM_RETRY_DELAY` | `1.0` | Initial retry delay in seconds (exponential backoff). |
 | `LLM_REQUEST_TIMEOUT` | `120` | Seconds allowed for the first streaming event or a complete non-streaming response. Streaming has no total duration limit after its first event. |
 | `LLM_MODEL_CACHE_SIZE` | `50` | Model instance cache size. Prevents memory leaks from repeated instantiation. |
-| `LLM_MAX_INPUT_TOKENS` | _(none)_ | Optional: context window size for DeepAgent auto-summarization. |
-| `LLM_TEMPERATURE` | _(none)_ | Optional: default temperature for LLM calls. |
-| `LLM_MAX_TOKENS` | _(none)_ | Optional: max output tokens for LLM calls. |
 
 ## DeepAgent Context Settings
 
@@ -41,9 +37,7 @@ LambChat supports multi-model management through the UI. The env vars above set 
 
 ```bash
 # .env
-LLM_API_KEY=sk-your-api-key
-LLM_API_BASE=https://api.openai.com/v1
-LLM_MODEL=gpt-4o
+ANTHROPIC_API_KEY=sk-your-api-key
 LLM_MAX_RETRIES=3
 LLM_RETRY_DELAY=1.0
 LLM_REQUEST_TIMEOUT=120
