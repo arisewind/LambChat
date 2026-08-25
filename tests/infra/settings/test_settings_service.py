@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+from types import SimpleNamespace
 from typing import Any
 from unittest.mock import AsyncMock
 
@@ -23,6 +24,43 @@ class _ClosableSettingsStorage:
 
     async def close(self) -> None:
         self.closed = True
+
+
+class _MissingTimeoutSettingsStorage:
+    def __init__(self) -> None:
+        self.values: dict[str, Any] = {}
+
+    async def get(self, key: str):
+        return self.values.get(key)
+
+    async def set(self, key: str, value: Any, user_id: str):
+        self.values[key] = SettingItem(
+            key=key,
+            value=value,
+            type=SettingType.NUMBER,
+            category=SettingCategory.LLM,
+            updated_by=user_id,
+        )
+        return self.values[key]
+
+
+@pytest.mark.asyncio
+async def test_init_from_env_imports_both_llm_timeout_settings(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    storage = _MissingTimeoutSettingsStorage()
+    service = settings_service.SettingsService()
+    service._storage = storage  # type: ignore[assignment]
+    monkeypatch.setenv("LLM_REQUEST_TIMEOUT", "45")
+    monkeypatch.setenv("LLM_FIRST_EVENT_TIMEOUT", "15")
+    monkeypatch.setattr("src.kernel.config.refresh_settings", AsyncMock())
+    monkeypatch.setattr(service, "_publish_change", AsyncMock())
+
+    imported = await service.init_from_env()
+
+    assert imported >= 2
+    assert storage.values["LLM_REQUEST_TIMEOUT"].value == 45
+    assert storage.values["LLM_FIRST_EVENT_TIMEOUT"].value == 15
 
 
 @pytest.mark.asyncio
@@ -158,3 +196,27 @@ async def test_set_and_reset_invalidate_get_all_snapshot(
     await service.reset()
     assert (await service.get_all())["frontend"][0].value == "default"
     assert storage.get_all_calls == 3
+
+
+@pytest.mark.asyncio
+async def test_refresh_applies_empty_llm_fallback_model_without_restart(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """设置面板「无兜底模型」下发空串后应即时生效，而不是等重启。"""
+
+    class _RawStorage:
+        async def get_raw(self, key: str):
+            assert key == "LLM_FALLBACK_MODEL"
+            return SimpleNamespace(value="")
+
+    import src.kernel.config.service as config_service
+    from src.kernel.config import settings
+
+    monkeypatch.setattr(
+        config_service, "_settings_service", SimpleNamespace(_storage=_RawStorage())
+    )
+    monkeypatch.setattr(settings, "LLM_FALLBACK_MODEL", "old-fallback")
+
+    await config_service.refresh_settings("LLM_FALLBACK_MODEL")
+
+    assert settings.LLM_FALLBACK_MODEL == ""

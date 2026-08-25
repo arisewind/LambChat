@@ -197,7 +197,14 @@ CORE_SETTING_DEFINITIONS: dict[str, dict] = {
         "category": SettingCategory.LLM,
         "subcategory": "retry",
         "description": "settingDesc.LLM_REQUEST_TIMEOUT",
-        "default": 120.0,
+        "default": 0.0,
+    },
+    "LLM_FIRST_EVENT_TIMEOUT": {
+        "type": SettingType.NUMBER,
+        "category": SettingCategory.LLM,
+        "subcategory": "retry",
+        "description": "settingDesc.LLM_FIRST_EVENT_TIMEOUT",
+        "default": 30.0,
     },
     "LLM_FALLBACK_MODEL": {
         "type": SettingType.STRING,
@@ -205,6 +212,15 @@ CORE_SETTING_DEFINITIONS: dict[str, dict] = {
         "subcategory": "retry",
         "description": "settingDesc.LLM_FALLBACK_MODEL",
         "default": None,
+    },
+    "LLM_OPENAI_API_FORMAT": {
+        "type": SettingType.SELECT,
+        "category": SettingCategory.LLM,
+        "subcategory": "model",
+        "description": "settingDesc.LLM_OPENAI_API_FORMAT",
+        "default": "chat_completions",
+        "options": ["chat_completions", "responses"],
+        "frontend_visible": True,
     },
     "LLM_MODEL_CACHE_SIZE": {
         "type": SettingType.NUMBER,

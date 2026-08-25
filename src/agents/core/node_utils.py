@@ -67,6 +67,25 @@ async def isolated_nested_graph_run() -> AsyncIterator[None]:
         var_child_runnable_config.reset(token)
 
 
+def resolve_auto_memory_capture_text(
+    *,
+    hitl_suspended: bool,
+    user_input: str,
+    recommendation_input: str | None = None,
+) -> str | None:
+    """解析本轮应捕获记忆的用户文本；无需捕获时返回 None。
+
+    ask_human 挂起的 run（waiting_human）还没有最终回答，记忆捕获必须推迟到
+    run 最终 finished 的那一轮，否则挂起瞬间会白发起一次记忆评估 LLM 调用，
+    且 source_refs 指向没有最终回答的 run。恢复轮 state.input 为空，原始
+    用户消息由 resume_context.recommendation_input 透传（infra/task/hitl.py）。
+    """
+    if hitl_suspended:
+        return None
+    text = (user_input or "").strip() or (recommendation_input or "").strip()
+    return text or None
+
+
 async def resolve_fallback_model(
     model_id: str | None,
     selected_model: str | None,
@@ -98,7 +117,7 @@ async def resolve_fallback_model(
         return None
 
     if not db_model or not db_model.fallback_model:
-        return _global_fallback_model(selected_model, log_prefix)
+        return await _global_fallback_model(selected_model, log_prefix)
 
     try:
         fallback_db = await storage.get(db_model.fallback_model)
@@ -115,26 +134,47 @@ async def resolve_fallback_model(
         )
         return fallback_db.value
 
-    return _global_fallback_model(selected_model, log_prefix)
+    return await _global_fallback_model(selected_model, log_prefix)
 
 
-def _global_fallback_model(selected_model: str | None, log_prefix: str = "") -> str | None:
-    """全局兜底模型：DB 未配置 fallback_model 时使用 LLM_FALLBACK_MODEL。"""
+async def _global_fallback_model(selected_model: str | None, log_prefix: str = "") -> str | None:
+    """全局兜底模型：DB 未配置 fallback_model 时使用 LLM_FALLBACK_MODEL。
+
+    设置值可以是模型配置 UUID（设置面板下拉保存的 id）或旧的模型 value
+    字符串；UUID 解析成 value，非 UUID / 查询失败按原始字符串处理。
+    """
     from src.kernel.config import settings
 
     fallback = settings.LLM_FALLBACK_MODEL
     if not fallback or not fallback.strip():
         return None
     fallback = fallback.strip()
-    if selected_model and fallback == selected_model:
+
+    resolved = await _resolve_fallback_reference(fallback, log_prefix)
+    if not resolved:
+        return None
+    if selected_model and resolved == selected_model:
         logger.warning(
             "%s Global fallback model equals primary model (%s); skipping self-fallback",
             log_prefix,
-            fallback,
+            resolved,
         )
         return None
-    logger.info("%s Using global fallback model: %s", log_prefix, fallback)
-    return fallback
+    logger.info("%s Using global fallback model: %s", log_prefix, resolved)
+    return resolved
+
+
+async def _resolve_fallback_reference(reference: str, log_prefix: str = "") -> str | None:
+    """把 LLM_FALLBACK_MODEL 引用解析成模型 value（UUID → value，其余原样）。"""
+    from src.infra.agent.model_storage import get_model_storage
+
+    try:
+        db_model = await get_model_storage().get(reference)
+    except Exception as e:
+        # 查询失败（如存储不可用）时保守地按原始字符串处理
+        logger.debug("%s Fallback reference lookup failed: %s", log_prefix, e)
+        return reference
+    return db_model.value if db_model else reference
 
 
 async def _resolve_model_profile_bool(

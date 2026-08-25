@@ -84,8 +84,12 @@ class Settings(BaseSettings):
     # LLM Settings
     LLM_MAX_RETRIES: int = 3
     LLM_RETRY_DELAY: float = 1.0
-    LLM_REQUEST_TIMEOUT: float = 120.0  # 流式首事件/非流式响应超时（秒）
+    LLM_REQUEST_TIMEOUT: float = 0.0  # 非流式完整响应总超时（秒；<=0 禁用）
+    LLM_FIRST_EVENT_TIMEOUT: float = 30.0  # 流式首事件超时（秒；<=0 禁用）
     LLM_FALLBACK_MODEL: str | None = None  # 全局兜底模型（DB 未配置 fallback_model 时使用）
+    LLM_OPENAI_API_FORMAT: str = (
+        "chat_completions"  # OpenAI 协议线格式默认值（chat_completions | responses）
+    )
     LLM_MODEL_CACHE_SIZE: int = 50  # 模型实例缓存大小，防止内存泄漏
     DEEPAGENT_SUMMARIZATION_TRIGGER_RATIO: float = 0.70  # 触发摘要的上下文占比（原 0.85）
     DEEPAGENT_SUMMARIZATION_KEEP_RATIO: float = 0.15  # 摘要后保留的上下文占比（原 0.10）
@@ -112,6 +116,9 @@ class Settings(BaseSettings):
         False  # True=禁用旧 SHA256 密钥回退解密；迁移完成后由管理员手动开启
     )
     DEEPAGENT_DEFAULT_MAX_INPUT_TOKENS: int = 64000
+    # 历史图片治理（KV 缓存友好的迟滞淘汰）：超过 hard 才淘汰到 keep，区间内不动
+    HISTORY_IMAGE_HARD_LIMIT: int = 40
+    HISTORY_IMAGE_KEEP_LIMIT: int = 20
 
     # Session Settings
     SESSION_MAX_RUNS_PER_SESSION: int = 100
