@@ -2,7 +2,7 @@ import { useNavigate } from "react-router-dom";
 import { ToolSelector } from "../selectors/ToolSelector";
 import { SkillSelector } from "../selectors/SkillSelector";
 import { AgentModeSelector } from "../selectors/AgentModeSelector";
-import { PersonaPresetSelector } from "../persona/PersonaPresetSelector";
+import { PersonaPresetSelector, PERSONA_PRESET_PAGE_SIZE } from "../persona/PersonaPresetSelector";
 import { TeamPickerModal } from "../team/TeamPickerModal";
 import { AgentOptionButton } from "./AgentOptionButton";
 import type { FeaturePanel } from "../selectors/FeatureMenu";
@@ -160,6 +160,7 @@ export function ChatInputSelectors({
           presets={personaPresets}
           total={personaPresetsTotal}
           page={personaPresetsPage}
+          pageSize={PERSONA_PRESET_PAGE_SIZE}
           selectedPresetId={selectedPersonaPresetId}
           isOpen={activePanel === "persona"}
           isLoading={personaPresetsLoading}

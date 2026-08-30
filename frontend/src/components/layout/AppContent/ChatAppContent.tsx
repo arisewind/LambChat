@@ -11,6 +11,7 @@ import { useAuth } from "../../../hooks/useAuth";
 import { useTools } from "../../../hooks/useTools";
 import { useSkills } from "../../../hooks/useSkills";
 import { personaPresetApi } from "../../../services/api";
+import { PERSONA_PRESET_PAGE_SIZE } from "../../persona/PersonaPresetSelector";
 import { usePersonaPresets } from "../../../hooks/usePersonaPresets";
 import { useProjectManager } from "../../../hooks/useProjectManager";
 import { appNotificationService } from "../../../services/notifications/appNotificationService";
@@ -98,11 +99,10 @@ export function ChatAppContent({
   const [personaPresetPage, setPersonaPresetPage] = useState(1);
   const [personaPresetQuery, setPersonaPresetQuery] = useState("");
   const [personaPresetTag, setPersonaPresetTag] = useState<string | null>(null);
-  const personaPresetPageSize = 12;
   const personaPresetListParams = useMemo(
     () => ({
-      skip: (personaPresetPage - 1) * personaPresetPageSize,
-      limit: personaPresetPageSize,
+      skip: (personaPresetPage - 1) * PERSONA_PRESET_PAGE_SIZE,
+      limit: PERSONA_PRESET_PAGE_SIZE,
       q: personaPresetQuery.trim() || undefined,
       tag: personaPresetTag || undefined,
     }),
