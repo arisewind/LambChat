@@ -1,6 +1,5 @@
 """Native Memory Backend — MongoDB-backed, zero external dependencies."""
 
-import asyncio
 import inspect
 import uuid
 from datetime import timedelta
@@ -14,10 +13,8 @@ from src.infra.logging import get_logger
 from src.infra.memory.client.base import MemoryBackend
 from src.infra.memory.client.native.classification import (
     find_existing_memory_match,
+    find_semantic_memory_match,
     is_manual_memory_worthy,
-)
-from src.infra.memory.client.native.consolidation import (
-    consolidate_memories as run_consolidation,
 )
 from src.infra.memory.client.native.content import (
     build_content_fields,
@@ -101,6 +98,7 @@ class NativeMemoryBackend(MemoryBackend):
         await run_blocking_io(self._ensure_collection)
         await self._create_indexes()
         self._setup_embedding_fn()
+        await self._maybe_create_vector_index()
         await self._prune_legacy_session_summaries()
 
     async def close(self) -> None:
@@ -208,6 +206,19 @@ class NativeMemoryBackend(MemoryBackend):
                 {"summary": 1, "memory_id": 1, "memory_type": 1},
             ).to_list(length=50)
 
+        async def fetch_semantic_candidates(target_user_id: str) -> list[dict[str, Any]]:
+            return await self._collection.find(
+                {
+                    "user_id": target_user_id,
+                    "embedding": {"$exists": True, "$ne": None},
+                    "source": {"$ne": "session_summary"},
+                },
+                {"memory_id": 1, "memory_type": 1, "summary": 1, "embedding": 1},
+            ).to_list(length=200)
+
+        # embedding 既用于落库，也用于写时语义去重（写前先读，避免重复记忆）
+        embedding = await self._maybe_embed(content)
+
         existing_match = None
         _match_projection = {
             "memory_id": 1,
@@ -232,6 +243,13 @@ class NativeMemoryBackend(MemoryBackend):
                 summary=summary,
                 memory_type=memory_type,
             )
+            if existing_match is None:
+                existing_match = await find_semantic_memory_match(
+                    fetch_candidates=fetch_semantic_candidates,
+                    user_id=user_id,
+                    query_embedding=embedding or [],
+                    memory_type=memory_type,
+                )
             # fetch content fields for store cleanup if matched via similarity
             if existing_match and "content_storage_mode" not in existing_match:
                 full_doc = await self._collection.find_one(
@@ -265,10 +283,7 @@ class NativeMemoryBackend(MemoryBackend):
                 )
                 merged_source_refs = []
         source_ref_docs = [ref.model_dump() for ref in merged_source_refs]
-        content_fields, embedding = await asyncio.gather(
-            build_content_fields(self, user_id, memory_id, content),
-            self._maybe_embed(content),
-        )
+        content_fields = await build_content_fields(self, user_id, memory_id, content)
 
         if is_update:
             await self._collection.update_one(
@@ -294,6 +309,16 @@ class NativeMemoryBackend(MemoryBackend):
             ):
                 await delete_memory_content(self, user_id, _existing.get("content_store_key"))
             await self._invalidate_cache(user_id)
+            from src.infra.memory.client.native.vector_store import index_write_through
+
+            await index_write_through(
+                user_id=user_id,
+                memory_id=_existing["memory_id"],
+                embedding=embedding,
+                memory_type=memory_type,
+                context=context,
+                updated_at_ts=int(now.timestamp()),
+            )
             return {
                 "success": True,
                 "memory_id": _existing["memory_id"],
@@ -324,6 +349,16 @@ class NativeMemoryBackend(MemoryBackend):
         await self._collection.insert_one(doc)
         # Invalidate index cache (local + distributed)
         await self._invalidate_cache(user_id)
+        from src.infra.memory.client.native.vector_store import index_write_through
+
+        await index_write_through(
+            user_id=user_id,
+            memory_id=memory_id,
+            embedding=embedding,
+            memory_type=memory_type,
+            context=context,
+            updated_at_ts=int(now.timestamp()),
+        )
 
         return {
             "success": True,
@@ -338,8 +373,11 @@ class NativeMemoryBackend(MemoryBackend):
         query: str,
         max_results: int = 5,
         memory_types: Optional[list[str]] = None,
+        context_filter: Optional[str] = None,
     ) -> dict[str, Any]:
-        return await recall_memories(self, user_id, query, max_results, memory_types)
+        return await recall_memories(
+            self, user_id, query, max_results, memory_types, context_filter=context_filter
+        )
 
     async def delete(
         self,
@@ -355,25 +393,11 @@ class NativeMemoryBackend(MemoryBackend):
             if existing_doc and existing_doc.get("content_storage_mode") == "store":
                 await delete_memory_content(self, user_id, existing_doc.get("content_store_key"))
             await self._invalidate_cache(user_id)
+            from src.infra.memory.client.native.vector_store import index_delete
+
+            await index_delete(user_id, memory_id)
             return {"success": True, "message": f"Memory {memory_id} deleted"}
         return {"success": False, "error": "Memory not found"}
-
-    # ------------------------------------------------------------------
-    # Memory consolidation (internal helper retained for native backend compatibility)
-    # ------------------------------------------------------------------
-
-    async def consolidate_memories(self, user_id: str) -> dict[str, Any]:
-        from src.infra.memory.distributed import (
-            acquire_consolidation_lock,
-            release_consolidation_lock,
-        )
-
-        return await run_consolidation(
-            self,
-            user_id,
-            acquire_lock=acquire_consolidation_lock,
-            release_lock=release_consolidation_lock,
-        )
 
     async def auto_retain_from_text(
         self,
@@ -405,12 +429,15 @@ class NativeMemoryBackend(MemoryBackend):
                     SystemMessage(
                         content=(
                             "You are a background memory-retention evaluator.\n"
-                            "You receive one user message after the main assistant response has already finished.\n"
+                            "You receive the latest exchange: the user's message followed by the "
+                            "assistant's final reply.\n"
                             "You may see similar existing memories.\n"
-                            "If the message contains durable cross-session memory, call memory_retain.\n"
+                            "If the exchange contains durable cross-session memory, call memory_retain.\n"
                             "If it does not, do not call any tool.\n"
-                            "Only retain user identity, preferences with reasons, durable project context, "
-                            "explicit feedback, or lasting references. Never retain code, file paths, "
+                            "Only retain durable facts about the user revealed in either message: "
+                            "user identity, preferences with reasons, durable project context, "
+                            "explicit feedback, or lasting references. Never retain the assistant's "
+                            "generic answer content, code, file paths, "
                             "temporary worklogs, greetings, or transient status updates.\n"
                             "When calling memory_retain, ALWAYS provide title, summary, and tags "
                             "— this avoids a second LLM call. Keep title under 25 chars, summary under 80 chars, "
@@ -423,7 +450,7 @@ class NativeMemoryBackend(MemoryBackend):
                     ),
                     HumanMessage(
                         content=(
-                            f"User message:\n{text}\n\n"
+                            f"Latest exchange:\n{text}\n\n"
                             f"Similar existing memories:\n{candidates_text or '(none)'}"
                         )
                     ),
@@ -565,6 +592,47 @@ class NativeMemoryBackend(MemoryBackend):
             )
         except Exception as e:
             logger.warning(f"[NativeMemory] Session context index creation skipped: {e}")
+
+    async def _maybe_create_vector_index(self) -> None:
+        """Best-effort 创建 vectorSearch 索引（MongoDB 8.2+ 社区版内置）。
+
+        未配置 embedding 或服务器无 mongot 时静默跳过——检索侧已有
+        Python 余弦兜底（search.vector_search fallback）。
+        """
+        if self._embedding_fn is None:
+            return
+        try:
+            sync_col = get_mongo_client().delegate[settings.MONGODB_DB][COLLECTION_NAME]
+            await run_blocking_io(self._create_vector_index_sync, sync_col)
+        except Exception as e:
+            logger.warning(f"[NativeMemory] Vector index setup skipped: {e}")
+
+    @staticmethod
+    def _create_vector_index_sync(col: Any) -> None:
+        existing = [ix.get("name") for ix in col.list_search_indexes()]
+        if "native_mem_vector_idx" in existing:
+            return
+        dimensions = int(getattr(settings, "NATIVE_MEMORY_EMBEDDING_DIMENSIONS", 1536))
+        col.create_search_index(
+            {
+                "name": "native_mem_vector_idx",
+                "type": "vectorSearch",
+                "definition": {
+                    "fields": [
+                        {
+                            "type": "vector",
+                            "path": "embedding",
+                            "numDimensions": dimensions,
+                            "similarity": "cosine",
+                        }
+                    ]
+                },
+            }
+        )
+        logger.info(
+            "[NativeMemory] Vector index creation requested (native_mem_vector_idx, %d dims)",
+            dimensions,
+        )
 
     def _setup_embedding_fn(self) -> None:
         """Set up optional embedding function from config."""

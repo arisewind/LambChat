@@ -17,6 +17,7 @@ import {
   Share2,
 } from "lucide-react";
 import { formatFileSize as formatFileSizeUtil } from "./utils";
+import { getFullUrl } from "../../services/api/config";
 import type { DocumentPreviewState } from "./useDocumentPreviewState";
 
 type ToolbarProps = Pick<
@@ -89,7 +90,10 @@ export default function DocumentPreviewToolbar({
 }: ToolbarProps) {
   const [linkCopied, setLinkCopied] = useState(false);
 
-  const fileUrl = resolvedUrl || signedUrl || externalImageUrl;
+  const fileUrl =
+    getFullUrl(resolvedUrl) ||
+    getFullUrl(signedUrl) ||
+    getFullUrl(externalImageUrl);
 
   const handleCopyLink = useCallback(() => {
     if (!fileUrl) return;
@@ -132,18 +136,18 @@ export default function DocumentPreviewToolbar({
       <FileIcon icon={Icon} bg={fileInfo.bg} color={fileInfo.color} compact />
       <div className="flex-[0_1_clamp(7rem,28%,12rem)] min-w-0 overflow-hidden">
         <h3
-          className="text-[13px] sm:text-sm font-medium text-[var(--theme-text)] truncate"
+          className="text-[13px] sm:text-sm font-medium font-serif text-[var(--theme-text)] truncate"
           title={fileName}
         >
           {fileName}
         </h3>
         <div className="flex items-center gap-1 sm:gap-1.5 text-xs text-[var(--theme-text-secondary)] mt-0.5">
           {codeFile && (
-            <span className="px-1 py-0 sm:px-1.5 sm:py-0.5 rounded bg-[var(--theme-primary-light)] font-mono text-[10px] sm:text-xs shrink-0">
+            <span className="px-1 py-0 sm:px-1.5 sm:py-0.5 rounded bg-[var(--theme-primary-light)] font-mono text-[10px] sm:text-xs shrink-0 font-serif">
               {language}
             </span>
           )}
-          <span className="text-[10px] sm:text-xs truncate">
+          <span className="text-[10px] sm:text-xs truncate font-serif">
             {hasTextContent
               ? t("documents.chars", { count: displaySize })
               : fileSize

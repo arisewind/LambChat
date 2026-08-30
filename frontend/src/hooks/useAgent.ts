@@ -55,6 +55,10 @@ import {
   applyFeedbackToMessages,
   resolveHistoryStreamRunId,
 } from "./useAgent/historyLoadState";
+import { HISTORY_TRACE_PAGE_SIZE } from "./useAgent/historyPagination";
+import { useHistoryTracePagination } from "./useAgent/historyTracePagination";
+import { extractSessionConfig } from "./useAgent/sessionConfig";
+import { useAutoModeSetting } from "./useAgent/autoModeSetting";
 
 export function useAgent(options?: UseAgentOptions): UseAgentReturn {
   const { hasAnyPermission } = useAuth();
@@ -85,22 +89,7 @@ export function useAgent(options?: UseAgentOptions): UseAgentReturn {
     Record<string, ActiveGoalSpec>
   >({});
   const [goalModeEnabled, setGoalModeEnabled] = useState(false);
-  const [autoModeEnabled, setAutoModeEnabled] = useState(() => {
-    try {
-      return localStorage.getItem("lamb-chat-auto-mode") === "true";
-    } catch {
-      return false;
-    }
-  });
-
-  // Persist autoModeEnabled to localStorage
-  useEffect(() => {
-    try {
-      localStorage.setItem("lamb-chat-auto-mode", String(autoModeEnabled));
-    } catch {
-      /* storage unavailable */
-    }
-  }, [autoModeEnabled]);
+  const [autoModeEnabled, setAutoModeEnabled] = useAutoModeSetting();
 
   // Refs for connection management
   const abortControllerRef = useRef<AbortController | null>(null);
@@ -183,6 +172,25 @@ export function useAgent(options?: UseAgentOptions): UseAgentReturn {
   useEffect(() => {
     messagesRef.current = messages;
   }, [messages]);
+
+  // History trace-window pagination (older pages prepend on scroll)
+  const {
+    hasMoreHistoryTraces,
+    isLoadingOlderHistory,
+    recordFirstWindow,
+    recordFeedback,
+    loadOlderHistory,
+    reset: resetHistoryPagination,
+  } = useHistoryTracePagination({
+    options,
+    sessionIdRef,
+    isLoadingHistoryRef,
+    processedEventIdsRef,
+    messagesRef,
+    streamingMessageIdRef,
+    setMessages,
+    setGoalsByRunId,
+  });
 
   // Create event handler context
   const createEventHandlerContext = useCallback(
@@ -292,6 +300,7 @@ export function useAgent(options?: UseAgentOptions): UseAgentReturn {
 
       processedEventIdsRef.current.clear();
       lastHistoryTimestampRef.current = null;
+      resetHistoryPagination();
       void sessionApi.markRead(targetSessionId).catch(() => {});
       const feedbackPromise = canReadFeedback
         ? feedbackApi
@@ -311,6 +320,8 @@ export function useAgent(options?: UseAgentOptions): UseAgentReturn {
           sessionApi.getEvents(targetSessionId, {
             include_active_user_message: true,
             compact_message_chunks: true,
+            // 首屏只取最近一页轮次，更早的在向上滚动时按游标分页加载
+            trace_limit: HISTORY_TRACE_PAGE_SIZE,
             signal,
           }),
         ]);
@@ -344,37 +355,11 @@ export function useAgent(options?: UseAgentOptions): UseAgentReturn {
             (sessionData.metadata?.current_run_id as string) ||
             null;
 
-          // 从 metadata 提取配置信息
-          const sessionConfig = {
-            agent_id: (sessionData.metadata?.agent_id as string) || undefined,
-            agent_options:
-              (sessionData.metadata?.agent_options as Record<
-                string,
-                boolean | string | number
-              >) || undefined,
-            disabled_tools:
-              (sessionData.metadata?.disabled_tools as string[]) || undefined,
-            disabled_skills:
-              (sessionData.metadata?.disabled_skills as string[]) || undefined,
-            enabled_skills:
-              (sessionData.metadata?.enabled_skills as string[]) || undefined,
-            persona_preset_id:
-              (sessionData.metadata?.persona_preset_id as string) || undefined,
-            persona_preset_name:
-              (sessionData.metadata?.persona_preset_name as string) ||
-              undefined,
-            persona_snapshot:
-              (sessionData.metadata?.persona_snapshot as
-                | import("../types").PersonaPresetSnapshot
-                | undefined) || undefined,
-            disabled_mcp_tools:
-              (sessionData.metadata?.disabled_mcp_tools as string[]) ||
-              undefined,
-            team_id: (sessionData.metadata?.team_id as string) || undefined,
-          };
+          const sessionConfig = extractSessionConfig(sessionData);
           setGoalModeEnabled(false);
 
           const historyEvents = (eventsData.events || []) as HistoryEvent[];
+          recordFirstWindow(eventsData);
           let reconstructedMessages = reconstructMessagesFromEvents(
             historyEvents,
             processedEventIdsRef.current,
@@ -409,6 +394,7 @@ export function useAgent(options?: UseAgentOptions): UseAgentReturn {
 
           void feedbackPromise.then((feedbackList) => {
             if (!feedbackList || isStaleHistoryLoad()) return;
+            recordFeedback(feedbackList.items);
             setMessages((previous) =>
               applyFeedbackToMessages(previous, feedbackList.items),
             );
@@ -463,6 +449,9 @@ export function useAgent(options?: UseAgentOptions): UseAgentReturn {
       canReadFeedback,
       clearSteerMessages,
       hydrateSteers,
+      recordFirstWindow,
+      recordFeedback,
+      resetHistoryPagination,
     ],
   );
 
@@ -873,6 +862,7 @@ export function useAgent(options?: UseAgentOptions): UseAgentReturn {
     setConnectionStatus("disconnected");
     processedEventIdsRef.current.clear();
     lastHistoryTimestampRef.current = null;
+    resetHistoryPagination();
     streamingMessageIdRef.current = null;
     sessionIdRef.current = null;
     currentRunIdRef.current = null;
@@ -885,7 +875,7 @@ export function useAgent(options?: UseAgentOptions): UseAgentReturn {
       abortControllerRef.current = null;
     }
     clearReconnectTimeout(reconnectTimeoutRef);
-  }, [clearSteerMessages]);
+  }, [clearSteerMessages, resetHistoryPagination]);
 
   const clearActiveGoal = useCallback(() => {
     setGoalModeEnabled(false);
@@ -938,6 +928,8 @@ export function useAgent(options?: UseAgentOptions): UseAgentReturn {
     isLoading,
     isLoadingHistory,
     historyLoadGeneration,
+    hasMoreHistoryTraces,
+    isLoadingOlderHistory,
     error,
     sessionId,
     currentRunId,
@@ -968,6 +960,7 @@ export function useAgent(options?: UseAgentOptions): UseAgentReturn {
     setAutoModeEnabled,
     refreshAgents: fetchAgents,
     loadHistory,
+    loadOlderHistory,
     reconnectSSE: handleReconnectSSE,
     setPendingProjectId: (id: string | null) => {
       pendingProjectIdRef.current = id;

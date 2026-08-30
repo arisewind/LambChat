@@ -25,8 +25,6 @@ import { Pagination } from "../common/Pagination";
 import { PanelSearchInput } from "../common/PanelSearchInput";
 
 const LOCAL_PAGE_SIZE = 20;
-/** Must match the remote fetch limit used by ChatAppContent's persona preset list. */
-export const PERSONA_PRESET_PAGE_SIZE = 12;
 
 interface PersonaPresetSelectorProps {
   presets: PersonaPreset[];
@@ -147,7 +145,7 @@ export function PersonaPresetSelector({
   const selector = createPortal(
     <div
       data-yields-sidebar
-      className="safe-area-viewport-padding fixed inset-0 z-[250] flex items-end justify-center bg-black/30 p-0 sm:items-center sm:p-6"
+      className="safe-area-viewport-padding fixed inset-0 z-[290] flex items-end justify-center bg-black/30 p-0 sm:items-center sm:p-6"
       onClick={() => onOpenChange(false)}
     >
       <div
@@ -387,7 +385,7 @@ export function PersonaPresetSelector({
                         </div>
                         <div className="min-w-0 flex-1">
                           <h3
-                            className="truncate text-base font-semibold text-[var(--theme-text)] leading-tight"
+                            className="truncate text-base font-semibold font-serif  text-[var(--theme-text)] leading-tight"
                             title={preset.name}
                           >
                             {preset.name}

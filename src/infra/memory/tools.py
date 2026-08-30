@@ -26,6 +26,7 @@ from src.infra.memory.compaction_agent import (
     get_memory_compaction_agent,
     stop_memory_compaction_agent,
 )
+from src.infra.memory.user_pref import user_memory_enabled
 from src.infra.scheduler import ScheduledJob, get_runtime_scheduler
 from src.kernel.config import settings
 from src.kernel.schemas.conversation_history import ConversationSourceRef
@@ -180,9 +181,11 @@ async def memory_retain(
 ) -> str:
     """
     Store a memory for cross-session persistence. STRICT: only genuinely useful,
-    non-temporary information is accepted. Content that is too short, looks like a
-    question, resembles code/commands, or duplicates an existing recent memory will
-    be rejected. Prefer storing high-signal facts like user preferences, project
+    non-temporary information is accepted. Content that is too short or resembles
+    code/commands will be rejected. If a semantically similar memory already exists
+    it is merged and updated automatically (result `updated_existing` is true), so
+    write the FULL refreshed content including previously known details, not just
+    the delta. Prefer storing high-signal facts like user preferences, project
     context, feedback, or external references. Use explicit context labels such as
     `user_identity`, `project_constraint`, `project_status`, `feedback_rule`, or
     `reference_link` instead of vague buckets like `user_preferences`.
@@ -193,6 +196,8 @@ async def memory_retain(
     user_id = get_user_id_from_runtime(runtime)
     if not user_id:
         return await _json_dumps_result({"success": False, "error": "User not authenticated"})
+    if not await user_memory_enabled(user_id):
+        return await _json_dumps_result({"success": False, "error": "memory_disabled_for_user"})
 
     backend = await _get_backend()
     if not backend:
@@ -223,6 +228,10 @@ async def memory_recall(
         Optional[list[str]],
         "Filter by memory types (backend-specific), or None for all types",
     ] = None,
+    context: Annotated[
+        Optional[str],
+        "Optional exact-match context scope filter (e.g. 'project_constraint'), or None for all scopes",
+    ] = None,
     runtime: ToolRuntime = None,  # type: ignore[assignment]
 ) -> str:
     """
@@ -238,13 +247,15 @@ async def memory_recall(
     user_id = get_user_id_from_runtime(runtime)
     if not user_id:
         return await _json_dumps_result({"success": False, "error": "User not authenticated"})
+    if not await user_memory_enabled(user_id):
+        return await _json_dumps_result({"success": False, "error": "memory_disabled_for_user"})
 
     backend = await _get_backend()
     if not backend:
         return await _json_dumps_result({"success": False, "error": "Memory service not available"})
 
     try:
-        result = await backend.recall(user_id, query, max_results, memory_types)
+        result = await backend.recall(user_id, query, max_results, memory_types, context)
         return await _json_dumps_result(result)
     except Exception as e:
         logger.error(f"[Memory] Failed to recall memories: {e}")
@@ -265,6 +276,8 @@ async def memory_delete(
     user_id = get_user_id_from_runtime(runtime)
     if not user_id:
         return await _json_dumps_result({"success": False, "error": "User not authenticated"})
+    if not await user_memory_enabled(user_id):
+        return await _json_dumps_result({"success": False, "error": "memory_disabled_for_user"})
 
     backend = await _get_backend()
     if not backend:
@@ -325,6 +338,9 @@ async def _auto_retain_user_memory(
 ) -> None:
     if not user_id or not user_input.strip():
         return
+    if not await user_memory_enabled(user_id):
+        logger.debug("[Memory] Auto-capture skipped: memory disabled by user %s", user_id)
+        return
     lock = _auto_capture_user_locks.get(user_id)
     if lock is None:
         _evict_idle_auto_capture_locks()
@@ -338,6 +354,15 @@ async def _auto_retain_user_memory(
             if lock_state != "acquired":
                 return
             try:
+                from src.infra.memory.distributed import check_auto_retain_daily_limit
+
+                daily_state = await check_auto_retain_daily_limit(user_id)
+                if daily_state == "exceeded":
+                    logger.debug(
+                        "[Memory] Auto-retain daily limit reached for user %s, skipping",
+                        user_id,
+                    )
+                    return
                 backend = await _get_backend()
                 if backend is None:
                     return
@@ -480,6 +505,20 @@ async def _close_and_reset_backend() -> None:
             logger.warning(f"[Memory] Error closing backend during reset: {e}")
     if settings.ENABLE_MEMORY:
         start_memory_compaction_agent()
+        # 运行时开启记忆时补启动失效广播（boot 时才会随 runtime_services 启动）
+        try:
+            from src.infra.memory.distributed import get_memory_pubsub
+
+            await get_memory_pubsub().start_listener()
+        except Exception as e:
+            logger.warning(f"[Memory] PubSub listener start after reset failed: {e}")
+        # Qdrant 向量索引单例重建（URL/维度变更时旧实例已不可用）
+        try:
+            from src.infra.memory.client.native.vector_store import reset_vector_index
+
+            await reset_vector_index()
+        except Exception:
+            pass
     logger.info("[Memory] Backend reset (will be recreated on next use)")
 
 

@@ -14,6 +14,8 @@ import {
   shouldAutoScrollForMessageUpdate,
   shouldAutoScrollAfterViewportChange,
   startVirtuosoScrollToBottom,
+  createInitialStartReachedSkipper,
+  shouldPreloadOlderHistory,
 } from "../messageScrollUtils.ts";
 import { afterEach, beforeEach, vi } from "vitest";
 
@@ -961,6 +963,34 @@ test("does not treat assistant-only streaming updates or bulk history loads as l
   ).toBe(false);
 });
 
+test("prepended older history messages are not mistaken for a newly sent message", () => {
+  // 加载更早消息时在列表头部插入旧轮次，即使恰好只插入一两条、
+  // 且旧首条是用户消息，也不应触发滚动到底部
+  expect(
+    hasNewOutgoingMessage(
+      [
+        { id: "m2", role: "user" },
+        { id: "m3", role: "assistant" },
+      ],
+      [
+        { id: "m1", role: "assistant" },
+        { id: "m2", role: "user" },
+        { id: "m3", role: "assistant" },
+      ],
+    ),
+  ).toBe(false);
+
+  expect(
+    hasNewOutgoingMessage(
+      [{ id: "m2", role: "user" }],
+      [
+        { id: "m1", role: "assistant" },
+        { id: "m2", role: "user" },
+      ],
+    ),
+  ).toBe(false);
+});
+
 test("does not auto-scroll while history loading is still in progress", () => {
   expect(
     shouldAutoScrollForMessageUpdate({
@@ -1012,7 +1042,8 @@ test("does not auto-scroll when multiple messages are appended at once", () => {
   ).toBe(false);
 });
 
-test("treats an early upward mobile user scroll during active follow as an immediate detach", () => {
+test("keeps following across small upward reflow jitter near the bottom", () => {
+  // 上方内容回流造成的 ≤24px 上移是抖动，不是用户上滚，继续跟随
   expect(
     shouldStopAutoScrollOnUserScroll({
       isMobileViewport: true,
@@ -1021,6 +1052,32 @@ test("treats an early upward mobile user scroll during active follow as an immed
       movedUp: true,
       isAwayFromBottom: false,
       deltaScrollPx: 18,
+      scrollTop: 260,
+    }),
+  ).toBe(false);
+
+  expect(
+    shouldStopAutoScrollOnUserScroll({
+      isMobileViewport: true,
+      autoScrollActive: true,
+      programmaticScroll: false,
+      movedUp: true,
+      isAwayFromBottom: false,
+      deltaScrollPx: 24,
+      scrollTop: 260,
+    }),
+  ).toBe(false);
+});
+
+test("detaches when the user deliberately scrolls up past the jitter window", () => {
+  expect(
+    shouldStopAutoScrollOnUserScroll({
+      isMobileViewport: true,
+      autoScrollActive: true,
+      programmaticScroll: false,
+      movedUp: true,
+      isAwayFromBottom: false,
+      deltaScrollPx: 32,
       scrollTop: 260,
     }),
   ).toBe(true);
@@ -1034,7 +1091,7 @@ test("treats an early upward mobile user scroll as a detach even in short transc
       programmaticScroll: false,
       movedUp: true,
       isAwayFromBottom: false,
-      deltaScrollPx: 12,
+      deltaScrollPx: 32,
       scrollTop: 80,
     }),
   ).toBe(true);
@@ -1090,7 +1147,7 @@ test("ignores an unexpected top jump while the bottom lock is still active", () 
   ).toBe(false);
 });
 
-test("treats that same early upward scroll as a detach on desktop too", () => {
+test("treats that same deliberate upward scroll as a detach on desktop too", () => {
   expect(
     shouldStopAutoScrollOnUserScroll({
       isMobileViewport: false,
@@ -1098,7 +1155,7 @@ test("treats that same early upward scroll as a detach on desktop too", () => {
       programmaticScroll: false,
       movedUp: true,
       isAwayFromBottom: false,
-      deltaScrollPx: 18,
+      deltaScrollPx: 32,
       scrollTop: 260,
     }),
   ).toBe(true);
@@ -1258,6 +1315,106 @@ test("does not resume auto-scroll after stream lock is released when the view is
       autoScrollActive: false,
       isNearBottom: false,
       shouldMaintainStreamLock: false,
+    }),
+  ).toBe(false);
+});
+
+/* ---- Initial startReached misfire guard (reverse infinite scroll) ---- */
+
+test("skips the first startReached after each Virtuoso remount", () => {
+  const skipper = createInitialStartReachedSkipper();
+  // Virtuoso mounts with the list at the top (before the auto scroll to
+  // bottom), which fires one spurious startReached.
+  expect(skipper.shouldSkip()).toBe(true);
+  // Genuine arrivals at the top afterwards are handled.
+  expect(skipper.shouldSkip()).toBe(false);
+  expect(skipper.shouldSkip()).toBe(false);
+});
+
+test("reset restores the skip for the next remount", () => {
+  const skipper = createInitialStartReachedSkipper();
+  expect(skipper.shouldSkip()).toBe(true);
+  skipper.reset();
+  expect(skipper.shouldSkip()).toBe(true);
+  expect(skipper.shouldSkip()).toBe(false);
+});
+
+/* ---- Near-top older-history preloading (boundless scroll) ---- */
+
+test("does not preload on the first range report after mount", () => {
+  expect(
+    shouldPreloadOlderHistory({
+      startIndex: 0,
+      previousStartIndex: null,
+      isLoading: false,
+      isLoadingOlder: false,
+      hasMore: true,
+    }),
+  ).toBe(false);
+});
+
+test("preloads when the user scrolls upward into the near-top threshold", () => {
+  expect(
+    shouldPreloadOlderHistory({
+      startIndex: 4,
+      previousStartIndex: 40,
+      isLoading: false,
+      isLoadingOlder: false,
+      hasMore: true,
+      threshold: 10,
+    }),
+  ).toBe(true);
+});
+
+test("does not preload when scrolling downward or idling above threshold", () => {
+  expect(
+    shouldPreloadOlderHistory({
+      startIndex: 40,
+      previousStartIndex: 4,
+      isLoading: false,
+      isLoadingOlder: false,
+      hasMore: true,
+      threshold: 10,
+    }),
+  ).toBe(false);
+  expect(
+    shouldPreloadOlderHistory({
+      startIndex: 30,
+      previousStartIndex: 29,
+      isLoading: false,
+      isLoadingOlder: false,
+      hasMore: true,
+      threshold: 10,
+    }),
+  ).toBe(false);
+});
+
+test("does not preload while loading or when no more history exists", () => {
+  expect(
+    shouldPreloadOlderHistory({
+      startIndex: 2,
+      previousStartIndex: 20,
+      isLoading: true,
+      isLoadingOlder: false,
+      hasMore: true,
+    }),
+  ).toBe(false);
+  expect(
+    shouldPreloadOlderHistory({
+      startIndex: 2,
+      previousStartIndex: 20,
+      isLoading: false,
+      isLoadingOlder: true,
+      hasMore: true,
+    }),
+  ).toBe(false);
+  expect(
+    shouldPreloadOlderHistory({
+      startIndex: 2,
+      previousStartIndex: 20,
+      isLoading: false,
+      isLoadingOlder: false,
+      hasMore: false,
     }),
   ).toBe(false);
 });

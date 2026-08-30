@@ -27,6 +27,21 @@ class ModelProfile(BaseModel):
     )
 
 
+class ModelPricingOverride(BaseModel):
+    """Per-model USD pricing override (per 1M tokens).
+
+    覆盖 models.dev 同步价格（中转站等价格不一致场景）；
+    字段级生效：未填写的档位沿用同步价格（若有匹配）。
+    """
+
+    model_config = ConfigDict(extra="ignore")
+
+    input: Optional[float] = Field(None, description="Input price (USD / 1M tokens)")
+    output: Optional[float] = Field(None, description="Output price (USD / 1M tokens)")
+    cache_read: Optional[float] = Field(None, description="Cache read price (USD / 1M tokens)")
+    cache_write: Optional[float] = Field(None, description="Cache write price (USD / 1M tokens)")
+
+
 class ModelConfig(BaseModel):
     """Model configuration stored in database."""
 
@@ -50,9 +65,16 @@ class ModelConfig(BaseModel):
         None,
         description="Wire format for OpenAI-protocol providers (chat_completions | responses)",
     )
+    request_headers: Optional[dict[str, str]] = Field(
+        None,
+        description="Per-model HTTP header overrides merged over the anti-ban defaults",
+    )
     temperature: Optional[float] = Field(None, description="Per-model temperature override")
     max_tokens: Optional[int] = Field(None, description="Per-model max tokens override")
     profile: Optional[ModelProfile] = Field(None, description="Per-model profile settings")
+    pricing: Optional[ModelPricingOverride] = Field(
+        None, description="Per-model USD pricing override (per 1M tokens)"
+    )
     fallback_model: Optional[str] = Field(
         None, description="Fallback model ID (UUID) when this model fails"
     )
@@ -82,9 +104,16 @@ class ModelConfigCreate(BaseModel):
         None,
         description="Wire format for OpenAI-protocol providers (chat_completions | responses)",
     )
+    request_headers: Optional[dict[str, str]] = Field(
+        None,
+        description="Per-model HTTP header overrides merged over the anti-ban defaults",
+    )
     temperature: Optional[float] = Field(None, description="Per-model temperature override")
     max_tokens: Optional[int] = Field(None, description="Per-model max tokens override")
     profile: Optional[ModelProfile] = Field(None, description="Per-model profile settings")
+    pricing: Optional[ModelPricingOverride] = Field(
+        None, description="Per-model USD pricing override (per 1M tokens)"
+    )
     fallback_model: Optional[str] = Field(
         None, description="Fallback model ID (UUID) when this model fails"
     )
@@ -106,9 +135,17 @@ class ModelConfigUpdate(BaseModel):
         None,
         description="Wire format for OpenAI-protocol providers (chat_completions | responses)",
     )
+    # null / {} 表示清除覆盖、回落全局设置与内置防封默认头
+    request_headers: Optional[dict[str, str]] = Field(
+        None,
+        description="Per-model HTTP header overrides merged over the anti-ban defaults",
+    )
     temperature: Optional[float] = Field(None, description="Per-model temperature override")
     max_tokens: Optional[int] = Field(None, description="Per-model max tokens override")
     profile: Optional[ModelProfile] = Field(None, description="Per-model profile settings")
+    pricing: Optional[ModelPricingOverride] = Field(
+        None, description="Per-model USD pricing override (per 1M tokens)"
+    )
     fallback_model: Optional[str] = Field(
         None, description="Fallback model ID (UUID) when this model fails"
     )
@@ -136,6 +173,10 @@ class AvailableModel(BaseModel):
     label: str = Field(..., description="Display name for the model")
     description: Optional[str] = Field(None, description="Model description")
     profile: Optional[ModelProfile] = Field(None, description="Per-model profile settings")
+    supports_thinking: Optional[bool] = Field(
+        None,
+        description="Computed per request from the LLM client capability gates; not persisted",
+    )
 
 
 class AvailableModelListResponse(BaseModel):

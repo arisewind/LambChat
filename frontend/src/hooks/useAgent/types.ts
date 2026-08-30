@@ -87,6 +87,20 @@ export interface EventData {
   cache_read_tokens?: number;
   model_id?: string;
   model?: string;
+  cost_usd?: number;
+  cost_breakdown?: {
+    input: number;
+    output: number;
+    cache_read: number;
+    cache_write: number;
+    total: number;
+  };
+  cost_rates?: {
+    input: number | null;
+    output: number | null;
+    cache_read: number | null;
+    cache_write: number | null;
+  };
   // user:message event fields
   message_id?: string;
   enabled_skills?: string[];
@@ -248,6 +262,10 @@ export interface UseAgentReturn {
   isLoading: boolean;
   isLoadingHistory: boolean;
   historyLoadGeneration: number;
+  /** 历史分页：是否还有更早的轮次（trace 窗口）可加载 */
+  hasMoreHistoryTraces: boolean;
+  /** 正在加载更早一页历史 */
+  isLoadingOlderHistory: boolean;
   error: string | null;
   sessionId: string | null;
   currentProjectId: string | null;
@@ -294,6 +312,8 @@ export interface UseAgentReturn {
     targetSessionId: string,
     targetRunId?: string,
   ) => Promise<SessionConfig | null>;
+  /** 加载更早一页历史（trace 窗口游标翻页），完成后前插重建消息 */
+  loadOlderHistory: () => Promise<void>;
   reconnectSSE: (runId?: string | null) => Promise<void>;
   setPendingProjectId: (id: string | null) => void;
   autoExpandProjectId: string | null;

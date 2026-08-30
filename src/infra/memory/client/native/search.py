@@ -28,21 +28,10 @@ logger = get_logger(__name__)
 
 
 def _clip_recall_query(query: str) -> str:
-    max_chars = max(
-        int(
-            getattr(
-                settings,
-                "NATIVE_MEMORY_RECALL_QUERY_MAX_CHARS",
-                NATIVE_MEMORY_RECALL_QUERY_MAX_CHARS,
-            )
-            or 0
-        ),
-        1,
-    )
     normalized = str(query or "").strip()
-    if len(normalized) <= max_chars:
+    if len(normalized) <= NATIVE_MEMORY_RECALL_QUERY_MAX_CHARS:
         return normalized
-    return normalized[:max_chars].rstrip()
+    return normalized[:NATIVE_MEMORY_RECALL_QUERY_MAX_CHARS].rstrip()
 
 
 async def _hydrate_memories_limited(
@@ -164,11 +153,17 @@ def is_context_overview_query(query: str) -> bool:
 
 
 async def recent_context_fallback(
-    collection, user_id: str, limit: int, memory_types: Optional[list[str]]
+    collection,
+    user_id: str,
+    limit: int,
+    memory_types: Optional[list[str]],
+    context_filter: Optional[str] = None,
 ) -> list[dict]:
     base: dict[str, Any] = {"user_id": user_id, "source": {"$ne": "session_summary"}}
     if memory_types:
         base["memory_type"] = {"$in": memory_types}
+    if context_filter:
+        base["context"] = context_filter
     cursor = (
         collection.find(
             base,
@@ -195,11 +190,19 @@ async def recent_context_fallback(
 
 
 async def text_search(
-    collection, logger, user_id: str, query: str, limit: int, memory_types: Optional[list[str]]
+    collection,
+    logger,
+    user_id: str,
+    query: str,
+    limit: int,
+    memory_types: Optional[list[str]],
+    context_filter: Optional[str] = None,
 ) -> list[dict]:
     base: dict[str, Any] = {"user_id": user_id, "source": {"$ne": "session_summary"}}
     if memory_types:
         base["memory_type"] = {"$in": memory_types}
+    if context_filter:
+        base["context"] = context_filter
     base["$text"] = {"$search": query}
 
     try:
@@ -211,16 +214,25 @@ async def text_search(
         docs = await cursor.to_list(length=limit)
     except Exception:
         logger.debug("[NativeMemory] Text search failed, falling back to keyword match")
-        docs = await keyword_fallback(collection, user_id, query, limit, memory_types)
+        docs = await keyword_fallback(
+            collection, user_id, query, limit, memory_types, context_filter
+        )
     else:
         if not docs:
-            docs = await keyword_fallback(collection, user_id, query, limit, memory_types)
+            docs = await keyword_fallback(
+                collection, user_id, query, limit, memory_types, context_filter
+            )
 
     return [format_memory(doc, doc.get("score", 0)) for doc in docs]
 
 
 async def keyword_fallback(
-    collection, user_id: str, query: str, limit: int, memory_types: Optional[list[str]]
+    collection,
+    user_id: str,
+    query: str,
+    limit: int,
+    memory_types: Optional[list[str]],
+    context_filter: Optional[str] = None,
 ) -> list[dict]:
     clauses = build_keyword_clauses(query)
     if not clauses:
@@ -233,6 +245,8 @@ async def keyword_fallback(
     }
     if memory_types:
         base["memory_type"] = {"$in": memory_types}
+    if context_filter:
+        base["context"] = context_filter
 
     _projection = {
         "memory_id": 1,
@@ -257,11 +271,42 @@ async def keyword_fallback(
 
 
 async def vector_search(
-    backend, user_id: str, query: str, limit: int, memory_types: Optional[list[str]]
+    backend,
+    user_id: str,
+    query: str,
+    limit: int,
+    memory_types: Optional[list[str]],
+    context_filter: Optional[str] = None,
 ) -> list[dict]:
     query_vec = await backend._maybe_embed(query)
     if not query_vec:
         return []
+
+    # Qdrant 专用索引层（启用时优先；None=未启用/故障 → 走下方既有链路）
+    from src.infra.memory.client.native.vector_store import index_search
+
+    qdrant_hits = await index_search(
+        vector=query_vec,
+        user_id=user_id,
+        limit=limit,
+        memory_types=memory_types,
+        context_filter=context_filter,
+    )
+    if qdrant_hits is not None:
+        if not qdrant_hits:
+            return []
+        order = {h.memory_id: h.score for h in qdrant_hits}
+        cursor = backend._collection.find(
+            {
+                "user_id": user_id,
+                "memory_id": {"$in": list(order)},
+                "source": {"$ne": "session_summary"},
+            },
+            {"embedding": 0},
+        )
+        docs = await cursor.to_list(length=limit)
+        docs.sort(key=lambda d: -order.get(d.get("memory_id"), 0.0))
+        return [format_memory(doc, order.get(doc.get("memory_id"), 1.0)) for doc in docs]
 
     base: dict[str, Any] = {
         "user_id": user_id,
@@ -270,6 +315,8 @@ async def vector_search(
     }
     if memory_types:
         base["memory_type"] = {"$in": memory_types}
+    if context_filter:
+        base["context"] = context_filter
 
     try:
         pipeline = [
@@ -509,17 +556,24 @@ async def recall_memories(
     memory_types: Optional[list[str]] = None,
     touch_access: bool = True,
     enable_rerank: bool = True,
+    context_filter: Optional[str] = None,
 ) -> dict[str, Any]:
     max_results = max(1, min(int(max_results or 1), NATIVE_MEMORY_RECALL_MAX_RESULTS))
     query = _clip_recall_query(query)
     text_coro = text_search(
-        backend._collection, backend._logger, user_id, query, max_results * 2, memory_types
+        backend._collection,
+        backend._logger,
+        user_id,
+        query,
+        max_results * 2,
+        memory_types,
+        context_filter,
     )
 
     if backend._embedding_fn:
         text_results, vector_results = await asyncio.gather(
             text_coro,
-            vector_search(backend, user_id, query, max_results * 2, memory_types),
+            vector_search(backend, user_id, query, max_results * 2, memory_types, context_filter),
         )
     else:
         text_results = await text_coro
@@ -529,7 +583,7 @@ async def recall_memories(
 
     if not memories and is_context_overview_query(query):
         memories = await recent_context_fallback(
-            backend._collection, user_id, max_results * 2, memory_types
+            backend._collection, user_id, max_results * 2, memory_types, context_filter
         )
 
     if enable_rerank and memories and len(memories) > max_results:

@@ -5,7 +5,9 @@ LLM 客户端
 """
 
 import asyncio
+import json
 import os
+import platform
 import re
 from collections import OrderedDict
 from functools import lru_cache
@@ -113,10 +115,75 @@ def _effective_timeout(timeout: float) -> float | None:
     return timeout if timeout > 0 else None
 
 
+# ── Anti-fingerprint default request headers ──
+# 第三方中转常通过 User-Agent/x-app 指纹识别官方客户端并限制其他流量
+# （如 Anthropic 封锁非 Claude Code 客户端）。按协议伪装成官方客户端，
+# 与 opencode 等工具的做法一致；可用 LLM_REQUEST_HEADERS 设置覆盖。
+# 版本号为硬编码的近似值（会过时），且未模拟 anthropic-beta/x-stainless-*
+# 等全套指纹——属 best-effort 伪装，严格的指纹校验仍可能识别；需要更强
+# 伪装时用模型级/全局请求头覆盖补齐。
+_ANTHROPIC_DEFAULT_HEADERS: dict[str, str] = {
+    "User-Agent": "claude-cli/2.1.5 (external, cli)",
+    "x-app": "cli",
+}
+_OPENCODE_UA_VERSION = "1.0.260"
+
+
+def _default_request_headers(protocol: str) -> dict[str, str]:
+    """内置防封请求头；Google 协议的 langchain 封装不支持 default_headers，跳过。"""
+    if protocol == "anthropic":
+        return dict(_ANTHROPIC_DEFAULT_HEADERS)
+    if protocol == "openai":
+        return {
+            "User-Agent": (
+                f"opencode/{_OPENCODE_UA_VERSION} "
+                f"({platform.system()} {platform.release()}; {platform.machine()})"
+            )
+        }
+    return {}
+
+
+def _settings_header_overrides() -> dict[str, str]:
+    """解析可选的 LLM_REQUEST_HEADERS JSON 覆盖设置。"""
+    raw = getattr(settings, "LLM_REQUEST_HEADERS", None)
+    if not raw:
+        return {}
+    try:
+        parsed = json.loads(raw)
+    except (TypeError, ValueError):
+        logger.warning("LLM_REQUEST_HEADERS is not valid JSON; ignoring")
+        return {}
+    if not isinstance(parsed, dict):
+        logger.warning("LLM_REQUEST_HEADERS must be a JSON object; ignoring")
+        return {}
+    return {str(key): str(value) for key, value in parsed.items()}
+
+
+def _merged_request_headers(
+    protocol: str,
+    kwargs: dict[str, Any],
+    model_headers: Optional[dict[str, str]] = None,
+) -> Optional[dict[str, Any]]:
+    """合并防封默认头 + 设置覆盖 + 模型级覆盖 + 调用方 default_headers。
+
+    优先级：调用方 kwargs > 模型级 request_headers > 设置覆盖 > 内置默认
+    （调用方的 Omit 等哨兵值原样保留）。无可注入头时（Google 协议且调用方
+    未传）返回 None，保持原有行为。
+    """
+    headers: dict[str, Any] = _default_request_headers(protocol)
+    headers.update(_settings_header_overrides())
+    if model_headers:
+        headers.update(model_headers)
+    caller = kwargs.get("default_headers")
+    if isinstance(caller, dict):
+        headers.update(caller)
+    return headers or None
+
+
 def _make_cache_key(
     provider: str,
     model_name: str,
-    temperature: float,
+    temperature: Optional[float],
     max_tokens: Optional[int],
     api_key: Optional[str],
     api_base: Optional[str],
@@ -124,7 +191,10 @@ def _make_cache_key(
     profile: Optional[dict],
     max_retries: int,
     api_format: Optional[str] = None,
+    header_overrides: Optional[tuple] = None,
 ) -> tuple:
+    # 注意：header_overrides 只含全局/模型级覆盖；调用方 kwargs（含
+    # default_headers）历来不参与 key——当前无调用方按次传 headers。
     thinking_key = tuple(sorted(thinking.items())) if thinking else None
     profile_key = tuple(sorted(profile.items())) if profile else None
     return (
@@ -140,6 +210,7 @@ def _make_cache_key(
         _effective_timeout(settings.LLM_REQUEST_TIMEOUT),
         _effective_timeout(settings.LLM_FIRST_EVENT_TIMEOUT),
         api_format,
+        header_overrides,
     )
 
 
@@ -165,12 +236,8 @@ _REASONING_EFFORT_PREFIXES: dict[str, tuple[str, ...]] = {
     "openai": ("gpt-5", "o3", "o4"),
     "xai": ("grok-4",),
 }
-# gpt 版本解析：reasoning_effort="none" 自 gpt-5.1 起支持，用版本比较保持
-# 对未来 5.x 家族的前向兼容（避免硬编码枚举封顶）。
-_GPT_VERSION_RE = re.compile(r"(?:chatgpt-)?gpt-(\d+)(?:[.](\d{1,2})(?!\d))?")
 # zhipu hybrid-reasoning GLM families that accept the `thinking` request-body
-# field (via model_kwargs). GLM-4.x supports explicit "disabled"; GLM-5.x does
-# not (its thinking cannot be turned off). glm-4.7 未核实，不发送。
+# field (via model_kwargs). glm-4.7 未核实，不发送。
 _ZHIPU_THINKING_PREFIXES = (
     "glm-4.5",
     "glm-4-5",
@@ -178,7 +245,12 @@ _ZHIPU_THINKING_PREFIXES = (
     "glm-4-6",
     "glm-5",
 )
-_ZHIPU_DISABLED_PREFIXES = ("glm-4.5", "glm-4-5", "glm-4.6", "glm-4-6")
+
+
+def _is_zhipu_thinking_model(name: str) -> bool:
+    """GLM 思考系模型（glm-4.5+/glm-5），与托管渠道无关，按模型名判断。"""
+    return any(name.startswith(prefix) for prefix in _ZHIPU_THINKING_PREFIXES)
+
 
 # 次版本限定为 1-2 位数字且后不跟数字：防止把官方 model ID 里的发布日期
 # 后缀（claude-opus-4-20250514 / grok-4-0709-beta）当成次版本吞掉——否则
@@ -202,9 +274,7 @@ def _resolve_reasoning_effort(
     """Map a thinking config to reasoning_effort for OpenAI-protocol providers.
 
     Returns None when the provider/model family is not documented to accept
-    reasoning_effort. For "off", falls back to the model's lowest supported
-    effort value ("none" where the family supports it) so the disable intent
-    is still expressed instead of silently reverting to the model default.
+    reasoning_effort. Thinking is always enabled; only the level varies.
     """
     prefixes = _REASONING_EFFORT_PREFIXES.get(provider)
     if not prefixes:
@@ -218,27 +288,11 @@ def _resolve_reasoning_effort(
         return None
 
     level = str(thinking.get("level") or "medium")
-    enabled = thinking.get("type") == "enabled"
-    if provider == "xai":
-        # grok has no "none" value; omitting the parameter would default to
-        # high, so an explicit off floors to the lowest supported effort.
-        if not enabled:
-            return "low"
-        if level == "max":
-            match = _GROK_VERSION_RE.search(name)
-            return "xhigh" if match and _version_tuple(match) >= (4, 6) else "high"
-        return _EFFORT_BY_LEVEL.get(level, "medium")
-
-    if enabled:
-        return _EFFORT_BY_LEVEL.get(level, "medium")
-    # off → 该模型最低支持档；-pro 变体不支持 minimal/none，统一落到 low
-    if "-pro" not in name:
-        match = _GPT_VERSION_RE.search(name)
-        if match and _version_tuple(match) >= (5, 1):
-            return "none"
-        if name.startswith("gpt-5"):
-            return "minimal"
-    return "low"
+    if provider == "xai" and level == "max":
+        # grok 4.6+ 的 max 档映射到 xhigh
+        match = _GROK_VERSION_RE.search(name)
+        return "xhigh" if match and _version_tuple(match) >= (4, 6) else "high"
+    return _EFFORT_BY_LEVEL.get(level, "medium")
 
 
 def _resolve_zhipu_thinking_body(
@@ -247,18 +301,12 @@ def _resolve_zhipu_thinking_body(
     thinking: dict[str, Any],
 ) -> Optional[dict[str, Any]]:
     """Map a thinking config to zhipu's `thinking` request-body field."""
-    # 仅智谱官方端点已验证；第三方 GLM 托管（SiliconFlow/OpenRouter 等）不发送
-    if provider != "zhipu":
-        return None
+    # 全渠道支持：任意 OpenAI 协议渠道上托管的 GLM 思考系都发送（中转对未知
+    # body 字段透传或忽略）；GLM 无档位语义，任何强度都只是 enabled。
     name = model_name.lower()
-    if not any(name.startswith(prefix) for prefix in _ZHIPU_THINKING_PREFIXES):
+    if not _is_zhipu_thinking_model(name):
         return None
-    if thinking.get("type") == "enabled":
-        return {"thinking": {"type": "enabled"}}
-    if any(name.startswith(prefix) for prefix in _ZHIPU_DISABLED_PREFIXES):
-        return {"thinking": {"type": "disabled"}}
-    # GLM-5.x rejects thinking.type="disabled"; leave the model default alone.
-    return None
+    return {"thinking": {"type": "enabled"}}
 
 
 def _resolve_anthropic_thinking(
@@ -275,16 +323,22 @@ def _resolve_anthropic_thinking(
     if not thinking:
         # 未配置思考的调用方（标题生成/推荐等）保持原行为，不注入任何参数
         return None, None, None
-    match = _CLAUDE_VERSION_RE.search(model_name.lower())
+    name = model_name.lower()
+    # GLM 思考系挂在 Anthropic 协议渠道（zai 等）：注入 Claude Code 同款 thinking
+    # 体（智谱 Anthropic 兼容端点直接接受）。GLM 无档位语义，任何强度都只是
+    # enabled；budget_tokens 纯透传无实效。不覆盖 temperature（智谱无 Claude
+    # manual thinking 的 temp=1 约束）。
+    if _is_zhipu_thinking_model(name):
+        glm_thinking: dict[str, Any] = {"type": "enabled"}
+        glm_thinking["budget_tokens"] = thinking.get("budget_tokens") or 1024
+        return glm_thinking, None, None
+    match = _CLAUDE_VERSION_RE.search(name)
     if match is None:
         return None, None, None
     version = _version_tuple(match)
 
     if version[0] >= 5 or version >= (4, 7):
         level = str(thinking.get("level") or "low")
-        if thinking.get("type") != "enabled":
-            # Newest models always think and reject "disabled"; floor effort.
-            level = "low"
         effort = _EFFORT_BY_LEVEL.get(level, "low")
         # Newest models also reject non-default sampling parameters outright.
         return None, effort, 1.0
@@ -293,8 +347,6 @@ def _resolve_anthropic_thinking(
         # on 4.7+/Sonnet 5 — no verified combination, send nothing.
         return None, None, None
     if (3, 7) <= version <= (4, 5):
-        if thinking.get("type") != "enabled":
-            return None, None, None
         manual: dict[str, Any] = {"type": "enabled"}
         # Anthropic 对 enabled thinking 强制要求 budget_tokens（>=1024）
         manual["budget_tokens"] = thinking.get("budget_tokens") or 1024
@@ -308,13 +360,55 @@ def _resolve_gemini_thinking_level(
     thinking: dict[str, Any],
 ) -> Optional[str]:
     """Map a thinking config to thinking_level for Gemini 2.5+ models."""
+    if not thinking:
+        # 未配置思考的调用方（标题生成/推荐等）保持原行为，不注入任何参数
+        return None
     match = _GEMINI_VERSION_RE.search(model_name.lower())
     if match is None or _version_tuple(match) < (2, 5):
         return None
-    if thinking.get("type") != "enabled":
-        return None
     level = str(thinking.get("level") or "medium")
     return _EFFORT_BY_LEVEL.get(level, "medium")
+
+
+def model_supports_thinking(provider: Optional[str], model_value: str) -> bool:
+    """Whether this provider+model combination receives any thinking parameter.
+
+    Mirrors the capability gates used when constructing models (single source
+    of truth with the resolvers above); powers frontend control visibility
+    (show the intensity picker only for thinking-capable models). Provider
+    resolution matches get_model: a stored explicit provider wins over the
+    "provider/model" prefix, and the prefix is always stripped from the name.
+
+    Known acceptable deviations (both only over-report, never mis-send):
+    get_model's default-model provider inheritance for unprefixed generic
+    values, and GLM models configured with api_format="responses" (the
+    thinking body is chat_completions-only) are not replicated here.
+    """
+    parsed_provider, model_name = _parse_provider(model_value)
+    effective_provider = provider or parsed_provider
+    protocol = _resolve_protocol(effective_provider)
+    name = model_name.lower()
+
+    if protocol == "anthropic":
+        if _is_zhipu_thinking_model(name):
+            return True
+        match = _CLAUDE_VERSION_RE.search(name)
+        if match is None:
+            return False
+        version = _version_tuple(match)
+        return (3, 7) <= version <= (4, 5) or version >= (4, 7)
+
+    if protocol == "google":
+        match = _GEMINI_VERSION_RE.search(name)
+        return match is not None and _version_tuple(match) >= (2, 5)
+
+    prefixes = _REASONING_EFFORT_PREFIXES.get(effective_provider)
+    if prefixes:
+        if name.endswith("-chat-latest") or name.endswith("-non-reasoning"):
+            return False
+        if any(name.startswith(prefix) for prefix in prefixes):
+            return True
+    return _is_zhipu_thinking_model(name)
 
 
 async def _lookup_stored_api_key(
@@ -399,21 +493,31 @@ class LLMClient:
         provider: str,
         model_name: str,
         *,
-        temperature: float,
+        temperature: Optional[float] = None,
         max_tokens: Optional[int] = None,
         api_key: Optional[str] = None,
         api_base: Optional[str] = None,
         thinking: Optional[dict] = None,
         profile: Optional[dict] = None,
         api_format: Optional[str] = None,
+        request_headers: Optional[dict[str, str]] = None,
         **kwargs: Any,
     ) -> BaseChatModel:
-        """根据 provider 创建对应的 LangChain 模型。"""
+        """根据 provider 创建对应的 LangChain 模型。
+
+        temperature=None 表示不发送该参数（三家客户端字段均为 float | None
+        = None，None 不会进入请求 payload），由 provider 默认值接管。
+        """
 
         kwargs.pop("max_retries", None)
         profile = _langchain_profile(profile)
 
         protocol = _resolve_protocol(provider)
+
+        # 防封请求头注入（OpenAI/Anthropic 协议；Google 封装不支持，跳过）
+        request_headers = _merged_request_headers(protocol, kwargs, request_headers)
+        if request_headers is not None:
+            kwargs["default_headers"] = request_headers
 
         if protocol == "anthropic":
             # 按 Claude 家族分代门控（issue #211）：manual 时代（3.7~4.5）传
@@ -481,8 +585,7 @@ class LLMClient:
         # 显式传 bool：None 会让 langchain-openai 自动探测，不满足确定性。
         openai_kwargs["use_responses_api"] = _resolve_use_responses(protocol, api_format)
         # OpenAI 协议：按 provider/模型家族门控思考参数（issue #211）
-        # - openai/xai 推理模型收到 reasoning_effort（off 映射到该模型最低
-        #   支持档，支持 none 的家族为 "none"）；responses 模式下
+        # - openai/xai 推理模型收到 reasoning_effort；responses 模式下
         #   langchain-openai 会自动映射为 reasoning.effort
         # - zhipu GLM-4.5+/GLM-5 收到 `thinking` 请求体字段（经 model_kwargs，
         #   仅 chat completions 线格式；/v1/responses 不接受该字段）
@@ -515,7 +618,7 @@ class LLMClient:
     async def get_model(
         model: Optional[str] = None,
         model_id: Optional[str] = None,
-        temperature: float = 0.7,
+        temperature: Optional[float] = None,
         max_tokens: Optional[int] = None,
         api_key: Optional[str] = None,
         api_base: Optional[str] = None,
@@ -533,8 +636,9 @@ class LLMClient:
             model_id: Model config ID (UUID). When provided, looks up the model
                 config directly by ID, which resolves to a specific channel/provider.
                 This takes priority over the `model` parameter.
-            temperature: Sampling temperature. If use_model_config=True and model config
-                has temperature set, this parameter is ignored.
+            temperature: Sampling temperature. None (default) omits the parameter
+                on the wire so the provider default applies. If use_model_config=True
+                and model config has temperature set, this parameter is ignored.
             max_tokens: Maximum tokens to generate. If use_model_config=True and model config
                 has max_tokens set, this parameter is ignored.
             api_key: API key for the provider. If use_model_config=True and model config
@@ -550,6 +654,7 @@ class LLMClient:
         """
         # ── 已解析配置优先：聊天入口已做权限校验和 DB 查询，避免重复查库 ──
         explicit_provider: Optional[str] = None
+        model_request_headers: Optional[dict[str, str]] = None
         if model_config is not None:
             db_model = (
                 model_config
@@ -583,6 +688,8 @@ class LLMClient:
                 api_base = db_model.api_base
             if not api_format and db_model.api_format:
                 api_format = db_model.api_format
+            if db_model.request_headers:
+                model_request_headers = db_model.request_headers
             if db_model.temperature is not None:
                 temperature = db_model.temperature
             if max_tokens is None and db_model.max_tokens is not None:
@@ -612,6 +719,8 @@ class LLMClient:
                     api_base = stored_model.api_base
                 if not api_format and stored_model.api_format:
                     api_format = stored_model.api_format
+                if stored_model.request_headers:
+                    model_request_headers = stored_model.request_headers
                 if stored_model.temperature is not None:
                     temperature = stored_model.temperature
                 if max_tokens is None and stored_model.max_tokens is not None:
@@ -675,6 +784,8 @@ class LLMClient:
                     api_base = model_cfg["api_base"]
                 if not api_format and model_cfg.get("api_format"):
                     api_format = model_cfg["api_format"]
+                if not model_request_headers and model_cfg.get("request_headers"):
+                    model_request_headers = model_cfg["request_headers"]
                 if model_cfg.get("temperature") is not None:
                     temperature = model_cfg["temperature"]
                 if max_tokens is None and model_cfg.get("max_tokens") is not None:
@@ -714,6 +825,11 @@ class LLMClient:
             profile,
             settings.LLM_MAX_RETRIES,
             api_format,
+            # 请求头覆盖参与缓存键：全局/模型级覆盖变化后重建模型实例
+            (
+                tuple(sorted(_settings_header_overrides().items())) or None,
+                tuple(sorted(model_request_headers.items())) if model_request_headers else None,
+            ),
         )
 
         # LRU cache hit — move to end (most recently used)
@@ -742,6 +858,7 @@ class LLMClient:
             thinking=thinking,
             profile=profile,
             api_format=api_format,
+            request_headers=model_request_headers,
             **kwargs,
         )
         LLMClient._model_cache[cache_key] = instance

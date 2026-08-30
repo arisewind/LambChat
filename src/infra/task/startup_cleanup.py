@@ -370,9 +370,13 @@ class TaskStartupCleanupService:
             run_id,
         )
 
-    async def cleanup_stale_tasks(self) -> None:
+    async def cleanup_stale_tasks(self, *, running_only: bool = False) -> None:
         """
         Recover stale active tasks and explicitly recoverable failed tasks after restart.
+
+        Args:
+            running_only: 仅接管 RUNNING 且心跳过期的任务（周期调用的保守模式，
+                跳过 PENDING/QUEUED 重放与 FAILED 恢复，避免误重放排队中的任务）。
         """
         from .concurrency import get_concurrency_limiter
 
@@ -393,6 +397,24 @@ class TaskStartupCleanupService:
 
             async for running_sessions in _iter_cursor_batches(cursor):
                 cleaned_count += await self._process_running_sessions(running_sessions)
+
+            # --- FAILED recoverable tasks ---
+            # 优雅关停（滚动更新）标记的 server_restart 失败任务没有存活执行者，
+            # 周期扫描也要接管，否则要等「任意 Pod 重启」才能恢复。
+            cursor = self._storage.collection.find(
+                {
+                    "metadata.task_status": TaskStatus.FAILED.value,
+                    "metadata.task_recoverable": True,
+                    "metadata.task_error_code": "server_restart",
+                }
+            )
+            async for failed_recoverable_sessions in _iter_cursor_batches(cursor):
+                cleaned_count += await self._process_failed_recoverable_sessions(
+                    failed_recoverable_sessions
+                )
+
+            if running_only:
+                return
 
             # --- PENDING / QUEUED tasks ---
             cursor = self._storage.collection.find(
@@ -483,7 +505,8 @@ class TaskStartupCleanupService:
         for _, _, _, run_id in candidates:
 
             async def _check_heartbeat(run_id: str = run_id) -> bool:
-                return await self._heartbeat.check_exists(run_id)
+                # 存活 = 心跳未过期（按时间戳判定，不等 Redis TTL 自然消失）
+                return not await self._heartbeat.is_stale(run_id)
 
             heartbeat_factories.append(_check_heartbeat)
 

@@ -2,6 +2,7 @@ import { useMemo } from "react";
 import { ExternalLink } from "lucide-react";
 import { ImageWithSkeleton } from "./ImageWithSkeleton";
 import { useSessionImageGallery } from "./sessionImageGallery";
+import { buildChatThumbUrl } from "../../../utils/chatThumbs";
 import type { RevealFileImageInfo } from "./revealFileImageUtils";
 
 interface MessageImageGalleryProps {
@@ -45,6 +46,7 @@ export function MessageImageGallery({ images }: MessageImageGalleryProps) {
             >
               <ImageWithSkeleton
                 src={image.src}
+                thumbSrc={buildChatThumbUrl(image.src)}
                 alt={image.fileName}
                 skipUrlResolve
                 inline
@@ -53,7 +55,7 @@ export function MessageImageGallery({ images }: MessageImageGalleryProps) {
               />
               {/* Hover overlay — top-right icon */}
               <div className="absolute top-2 right-2 opacity-0 group-hover/img:opacity-100 transition-opacity pointer-events-none z-[2]">
-                <div className="p-1.5 rounded-lg bg-black/40 backdrop-blur-sm shadow pointer-events-auto">
+                <div className="p-1.5 rounded-lg bg-black/40 shadow pointer-events-auto">
                   <ExternalLink size={14} className="text-white" />
                 </div>
               </div>

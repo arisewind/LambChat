@@ -18,6 +18,7 @@ import { setActiveRevealPreviewState } from "./items/activeRevealPreviewStore";
 import { createActiveRevealPreviewState } from "./items/revealPreviewState";
 import { shouldInterceptFilePreviewLink } from "./items/revealPreviewLinks";
 import { copyToClipboard } from "../../../utils/clipboard";
+import { buildChatThumbUrl } from "../../../utils/chatThumbs";
 import { useSessionImageGallery } from "./sessionImageGallery";
 import { ImageWithSkeleton } from "./ImageWithSkeleton";
 import { normalizeMarkdownCodeFences } from "./markdownCodeFences";
@@ -137,7 +138,7 @@ function CodeBlock({
       data-streaming={isStreaming || undefined}
     >
       {/* Header bar - always visible on touch, hover on desktop */}
-      <div className="ai-code-block__header flex items-center justify-between px-3 sm:px-4 py-2 bg-stone-200/70 dark:bg-stone-800/50">
+      <div className="ai-code-block__header flex items-center justify-between px-3 sm:px-4 py-2 bg-stone-200/70 dark:bg-stone-800/50 font-serif">
         <div className="ai-code-block__file flex items-center gap-2 min-w-0">
           <Code2
             size={14}
@@ -261,7 +262,7 @@ function TableBlock({ children }: { children: React.ReactNode }) {
       {/* Toolbar */}
       <div
         className={clsx(
-          "ai-data-table__toolbar flex items-center justify-between px-2.5 py-2",
+          "ai-data-table__toolbar flex items-center justify-between px-2.5 py-2 font-serif",
         )}
       >
         <span className="ai-data-table__title flex items-center gap-1.5 text-[11px] sm:text-xs font-medium select-none">
@@ -373,7 +374,7 @@ export const MarkdownContent = memo(function MarkdownContent({
                 id={id}
                 data-outline-anchor="true"
                 data-outline-id={id}
-                className="text-lg font-semibold text-stone-900 dark:text-stone-100 mt-2 mb-1.5 group/head scroll-mt-4"
+                className="text-lg font-semibold font-serif text-stone-900 dark:text-stone-100 mt-2 mb-1.5 group/head scroll-mt-4"
               >
                 <a
                   href={`#${id}`}
@@ -571,6 +572,7 @@ export const MarkdownContent = memo(function MarkdownContent({
             return (
               <ImageWithSkeleton
                 src={resolvedSrc}
+                thumbSrc={buildChatThumbUrl(resolvedSrc)}
                 alt={alt}
                 loading="eager"
                 className="max-w-lg h-auto rounded-lg shadow hover:opacity-90 transition-opacity cursor-zoom-in"

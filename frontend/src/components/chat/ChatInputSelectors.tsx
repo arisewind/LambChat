@@ -2,7 +2,7 @@ import { useNavigate } from "react-router-dom";
 import { ToolSelector } from "../selectors/ToolSelector";
 import { SkillSelector } from "../selectors/SkillSelector";
 import { AgentModeSelector } from "../selectors/AgentModeSelector";
-import { PersonaPresetSelector, PERSONA_PRESET_PAGE_SIZE } from "../persona/PersonaPresetSelector";
+import { PersonaPresetSelector } from "../persona/PersonaPresetSelector";
 import { TeamPickerModal } from "../team/TeamPickerModal";
 import { AgentOptionButton } from "./AgentOptionButton";
 import type { FeaturePanel } from "../selectors/FeatureMenu";
@@ -73,6 +73,8 @@ export interface ChatInputSelectorsProps {
   agentOptions?: Record<string, AgentOption>;
   agentOptionValues?: Record<string, boolean | string | number>;
   onToggleAgentOption?: (key: string, value: boolean | string | number) => void;
+  /** 当前模型思考能力；undefined=未知（不隐藏），false=隐藏思考强度控件 */
+  modelSupportsThinking?: boolean;
 }
 
 export function ChatInputSelectors({
@@ -118,6 +120,7 @@ export function ChatInputSelectors({
   agentOptions,
   agentOptionValues = {},
   onToggleAgentOption,
+  modelSupportsThinking,
 }: ChatInputSelectorsProps) {
   const navigate = useNavigate();
 
@@ -160,7 +163,6 @@ export function ChatInputSelectors({
           presets={personaPresets}
           total={personaPresetsTotal}
           page={personaPresetsPage}
-          pageSize={PERSONA_PRESET_PAGE_SIZE}
           selectedPresetId={selectedPersonaPresetId}
           isOpen={activePanel === "persona"}
           isLoading={personaPresetsLoading}
@@ -207,7 +209,13 @@ export function ChatInputSelectors({
         onToggleAgentOption &&
         Object.keys(agentOptions).length > 0 &&
         Object.entries(agentOptions)
-          .filter(([, opt]) => opt.options && opt.options.length > 0)
+          .filter(
+            ([key, opt]) =>
+              opt.options &&
+              opt.options.length > 0 &&
+              // 仅思考选项按模型能力隐藏；未来其他枚举型选项不受连带影响
+              (key !== "enable_thinking" || modelSupportsThinking !== false),
+          )
           .map(([key, option]) => (
             <AgentOptionButton
               key={key}

@@ -15,6 +15,7 @@ from src.infra.monitoring.event_loop import (
     start_event_loop_lag_monitor,
     stop_event_loop_lag_monitor,
 )
+from src.infra.pricing.pubsub import get_pricing_pubsub
 from src.infra.scheduler import ScheduledJob, get_runtime_scheduler
 from src.infra.scheduler.service import ScheduledTaskService
 from src.infra.scheduler.storage import get_scheduled_task_storage
@@ -158,6 +159,39 @@ def start_memory_compaction_agent() -> None:
     start_memory_compaction_agent()
 
 
+def start_memory_evolution_scheduler() -> None:
+    from src.infra.memory.evolution.scheduler import run_scheduled_evolution
+    from src.infra.scheduler import ScheduledJob, get_runtime_scheduler
+
+    # 只按记忆总开关决定注册；NATIVE_MEMORY_SELF_EVOLVE_ENABLED 走任务的
+    # enabled lambda 动态读取——settings 热刷新后无需重启即可开/关自进化。
+    if not getattr(settings, "ENABLE_MEMORY", False):
+        return
+    get_runtime_scheduler().register_job(
+        ScheduledJob.from_interval(
+            id="memory.evolution",
+            name="Memory self-evolution",
+            interval_seconds=lambda: max(
+                60,
+                int(
+                    getattr(settings, "NATIVE_MEMORY_SELF_EVOLVE_INTERVAL_SECONDS", 43200) or 43200
+                ),
+            ),
+            enabled=lambda: (
+                bool(settings.ENABLE_MEMORY)
+                and bool(getattr(settings, "NATIVE_MEMORY_SELF_EVOLVE_ENABLED", False))
+            ),
+            handler=run_scheduled_evolution,
+        )
+    )
+
+
+def register_orphan_recovery_job() -> None:
+    from src.infra.task.orphan_recovery import register_orphan_recovery_job
+
+    register_orphan_recovery_job()
+
+
 def register_scheduled_task_reconcile_job(
     scheduled_task_service: ScheduledTaskService,
 ) -> None:
@@ -190,6 +224,7 @@ async def start_runtime_services() -> None:
     channel_pubsub = get_channel_config_pubsub()
     tool_cache_pubsub = get_tool_cache_pubsub()
     mcp_cache_pubsub = get_mcp_cache_pubsub()
+    pricing_pubsub = get_pricing_pubsub()
     websocket_manager = get_connection_manager()
 
     listeners = [
@@ -198,6 +233,7 @@ async def start_runtime_services() -> None:
         channel_pubsub.start_listener(),
         tool_cache_pubsub.start_listener(),
         mcp_cache_pubsub.start_listener(),
+        pricing_pubsub.start_listener(),
         websocket_manager.start_pubsub_listener(),
     ]
     if settings.ENABLE_MEMORY:
@@ -209,6 +245,9 @@ async def start_runtime_services() -> None:
 
     if settings.ENABLE_MEMORY:
         start_memory_compaction_agent()
+        start_memory_evolution_scheduler()
+
+    register_orphan_recovery_job()
 
     if settings.ENABLE_SCHEDULED_TASK:
         # Load dynamically-created scheduled tasks from DB only when the feature is enabled.
@@ -217,7 +256,10 @@ async def start_runtime_services() -> None:
         await scheduled_task_service.load_persisted_tasks()
         register_scheduled_task_reconcile_job(scheduled_task_service)
 
-        get_runtime_scheduler().start()
+    # Runtime scheduler 承载基础设施 job（task.orphan_recovery、
+    # memory.compaction），必须无条件启动；ENABLE_SCHEDULED_TASK 只控制
+    # 用户定时任务功能（reconcile job 与 DB 加载）。
+    get_runtime_scheduler().start()
 
 
 async def stop_runtime_services() -> None:

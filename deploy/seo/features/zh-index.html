@@ -1,0 +1,329 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>LambChat 功能 — 开源 AI Agent 平台</title>
+    <meta
+      name="description"
+      content="LambChat 是开源 AI Agent 平台：支持子代理与人工审批的 Agent 运行时、沙箱化执行的 MCP 工具、跨会话记忆、GitHub 同步技能，以及 Claude、GPT、Gemini 多模型支持。"
+    />
+    <link rel="canonical" href="https://lambchat.com/zh/features" />
+    <meta name="robots" content="index, follow, max-image-preview:large" />
+    <link rel="alternate" hreflang="en" href="https://lambchat.com/features" />
+    <link rel="alternate" hreflang="zh" href="https://lambchat.com/zh/features" />
+    <link rel="alternate" hreflang="x-default" href="https://lambchat.com/features" />
+    <link rel="icon" href="/icons/icon.svg" type="image/svg+xml" />
+
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="LambChat 功能 — 开源 AI Agent 平台" />
+    <meta property="og:url" content="https://lambchat.com/zh/features" />
+    <meta property="og:site_name" content="LambChat" />
+    <meta property="og:locale" content="zh_CN" />
+    <meta property="og:locale:alternate" content="en_US" />
+    <meta
+      property="og:description"
+      content="Agent 运行时（子代理+人工审批）、沙箱化 MCP 工具、跨会话记忆、GitHub 同步技能、Claude/GPT/Gemini 多模型支持。"
+    />
+    <meta property="og:image" content="https://lambchat.com/icons/og-image.png" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="LambChat — 开源 AI Agent 平台" />
+    <meta
+      name="twitter:description"
+      content="构建、运行并分享真正能干完活的 AI Agent。开源、多模型、MCP + 技能引擎。"
+    />
+    <meta name="twitter:image" content="https://lambchat.com/icons/og-image.png" />
+
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@type": "SoftwareApplication",
+        "name": "LambChat",
+        "url": "https://lambchat.com",
+        "description": "开源 AI Agent 平台：Agent 运行时、MCP 工具、技能引擎、持久记忆与多模型对话。",
+        "applicationCategory": "ChatApplication",
+        "operatingSystem": "Web, iOS, Android, Desktop",
+        "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" },
+        "inLanguage": ["zh", "en"]
+      }
+    </script>
+
+    <style>
+      :root {
+        --bg: #f5f5f4;
+        --card: #ffffff;
+        --text: #1c1917;
+        --muted: #57534e;
+        --accent: #78716c;
+        --accent-strong: #44403c;
+        --border: #e7e5e4;
+        --code-bg: #edeceb;
+      }
+      @media (prefers-color-scheme: dark) {
+        :root {
+          --bg: #151210;
+          --card: #1e1a17;
+          --text: #f5f5f4;
+          --muted: #a8a29e;
+          --accent: #a8a29e;
+          --accent-strong: #d6d3d1;
+          --border: #3b3733;
+          --code-bg: #2a2521;
+        }
+      }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        font-family:
+          system-ui,
+          -apple-system,
+          "Segoe UI",
+          Roboto,
+          "PingFang SC",
+          "Microsoft YaHei",
+          "Helvetica Neue",
+          Arial,
+          sans-serif;
+        background: var(--bg);
+        color: var(--text);
+        line-height: 1.75;
+      }
+      a {
+        color: var(--accent-strong);
+      }
+      .container {
+        max-width: 1040px;
+        margin: 0 auto;
+        padding: 0 24px;
+      }
+      header {
+        border-bottom: 1px solid var(--border);
+      }
+      .nav {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 18px 0;
+      }
+      .brand {
+        font-weight: 700;
+        font-size: 1.15rem;
+        text-decoration: none;
+        color: var(--text);
+      }
+      .nav-links {
+        display: flex;
+        gap: 22px;
+        font-size: 0.95rem;
+      }
+      .hero {
+        padding: 64px 0 40px;
+        text-align: center;
+      }
+      .hero h1 {
+        font-size: clamp(1.9rem, 4.5vw, 3rem);
+        line-height: 1.25;
+        margin: 0 0 16px;
+        letter-spacing: -0.02em;
+      }
+      .hero p.sub {
+        font-size: clamp(1.05rem, 2.2vw, 1.3rem);
+        color: var(--muted);
+        max-width: 720px;
+        margin: 0 auto 32px;
+      }
+      .cta-row {
+        display: flex;
+        gap: 14px;
+        justify-content: center;
+        flex-wrap: wrap;
+        margin-bottom: 44px;
+      }
+      .btn {
+        display: inline-block;
+        padding: 12px 26px;
+        border-radius: 10px;
+        text-decoration: none;
+        font-weight: 600;
+        font-size: 1rem;
+        border: 1px solid var(--border);
+      }
+      .btn-primary {
+        background: var(--accent-strong);
+        color: var(--bg);
+        border-color: var(--accent-strong);
+      }
+      .btn-ghost {
+        color: var(--text);
+      }
+      .hero img {
+        max-width: 100%;
+        border-radius: 12px;
+        border: 1px solid var(--border);
+      }
+      section {
+        padding: 48px 0;
+      }
+      h2 {
+        font-size: 1.6rem;
+        margin: 0 0 24px;
+        letter-spacing: -0.01em;
+      }
+      .grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+        gap: 18px;
+      }
+      .card {
+        background: var(--card);
+        border: 1px solid var(--border);
+        border-radius: 12px;
+        padding: 22px;
+      }
+      .card h3 {
+        margin: 0 0 8px;
+        font-size: 1.05rem;
+      }
+      .card p {
+        margin: 0;
+        color: var(--muted);
+        font-size: 0.95rem;
+      }
+      .why {
+        max-width: 780px;
+        color: var(--muted);
+        font-size: 1.05rem;
+      }
+      .stack {
+        color: var(--muted);
+      }
+      .stack code {
+        background: var(--code-bg);
+        border-radius: 6px;
+        padding: 2px 8px;
+        font-size: 0.9em;
+      }
+      footer {
+        border-top: 1px solid var(--border);
+        padding: 28px 0 48px;
+        color: var(--muted);
+        font-size: 0.9rem;
+      }
+    </style>
+  </head>
+  <body>
+    <header>
+      <div class="container nav">
+        <a class="brand" href="/">🐑 LambChat</a>
+        <nav class="nav-links">
+          <a href="/zh/features">功能</a>
+          <a href="/docs/zh/">文档</a>
+          <a href="/features">English</a>
+          <a href="https://github.com/Yanyutin753/LambChat">GitHub</a>
+        </nav>
+      </div>
+    </header>
+
+    <main>
+      <div class="container hero">
+        <h1>构建、运行并分享真正能干完活的 AI Agent</h1>
+        <p class="sub">
+          LambChat 是开源 AI Agent 平台：多模型对话、MCP 工具、技能引擎、
+          持久记忆与生产级部署——一套可自托管的全栈方案。
+        </p>
+        <div class="cta-row">
+          <a class="btn btn-primary" href="/">打开 LambChat</a>
+          <a class="btn btn-ghost" href="/docs/zh/getting-started">快速开始</a>
+          <a class="btn btn-ghost" href="https://github.com/Yanyutin753/LambChat">GitHub 加星</a>
+        </div>
+        <img
+          src="/features/hero.webp"
+          width="920"
+          alt="LambChat 网页界面：AI Agent 流式对话、工具调用与技能面板"
+        />
+      </div>
+
+      <div class="container">
+        <section id="features">
+          <h2>LambChat 能做什么</h2>
+          <div class="grid">
+            <div class="card">
+              <h3>🤖 Agent 运行时</h3>
+              <p>
+                深度代理图与子代理、思考模式、流式输出，高危操作需人工审批。
+              </p>
+            </div>
+            <div class="card">
+              <h3>🔧 MCP 与工具</h3>
+              <p>
+                系统级与用户级 MCP 服务器、密钥加密存储，支持
+                Daytona、E2B、CubeSandbox 沙箱代码执行。
+              </p>
+            </div>
+            <div class="card">
+              <h3>🧠 记忆与技能</h3>
+              <p>
+                跨会话记忆、技能市场、GitHub 同步技能、可复用的人设预设。
+              </p>
+            </div>
+            <div class="card">
+              <h3>💬 多模型对话</h3>
+              <p>
+                自带密钥接入 Claude、GPT、Gemini
+                等——SSE 流式输出、多模态输入与文档处理。
+              </p>
+            </div>
+            <div class="card">
+              <h3>📱 全栈客户端</h3>
+              <p>
+                React 19 网页端、Capacitor 移动端、Tauri
+                桌面端、可安装 PWA——全部共用同一后端。
+              </p>
+            </div>
+            <div class="card">
+              <h3>🚀 生产就绪</h3>
+              <p>
+                JWT 认证 + RBAC、实时同步、定时任务、用量统计，提供
+                Docker / Kubernetes 部署方案。
+              </p>
+            </div>
+          </div>
+        </section>
+
+        <section id="why">
+          <h2>为什么是 LambChat</h2>
+          <p class="why">
+            大多数 Agent 产品止步于「带工具的聊天」。LambChat
+            为更长的路径而设计：配置模型、安全地连接工具、让 Agent
+            产出工件、沉淀有用的上下文、分享结果、审批高危操作，并把整套系统交付给真实用户——自托管、开源（MIT）、附中英双语文档。
+          </p>
+        </section>
+
+        <section id="stack">
+          <h2>技术栈</h2>
+          <p class="stack">
+            <code>Python 3.12</code> + <code>FastAPI</code> +
+            <code>LangGraph / deepagents</code> · <code>MongoDB</code> +
+            <code>Redis</code> + <code>arq</code> ·
+            <code>React 19</code> + <code>TypeScript</code> +
+            <code>Vite</code> · <code>Docker</code> /
+            <code>Kubernetes</code> 部署。界面支持中文、English、日本語、한국어、Русский。
+          </p>
+        </section>
+      </div>
+    </main>
+
+    <footer>
+      <div class="container" style="display: flex; justify-content: space-between; flex-wrap: wrap; gap: 12px">
+        <span>🐑 LambChat — 开源 AI Agent 平台（MIT）</span>
+        <span>
+          <a href="/docs/zh/">文档</a> ·
+          <a href="/features">English</a> ·
+          <a href="https://github.com/Yanyutin753/LambChat">GitHub</a>
+        </span>
+      </div>
+    </footer>
+  </body>
+</html>

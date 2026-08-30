@@ -11,15 +11,12 @@ import { useAuth } from "../../../hooks/useAuth";
 import { useTools } from "../../../hooks/useTools";
 import { useSkills } from "../../../hooks/useSkills";
 import { personaPresetApi } from "../../../services/api";
-import { PERSONA_PRESET_PAGE_SIZE } from "../../persona/PersonaPresetSelector";
 import { usePersonaPresets } from "../../../hooks/usePersonaPresets";
 import { useProjectManager } from "../../../hooks/useProjectManager";
 import { appNotificationService } from "../../../services/notifications/appNotificationService";
 import { useSessionConfig } from "../../../hooks/useSessionConfig";
 import {
   Permission,
-  type ToolCategory,
-  type SkillSource,
   type PersonaPreset,
   type PersonaPresetSnapshot,
 } from "../../../types";
@@ -43,6 +40,7 @@ import { ChatView } from "./ChatView";
 import { filterApprovalsBySession } from "../../../utils/approvals";
 import { shouldShowMessageOutline } from "./messageOutline";
 import { buildEffectiveSkills, countEnabledSkills } from "./skillAvailability";
+import { useSessionToggleCallbacks } from "./sessionToggleCallbacks";
 import type { ChatAppContentProps } from "./types";
 const SCHEDULED_TASK_DEFAULTS_KEY = "lambchat_scheduled_task_defaults";
 const CHAT_SKILL_LIST_PARAMS = { limit: 100 };
@@ -99,10 +97,13 @@ export function ChatAppContent({
   const [personaPresetPage, setPersonaPresetPage] = useState(1);
   const [personaPresetQuery, setPersonaPresetQuery] = useState("");
   const [personaPresetTag, setPersonaPresetTag] = useState<string | null>(null);
+  // 与 PersonaPresetSelector 的 PAGE_SIZE 保持一致：弹窗页码窗口与取数窗口
+  // 错位会漏行并让页码标注失真（issue #158）
+  const personaPresetPageSize = 20;
   const personaPresetListParams = useMemo(
     () => ({
-      skip: (personaPresetPage - 1) * PERSONA_PRESET_PAGE_SIZE,
-      limit: PERSONA_PRESET_PAGE_SIZE,
+      skip: (personaPresetPage - 1) * personaPresetPageSize,
+      limit: personaPresetPageSize,
       q: personaPresetQuery.trim() || undefined,
       tag: personaPresetTag || undefined,
     }),
@@ -114,6 +115,7 @@ export function ChatAppContent({
     isLoading: personaPresetsLoading,
     isLoadingMore: personaPresetsLoadingMore,
     isMutating: personaPresetsMutating,
+    hasLoaded: personaPresetsLoaded,
     usePreset: activatePersonaPreset,
     updatePreference: updatePersonaPreference,
     copyPreset: copyPersonaPreset,
@@ -160,6 +162,9 @@ export function ChatAppContent({
     isLoading,
     isLoadingHistory,
     historyLoadGeneration,
+    hasMoreHistoryTraces,
+    isLoadingOlderHistory,
+    loadOlderHistory,
     agents,
     currentAgent,
     allowedModelIds: agentAllowedModelIds,
@@ -287,6 +292,16 @@ export function ChatAppContent({
   );
   const [sessionModelSelection, setSessionModelSelection] =
     useState<ModelSelection | null>(null);
+
+  // 当前选中模型是否支持思考：undefined 表示未知（未加载/未选中），仅明确 false 时
+  // 隐藏思考强度控件（能力由后端按 provider+模型名门控计算下发）
+  const modelSupportsThinking = useMemo(() => {
+    return availableModels?.find(
+      (m) =>
+        (currentModelId && m.id === currentModelId) ||
+        (currentModelValue && m.value === currentModelValue),
+    )?.supports_thinking;
+  }, [availableModels, currentModelId, currentModelValue]);
 
   const modelSelectionRevisionRef = useRef(0);
   const activeSessionLoadRef = useRef<{
@@ -515,102 +530,21 @@ export function ChatAppContent({
     [effectiveSkills],
   );
 
-  const effectiveToggleTool = useCallback(
-    (toolName: string) => {
-      const tool = tools.find((t) => t.name === toolName);
-      if (!tool) return;
-
-      if (tool.category === "mcp") {
-        toggleSessionMcpTool(toolName);
-      }
-    },
-    [tools, toggleSessionMcpTool],
-  );
-
-  const effectiveToggleCategory = useCallback(
-    (category: ToolCategory, enabled: boolean) => {
-      if (category === "mcp") {
-        tools
-          .filter((t) => t.category === "mcp" && !t.system_disabled)
-          .forEach((t) => {
-            const isInSessionDisabled = sessionConfig.disabledMcpTools.includes(
-              t.name,
-            );
-            if (enabled && isInSessionDisabled) {
-              toggleSessionMcpTool(t.name);
-            } else if (!enabled && !isInSessionDisabled) {
-              toggleSessionMcpTool(t.name);
-            }
-          });
-      }
-    },
-    [tools, sessionConfig.disabledMcpTools, toggleSessionMcpTool],
-  );
-
-  const effectiveToggleAll = useCallback(
-    (enabled: boolean) => {
-      tools
-        .filter((t) => t.category === "mcp" && !t.system_disabled)
-        .forEach((t) => {
-          const isInSessionDisabled = sessionConfig.disabledMcpTools.includes(
-            t.name,
-          );
-          if (enabled && isInSessionDisabled) {
-            toggleSessionMcpTool(t.name);
-          } else if (!enabled && !isInSessionDisabled) {
-            toggleSessionMcpTool(t.name);
-          }
-        });
-    },
-    [tools, sessionConfig.disabledMcpTools, toggleSessionMcpTool],
-  );
-
-  const effectiveToggleSkill = useCallback(
-    async (name: string): Promise<boolean> => {
-      toggleSessionSkill(name);
-      return true;
-    },
-    [toggleSessionSkill],
-  );
-
-  const effectiveToggleSkillCategory = useCallback(
-    async (category: SkillSource, enabled: boolean): Promise<boolean> => {
-      skills
-        .filter((s) => s.enabled && s.source === category)
-        .forEach((s) => {
-          const isInSessionDisabled = sessionConfig.disabledSkills.includes(
-            s.name,
-          );
-          if (enabled && isInSessionDisabled) {
-            toggleSessionSkill(s.name);
-          } else if (!enabled && !isInSessionDisabled) {
-            toggleSessionSkill(s.name);
-          }
-        });
-      return true;
-    },
-    [skills, sessionConfig.disabledSkills, toggleSessionSkill],
-  );
-
-  const effectiveToggleAllSkills = useCallback(
-    async (enabled: boolean): Promise<boolean> => {
-      skills
-        .filter((s) => s.enabled)
-        .forEach((s) => {
-          const isInSessionDisabled = sessionConfig.disabledSkills.includes(
-            s.name,
-          );
-          if (enabled && isInSessionDisabled) {
-            toggleSessionSkill(s.name);
-          } else if (!enabled && !isInSessionDisabled) {
-            toggleSessionSkill(s.name);
-          }
-        });
-      return true;
-    },
-    [skills, sessionConfig.disabledSkills, toggleSessionSkill],
-  );
-
+  const {
+    effectiveToggleTool,
+    effectiveToggleCategory,
+    effectiveToggleAll,
+    effectiveToggleSkill,
+    effectiveToggleSkillCategory,
+    effectiveToggleAllSkills,
+  } = useSessionToggleCallbacks({
+    tools,
+    skills,
+    disabledMcpTools: sessionConfig.disabledMcpTools,
+    disabledSkills: sessionConfig.disabledSkills,
+    toggleSessionMcpTool,
+    toggleSessionSkill,
+  });
   const effectiveEnabledToolsCount = useMemo(
     () => effectiveTools.filter((t) => t.enabled).length,
     [effectiveTools],
@@ -873,6 +807,9 @@ export function ChatAppContent({
           isLoading={isLoading}
           isLoadingHistory={isLoadingHistory}
           historyLoadGeneration={historyLoadGeneration}
+          hasMoreHistoryTraces={hasMoreHistoryTraces}
+          isLoadingOlderHistory={isLoadingOlderHistory}
+          onLoadOlderHistory={loadOlderHistory}
           connectionStatus={connectionStatus}
           canSendMessage={canSendMessage}
           tools={effectiveTools}
@@ -894,6 +831,7 @@ export function ChatAppContent({
           enableSkills={enableSkills}
           personaPresets={personaPresets}
           personaPresetsTotal={personaPresetsTotal}
+          personaPresetsLoaded={personaPresetsLoaded}
           hasMorePersonaPresets={hasMorePersonaPresets}
           isLoadingMorePersonaPresets={personaPresetsLoadingMore}
           onLoadMorePersonaPresets={handleLoadMorePersonaPresets}
@@ -916,6 +854,7 @@ export function ChatAppContent({
           agentOptions={currentAgentOptions}
           agentOptionValues={agentOptionValues}
           onToggleAgentOption={handleToggleAgentOption}
+          modelSupportsThinking={modelSupportsThinking}
           agents={agents}
           currentAgent={currentAgent}
           onSelectAgent={switchAgent}

@@ -2,12 +2,14 @@ import {
   useRef,
   useEffect,
   useLayoutEffect,
+  useMemo,
   useState,
   useCallback,
 } from "react";
 import type { VirtuosoHandle } from "react-virtuoso";
 import type { Message } from "../../../types";
 import type { ExternalNavigationTargetFile } from "./externalNavigationState";
+import { wrapVirtuosoHandleForDataIndices } from "./virtuosoIndexOffset";
 import {
   forceVirtuosoToBottom,
   getScrollToBottomTimingOptions,
@@ -16,6 +18,8 @@ import {
   shouldIgnoreUnexpectedTopJumpDuringBottomLock,
   getUnexpectedTopJumpRecoveryUntilAfterUserIntent,
   startVirtuosoScrollToBottom,
+  createWheelIntentAccumulator,
+  nextWheelIntentState,
   type ScrollToBottomTimingMode,
 } from "./messageScrollUtils";
 import { getMessageScrollViewportState } from "./useMessageScroll.viewport";
@@ -34,6 +38,7 @@ import {
   shouldFinalizeHistoryLoadScroll,
   shouldInferBatchedHistoryLoadReady,
 } from "./useMessageScroll.followState";
+import { setStreamFollowSignal } from "../../chat/streamFollowSignal";
 
 interface UseMessageScrollReturn {
   messagesContainerRef: React.RefObject<HTMLDivElement | null>;
@@ -79,6 +84,18 @@ export function useMessageScroll(
 
   const [isNearBottom, setIsNearBottom] = useState(true);
   const [isNearTop, setIsNearTop] = useState(true);
+
+  // 外部导航按数据索引调用 scrollToIndex；scrollToIndex 原生就期望数据
+  // 索引（与 rangeChanged 的绝对索引不对称），适配器只做语义透传
+  const dataIndexVirtuosoRef = useMemo<React.RefObject<VirtuosoHandle | null>>(
+    () => ({
+      get current() {
+        const handle = virtuosoRef.current;
+        return handle ? wrapVirtuosoHandleForDataIndices(handle) : null;
+      },
+    }),
+    [virtuosoRef],
+  );
   // The scroller DOM element is tracked in state (not just a ref) because the
   // Virtuoso list remounts on session-key swaps while messages.length may stay
   // constant; listeners bound by an effect keyed on messages.length would stay
@@ -181,6 +198,11 @@ export function useMessageScroll(
     rafRef.current = requestAnimationFrame(() => {
       setIsNearBottom(atBottom);
       isNearBottomRef.current = atBottom;
+      // 供深层组件（自动开面板等）同步读取：用户是否离开底部在读历史
+      setStreamFollowSignal({
+        nearBottom: atBottom,
+        detached: manualDetachFromStreamRef.current,
+      });
       if (atBottom) {
         const nextFollowState =
           getNextMessageScrollFollowStateForAtBottomChange({
@@ -302,7 +324,9 @@ export function useMessageScroll(
     const scroller = virtuosoScrollerElement;
     if (!scroller) return;
 
-    const lastScrollTop = { value: 0 };
+    // 基线取当前真实位置：监听会随 messages.length 重绑（流式追加即重绑），
+    // 归零起算会漏掉重绑后第一次真实上滚的 movedUp 判定
+    const lastScrollTop = { value: scroller.scrollTop };
     const lastScrollTime = { value: 0 };
     let touchStartY: number | null = null;
 
@@ -365,7 +389,8 @@ export function useMessageScroll(
       const upwardScrollPx = Math.max(0, dScroll);
       const programmaticScroll =
         now <= ignoreProgrammaticScrollUntilRef.current;
-      const movedUp = scrollTop < lastScrollTop.value - 2;
+      // 8px 以内的上移视为上方内容回流抖动（折叠区收起、代码块重排），不算用户上滚
+      const movedUp = scrollTop < lastScrollTop.value - 8;
       const isAwayFromBottom =
         scrollTop + scroller.clientHeight <
         scroller.scrollHeight - awayFromBottomThresholdPx;
@@ -421,6 +446,9 @@ export function useMessageScroll(
       detachFromUserGesture(getNextMessageScrollFollowStateForUserIntent);
     };
 
+    // wheel 上滚意图累计器（触控板惯性微滑判定，见 nextWheelIntentState）
+    let wheelIntentAccum = createWheelIntentAccumulator();
+
     const handleTouchMove = (event: TouchEvent) => {
       if (!isMobileViewport || touchStartY === null) {
         return;
@@ -441,7 +469,15 @@ export function useMessageScroll(
     };
 
     const handleWheel = (event: WheelEvent) => {
-      if (event.deltaY >= -1) {
+      // 触控板惯性是一串 <6px 的连续微上滑：单事件阈值拦不住会被
+      // 底部锁定逐个粘回；按时间窗累计判定明确的上滚意图后才脱钉
+      const intent = nextWheelIntentState(
+        wheelIntentAccum,
+        event.deltaY,
+        Date.now(),
+      );
+      wheelIntentAccum = intent.state;
+      if (!intent.detach) {
         return;
       }
 
@@ -474,7 +510,12 @@ export function useMessageScroll(
       scroller.removeEventListener("touchend", resetTouchTracking);
       scroller.removeEventListener("touchcancel", resetTouchTracking);
     };
-  }, [awayFromBottomThresholdPx, isMobileViewport, messages.length, virtuosoScrollerElement]);
+  }, [
+    awayFromBottomThresholdPx,
+    isMobileViewport,
+    messages.length,
+    virtuosoScrollerElement,
+  ]);
 
   useEffect(() => {
     if (!isMobileViewport || typeof window === "undefined") {
@@ -738,7 +779,7 @@ export function useMessageScroll(
     externalNavigationTargetRunId,
     externalNavigationTargetRunPending,
     externalScrollToBottom,
-    virtuosoRef,
+    virtuosoRef: dataIndexVirtuosoRef,
     virtuosoScrollerRef,
     pendingExternalNavigationRef,
     userScrolledUpRef,

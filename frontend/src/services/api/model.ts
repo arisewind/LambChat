@@ -86,6 +86,15 @@ export interface ModelOption {
   label: string;
   description?: string;
   profile?: ModelProfile;
+  supports_thinking?: boolean;
+}
+
+export interface ModelPricingOverride {
+  /** USD / 每百万 token；未填档位沿用 models.dev 同步价格 */
+  input?: number;
+  output?: number;
+  cache_read?: number;
+  cache_write?: number;
 }
 
 export interface ModelConfig {
@@ -98,9 +107,11 @@ export interface ModelConfig {
   api_key?: string;
   api_base?: string;
   api_format?: ApiFormat | null;
+  request_headers?: Record<string, string> | null;
   temperature?: number;
   max_tokens?: number;
   profile?: ModelProfile;
+  pricing?: ModelPricingOverride | null;
   fallback_model?: string;
   enabled: boolean;
   order: number;
@@ -117,9 +128,11 @@ export interface ModelConfigCreate {
   api_key?: string;
   api_base?: string;
   api_format?: ApiFormat;
+  request_headers?: Record<string, string>;
   temperature?: number;
   max_tokens?: number;
   profile?: ModelProfile;
+  pricing?: ModelPricingOverride | null;
   fallback_model?: string;
   enabled?: boolean;
   order?: number;
@@ -134,9 +147,13 @@ export interface ModelConfigUpdate {
   api_base?: string;
   /** "" clears the override back to the global default */
   api_format?: ApiFormat | "";
+  /** {} clears the override back to the global/anti-ban defaults */
+  request_headers?: Record<string, string>;
   temperature?: number;
   max_tokens?: number;
   profile?: ModelProfile;
+  /** {} clears the override back to the models.dev synced price */
+  pricing?: ModelPricingOverride | null;
   fallback_model?: string;
   enabled?: boolean;
   order?: number;

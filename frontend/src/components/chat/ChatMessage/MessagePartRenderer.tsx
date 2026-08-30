@@ -28,8 +28,11 @@ import {
   MemoryStoreItem,
   AskHumanItem,
   ToolSearchItem,
+  ConversationHistoryItem,
+  SkillSearchItem,
 } from "./ToolCallItem";
 import { ThinkingBlock, SubagentBlock, SandboxItem } from "./SubagentBlocks";
+import { parsePartialToolArgs } from "./items/partialToolArgs";
 import { TodoBlock } from "./TodoBlock";
 import { SummaryItem } from "./SummaryItem";
 import type { RevealPreviewRequest } from "./items/revealPreviewData";
@@ -97,11 +100,20 @@ export function MessagePartRenderer({
   }
 
   if (part.type === "tool") {
+    // 参数生成中（tool:args:chunk 建立的 argsPartial part）只携带 partial 原文；
+    // 渐进解析出已完成的键与生成中的字符串值，让专属 Item 在流式期间就按
+    // 定制样式渲染（路径/命令逐字增长）。tool:start 转正后与完整 args 无缝衔接。
+    const toolArgs = part.argsPartial
+      ? parsePartialToolArgs(
+          typeof part.args.partial === "string" ? part.args.partial : "",
+        )
+      : part.args;
     // Detect Read tool, use dedicated component (strips line numbers, shows file path)
     if (part.name === "read_file") {
       return (
         <ReadFileItem
-          args={part.args}
+          id={part.id}
+          args={toolArgs}
           result={part.result}
           success={part.success}
           isPending={part.isPending}
@@ -119,7 +131,7 @@ export function MessagePartRenderer({
           className="scroll-mt-6 rounded-xl transition-[box-shadow] duration-300 data-[external-navigation-highlighted=true]:ring-2 data-[external-navigation-highlighted=true]:ring-amber-500/80 data-[external-navigation-highlighted=true]:shadow-[0_0_20px_rgba(245,158,11,0.25)] dark:data-[external-navigation-highlighted=true]:ring-amber-400/60 dark:data-[external-navigation-highlighted=true]:shadow-[0_0_20px_rgba(251,191,36,0.12)]"
         >
           <FileRevealItem
-            args={part.args}
+            args={toolArgs}
             result={part.result}
             success={part.success}
             isPending={part.isPending}
@@ -141,7 +153,7 @@ export function MessagePartRenderer({
           className="scroll-mt-6 rounded-2xl transition-[box-shadow] duration-300 data-[external-navigation-highlighted=true]:ring-2 data-[external-navigation-highlighted=true]:ring-amber-500/80 data-[external-navigation-highlighted=true]:shadow-[0_0_20px_rgba(245,158,11,0.25)] dark:data-[external-navigation-highlighted=true]:ring-amber-400/60 dark:data-[external-navigation-highlighted=true]:shadow-[0_0_20px_rgba(251,191,36,0.12)]"
         >
           <ProjectRevealItem
-            args={part.args}
+            args={toolArgs}
             result={part.result}
             success={part.success}
             isPending={part.isPending}
@@ -159,7 +171,8 @@ export function MessagePartRenderer({
     if (part.name === "edit_file") {
       return (
         <EditFileItem
-          args={part.args}
+          id={part.id}
+          args={toolArgs}
           result={part.result}
           success={part.success}
           isPending={part.isPending}
@@ -173,7 +186,8 @@ export function MessagePartRenderer({
     if (part.name === "write_file") {
       return (
         <WriteFileItem
-          args={part.args}
+          id={part.id}
+          args={toolArgs}
           result={part.result}
           success={part.success}
           isPending={part.isPending}
@@ -187,7 +201,8 @@ export function MessagePartRenderer({
     if (part.name === "grep") {
       return (
         <GrepItem
-          args={part.args}
+          id={part.id}
+          args={toolArgs}
           result={part.result}
           success={part.success}
           isPending={part.isPending}
@@ -201,7 +216,8 @@ export function MessagePartRenderer({
     if (part.name === "ls") {
       return (
         <LsItem
-          args={part.args}
+          id={part.id}
+          args={toolArgs}
           result={part.result}
           success={part.success}
           isPending={part.isPending}
@@ -215,7 +231,8 @@ export function MessagePartRenderer({
     if (part.name === "glob") {
       return (
         <GlobItem
-          args={part.args}
+          id={part.id}
+          args={toolArgs}
           result={part.result}
           success={part.success}
           isPending={part.isPending}
@@ -229,7 +246,8 @@ export function MessagePartRenderer({
     if (part.name === "execute") {
       return (
         <ExecuteItem
-          args={part.args}
+          id={part.id}
+          args={toolArgs}
           result={part.result}
           success={part.success}
           isPending={part.isPending}
@@ -243,8 +261,9 @@ export function MessagePartRenderer({
     if (part.name === "eval") {
       return (
         <EvalItem
+          id={part.id}
           toolName={part.name}
-          args={part.args}
+          args={toolArgs}
           result={part.result}
           success={part.success}
           isPending={part.isPending}
@@ -261,7 +280,8 @@ export function MessagePartRenderer({
     ) {
       return (
         <ImageGenerateItem
-          args={part.args}
+          id={part.id}
+          args={toolArgs}
           result={part.result}
           success={part.success}
           isPending={part.isPending}
@@ -274,7 +294,8 @@ export function MessagePartRenderer({
     if (part.name === "image_analyze") {
       return (
         <ImageAnalyzeItem
-          args={part.args}
+          id={part.id}
+          args={toolArgs}
           result={part.result}
           success={part.success}
           isPending={part.isPending}
@@ -287,7 +308,8 @@ export function MessagePartRenderer({
     if (part.name === "upload_url_to_sandbox") {
       return (
         <UploadUrlToSandboxItem
-          args={part.args}
+          id={part.id}
+          args={toolArgs}
           result={part.result}
           success={part.success}
           isPending={part.isPending}
@@ -300,8 +322,9 @@ export function MessagePartRenderer({
     if (part.name === "transfer_file" || part.name === "transfer_path") {
       return (
         <TransferItem
+          id={part.id}
           toolName={part.name}
-          args={part.args}
+          args={toolArgs}
           result={part.result}
           success={part.success}
           isPending={part.isPending}
@@ -314,7 +337,8 @@ export function MessagePartRenderer({
     if (part.name === "audio_transcribe") {
       return (
         <AudioTranscribeItem
-          args={part.args}
+          id={part.id}
+          args={toolArgs}
           result={part.result}
           success={part.success}
           isPending={part.isPending}
@@ -336,8 +360,9 @@ export function MessagePartRenderer({
     ) {
       return (
         <ScheduledTaskItem
+          id={part.id}
           toolName={part.name}
-          args={part.args}
+          args={toolArgs}
           result={part.result}
           success={part.success}
           isPending={part.isPending}
@@ -355,8 +380,9 @@ export function MessagePartRenderer({
     ) {
       return (
         <EnvVarItem
+          id={part.id}
           toolName={part.name}
-          args={part.args}
+          args={toolArgs}
           result={part.result}
           success={part.success}
           isPending={part.isPending}
@@ -373,7 +399,8 @@ export function MessagePartRenderer({
     ) {
       return (
         <PersonaItem
-          args={part.args}
+          id={part.id}
+          args={toolArgs}
           result={part.result}
           success={part.success}
           isPending={part.isPending}
@@ -389,8 +416,9 @@ export function MessagePartRenderer({
     ) {
       return (
         <TeamItem
+          id={part.id}
           toolName={part.name}
-          args={part.args}
+          args={toolArgs}
           result={part.result}
           success={part.success}
           isPending={part.isPending}
@@ -403,7 +431,8 @@ export function MessagePartRenderer({
     if (part.name === "memory_recall") {
       return (
         <MemoryRecallItem
-          args={part.args}
+          id={part.id}
+          args={toolArgs}
           result={part.result}
           success={part.success}
           isPending={part.isPending}
@@ -416,8 +445,9 @@ export function MessagePartRenderer({
     if (part.name === "memory_retain" || part.name === "memory_delete") {
       return (
         <MemoryStoreItem
+          id={part.id}
           toolName={part.name}
-          args={part.args}
+          args={toolArgs}
           result={part.result}
           success={part.success}
           isPending={part.isPending}
@@ -431,7 +461,8 @@ export function MessagePartRenderer({
     if (part.name === "ask_human") {
       return (
         <AskHumanItem
-          args={part.args}
+          id={part.id}
+          args={toolArgs}
           result={part.result}
           success={part.success}
           isPending={part.isPending}
@@ -445,7 +476,8 @@ export function MessagePartRenderer({
     if (part.name === "search_tools") {
       return (
         <ToolSearchItem
-          args={part.args}
+          id={part.id}
+          args={toolArgs}
           result={part.result}
           success={part.success}
           isPending={part.isPending}
@@ -455,6 +487,42 @@ export function MessagePartRenderer({
         />
       );
     }
+    // Detect conversation history SOP tools, use dedicated component
+    if (
+      part.name === "search_conversation_history" ||
+      part.name === "get_conversation_detail"
+    ) {
+      return (
+        <ConversationHistoryItem
+          id={part.id}
+          toolName={part.name}
+          args={toolArgs}
+          result={part.result}
+          success={part.success}
+          isPending={part.isPending}
+          cancelled={part.cancelled}
+          startedAt={part.startedAt}
+          completedAt={part.completedAt}
+        />
+      );
+    }
+    // Detect skill search, use dedicated component (shows matched skill metadata as cards)
+    if (part.name === "search_skills") {
+      return (
+        <SkillSearchItem
+          id={part.id}
+          args={toolArgs}
+          result={part.result}
+          success={part.success}
+          isPending={part.isPending}
+          cancelled={part.cancelled}
+          startedAt={part.startedAt}
+          completedAt={part.completedAt}
+        />
+      );
+    }
+    // 兜底通用组件保留 part.args 原文：无法渐进解析的参数仍走
+    // ToolCallItem 既有 args.partial 展示分支（JSON.parse 回退原样文本）。
     return (
       <ToolCallItem
         id={part.id}
@@ -518,6 +586,11 @@ export function MessagePartRenderer({
       <TodoBlock
         items={part.items}
         isStreaming={isStreaming && isLast && part.isStreaming}
+        stateKey={
+          messageId !== undefined && partIndex !== undefined
+            ? `${messageId}:${partIndex}`
+            : undefined
+        }
       />
     );
   }

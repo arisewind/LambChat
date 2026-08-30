@@ -29,7 +29,9 @@ from src.infra.agent.events.tool_outputs import (
 from src.infra.agent.events.types import TOOL_TASK, StreamEvent
 from src.infra.agent.first_event_timing import FirstEventTiming
 from src.infra.logging import get_logger
+from src.infra.pricing.service import compute_usage_cost
 from src.infra.writer.present import Presenter
+from src.kernel.config import settings
 
 logger = get_logger(__name__)
 
@@ -76,6 +78,8 @@ class AgentEventProcessor(SubagentEventMixin, StreamEventMixin, ToolEventMixin):
         "_chunk_buffer",
         "_summary_chunk_buffer",
         "_thinking_chunk_buffer",
+        "_tool_args_buffers",
+        "_tool_args_meta",
         "_agent_context_cache",
         "_subagent_display_names",
         "_subagent_avatars",
@@ -99,9 +103,7 @@ class AgentEventProcessor(SubagentEventMixin, StreamEventMixin, ToolEventMixin):
         self.presenter = presenter
         self.checkpoint_to_agent: dict[str, tuple[str, str]] = {}
         if not base_url:
-            from src.kernel.config import settings
-
-            base_url = getattr(settings, "APP_BASE_URL", "").rstrip("/")
+            base_url = settings.APP_BASE_URL.rstrip("/")
         self._base_url = base_url
         self.thinking_ids: dict[str | None, str | None] = {}
         self._output_buffer = StringIO()
@@ -114,9 +116,12 @@ class AgentEventProcessor(SubagentEventMixin, StreamEventMixin, ToolEventMixin):
         self._token_usage_emitted = False
         self._presenter_emit = presenter.emit
         self._before_tool_start = before_tool_start
-        self._chunk_buffer = TextChunkBuffer(self._CHUNK_FLUSH_SIZE)
-        self._summary_chunk_buffer = TextChunkBuffer(self._CHUNK_FLUSH_SIZE)
-        self._thinking_chunk_buffer = TextChunkBuffer(self._CHUNK_FLUSH_SIZE)
+        chunk_flush_interval = settings.STREAM_CHUNK_FLUSH_INTERVAL
+        self._chunk_buffer = TextChunkBuffer(self._CHUNK_FLUSH_SIZE, chunk_flush_interval)
+        self._summary_chunk_buffer = TextChunkBuffer(self._CHUNK_FLUSH_SIZE, chunk_flush_interval)
+        self._thinking_chunk_buffer = TextChunkBuffer(self._CHUNK_FLUSH_SIZE, chunk_flush_interval)
+        self._tool_args_buffers: dict[int | str, TextChunkBuffer] = {}
+        self._tool_args_meta: dict[int | str, tuple[str, str | None]] = {}
         self._agent_context_cache: dict[str, tuple[str | None, int]] = {}
         self._subagent_display_names = subagent_display_names or {}
         self._subagent_avatars = subagent_avatars or {}
@@ -135,6 +140,7 @@ class AgentEventProcessor(SubagentEventMixin, StreamEventMixin, ToolEventMixin):
         await self._flush_chunk_buffer()
         await self._flush_summary_chunk_buffer()
         await self._flush_thinking_chunk_buffer()
+        await self._flush_tool_args_buffers()
 
     async def finalize(self) -> None:
         """Flush pending chunks and release session-scoped buffers."""
@@ -158,6 +164,7 @@ class AgentEventProcessor(SubagentEventMixin, StreamEventMixin, ToolEventMixin):
             return False
 
         total_tokens = self.total_tokens or self.total_input_tokens + self.total_output_tokens
+        cost, rates = await self._resolve_usage_cost(model=model, model_id=model_id)
         event = self.presenter.present_token_usage(
             input_tokens=self.total_input_tokens,
             output_tokens=self.total_output_tokens,
@@ -167,10 +174,33 @@ class AgentEventProcessor(SubagentEventMixin, StreamEventMixin, ToolEventMixin):
             cache_read_tokens=self.total_cache_read_tokens,
             model_id=model_id,
             model=model,
+            cost=cost,
+            rates=rates,
         )
         await self._presenter_emit(event)
         self._token_usage_emitted = True
         return True
+
+    async def _resolve_usage_cost(
+        self, *, model: str | None, model_id: str | None
+    ) -> tuple[Any, Any]:
+        """best-effort 计算本次用量成本；失败或未匹配价格时返回 (None, None)。"""
+        try:
+            result = await compute_usage_cost(
+                model_value=model,
+                model_config_id=model_id,
+                input_tokens=self.total_input_tokens,
+                output_tokens=self.total_output_tokens,
+                cache_read_tokens=self.total_cache_read_tokens,
+                cache_creation_tokens=self.total_cache_creation_tokens,
+            )
+        except Exception as e:
+            logger.debug(f"Pricing: usage cost computation failed: {e}")
+            return None, None
+        if result is None:
+            return None, None
+        breakdown, rates, _source = result
+        return breakdown, rates
 
     def clear(self) -> None:
         """Release memory held by this session while preserving token counters."""
@@ -183,6 +213,8 @@ class AgentEventProcessor(SubagentEventMixin, StreamEventMixin, ToolEventMixin):
         self._chunk_buffer.reset()
         self._summary_chunk_buffer.reset()
         self._thinking_chunk_buffer.reset()
+        self._tool_args_buffers.clear()
+        self._tool_args_meta.clear()
         self._started_tool_call_ids.clear()
 
     async def process_event(self, event: StreamEvent) -> None:
@@ -288,6 +320,9 @@ class AgentEventProcessor(SubagentEventMixin, StreamEventMixin, ToolEventMixin):
 
         match evt_type:
             case "on_chat_model_start":
+                # 新模型流开始：上一步残留的参数缓冲已被 model_end 冲掉，
+                # 异常中断的残留在此丢弃（对应工具不会执行）。
+                self._reset_tool_args_buffers()
                 if current_depth == 0:
                     self._first_event_timing.start_model()
             case "on_chat_model_stream":

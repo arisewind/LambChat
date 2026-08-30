@@ -46,6 +46,188 @@ export function createToolPart(
 }
 
 /**
+ * Create a generating tool part holding partial args text streamed from the
+ * LLM (tool:args:chunk). Rendered by the same ToolCallItem via args.partial.
+ */
+export function createGeneratingToolPart(
+  toolName: string,
+  toolCallId: string | undefined,
+  partialArgs: string,
+  depth: number,
+  agentId?: string,
+): ToolPart {
+  return {
+    type: "tool",
+    id: toolCallId,
+    name: toolName,
+    args: { partial: partialArgs },
+    argsPartial: true,
+    isPending: true,
+    depth,
+    agent_id: agentId,
+  };
+}
+
+function findGeneratingToolIndex(
+  parts: MessagePart[],
+  toolCallId: string | undefined,
+): number {
+  if (toolCallId) {
+    return parts.findIndex(
+      (p) => p.type === "tool" && (p as ToolPart).argsPartial && p.id === toolCallId,
+    );
+  }
+  for (let i = parts.length - 1; i >= 0; i--) {
+    if (parts[i].type === "tool" && (parts[i] as ToolPart).argsPartial) return i;
+  }
+  return -1;
+}
+
+function appendPartialArgs(existing: ToolPart, delta: string): ToolPart {
+  const current = typeof existing.args.partial === "string" ? existing.args.partial : "";
+  return { ...existing, args: { partial: current + delta } };
+}
+
+function mergeToolArgsDeltaInParts(
+  parts: MessagePart[],
+  toolCallId: string | undefined,
+  delta: string,
+): MessagePart[] | null {
+  const idx = findGeneratingToolIndex(parts, toolCallId);
+  if (idx !== -1) {
+    const newParts = [...parts];
+    newParts[idx] = appendPartialArgs(newParts[idx] as ToolPart, delta);
+    return newParts;
+  }
+  for (let i = parts.length - 1; i >= 0; i--) {
+    const p = parts[i];
+    if (p.type === "subagent" && p.parts) {
+      const updated = mergeToolArgsDeltaInParts(p.parts, toolCallId, delta);
+      if (updated) {
+        const newParts = [...parts];
+        newParts[i] = { ...p, parts: updated };
+        return newParts;
+      }
+    }
+  }
+  return null;
+}
+
+/**
+ * Append a streamed tool-args delta onto its generating part, creating the
+ * part when this is its first delta. Falls back to addPartToDepth routing
+ * for subagent placement.
+ */
+export function appendToolArgsDelta(
+  parts: MessagePart[],
+  toolName: string,
+  toolCallId: string | undefined,
+  delta: string,
+  depth: number,
+  agentId: string | undefined,
+  activeSubagentStack: SubagentStackItem[],
+  messageId?: string,
+): MessagePart[] {
+  const merged = mergeToolArgsDeltaInParts(parts, toolCallId, delta);
+  if (merged) return merged;
+
+  // 防御：对应的工具已转正（tool:start 已升级，id 或 alias 命中）时，
+  // 迟到的增量直接丢弃——最终 args 已权威，再建 part 会留下一个永远
+  // 停留在「参数生成中」的幽灵卡片
+  if (toolCallId && hasUpgradedToolCallId(parts, toolCallId)) {
+    return parts;
+  }
+
+  const part = createGeneratingToolPart(toolName, toolCallId, delta, depth, agentId);
+  if (depth > 0) {
+    return addPartToDepth(parts, part, depth, activeSubagentStack, agentId, messageId);
+  }
+  return [...parts, part];
+}
+
+function hasUpgradedToolCallId(parts: MessagePart[], toolCallId: string): boolean {
+  return parts.some((p) => {
+    if (p.type === "tool") {
+      return (
+        !p.argsPartial && (p.id === toolCallId || p.alias_id === toolCallId)
+      );
+    }
+    return p.type === "subagent" && p.parts
+      ? hasUpgradedToolCallId(p.parts, toolCallId)
+      : false;
+  });
+}
+
+/**
+ * 定位 tool:start 应升级的生成中 part。
+ *
+ * 优先级：id 精确命中 > 按工具名取「最后一个」> 最后一个 argsPartial。
+ * 必须与 findGeneratingToolIndex 的合并目标（反扫取最后一个）一致：
+ * 若按位置取第一个，早前轮次残留的 stale 生成中 part（流式中断遗留）
+ * 或并行工具执行顺序与生成顺序不一致时会错配——正在流式的新 part
+ * 永远等不到升级，UI 卡在「参数生成中」不被替换。
+ */
+function findUpgradeTargetIndex(
+  parts: MessagePart[],
+  replacement: ToolPart,
+): number {
+  let nameMatch = -1;
+  let anyMatch = -1;
+  for (let i = 0; i < parts.length; i++) {
+    const p = parts[i];
+    if (p.type !== "tool" || !p.argsPartial) continue;
+    if (replacement.id && p.id === replacement.id) return i;
+    if (replacement.name && p.name === replacement.name) nameMatch = i;
+    anyMatch = i;
+  }
+  return nameMatch !== -1 ? nameMatch : anyMatch;
+}
+
+/**
+ * Replace the matching args-partial tool part with the final tool:start part,
+ * keeping the earlier startedAt for honest elapsed timing.
+ * depth 0 only upgrades top-level generating parts; nested subagent tools
+ * (depth > 0) upgrade within their own subtree, matching where the args
+ * chunks were routed.
+ * The streaming-era id (if any) is preserved as alias_id so panels opened
+ * during args streaming keep receiving live updates under the new id.
+ * Returns null when no matching generating part exists (plain append path).
+ */
+export function upgradeGeneratingToolPart(
+  parts: MessagePart[],
+  replacement: ToolPart,
+  targetDepth = 0,
+): MessagePart[] | null {
+  if (targetDepth > 0) {
+    for (let i = 0; i < parts.length; i++) {
+      const p = parts[i];
+      if (p.type !== "subagent" || !p.parts) continue;
+      const updated = upgradeGeneratingToolPart(p.parts, replacement, targetDepth - 1);
+      if (updated) {
+        const newParts = [...parts];
+        newParts[i] = { ...p, parts: updated };
+        return newParts;
+      }
+    }
+    return null;
+  }
+
+  const idx = findUpgradeTargetIndex(parts, replacement);
+  if (idx === -1) return null;
+  const generating = parts[idx] as ToolPart;
+  const newParts = [...parts];
+  newParts[idx] = {
+    ...replacement,
+    startedAt: generating.startedAt ?? replacement.startedAt,
+    alias_id:
+      generating.id && generating.id !== replacement.id
+        ? generating.id
+        : replacement.alias_id,
+  };
+  return newParts;
+}
+
+/**
  * Create a thinking part from thinking data.
  */
 export function createThinkingPart(
@@ -161,6 +343,53 @@ function mergeTextPart(
     return newParts;
   }
   return null;
+}
+
+/**
+ * 追加一段顶层正文（depth 0 的 message:chunk）。
+ *
+ * 流式下后端按阈值/定时 flush 正文，而工具参数首块直发，导致「先于工具
+ * 调用生成的正文」可能在 tool:args:chunk 之后到达。模型输出顺序恒为
+ * 「正文 → 工具参数」，仍在参数生成中（argsPartial，tool:start 之前）的
+ * 工具不可能先于其前面的正文：把晚到的正文插回这些生成中工具之前并与
+ * 相邻正文段合并，避免同一句被工具卡从中间劈开。
+ */
+export function appendTopLevelTextChunk(
+  parts: MessagePart[],
+  content: string,
+): MessagePart[] {
+  const lastPart = parts[parts.length - 1];
+  if (lastPart?.type === "text" && !lastPart.depth) {
+    const newParts = [...parts];
+    newParts[newParts.length - 1] = {
+      ...lastPart,
+      content: lastPart.content + content,
+    };
+    return newParts;
+  }
+
+  let anchor = parts.length;
+  while (anchor > 0) {
+    const part = parts[anchor - 1];
+    if (part.type === "tool" && (part as ToolPart).argsPartial) {
+      anchor--;
+      continue;
+    }
+    break;
+  }
+
+  const before = parts[anchor - 1];
+  if (before?.type === "text" && !before.depth) {
+    const newParts = [...parts];
+    newParts[anchor - 1] = {
+      ...before,
+      content: before.content + content,
+    };
+    return newParts;
+  }
+
+  const textPart: MessagePart = { type: "text", content };
+  return [...parts.slice(0, anchor), textPart, ...parts.slice(anchor)];
 }
 
 /**

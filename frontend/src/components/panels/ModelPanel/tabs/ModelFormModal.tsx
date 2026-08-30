@@ -1,4 +1,4 @@
-import { useState, useCallback } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Eye, EyeOff, Save, Plus, Pencil } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import toast from "react-hot-toast";
@@ -10,9 +10,12 @@ import {
   Input,
   PanelFooterActions,
   Select,
+  Textarea,
 } from "../../../common";
 import { ProviderSelect } from "../../AgentPanel/shared";
 import { modelApi } from "../../../../services/api/model";
+import { pricingApi } from "../../../../services/api/pricing";
+import type { PricingLookupResponse } from "../../../../services/api/pricing";
 import type {
   ApiFormat,
   ModelConfig,
@@ -22,6 +25,15 @@ import type {
   ProviderType,
 } from "../../../../services/api/model";
 import { ModelIconSelect } from "./ModelIconSelect";
+import {
+  resolveModelProtocol,
+  showsApiFormat,
+  type ProviderInfo,
+} from "./modelProtocol";
+import {
+  formatRequestHeaders,
+  parseRequestHeadersInput,
+} from "./requestHeadersInput";
 
 interface ModelFormModalProps {
   model: ModelConfig | null; // null = creating, non-null = editing
@@ -49,6 +61,9 @@ export const ModelFormModal = ({
   const [formApiFormat, setFormApiFormat] = useState<ApiFormat | "">(
     model?.api_format || "",
   );
+  const [formRequestHeaders, setFormRequestHeaders] = useState(
+    formatRequestHeaders(model?.request_headers),
+  );
   const [formTemperature, setFormTemperature] = useState(
     model?.temperature?.toString() || "",
   );
@@ -71,6 +86,65 @@ export const ModelFormModal = ({
   );
   const [showApiKey, setShowApiKey] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  const [formPriceInput, setFormPriceInput] = useState(
+    model?.pricing?.input?.toString() || "",
+  );
+  const [formPriceOutput, setFormPriceOutput] = useState(
+    model?.pricing?.output?.toString() || "",
+  );
+  const [formPriceCacheRead, setFormPriceCacheRead] = useState(
+    model?.pricing?.cache_read?.toString() || "",
+  );
+  const [formPriceCacheWrite, setFormPriceCacheWrite] = useState(
+    model?.pricing?.cache_write?.toString() || "",
+  );
+  const [priceLookup, setPriceLookup] = useState<PricingLookupResponse | null>(
+    null,
+  );
+  const [providers, setProviders] = useState<ProviderInfo[]>([]);
+
+  // 供应商协议信息：决定「API 格式」是否显示（仅 OpenAI 协议有意义）
+  useEffect(() => {
+    let alive = true;
+    modelApi
+      .listProviders()
+      .then((list) => {
+        if (alive) setProviders(list);
+      })
+      .catch(() => null);
+    return () => {
+      alive = false;
+    };
+  }, []);
+  const modelProtocol = resolveModelProtocol({
+    value: formValue,
+    provider: formProvider,
+    providers,
+  });
+
+  // 按模型标识查询 models.dev 匹配价格（防抖）
+  useEffect(() => {
+    const value = formValue.trim();
+    if (!value) {
+      setPriceLookup(null);
+      return;
+    }
+    let alive = true;
+    const timer = setTimeout(() => {
+      pricingApi
+        .lookup({ value, provider: formProvider || undefined })
+        .then((res) => {
+          if (alive) setPriceLookup(res);
+        })
+        .catch(() => {
+          if (alive) setPriceLookup(null);
+        });
+    }, 400);
+    return () => {
+      alive = false;
+      clearTimeout(timer);
+    };
+  }, [formValue, formProvider]);
 
   const isMaskedApiKey = (key: string) => key.includes("...") || key === "****";
 
@@ -83,6 +157,15 @@ export const ModelFormModal = ({
     const temperature = formTemperature
       ? parseFloat(formTemperature)
       : undefined;
+    const parsedHeaders = parseRequestHeadersInput(formRequestHeaders);
+    if (!parsedHeaders.ok) {
+      toast.error(
+        parsedHeaders.error === "invalidJson"
+          ? t("agentConfig.requestHeadersInvalidJson")
+          : t("agentConfig.requestHeadersNotObject"),
+      );
+      return;
+    }
     const maxTokens = formMaxTokens ? parseInt(formMaxTokens, 10) : undefined;
     const maxInputTokens = formMaxInputTokens
       ? parseInt(formMaxInputTokens, 10)
@@ -109,6 +192,27 @@ export const ModelFormModal = ({
       return;
     }
 
+    const parsePrice = (raw: string) =>
+      raw.trim() === "" ? undefined : parseFloat(raw.trim());
+    const priceInput = parsePrice(formPriceInput);
+    const priceOutput = parsePrice(formPriceOutput);
+    const priceCacheRead = parsePrice(formPriceCacheRead);
+    const priceCacheWrite = parsePrice(formPriceCacheWrite);
+    const prices = [priceInput, priceOutput, priceCacheRead, priceCacheWrite];
+    if (prices.some((price) => price !== undefined && (isNaN(price) || price < 0))) {
+      toast.error(t("agentConfig.pricingInvalid"));
+      return;
+    }
+    const hasAnyPrice = prices.some((price) => price !== undefined);
+    const pricingOverride = hasAnyPrice
+      ? {
+          ...(priceInput !== undefined ? { input: priceInput } : {}),
+          ...(priceOutput !== undefined ? { output: priceOutput } : {}),
+          ...(priceCacheRead !== undefined ? { cache_read: priceCacheRead } : {}),
+          ...(priceCacheWrite !== undefined ? { cache_write: priceCacheWrite } : {}),
+        }
+      : undefined;
+
     setIsSaving(true);
     try {
       if (isEditing && model?.id) {
@@ -122,9 +226,12 @@ export const ModelFormModal = ({
             : {}),
           api_base: formApiBase.trim() || undefined,
           api_format: formApiFormat || "",
+          request_headers: parsedHeaders.headers ?? {},
           temperature,
           max_tokens: maxTokens,
           profile,
+          // {} 表示清除覆盖、回落 models.dev 同步价格
+          pricing: pricingOverride ?? {},
           fallback_model: formFallbackModel.trim() || undefined,
         };
         await modelApi.update(model.id, update);
@@ -139,9 +246,11 @@ export const ModelFormModal = ({
           api_key: formApiKey.trim() || undefined,
           api_base: formApiBase.trim() || undefined,
           api_format: formApiFormat || undefined,
+          request_headers: parsedHeaders.headers,
           temperature,
           max_tokens: maxTokens,
           profile,
+          ...(pricingOverride ? { pricing: pricingOverride } : {}),
           fallback_model: formFallbackModel.trim() || undefined,
           enabled: true,
         };
@@ -161,6 +270,7 @@ export const ModelFormModal = ({
     formApiKey,
     formApiBase,
     formApiFormat,
+    formRequestHeaders,
     formTemperature,
     formMaxTokens,
     formMaxInputTokens,
@@ -169,6 +279,10 @@ export const ModelFormModal = ({
     formProvider,
     formIcon,
     formFallbackModel,
+    formPriceInput,
+    formPriceOutput,
+    formPriceCacheRead,
+    formPriceCacheWrite,
     isEditing,
     model,
     t,
@@ -236,6 +350,94 @@ export const ModelFormModal = ({
             placeholder={t("agentConfig.modelLabelPlaceholder")}
             className="es-input"
           />
+        </div>
+
+        {/* Pricing override (USD / 1M tokens) */}
+        <div className="es-field">
+          <label className="es-label">
+            {t("agentConfig.pricingLabel", "价格覆盖（USD / 百万 tokens）")}
+          </label>
+          <div className="grid grid-cols-2 gap-2">
+            <div>
+              <label className="es-hint mb-1 block">
+                {t("agentConfig.pricingInput", "输入")}
+              </label>
+              <Input
+                type="text"
+                inputMode="decimal"
+                value={formPriceInput}
+                onChange={(e) => setFormPriceInput(e.target.value)}
+                placeholder="2.5"
+                className="es-input"
+              />
+            </div>
+            <div>
+              <label className="es-hint mb-1 block">
+                {t("agentConfig.pricingOutput", "输出")}
+              </label>
+              <Input
+                type="text"
+                inputMode="decimal"
+                value={formPriceOutput}
+                onChange={(e) => setFormPriceOutput(e.target.value)}
+                placeholder="10"
+                className="es-input"
+              />
+            </div>
+            <div>
+              <label className="es-hint mb-1 block">
+                {t("agentConfig.pricingCacheRead", "缓存读")}
+              </label>
+              <Input
+                type="text"
+                inputMode="decimal"
+                value={formPriceCacheRead}
+                onChange={(e) => setFormPriceCacheRead(e.target.value)}
+                placeholder="1.25"
+                className="es-input"
+              />
+            </div>
+            <div>
+              <label className="es-hint mb-1 block">
+                {t("agentConfig.pricingCacheWrite", "缓存写")}
+              </label>
+              <Input
+                type="text"
+                inputMode="decimal"
+                value={formPriceCacheWrite}
+                onChange={(e) => setFormPriceCacheWrite(e.target.value)}
+                placeholder="3.75"
+                className="es-input"
+              />
+            </div>
+          </div>
+          {priceLookup?.found ? (
+            <p className="es-hint">
+              {t("agentConfig.pricingMatched", {
+                defaultValue:
+                  "models.dev 匹配：输入 ${{input}} · 输出 ${{output}}（{{match}}）",
+                input: priceLookup.rates?.input ?? "-",
+                output: priceLookup.rates?.output ?? "-",
+                match:
+                  [priceLookup.matched_provider, priceLookup.matched_model_id]
+                    .filter(Boolean)
+                    .join("/") || "-",
+              })}
+            </p>
+          ) : (
+            <p className="es-hint">
+              {t(
+                "agentConfig.pricingUnmatched",
+                "未在 models.dev 匹配到价格；留空则该模型不计算费用",
+              )}
+            </p>
+          )}
+          <p className="es-hint">
+            {t(
+              "agentConfig.pricingHint",
+              "留空档位沿用同步价格；中转站实际价格不同时可在此覆盖",
+            )}
+          </p>
         </div>
 
         {/* Advanced (collapsed) */}
@@ -336,21 +538,39 @@ export const ModelFormModal = ({
                 className="es-input"
               />
             </div>
+            {showsApiFormat(modelProtocol) && (
+              <div className="es-field">
+                <label className="es-label">
+                  {t("agentConfig.modelApiFormat")}
+                </label>
+                <Select
+                  value={formApiFormat}
+                  onChange={(v) => setFormApiFormat(v as ApiFormat | "")}
+                  options={[
+                    { value: "", label: t("agentConfig.apiFormatFollowDefault") },
+                    { value: "chat_completions", label: "Chat Completions" },
+                    { value: "responses", label: "Responses" },
+                  ]}
+                />
+                <p className="es-hint">
+                  {t("agentConfig.modelApiFormatHint")}
+                </p>
+              </div>
+            )}
             <div className="es-field">
               <label className="es-label">
-                {t("agentConfig.modelApiFormat")}
+                {t("agentConfig.modelRequestHeaders")}
               </label>
-              <Select
-                value={formApiFormat}
-                onChange={(v) => setFormApiFormat(v as ApiFormat | "")}
-                options={[
-                  { value: "", label: t("agentConfig.apiFormatFollowDefault") },
-                  { value: "chat_completions", label: "Chat Completions" },
-                  { value: "responses", label: "Responses" },
-                ]}
+              <Textarea
+                value={formRequestHeaders}
+                onChange={(e) => setFormRequestHeaders(e.target.value)}
+                placeholder={t("agentConfig.modelRequestHeadersPlaceholder")}
+                className="es-input font-mono text-xs"
+                rows={3}
+                spellCheck={false}
               />
               <p className="es-hint">
-                {t("agentConfig.modelApiFormatHint")}
+                {t("agentConfig.modelRequestHeadersHint")}
               </p>
             </div>
             <div className="es-row es-row-3">

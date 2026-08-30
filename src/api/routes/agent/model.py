@@ -16,6 +16,7 @@ from src.api.deps import require_permissions
 from src.infra.agent.model_storage import ModelStorage, get_model_storage
 from src.infra.logging import get_logger
 from src.kernel.schemas.model import (
+    AvailableModel,
     AvailableModelListResponse,
     ModelConfig,
     ModelConfigCreate,
@@ -105,12 +106,18 @@ async def list_available_models(
 
     logger.info(f"[Model] Found {len(models)} visible models for user_id={user.sub}")
 
+    from src.infra.llm.client import model_supports_thinking
     from src.infra.llm.models_service import select_default_model
 
     default_model = select_default_model([m.model_dump() for m in models])
 
+    def _with_thinking_capability(model: ModelConfig) -> AvailableModel:
+        entry = to_available_model(model)
+        entry.supports_thinking = model_supports_thinking(model.provider, model.value)
+        return entry
+
     return AvailableModelListResponse(
-        models=[to_available_model(m) for m in models],
+        models=[_with_thinking_capability(m) for m in models],
         count=len(models),
         enabled_count=len(models),
         default_model_id=default_model.get("id") if default_model else None,
@@ -228,6 +235,12 @@ async def update_model(
     # Allow clearing api_format back to "follow default" by sending empty string ""
     if "api_format" in update_data and update_data["api_format"] == "":
         update_data["api_format"] = None
+    # Allow clearing request_headers by sending an empty object {}
+    if "request_headers" in update_data and not update_data["request_headers"]:
+        update_data["request_headers"] = None
+    # Allow clearing pricing override by sending an empty object {}
+    if "pricing" in update_data and not update_data["pricing"]:
+        update_data["pricing"] = None
     # 校验 fallback_model
     if "fallback_model" in update_data and update_data["fallback_model"] is not None:
         if update_data["fallback_model"] == model_id:

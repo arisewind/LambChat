@@ -70,6 +70,22 @@ export interface TokenUsagePart {
   cache_read_tokens?: number;
   model_id?: string;
   model?: string;
+  // USD 金额（models.dev 计价；undefined 表示该模型未匹配到价格）
+  cost_usd?: number;
+  cost_breakdown?: {
+    input: number;
+    output: number;
+    cache_read: number;
+    cache_write: number;
+    total: number;
+  };
+  // 计价所用单价（USD / 每百万 token）
+  cost_rates?: {
+    input: number | null;
+    output: number | null;
+    cache_read: number | null;
+    cache_write: number | null;
+  };
 }
 
 // 取消状态块类型
@@ -132,8 +148,12 @@ export interface ThinkingPart {
 export interface ToolPart {
   type: "tool";
   id?: string;
+  /** 参数流式期间的 LLM call id：tool:start 转正换 run 级 id 后留作面板实时订阅的别名 */
+  alias_id?: string;
   name: string;
   args: Record<string, unknown>;
+  /** args 为 { partial: "…" } 的生成中形态：LLM 还在产出参数 JSON */
+  argsPartial?: boolean;
   result?: string | Record<string, unknown>;
   success?: boolean;
   error?: string;

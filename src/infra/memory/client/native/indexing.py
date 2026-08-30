@@ -40,7 +40,7 @@ def choose_index_memories(
 
 def evict_index_cache(index_cache: dict[str, tuple[float, str]], max_size: int) -> None:
     now = time.monotonic()
-    cache_ttl = getattr(settings, "NATIVE_MEMORY_INDEX_CACHE_TTL", 3600)
+    cache_ttl = getattr(settings, "NATIVE_MEMORY_INDEX_CACHE_TTL", 300)
     expired = [uid for uid, (t, _) in index_cache.items() if (now - t) >= cache_ttl]
     for uid in expired:
         del index_cache[uid]
@@ -52,7 +52,7 @@ def evict_index_cache(index_cache: dict[str, tuple[float, str]], max_size: int) 
 
 
 async def build_memory_index(backend, user_id: str) -> str:
-    cache_ttl = getattr(settings, "NATIVE_MEMORY_INDEX_CACHE_TTL", 3600)
+    cache_ttl = getattr(settings, "NATIVE_MEMORY_INDEX_CACHE_TTL", 300)
     cached = backend._index_cache.get(user_id)
     if cached:
         built_at, cached_str = cached
@@ -67,6 +67,7 @@ async def build_memory_index(backend, user_id: str) -> str:
         "updated_at": 1,
         "memory_type": 1,
         "source": 1,
+        "context": 1,
     }
     docs = (
         await backend._collection.find(
@@ -84,6 +85,8 @@ async def build_memory_index(backend, user_id: str) -> str:
     now = utc_now()
     grouped: dict[str, list[dict[str, Any]]] = {}
     for doc in docs:
+        if doc.get("context") == "feedback_rule":
+            continue  # 已进 Lessons 子块，不重复出现在类型区
         grouped.setdefault(str(doc.get("memory_type", "")), []).append(doc)
 
     type_order = {
@@ -100,7 +103,26 @@ async def build_memory_index(backend, user_id: str) -> str:
         MemoryType.REFERENCE.value: "Reference",
     }
 
+    # Lessons 子块：feedback_rule 教训一行一条，独立预算（自进化小抄）。
+    # 刻意只按 updated_at 排序：access_count 每次召回自增，若进排序键会在
+    # 快照重建时改变前缀字节、击穿 KV 缓存（与 choose_index_memories 同纪律）。
+    lessons_max_chars = 400
+    lesson_docs = [d for d in docs if d.get("context") == "feedback_rule"]
+    lesson_docs.sort(key=lambda d: str(d.get("updated_at") or ""), reverse=True)
+    lesson_docs = lesson_docs[:3]
+
     lines = ["<memory_index>", "# Cross-Session Memory Index"]
+    if lesson_docs:
+        lesson_lines: list[str] = ["\n## Lessons"]
+        for d in lesson_docs:
+            rule = str(d.get("title") or d.get("summary") or "").strip()
+            lesson_lines.append(f"- {rule}")
+        block = "\n".join(lesson_lines)
+        while len(block) > lessons_max_chars and len(lesson_lines) > 2:
+            lesson_lines.pop()
+            block = "\n".join(lesson_lines)
+        lines.append(block)
+
     for mtype in sorted(grouped.keys(), key=lambda key: type_order.get(key, 99)):
         chosen = choose_index_memories(
             grouped[mtype], per_type_limit=5, now=now, staleness_days=staleness_days

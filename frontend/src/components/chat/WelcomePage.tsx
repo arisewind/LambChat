@@ -63,6 +63,8 @@ interface WelcomePageProps {
   starterPromptsLabel?: string;
   changePersonaLabel?: string;
   personaPresets: PersonaPreset[];
+  /** 首次列表请求是否已落地；后台刷新不回退骨架屏（issue #158） */
+  personaPresetsLoaded?: boolean;
   hasMorePersonaPresets?: boolean;
   isLoadingMorePersonaPresets?: boolean;
   onLoadMorePersonaPresets?: () => void;
@@ -110,6 +112,7 @@ export const WelcomePage = memo(function WelcomePage({
   starterPromptsLabel,
   changePersonaLabel,
   personaPresets,
+  personaPresetsLoaded = false,
   hasMorePersonaPresets,
   isLoadingMorePersonaPresets,
   onLoadMorePersonaPresets,
@@ -383,6 +386,7 @@ export const WelcomePage = memo(function WelcomePage({
     settingsLoading,
     currentAgent,
     personaPresetsLoading,
+    personaPresetsLoaded,
     teamRequestSettled: teamCardsLoaded,
   });
   // 骨架只覆盖首次加载：一旦内容就绪过，后续 refetch 不再卸载整个页面

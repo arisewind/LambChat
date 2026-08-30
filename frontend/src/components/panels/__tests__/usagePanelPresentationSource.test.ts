@@ -26,6 +26,11 @@ const trendSource = readFileSync(
   "utf8",
 );
 
+const componentsCss = readFileSync(
+  join(import.meta.dirname, "../../../styles/components.css"),
+  "utf8",
+);
+
 test("usage admin and read views present different dashboard context", () => {
   expect(usagePanelSource).toMatch(/const dashboardTitle = isAdmin/);
   expect(usagePanelSource).toMatch(/usage\.dashboard\.titleAdmin/);
@@ -41,7 +46,7 @@ test("usage admin and read views present different dashboard context", () => {
 test("usage table keeps admin-only user column and aligned numeric columns", () => {
   expect(usageTableSource).toMatch(/gridTemplateColumns: desktopGridTemplate/);
   expect(usageTableSource).toMatch(/desktopGridTemplate = isAdmin/);
-  expect(usageTableSource).toMatch(/min-w-\[1080px\]/);
+  expect(usageTableSource).toMatch(/min-w-\[1130px\]/);
   expect(usageTableSource).toMatch(/minmax\(8rem,\.7fr\)|minmax\(9rem,\.8fr\)/);
   expect(usageTableSource).toMatch(/usage\.roleOrTeam/);
   expect(usageTableSource).toMatch(/personaOrTeam/);
@@ -69,6 +74,20 @@ test("usage visual accents use theme colors instead of hard-coded chart palette"
   expect(trendSource).not.toMatch(/#3b82f6|#06b6d4|bg-blue-500/);
   expect(trendSource).toMatch(/var\(--theme-primary\)/);
   expect(trendSource).toMatch(/var\(--usage-chart-secondary\)/);
+});
+
+test("usage console renders all text in the serif family", () => {
+  expect(usagePanelSource).toMatch(/glass-shell usage-panel font-serif/);
+  expect(usagePanelSource).not.toMatch(/font-mono|font-sans/);
+  expect(usageTableSource).not.toMatch(/font-mono|font-sans/);
+  expect(rankingSource).not.toMatch(/font-mono|font-sans/);
+  expect(insightSource).not.toMatch(/font-mono|font-sans/);
+  expect(trendSource).not.toMatch(/font-mono|font-sans/);
+});
+
+test("usage console code chips carry font-serif directly, not via CSS overrides", () => {
+  expect(usageTableSource.match(/<code[^>]*font-serif/g)).toHaveLength(2);
+  expect(componentsCss).not.toMatch(/\.usage-panel :where\(code/);
 });
 
 test("model ranking alone exposes per-model cache diagnostics", () => {

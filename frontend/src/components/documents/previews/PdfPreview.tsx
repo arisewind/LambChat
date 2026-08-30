@@ -33,7 +33,7 @@ const PdfPreview = memo(function PdfPreview({ url }: PdfPreviewProps) {
     return (
       <div className="flex h-full min-h-[400px] w-full flex-col items-center justify-center gap-4 bg-stone-100 px-6 text-center dark:bg-stone-950">
         <div>
-          <p className="text-sm font-medium text-stone-700 dark:text-stone-200">
+          <p className="text-sm font-medium font-serif text-stone-700 dark:text-stone-200">
             {t("documents.pdfPreviewUnavailable", "PDF 预览不可用")}
           </p>
           <p className="mt-1 max-w-sm text-xs text-stone-500 dark:text-stone-400">
@@ -107,7 +107,7 @@ const PdfPreview = memo(function PdfPreview({ url }: PdfPreviewProps) {
       </DocumentViewerFrame>
 
       {numPages > 0 && (
-        <div className="pointer-events-none absolute left-3 top-3 z-10 rounded-lg bg-black/60 px-2.5 py-1.5 text-xs font-medium text-white/75 backdrop-blur-sm sm:left-4 sm:top-4">
+        <div className="pointer-events-none absolute left-3 top-3 z-10 rounded-lg bg-black/60 px-2.5 py-1.5 text-xs font-medium text-white/75 sm:left-4 sm:top-4 font-serif">
           {pageCountLabel}
         </div>
       )}

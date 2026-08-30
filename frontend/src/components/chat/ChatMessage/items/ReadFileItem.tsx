@@ -5,42 +5,29 @@ import { CollapsiblePill } from "../../../common";
 import { DeferredCodeMirrorViewer } from "../../../common/DeferredCodeMirrorViewer";
 import {
   stripLineNumbers,
+  readFileStartLine,
   extractText,
   type McpMultiModalResult,
   type McpContentBlock,
 } from "./toolUtils";
 import { McpBlockPreview } from "./McpBlockPreview";
-import { openPersistentToolPanel } from "./persistentToolPanelState";
+import {
+  openToolLivePanel,
+  toolDetailPropsFromPanelData,
+  type ToolDetailProps,
+} from "./ToolLivePanelContent";
 import { ToolArgsBlock } from "./ToolArgsBlock";
 import { ToolHoverCopyButton } from "./ToolHoverCopyButton";
 import { ToolInlineDetails } from "./ToolInlineDetails";
 import { ToolDurationFooter } from "./ToolDurationFooter";
 
-const ReadFileItem = memo(function ReadFileItem({
-  args,
-  result,
-  success,
-  isPending,
-  cancelled,
-  startedAt,
-  completedAt,
-}: {
-  args: Record<string, unknown>;
-  result?: string | Record<string, unknown>;
-  success?: boolean;
-  isPending?: boolean;
-  cancelled?: boolean;
-  startedAt?: string;
-  completedAt?: string;
-}) {
-  const { t } = useTranslation();
-  const durationFooter = (
-    <ToolDurationFooter startedAt={startedAt} completedAt={completedAt} />
-  );
+/** 面板详情：独立于 pill 渲染，实时跟随 toolCallPanelStore 数据重建 */
+function ReadFileDetail({ args, result }: ToolDetailProps) {
   const filePath = (args.file_path as string) || "";
-  const fileName = filePath.split("/").pop() || filePath;
   const offset = args.offset as number | undefined;
   const limit = args.limit as number | undefined;
+  const startLine = readFileStartLine(offset);
+  const endLine = limit ? startLine + limit - 1 : undefined;
 
   const displayContent = useMemo(() => {
     const raw = extractText(result);
@@ -72,23 +59,14 @@ const ReadFileItem = memo(function ReadFileItem({
     return [];
   }, [result]);
 
-  const hasContent = !!displayContent || imageBlocks.length > 0;
-  const status = isPending
-    ? "loading"
-    : cancelled
-      ? "cancelled"
-      : success
-        ? "success"
-        : "error";
-
-  const detailContent = hasContent && (
+  return (
     <div className="p-4 sm:p-5 space-y-3 tool-panel-content">
       <ToolArgsBlock size="detail">
         <span className="truncate">{filePath}</span>
         {(offset !== undefined || limit !== undefined) && (
           <span className="shrink-0 text-theme-text-tertiary">
-            :L{offset ?? 1}
-            {limit ? `-${(offset ?? 1) + limit}` : ""}
+            :L{startLine}
+            {endLine ? `-${endLine}` : ""}
           </span>
         )}
       </ToolArgsBlock>
@@ -106,13 +84,10 @@ const ReadFileItem = memo(function ReadFileItem({
             filePath={filePath}
             lineNumbers={true}
             fontSize="0.8rem"
-            startLine={Math.max(1, offset ?? 1)}
+            startLine={startLine}
             highlightLineRange={
               offset !== undefined || limit !== undefined
-                ? {
-                    from: Math.max(1, offset ?? 1),
-                    to: Math.max(1, offset ?? 1) + (limit ?? 0),
-                  }
+                ? { from: startLine, to: endLine ?? startLine }
                 : undefined
             }
           />
@@ -126,6 +101,89 @@ const ReadFileItem = memo(function ReadFileItem({
       )}
     </div>
   );
+}
+
+const ReadFileItem = memo(function ReadFileItem({
+  id,
+  args,
+  result,
+  success,
+  isPending,
+  cancelled,
+  startedAt,
+  completedAt,
+}: {
+  id?: string;
+  args: Record<string, unknown>;
+  result?: string | Record<string, unknown>;
+  success?: boolean;
+  isPending?: boolean;
+  cancelled?: boolean;
+  startedAt?: string;
+  completedAt?: string;
+}) {
+  const { t } = useTranslation();
+  const durationFooter = (
+    <ToolDurationFooter startedAt={startedAt} completedAt={completedAt} />
+  );
+  const filePath = (args.file_path as string) || "";
+  const fileName = filePath.split("/").pop() || filePath;
+  const offset = args.offset as number | undefined;
+  const limit = args.limit as number | undefined;
+  const startLine = readFileStartLine(offset);
+  const endLine = limit ? startLine + limit - 1 : undefined;
+
+  const displayContent = useMemo(() => {
+    const raw = extractText(result);
+    return raw ? stripLineNumbers(raw) : "";
+  }, [result]);
+
+  const imageBlocks = useMemo(() => {
+    if (
+      typeof result === "object" &&
+      result !== null &&
+      "blocks" in result &&
+      Array.isArray((result as McpMultiModalResult).blocks)
+    ) {
+      return (result as McpMultiModalResult).blocks!.filter(
+        (b: McpContentBlock) => b.type === "image",
+      );
+    }
+    // LangChain content blocks array
+    if (
+      Array.isArray(result) &&
+      result.length > 0 &&
+      typeof result[0] === "object" &&
+      result[0] !== null &&
+      "type" in result[0]
+    ) {
+      return (result as McpContentBlock[]).filter((b) => b.type === "image");
+    }
+    return [];
+  }, [result]);
+
+  const hasContent = !!displayContent || imageBlocks.length > 0;
+  // 参数生成中（无 result）也允许打开面板：实时等待读取结果
+  const canOpenPanel = hasContent || isPending || !!filePath;
+  const status = isPending
+    ? "loading"
+    : cancelled
+      ? "cancelled"
+      : success
+        ? "success"
+        : "error";
+
+  const detailContent = canOpenPanel && (
+    <ReadFileDetail
+      args={args}
+      result={result}
+      success={success}
+      isPending={isPending}
+      cancelled={cancelled}
+      startedAt={startedAt}
+      completedAt={completedAt}
+    />
+  );
 
   return (
     <>
@@ -135,15 +193,19 @@ const ReadFileItem = memo(function ReadFileItem({
         label={`${t("chat.message.toolRead")} ${filePath || ""}`}
         variant="tool"
         formatLabel={false}
-        expandable={hasContent}
+        expandable={canOpenPanel}
         onPanelOpen={() => {
-          if (!hasContent) return;
-          openPersistentToolPanel({
+          if (!canOpenPanel) return;
+          openToolLivePanel({
+            id,
             title: `${t("chat.message.toolRead")} ${fileName || filePath}`,
             icon: <FileText size={16} />,
             status,
             subtitle: filePath,
-            children: detailContent,
+            fallback: detailContent || undefined,
+            buildDetail: (data) => (
+              <ReadFileDetail {...toolDetailPropsFromPanelData(data)} />
+            ),
             footer: durationFooter,
           });
         }}
@@ -155,8 +217,8 @@ const ReadFileItem = memo(function ReadFileItem({
                 <span className="truncate">{filePath}</span>
                 {(offset !== undefined || limit !== undefined) && (
                   <span className="shrink-0 text-theme-text-tertiary">
-                    :L{offset ?? 1}
-                    {limit ? `-${(offset ?? 1) + limit}` : ""}
+                    :L{startLine}
+                    {endLine ? `-${endLine}` : ""}
                   </span>
                 )}
               </ToolArgsBlock>
@@ -175,10 +237,10 @@ const ReadFileItem = memo(function ReadFileItem({
                   filePath={filePath}
                   lineNumbers={true}
                   fontSize="0.75rem"
-                  startLine={offset ?? 1}
+                  startLine={startLine}
                   highlightLineRange={
                     offset !== undefined || limit !== undefined
-                      ? { from: offset ?? 1, to: (offset ?? 1) + (limit ?? 0) }
+                      ? { from: startLine, to: endLine ?? startLine }
                       : undefined
                   }
                 />

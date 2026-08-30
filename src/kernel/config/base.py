@@ -92,6 +92,7 @@ class Settings(BaseSettings):
         "chat_completions"  # OpenAI 协议线格式默认值（chat_completions | responses）
     )
     LLM_MODEL_CACHE_SIZE: int = 50  # 模型实例缓存大小，防止内存泄漏
+    LLM_REQUEST_HEADERS: str = ""  # JSON 对象，覆盖模型请求的防封默认头（如 User-Agent）
     DEEPAGENT_SUMMARIZATION_TRIGGER_RATIO: float = 0.70  # 触发摘要的上下文占比（原 0.85）
     DEEPAGENT_SUMMARIZATION_KEEP_RATIO: float = 0.15  # 摘要后保留的上下文占比（原 0.10）
 
@@ -144,6 +145,15 @@ class Settings(BaseSettings):
     ARQ_WORKER_MAX_JOBS: int = 128
     ARQ_JOB_TIMEOUT_SECONDS: int = 86400
     TASK_STARTUP_CLEANUP_CONCURRENCY: int = 16
+    # 周期孤儿接管间隔：缩短实例死亡后对话自动恢复的停顿（心跳按龄判死 ~30s + 扫描间隔）
+    TASK_ORPHAN_RECOVERY_INTERVAL_SECONDS: int = 15
+    # 流式分片的时间维 flush 间隔（秒）：正文/思考/工具参数攒不够大小阈值时，
+    # 每隔该时长也强制下发一次，避免小尾巴要等流结束才出来（<=0 禁用）。
+    STREAM_CHUNK_FLUSH_INTERVAL: float = 1.0
+    # run 级停滞 watchdog：executor 事件流超过该秒数无任何事件即判定挂死，
+    # 迁移 error 终态（worker 存活但 LLM/工具挂起时心跳不会失效，issue #293）。
+    # 默认须覆盖最长合法静默窗口（沙箱工具执行期无事件，E2B/CUBE 上限 3600s）
+    TASK_RUN_STALL_TIMEOUT: int = 3600
 
     # MongoDB Settings
     MONGODB_URL: str = "mongodb://localhost:27017"
@@ -155,6 +165,7 @@ class Settings(BaseSettings):
     MONGODB_TRACES_COLLECTION: str = "traces"
     MONGODB_TRACE_EVENT_CHUNKS_COLLECTION: str = "trace_event_chunks"
     MONGODB_USAGE_LOGS_COLLECTION: str = "usage_logs"
+    MONGODB_MODEL_PRICES_COLLECTION: str = "model_prices"
     MONGODB_STORE_BATCH_CONCURRENCY: int = 16
     # Motor business connection pool (shared across all MongoDB-backed storages).
     # Change requires restart: the lru_cache singleton plus per-storage collection
@@ -249,6 +260,11 @@ class Settings(BaseSettings):
 
     # Code Interpreter Settings
     ENABLE_CODE_INTERPRETER: bool = False
+
+    # Model Pricing Settings（models.dev 价格同步 + USD 汇率换算）
+    PRICING_MODELS_DEV_URL: str = "https://models.dev/api.json"
+    PRICING_FX_RATES_URL: str = "https://open.er-api.com/v6/latest/USD"
+    PRICING_SYNC_INTERVAL_HOURS: int = 24
 
     # LangSmith Tracing Settings
     LANGSMITH_TRACING: bool = False
@@ -349,6 +365,7 @@ class Settings(BaseSettings):
 
     # Memory Settings (Master Switch)
     ENABLE_MEMORY: bool = False
+    ENABLE_MEMORY_VFS: bool = False
 
     # Scheduled Task Settings
     ENABLE_SCHEDULED_TASK: bool = False
@@ -362,10 +379,11 @@ class Settings(BaseSettings):
     NATIVE_MEMORY_EMBEDDING_API_BASE: str = ""
     NATIVE_MEMORY_EMBEDDING_API_KEY: str = ""
     NATIVE_MEMORY_EMBEDDING_MODEL: str = "text-embedding-3-small"
+    NATIVE_MEMORY_EMBEDDING_DIMENSIONS: int = 1536
     NATIVE_MEMORY_STALENESS_DAYS: int = 30
     NATIVE_MEMORY_PRUNE_THRESHOLD: int = 90
     NATIVE_MEMORY_INDEX_ENABLED: bool = True
-    NATIVE_MEMORY_INDEX_CACHE_TTL: int = 3600
+    NATIVE_MEMORY_INDEX_CACHE_TTL: int = 300
     NATIVE_MEMORY_MODEL: str = ""
     NATIVE_MEMORY_COMPACTION_MODEL_ID: str = ""
     NATIVE_MEMORY_API_BASE: str = ""
@@ -377,12 +395,10 @@ class Settings(BaseSettings):
     NATIVE_MEMORY_INLINE_CONTENT_MAX_CHARS: int = 1200
     NATIVE_MEMORY_IMPORT_TOTAL_CONTENT_MAX_CHARS: int = 2_000_000
     NATIVE_MEMORY_COMPACTION_CONTENT_MAX_CHARS: int = 4000
-    NATIVE_MEMORY_CONSOLIDATION_INPUT_MAX_CHARS: int = 4000
     NATIVE_MEMORY_STORE_NAMESPACE: str = "memories"
     NATIVE_MEMORY_APPEND_MAX_DETAILS: int = 8
     NATIVE_MEMORY_RECALL_MIN_SCORE: float = 0.3
     NATIVE_MEMORY_HYDRATE_CONCURRENCY: int = 4
-    NATIVE_MEMORY_CONSOLIDATION_ENRICH_CONCURRENCY: int = 4
     NATIVE_MEMORY_CONTENT_DELETE_CONCURRENCY: int = 4
     NATIVE_MEMORY_AUTO_COMPACT_ENABLED: bool = True
     NATIVE_MEMORY_AUTO_COMPACT_THRESHOLD: int = 40
@@ -390,6 +406,16 @@ class Settings(BaseSettings):
     NATIVE_MEMORY_AUTO_COMPACT_MIN_INTERVAL_SECONDS: int = 900
     NATIVE_MEMORY_AUTO_CAPTURE_INPUT_MAX_CHARS: int = 8000
     NATIVE_MEMORY_AUTO_CAPTURE_MAX_TASKS: int = 8
+    NATIVE_MEMORY_MAX_AUTO_RETAIN_PER_DAY: int = 20
+    NATIVE_MEMORY_QUERY_CONTEXT_ENABLED: bool = False
+    NATIVE_MEMORY_SELF_EVOLVE_ENABLED: bool = False
+    NATIVE_MEMORY_SELF_EVOLVE_MAX_PER_NIGHT: int = 3
+    NATIVE_MEMORY_SELF_EVOLVE_INTERVAL_SECONDS: int = 43200
+    NATIVE_MEMORY_VECTOR_BACKEND: str = "mongo"
+    NATIVE_MEMORY_QDRANT_URL: str = "http://127.0.0.1:6333"
+    NATIVE_MEMORY_QDRANT_API_KEY: str = ""
+    NATIVE_MEMORY_QUERY_CONTEXT_TOP_K: int = 3
+    NATIVE_MEMORY_QUERY_CONTEXT_MAX_CHARS: int = 1200
 
     # Audio transcription tool settings
     ENABLE_AUDIO_TRANSCRIPTION: bool = False

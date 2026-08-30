@@ -73,11 +73,13 @@ function resolveChatAssistantIdentity({
   currentPersonaAvatar,
   currentTeam,
   selectedPersonaName,
+  agentDisplayName,
 }: {
   currentAgent: string;
   currentPersonaAvatar: string | null;
   currentTeam: Team | null;
   selectedPersonaName: string | null;
+  agentDisplayName?: string | null;
 }) {
   if (currentAgent === "team") {
     const fallbackAvatar = currentTeam
@@ -89,9 +91,14 @@ function resolveChatAssistantIdentity({
     };
   }
 
+  const agentNameFallback =
+    typeof agentDisplayName === "string" && agentDisplayName.trim()
+      ? agentDisplayName
+      : null;
+
   return {
     avatar: currentPersonaAvatar,
-    name: selectedPersonaName,
+    name: selectedPersonaName ?? agentNameFallback,
   };
 }
 
@@ -106,6 +113,12 @@ export interface ChatViewProps {
   isLoading: boolean;
   isLoadingHistory: boolean;
   historyLoadGeneration: number;
+  /** 历史分页：是否还有更早的轮次可加载 */
+  hasMoreHistoryTraces?: boolean;
+  /** 正在加载更早一页历史 */
+  isLoadingOlderHistory?: boolean;
+  /** 触发加载更早一页历史（滚动到顶部时自动触发） */
+  onLoadOlderHistory?: () => void | Promise<void>;
   connectionStatus?: ConnectionStatus;
   canSendMessage: boolean;
   tools: ToolState[];
@@ -130,6 +143,8 @@ export interface ChatViewProps {
   enableSkills: boolean;
   personaPresets: PersonaPreset[];
   personaPresetsTotal: number;
+  /** 首次列表请求是否已落地；后台刷新不回退骨架屏（issue #158） */
+  personaPresetsLoaded: boolean;
   hasMorePersonaPresets: boolean;
   isLoadingMorePersonaPresets: boolean;
   onLoadMorePersonaPresets: () => void;
@@ -166,6 +181,8 @@ export interface ChatViewProps {
   agentOptions: Record<string, AgentOption>;
   agentOptionValues: Record<string, boolean | string | number>;
   onToggleAgentOption: (key: string, value: boolean | string | number) => void;
+  /** 当前模型思考能力；undefined=未知（不隐藏），false=隐藏思考强度控件 */
+  modelSupportsThinking?: boolean;
   // Agent mode selector
   agents: AgentInfo[];
   currentAgent: string;

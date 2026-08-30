@@ -5,6 +5,8 @@ import { Settings, ChevronRight, Check } from "lucide-react";
 import { toast } from "react-hot-toast";
 import { useTheme } from "../../../contexts/ThemeContext";
 import { useSettingsContext } from "../../../contexts/SettingsContext";
+import { useAuth } from "../../../hooks/useAuth";
+import { Brain } from "lucide-react";
 import { authApi, agentConfigApi, agentApi } from "../../../services/api";
 import { DEFAULT_THINKING_LEVEL_STORAGE_KEY } from "../../layout/AppContent/useAgentOptions";
 import { SkeletonLine } from "../../skeletons";
@@ -25,7 +27,7 @@ const LANGUAGES = [
   { code: "ru", nativeName: "Русский" },
 ];
 
-type ThinkingLevel = "off" | "low" | "medium" | "high" | "max";
+type ThinkingLevel = "low" | "medium" | "high" | "max";
 
 const NEWLINE_OPTIONS: { key: SendModifier; labelKey: string }[] = [
   { key: "enter", labelKey: "profile.newlineEnter" },
@@ -40,7 +42,6 @@ const THEME_OPTIONS: { key: Theme; labelKey: string }[] = [
 ];
 
 const THINKING_LEVEL_OPTIONS: { key: ThinkingLevel; labelKey: string }[] = [
-  { key: "off", labelKey: "agentOptions.enableThinking.options.off" },
   { key: "low", labelKey: "agentOptions.enableThinking.options.low" },
   { key: "medium", labelKey: "agentOptions.enableThinking.options.medium" },
   { key: "high", labelKey: "agentOptions.enableThinking.options.high" },
@@ -150,6 +151,20 @@ export function ProfilePreferencesTab() {
   const { t, i18n } = useTranslation();
   const { theme, setTheme } = useTheme();
   const { availableModels, defaultModel } = useSettingsContext();
+  const { enableMemory } = useSettingsContext();
+  const { user } = useAuth();
+  const [memoryEnabled, setMemoryEnabled] = useState(
+    user?.metadata?.memoryEnabled !== false,
+  );
+
+  const handleMemoryToggle = useCallback(() => {
+    const next = !memoryEnabled;
+    setMemoryEnabled(next);
+    authApi.updateMetadata({ memoryEnabled: next }).catch(() => {
+      setMemoryEnabled(!next);
+      toast.error(t("common.operationFailed"));
+    });
+  }, [memoryEnabled, t]);
 
   // Dropdown open states
   const [openDropdown, setOpenDropdown] = useState<string | null>(null);
@@ -162,9 +177,9 @@ export function ProfilePreferencesTab() {
   );
   const [defaultThinkingLevel, setDefaultThinkingLevel] =
     useState<ThinkingLevel>(() => {
+      // "off" 档已下线：历史存量值降级到最低档
       const stored = localStorage.getItem(DEFAULT_THINKING_LEVEL_STORAGE_KEY);
       if (
-        stored === "off" ||
         stored === "low" ||
         stored === "medium" ||
         stored === "high" ||
@@ -310,12 +325,40 @@ export function ProfilePreferencesTab() {
     <div className="rounded-2xl bg-theme-bg-subtle dark:bg-stone-700/40 p-4 border border-stone-200/60 dark:border-stone-600/40">
       <div className="flex items-center gap-2 mb-3">
         <Settings size={15} className="text-amber-500 dark:text-amber-400" />
-        <h3 className="text-xs font-semibold uppercase tracking-wide text-stone-400 dark:text-stone-500">
+        <h3 className="font-semibold font-serif uppercase tracking-wide text-stone-400 dark:text-stone-500">
           {t("profile.preferences")}
         </h3>
       </div>
 
       <div className="space-y-0">
+        {enableMemory && (
+          <button
+            onClick={handleMemoryToggle}
+            className="flex w-full items-center justify-between py-3 first:pt-0 last:pb-0 text-left"
+          >
+            <span className="flex items-center gap-2 text-sm text-stone-700 dark:text-stone-200">
+              <Brain size={15} className="text-amber-500 dark:text-amber-400" />
+              {t("profile.memoryToggle")}
+            </span>
+            <span
+              className={`relative h-5 w-9 rounded-full transition-colors ${
+                memoryEnabled
+                  ? "bg-amber-500"
+                  : "bg-stone-300 dark:bg-stone-600"
+              }`}
+              role="switch"
+              aria-checked={memoryEnabled}
+              aria-label={t("profile.memoryToggle")}
+            >
+              <span
+                className={`absolute top-0.5 h-4 w-4 rounded-full bg-white transition-all ${
+                  memoryEnabled ? "left-[1.15rem]" : "left-0.5"
+                }`}
+              />
+            </span>
+          </button>
+        )}
+
         <SelectRow
           label={t("profile.language")}
           value={i18n.language}
