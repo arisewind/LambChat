@@ -321,6 +321,23 @@ function processHistoryEvent(
  * 旧记录（如推荐问题）可能缺少 run_id 信封；按时间序取前向最近的
  * run_id，无前向时回退到后向第一个 run_id，保持与逐事件反向查找一致的语义。
  */
+/**
+ * 中断后同 run 无缝续跑：丢弃半截/错误累积，同一气泡回到空态，
+ * 后续事件（模型重新生成的完整回答）从零重新折叠。
+ */
+function resetInterruptedAssistantForResume(
+  message: Message | null,
+): Message | null {
+  if (!message) return null;
+  return {
+    ...message,
+    parts: [],
+    content: "",
+    toolCalls: [],
+    cancelled: false,
+  };
+}
+
 export function normalizeEventRunIds(events: HistoryEvent[]): HistoryEvent[] {
   const prevRunIdByIndex: Array<string | undefined> = new Array(
     events.length,
@@ -464,6 +481,12 @@ export function reconstructMessagesFromEvents(
       const enabledSkills = Array.isArray(eventData.enabled_skills)
         ? eventData.enabled_skills
         : undefined;
+      const runModes = Array.isArray(eventData.run_modes)
+        ? eventData.run_modes.filter(
+            (mode): mode is "auto" | "goal" =>
+              mode === "auto" || mode === "goal",
+          )
+        : undefined;
       pushMessage({
         id: userMessageId,
         role: "user",
@@ -472,6 +495,7 @@ export function reconstructMessagesFromEvents(
         attachments: userAttachments,
         runId: event.run_id,
         enabledSkills,
+        runModes,
       });
       continue;
     }
@@ -511,6 +535,16 @@ export function reconstructMessagesFromEvents(
         });
       }
       currentAssistantMessage = null;
+      continue;
+    }
+
+    // Handle seamless run resume
+    if (eventType === "run:resumed") {
+      // 中断后同 run 恢复：丢弃半截/错误累积，同一气泡从空态继续折叠
+      // 后续事件（模型重新生成完整回答）
+      currentAssistantMessage = resetInterruptedAssistantForResume(
+        currentAssistantMessage,
+      );
       continue;
     }
 
@@ -554,6 +588,40 @@ export function reconstructMessagesFromEvents(
 
   if (currentAssistantMessage) {
     pushMessage(currentAssistantMessage);
+  }
+
+  // 无终态事件的 run（中断后未恢复/旧数据）不允许留下"执行中"部件：
+  // 静默停转半截工具/参数流/思考/子代理的 loading（内容保留），避免历史里
+  // 永远转圈。终态判定在折叠完成后统一进行，steer 封存的中间轮次也能等到
+  // 自己 run 的 done；有终态的 run 完全不动。
+  const settledRunIds = new Set<string>();
+  for (const event of anchoredEvents) {
+    if (
+      event.run_id &&
+      (event.event_type === "done" ||
+        event.event_type === "complete" ||
+        event.event_type === "error" ||
+        event.event_type === "user:cancel")
+    ) {
+      settledRunIds.add(event.run_id);
+    }
+  }
+  for (let index = 0; index < reconstructedMessages.length; index += 1) {
+    const message = reconstructedMessages[index];
+    if (
+      message.role === "assistant" &&
+      message.runId &&
+      !settledRunIds.has(message.runId)
+    ) {
+      reconstructedMessages[index] = {
+        ...message,
+        // ask_human 卡片保持待响应：HITL 挂起中的 run 同样没有终态事件，
+        // 但审批卡必须继续可交互（恢复走审批响应路径，不走无缝续跑）
+        parts: clearAllLoadingStates(message.parts || [], {
+          preserveAskHuman: true,
+        }),
+      };
+    }
   }
 
   // Some runs emit lifecycle events (for example `agent:start`) without ever

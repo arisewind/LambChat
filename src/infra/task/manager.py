@@ -15,6 +15,7 @@ from arq.connections import create_pool
 
 from src.infra.logging import get_logger
 from src.infra.session.storage import SessionStorage
+from src.infra.writer.presenter_events import derive_user_message_run_modes
 from src.kernel.config import settings
 
 from .arq_payloads import TaskArqPayloadStore, UserMessageSearchIndexPayloadStore
@@ -130,6 +131,7 @@ class BackgroundTaskManager:
         enabled_skills: Optional[List[str]] = None,
         attachment_references_claimed: bool = False,
         schedule_search_index: bool = True,
+        run_modes: Optional[List[str]] = None,
     ) -> str:
         """Persist the user message before the background worker starts."""
         from src.agents.core import resolve_agent_name
@@ -161,6 +163,7 @@ class BackgroundTaskManager:
             enabled_skills=enabled_skills,
             attachment_references_claimed=attachment_references_claimed,
             schedule_search_index=schedule_search_index,
+            run_modes=run_modes,
         )
         return presenter.trace_id
 
@@ -190,7 +193,7 @@ class BackgroundTaskManager:
             heartbeat=self._heartbeat,
             ensure_executor=self._ensure_executor,
             submit_task=self.submit,
-            submit_recovery_task=self._submit_recovery_task,
+            submit_arq_task=self.submit_arq,
             mark_run_failed=self._mark_run_failed,
         )
 
@@ -219,26 +222,6 @@ class BackgroundTaskManager:
             error_message,
             error_code=error_code,
         )
-
-    async def _submit_recovery_task(self, **kwargs: Any) -> Tuple[str, str]:
-        executor_key = str(kwargs.pop("executor_key", "agent_stream"))
-        if settings.TASK_BACKEND == "arq":
-            kwargs.pop("executor", None)
-            return await self.submit_arq(
-                executor_key=executor_key,
-                **kwargs,
-            )
-        kwargs.pop("trace_id", None)
-        kwargs.pop("user_message_written", None)
-        return await self.submit(**kwargs)
-
-    async def _submit_recovery_run(
-        self,
-        session: Any,
-        source_run_id: str,
-        reason: str,
-    ) -> Dict[str, Any]:
-        return await self._recovery_service().submit_recovery_run(session, source_run_id, reason)
 
     async def _resume_interrupted_run(
         self,
@@ -291,6 +274,7 @@ class BackgroundTaskManager:
         write_user_message_immediately: bool = False,
         attachment_references_claimed: bool = False,
         hitl_resume: Optional[Dict[str, Any]] = None,
+        interrupted_resume: bool = False,
     ) -> Tuple[str, str]:
         """
         提交后台任务
@@ -357,6 +341,7 @@ class BackgroundTaskManager:
                     attachments=attachments,
                     enabled_skills=enabled_skills,
                     attachment_references_claimed=attachment_references_claimed,
+                    run_modes=derive_user_message_run_modes(auto_mode, active_goal),
                 )
                 user_message_written = True
 
@@ -394,6 +379,7 @@ class BackgroundTaskManager:
                     user_message_written=user_message_written,
                     attachment_references_claimed=attachment_references_claimed,
                     hitl_resume=hitl_resume,
+                    interrupted_resume=interrupted_resume,
                 )
             )
             self._tasks[run_id] = task
@@ -437,6 +423,7 @@ class BackgroundTaskManager:
         index_user_message: bool = False,
         dispatch_id: Optional[str] = None,
         hitl_resume: Optional[Dict[str, Any]] = None,
+        interrupted_resume: bool = False,
         initial_status: TaskStatus | None = TaskStatus.QUEUED,
     ) -> Tuple[str, str]:
         """Submit a task to arq after persisting serializable task context."""
@@ -488,6 +475,7 @@ class BackgroundTaskManager:
                     enabled_skills=enabled_skills,
                     attachment_references_claimed=attachment_references_claimed,
                     schedule_search_index=False,
+                    run_modes=derive_user_message_run_modes(auto_mode, active_goal),
                 )
                 user_message_written = True
 
@@ -516,6 +504,7 @@ class BackgroundTaskManager:
                     "recommendation_input": recommendation_input,
                     "auto_mode": auto_mode,
                     "hitl_resume": hitl_resume,
+                    "interrupted_resume": interrupted_resume,
                 },
             )
             if should_index_user_message and search_index_content:

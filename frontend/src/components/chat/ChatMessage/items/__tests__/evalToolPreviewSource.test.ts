@@ -42,3 +42,20 @@ test("message part renderer routes eval tools to the dedicated item for all agen
   expect(source).toMatch(/<EvalItem/);
   expect(source).toMatch(/<ToolCallItem/);
 });
+
+test("eval item renders the parsed wire result instead of raw tags", () => {
+  const source = readSource("../EvalItem.tsx");
+
+  expect(source).toMatch(/parseEvalWireResult/);
+  expect(source).toMatch(/EvalResultContent/);
+  expect(source).toMatch(/consoleOutput/);
+  expect(source).not.toMatch(/<ToolResultContent/);
+});
+
+test("eval result values render in the standard mono block without oversized display", () => {
+  const source = readSource("../EvalItem.tsx");
+
+  expect(source).not.toMatch(/text-2xl/);
+  expect(source).not.toMatch(/isProminentEvalValue/);
+  expect(source).toMatch(/evalCodePreviewClassName/);
+});

@@ -2,6 +2,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
+import Font from "vite-plugin-font";
 import { VitePWA } from "vite-plugin-pwa";
 import {
   createPerformanceManifestTransform,
@@ -87,6 +88,23 @@ const cacheStableIconsPlugin = {
 export default defineConfig({
   plugins: [
     react(),
+    // CJK 衬线网页字体分包（仅 Noto Serif SC：落地页/横幅/画廊等展示区
+    // 跨端一致）。黑体（sans）不再接管——Noto Sans SC 600/700 明显重于
+    // 系统黑体（macOS 苹方），全站 UI 中文回退系统字体保持轻盈观感。
+    // 字体源用可变字体 TTF：一个分片服务所有字重。TTF 见
+    // src/assets/fonts/（CI 大小检查豁免）。可变字体 name 表默认实例是
+    // ExtraLight，必须用 css.fontFamily 覆盖家族名、fontWeight 声明
+    // 全区间，否则字体栈匹配不上。注意：分包缓存（node_modules/.vite/
+    // 下）哈希不含 css 配置——改动下方选项后需手动清缓存才会重新切割。
+    ...[{ file: "NotoSerifSC-VF", family: "Noto Serif SC" }].map((f) =>
+      Font.vite({
+        include: [new RegExp(`${f.file}\\.ttf`)],
+        css: { fontFamily: f.family, fontWeight: "100 900" },
+        testHtml: false,
+        reporter: false,
+        previewImage: false,
+      }),
+    ),
     VitePWA({
       strategies: "injectManifest",
       srcDir: "src",
@@ -173,7 +191,7 @@ export default defineConfig({
     proxy: {
       // Long-running chat event stream
       "^/api/chat/sessions/[^/]+/stream$": {
-        target: "http://127.0.0.1:8002",
+        target: "http://127.0.0.1:8000",
         changeOrigin: true,
         secure: false,
         ws: true,
@@ -182,7 +200,7 @@ export default defineConfig({
       },
       // API routes (including /api/chat for SSE)
       "/api": {
-        target: "http://127.0.0.1:8002",
+        target: "http://127.0.0.1:8000",
         changeOrigin: true,
         secure: false,
         ws: true, // Enable WebSocket/SSE support for streaming
@@ -203,7 +221,7 @@ export default defineConfig({
         AGENT_IDS.map((id) => [
           `/${id}`,
           {
-            target: "http://127.0.0.1:8002",
+            target: "http://127.0.0.1:8000",
             changeOrigin: true,
             secure: false,
             ws: true, // Enable WebSocket/SSE support for streaming
@@ -213,28 +231,28 @@ export default defineConfig({
         ]),
       ),
       "/tools": {
-        target: "http://127.0.0.1:8002",
+        target: "http://127.0.0.1:8000",
         changeOrigin: true,
         secure: false,
       },
       "/human": {
-        target: "http://127.0.0.1:8002",
+        target: "http://127.0.0.1:8000",
         changeOrigin: true,
         secure: false,
       },
       "/health": {
-        target: "http://127.0.0.1:8002",
+        target: "http://127.0.0.1:8000",
         changeOrigin: true,
         secure: false,
       },
       "/ws": {
-        target: "http://127.0.0.1:8002",
+        target: "http://127.0.0.1:8000",
         changeOrigin: true,
         secure: false,
         ws: true,
       },
       "/services": {
-        target: "http://127.0.0.1:8002",
+        target: "http://127.0.0.1:8000",
         changeOrigin: true,
         secure: false,
       },

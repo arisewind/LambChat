@@ -195,6 +195,7 @@ async def test_get_usage_stats_uses_period_and_admin_scope(monkeypatch) -> None:
     response = await usage_routes.get_usage_stats(
         user_id="user-2",
         period="today",
+        start_date=None,
         user=user,
     )
 
@@ -203,6 +204,32 @@ async def test_get_usage_stats_uses_period_and_admin_scope(monkeypatch) -> None:
     assert storage.calls[0]["start_date"] == "2026-06-14T00:00:00+00:00"
     assert storage.calls[0]["skip"] == 0
     assert storage.calls[0]["limit"] == 1
+
+
+@pytest.mark.asyncio
+async def test_get_usage_stats_prefers_explicit_start_date(monkeypatch) -> None:
+    storage = _FakeUsageStorage()
+    monkeypatch.setattr(usage_routes, "get_usage_storage", lambda: storage)
+    monkeypatch.setattr(
+        usage_routes,
+        "_now_utc",
+        lambda: datetime(2026, 6, 14, 12, 0, tzinfo=timezone.utc),
+    )
+    user = TokenPayload(
+        sub="user-1",
+        username="User",
+        permissions=["usage:read"],
+    )
+
+    await usage_routes.get_usage_stats(
+        user_id=None,
+        period="today",
+        start_date="2026-06-14T00:00:00+08:00",
+        user=user,
+    )
+
+    # 显式 start_date（客户端本地 0 点）优先于 period 推导的 UTC 0 点
+    assert storage.calls[0]["start_date"] == "2026-06-14T00:00:00+08:00"
 
 
 @pytest.mark.asyncio
@@ -224,6 +251,7 @@ async def test_get_usage_dashboard_restricts_non_admin_to_current_user(monkeypat
         user_id="user-2",
         period="week",
         search="Ada",
+        start_date=None,
         user=user,
     )
 
@@ -235,6 +263,33 @@ async def test_get_usage_dashboard_restricts_non_admin_to_current_user(monkeypat
     assert storage.calls[-1]["user_id"] == "user-1"
     assert storage.calls[-1]["search"] is None
     assert storage.calls[-1]["start_date"] == "2026-06-07T12:00:00+00:00"
+
+
+@pytest.mark.asyncio
+async def test_get_usage_dashboard_prefers_explicit_start_date(monkeypatch) -> None:
+    storage = _FakeUsageStorage()
+    monkeypatch.setattr(usage_routes, "get_usage_storage", lambda: storage)
+    monkeypatch.setattr(
+        usage_routes,
+        "_now_utc",
+        lambda: datetime(2026, 6, 14, 12, 0, tzinfo=timezone.utc),
+    )
+    user = TokenPayload(
+        sub="user-1",
+        username="User",
+        permissions=["usage:read"],
+    )
+
+    await usage_routes.get_usage_dashboard(
+        user_id=None,
+        period="today",
+        search=None,
+        start_date="2026-06-14T00:00:00+08:00",
+        user=user,
+    )
+
+    # 与 /stats 一致：显式 start_date（客户端本地 0 点）优先于 period 推导
+    assert storage.calls[-1]["start_date"] == "2026-06-14T00:00:00+08:00"
 
 
 @pytest.mark.asyncio
@@ -251,9 +306,31 @@ async def test_get_usage_dashboard_allows_admin_global_search(monkeypatch) -> No
         user_id=None,
         period="all",
         search="Ada",
+        start_date=None,
         user=user,
     )
 
     assert storage.calls[-1]["user_id"] is None
     assert storage.calls[-1]["search"] == "Ada"
     assert storage.calls[-1]["start_date"] is None
+
+
+@pytest.mark.asyncio
+async def test_get_usage_stats_defaults_admin_to_own_usage(monkeypatch) -> None:
+    """管理员不传 user_id 时也应查自己的用量（输入框当日个人用量 chip 依赖此语义）。"""
+    storage = _FakeUsageStorage()
+    monkeypatch.setattr(usage_routes, "get_usage_storage", lambda: storage)
+    user = TokenPayload(
+        sub="admin-1",
+        username="Admin",
+        permissions=["usage:read", "usage:admin"],
+    )
+
+    await usage_routes.get_usage_stats(
+        user_id=None,
+        period="today",
+        start_date="2026-06-14T00:00:00+08:00",
+        user=user,
+    )
+
+    assert storage.calls[0]["user_id"] == "admin-1"

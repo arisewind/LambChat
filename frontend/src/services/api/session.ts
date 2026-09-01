@@ -2,6 +2,7 @@
  * Session API - 会话管理
  */
 
+import i18n from "i18next";
 import type {
   SessionEventsResponse,
   RunSummary,
@@ -98,6 +99,7 @@ export function buildSubmitChatBody({
   userTimezone,
   teamId,
   goal,
+  autoMode,
 }: {
   message: string;
   sessionId?: string;
@@ -111,6 +113,7 @@ export function buildSubmitChatBody({
   userTimezone?: string;
   teamId?: string | null;
   goal?: RunGoalSpec | null;
+  autoMode?: boolean;
 }): Record<string, unknown> {
   const attachments = inputAttachments
     ? filterSendableAttachments(inputAttachments)
@@ -138,7 +141,22 @@ export function buildSubmitChatBody({
   if (goal) {
     body.goal = goal;
   }
+  if (autoMode) {
+    body.auto_mode = true;
+  }
   return body;
+}
+
+export function buildGenerateTitleUrl(
+  sessionId: string,
+  message: string,
+  lang?: string,
+): string {
+  // 缺省跟随界面语言，让标题与用户选择的 UI locale 一致
+  const resolvedLang = lang || i18n.language || "en";
+  return `${API_BASE}/api/sessions/${sessionId}/generate-title?message=${encodeURIComponent(
+    message,
+  )}&lang=${encodeURIComponent(resolvedLang)}`;
 }
 
 export function buildSessionRunsUrl(
@@ -303,16 +321,11 @@ export const sessionApi = {
   async generateTitle(
     sessionId: string,
     message: string,
-    lang: string = "en",
+    lang?: string,
   ): Promise<{ title: string; session_id: string }> {
-    return authFetch(
-      `${API_BASE}/api/sessions/${sessionId}/generate-title?message=${encodeURIComponent(
-        message,
-      )}&lang=${encodeURIComponent(lang)}`,
-      {
-        method: "POST",
-      },
-    );
+    return authFetch(buildGenerateTitleUrl(sessionId, message, lang), {
+      method: "POST",
+    });
   },
 
   /**
@@ -330,6 +343,20 @@ export const sessionApi = {
     const params = runId ? `?run_id=${runId}` : "";
     return authFetch(
       `${API_BASE}/api/chat/sessions/${sessionId}/status${params}`,
+    );
+  },
+
+  /**
+   * Get live queue position for a queued run (poll while waiting)
+   */
+  async getQueuePosition(sessionId: string): Promise<{
+    session_id: string;
+    run_id: string | null;
+    task_status: string;
+    position: number;
+  }> {
+    return authFetch(
+      `${API_BASE}/api/chat/sessions/${sessionId}/queue-position`,
     );
   },
 
@@ -425,6 +452,7 @@ export const sessionApi = {
     enabledSkills?: string[],
     teamId?: string | null,
     goal?: RunGoalSpec | null,
+    autoMode?: boolean,
   ): Promise<{
     session_id: string;
     run_id: string;
@@ -444,6 +472,7 @@ export const sessionApi = {
       userTimezone: getBrowserTimezone(),
       teamId,
       goal,
+      autoMode,
     });
     return authFetch(`${API_BASE}/api/chat/stream?agent_id=${agentId}`, {
       method: "POST",

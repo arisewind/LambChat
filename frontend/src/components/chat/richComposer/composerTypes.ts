@@ -1,5 +1,13 @@
 export type FileReferenceStatus = "uploading" | "ready" | "failed";
 
+export type RunModeKey = "auto" | "goal";
+
+export interface RunModesOptions {
+  autoEnabled: boolean;
+  goalEnabled: boolean;
+  onToggle: (key: RunModeKey, enabled: boolean) => void;
+}
+
 export interface FileReferenceDescriptor {
   referenceId: string;
   fileName: string;
@@ -50,5 +58,6 @@ export interface ComposerProjection {
   message: string;
   activeReferenceIds: string[];
   enabledSkills: string[];
+  runModes: RunModeKey[];
   isEmpty: boolean;
 }

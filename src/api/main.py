@@ -16,12 +16,14 @@ from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, Redirect
 from fastapi.staticfiles import StaticFiles
 from starlette.types import ASGIApp, Message, Receive, Scope, Send
 
+from src.api.error_handlers import register_error_handlers
 from src.api.middleware.auth import AuthMiddleware
 from src.api.middleware.tracing import TracingMiddleware
 from src.api.middleware.user_context import UserContextMiddleware
 from src.api.routes import (
     agent,
     auth,
+    bookmark,
     channels,
     chat,
     envvar,
@@ -40,6 +42,7 @@ from src.api.routes import (
     role,
     scheduled_task,
     session,
+    session_queue,
     share,
     skill,
     team,
@@ -417,6 +420,12 @@ def _startup_index_initializers():
         await get_usage_storage().ensure_indexes()
         logger.info("UsageStorage indexes initialized")
 
+    async def _init_bookmark_storage() -> None:
+        from src.infra.bookmark.storage import BookmarkStorage
+
+        await BookmarkStorage().create_indexes()
+        logger.info("BookmarkStorage indexes initialized")
+
     async def _init_pricing_storage() -> None:
         from src.infra.pricing.storage import get_pricing_storage
 
@@ -478,6 +487,7 @@ def _startup_index_initializers():
         ("mcp_storage", _init_mcp_storage),
         ("file_record_storage", _init_file_record_storage),
         ("pricing_storage", _init_pricing_storage),
+        ("bookmark_storage", _init_bookmark_storage),
     ]
 
 
@@ -804,11 +814,16 @@ def create_app() -> FastAPI:
     app.add_middleware(TracingMiddleware)
     app.add_middleware(RequestBodyLimitMiddleware)
 
+    # 全局异常处理器：统一 {"detail": {code, message, args}} 错误契约
+    register_error_handlers(app)
+
     # 注册路由
     app.include_router(health.router, tags=["Health"])
     app.include_router(version.router, prefix="/api", tags=["Version"])
     # Chat 路由: /api/chat/stream 后台执行, /api/chat/sessions/{id}/stream SSE
     app.include_router(chat.router, prefix="/api/chat", tags=["Chat"])
+    # 会话排队状态查询（与 chat 会话路由同前缀，独立模块控制单文件规模）
+    app.include_router(session_queue.router, prefix="/api/chat", tags=["Chat"])
     # Agent 路由: /api/agents 列表, /api/{agent_id}/stream 和 /api/{agent_id}/chat
     app.include_router(agent.router, prefix="/api", tags=["Agents"])
     # Agent 配置路由: /api/agent/config 全局配置和用户偏好
@@ -844,6 +859,7 @@ def create_app() -> FastAPI:
     app.include_router(revealed_file.router, prefix="/api/files", tags=["Files"])
     app.include_router(human.router, prefix="/human", tags=["Human"])
     app.include_router(feedback.router, prefix="/api/feedback", tags=["Feedback"])
+    app.include_router(bookmark.router, prefix="/api", tags=["Bookmarks"])
     app.include_router(usage.router, prefix="/api/usage", tags=["Usage"])
     app.include_router(pricing.router, prefix="/api/pricing", tags=["Pricing"])
     app.include_router(notification.router, prefix="/api/notifications", tags=["Notifications"])

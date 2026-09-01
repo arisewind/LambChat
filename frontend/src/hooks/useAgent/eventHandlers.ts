@@ -11,7 +11,7 @@ import type { Message, MessagePart } from "../../types";
 import { uuid } from "../../utils/uuid";
 import { sessionApi } from "../../services/api/session";
 import i18n from "../../i18n";
-import { translateBackendError } from "../../utils/backendErrors";
+import { translateApiError } from "../../utils/backendErrors";
 import { parseDate } from "../../utils/datetime";
 import type {
   StreamEvent,
@@ -301,6 +301,41 @@ export function handleStreamEvent(
 
     case "user:cancel": {
       handleError(data, messageId, ctx, true, { keepConnectionOpen: true });
+      return;
+    }
+
+    case "run:resumed": {
+      // 系统中断后同 run 无缝续跑：清空气泡里的半截输出/错误/取消状态，
+      // 回到流式空态接收重新生成的完整回答（模型会重跑这一轮）。
+      // 中断瞬间可能卡住的全局态一并复位：子代理栈残留（agent:call 无配对
+      // agent:result）、沙箱初始化中/错误（sandbox:starting 无 ready/error）。
+      ctx.activeSubagentStackRef.current.length = 0;
+      ctx.setIsInitializingSandbox(false);
+      ctx.setSandboxError(null);
+      ctx.setMessages((prev) => {
+        const reset = {
+          parts: [],
+          content: "",
+          toolCalls: [],
+          cancelled: false,
+          isStreaming: true,
+        };
+        if (prev.some((message) => message.id === messageId)) {
+          return prev.map((message) =>
+            message.id === messageId ? { ...message, ...reset } : message,
+          );
+        }
+        return [
+          ...prev,
+          {
+            id: messageId,
+            role: "assistant" as const,
+            timestamp: new Date(),
+            runId: typeof data.run_id === "string" ? data.run_id : undefined,
+            ...reset,
+          },
+        ];
+      });
       return;
     }
 
@@ -622,7 +657,7 @@ function handleError(
   options?: { keepConnectionOpen?: boolean },
 ): void {
   const errorMsg = data.error
-    ? translateBackendError(data.error, i18n.t.bind(i18n))
+    ? translateApiError(data.code, data.error, undefined, i18n.t.bind(i18n))
     : i18n.t("chat.unknownError");
   const isCancelled = forceCancelled || data.type === "CancelledError";
 

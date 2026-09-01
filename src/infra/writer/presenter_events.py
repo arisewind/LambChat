@@ -21,6 +21,16 @@ TOOL_START_ARG_MAX_DICT_ITEMS = 100
 TOOL_START_ARG_MAX_DEPTH = 8
 
 
+def derive_user_message_run_modes(auto_mode: bool, goal: Optional[object]) -> List[str]:
+    """按发送时激活的运行模式（自动 / 目标）推导 user:message 事件的 run_modes。"""
+    run_modes: List[str] = []
+    if auto_mode:
+        run_modes.append("auto")
+    if goal:
+        run_modes.append("goal")
+    return run_modes
+
+
 def _compact_tool_start_arg(value: Any, *, depth: int = 0) -> Any:
     if depth >= TOOL_START_ARG_MAX_DEPTH:
         return "[truncated: max depth exceeded]"
@@ -483,6 +493,7 @@ class EventPresenterMixin:
         attachments: Optional[List[Dict[str, Any]]] = None,
         message_id: Optional[str] = None,
         enabled_skills: Optional[List[str]] = None,
+        run_modes: Optional[List[str]] = None,
     ) -> Dict[str, Any]:
         """输出用户消息"""
         resolved_message_id = message_id or f"{self.run_id}:user"
@@ -495,6 +506,8 @@ class EventPresenterMixin:
         data["attachments"] = _bounded_attachments(attachments)
         if enabled_skills:
             data["enabled_skills"] = enabled_skills
+        if run_modes:
+            data["run_modes"] = run_modes
         return self._build_event("user:message", data)
 
     def present_sandbox_starting(self) -> Dict[str, Any]:
@@ -633,12 +646,14 @@ class EventPresenterMixin:
         message: str,
         error_type: str = "Error",
         details: Optional[Dict] = None,
+        code: Optional[str] = None,
     ) -> Dict[str, Any]:
-        """输出错误"""
+        """输出错误。code 为稳定错误码（snake_case），前端据此翻译；动态原文放 message。"""
         return self._build_event(
             "error",
             {
                 "error": message,
+                "code": code or "internal_error",
                 "type": error_type,
                 "trace_id": self.trace_id,
                 "details": details,

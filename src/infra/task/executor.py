@@ -15,9 +15,11 @@ from src.infra.session.dual_writer import get_dual_writer
 from src.infra.session.favorites import is_session_favorite
 from src.infra.session.storage import SessionStorage
 from src.infra.utils.datetime import utc_now_iso
+from src.infra.writer.presenter_events import derive_user_message_run_modes
 from src.kernel.config import settings
 from src.kernel.schemas.session import SessionCreate, SessionUpdate
 
+from .cancellation import TaskCancellation
 from .exceptions import TaskInterruptedError
 from .heartbeat import TaskHeartbeat
 from .stall_watchdog import aiter_with_stall_timeout
@@ -93,6 +95,7 @@ class TaskExecutor:
         auto_mode: bool = False,
         attachment_references_claimed: bool = False,
         hitl_resume: Optional[Dict[str, Any]] = None,
+        interrupted_resume: bool = False,
     ) -> bool | None:
         """执行任务"""
         from src.infra.writer.present import Presenter, PresenterConfig
@@ -163,6 +166,7 @@ class TaskExecutor:
                     attachments=attachments,
                     enabled_skills=enabled_skills,
                     attachment_references_claimed=attachment_references_claimed,
+                    run_modes=derive_user_message_run_modes(auto_mode, active_goal),
                 )
 
             # 保存 trace_id 和 agent_id 到 run_info，保留已有的 flag
@@ -179,6 +183,20 @@ class TaskExecutor:
             self._run_info[run_id] = run_info_entry
 
             dual_writer = get_dual_writer()
+
+            # 系统中断后的同 run 无缝续跑：先发 run:resumed 标记事件，前端据此
+            # 清空原气泡的半截内容再接收重新生成的输出（不写新的 user:message）。
+            if interrupted_resume:
+                await presenter.save_event(
+                    {
+                        "event": "run:resumed",
+                        "data": {
+                            "run_id": run_id,
+                            "trace_id": presenter.trace_id,
+                            "timestamp": utc_now_iso(),
+                        },
+                    }
+                )
 
             if hitl_resume is not None:
                 resolved = hitl_resume.get("approval_resolved")
@@ -273,8 +291,6 @@ class TaskExecutor:
         finally:
             # 无论成功、取消还是失败，都停止心跳并清除中断信号
             await self._heartbeat.stop(run_id)
-            from .cancellation import TaskCancellation
-
             await TaskCancellation.clear_interrupt(run_id)
             # 清除请求上下文，防止 contextvars 泄漏到后续任务
             TraceContext.clear_request_context()
@@ -289,6 +305,30 @@ class TaskExecutor:
         presenter: Any,
     ) -> None:
         """处理任务取消错误"""
+        # 无中断信号的取消是系统中断（优雅关停/部署），不是用户操作：
+        # 不写 user:cancel/error/done 终态事件、不终结 trace、不过期 stream，
+        # 只 flush 缓冲让半截事件落库。recoverable 元数据由调用方标记
+        # （manager.shutdown / arq_worker），随后同 run_id 无缝续跑。
+        # 用户取消判定用权威信号（内存 + Redis）：跨副本取消时本副本内存标志
+        # 可能尚未同步，Redis 中断键才是可靠依据（系统中断从不设置）。
+        user_cancelled = False
+        try:
+            await TaskCancellation.check_interrupt(run_id)
+        except TaskInterruptedError:
+            user_cancelled = True
+        if not user_cancelled:
+            if dual_writer is None:
+                dual_writer = get_dual_writer()
+            try:
+                await dual_writer._flush_redis_buffer()
+                await dual_writer.flush_mongo_buffer()
+            except Exception as e:
+                logger.warning(f"Failed to flush events on system interruption: {e}")
+            logger.info(
+                f"Task interrupted by system shutdown (resumable): "
+                f"session={session_id}, run_id={run_id}"
+            )
+            return
 
         await self._update_session_status(
             session_id, TaskStatus.CANCELLED, "Task cancelled", run_id=run_id
@@ -514,12 +554,18 @@ class TaskExecutor:
         if presenter is not None:
             await presenter.complete("error")
 
-        # 写入错误事件（包含 trace_id 以写入 MongoDB）
+        # 写入错误事件（包含 trace_id 以写入 MongoDB）；code 为稳定错误码供前端翻译
         trace_id = presenter.trace_id if presenter else None
+        error_code = getattr(error, "error_code", None)
         await dual_writer.write_event(
             session_id=session_id,
             event_type="error",
-            data={"error": str(error), "type": type(error).__name__, "run_id": run_id},
+            data={
+                "error": str(error),
+                "code": error_code.code if error_code else "internal_error",
+                "type": type(error).__name__,
+                "run_id": run_id,
+            },
             trace_id=trace_id,
             run_id=run_id,
         )

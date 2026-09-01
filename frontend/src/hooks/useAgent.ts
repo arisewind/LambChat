@@ -36,6 +36,7 @@ import {
   type SSEConnectionContext,
 } from "./useAgent/sseConnection";
 import { createOptimisticMessagesForSend } from "./useAgent/optimisticMessages";
+import { startQueuePositionPolling } from "./useAgent/queuePolling";
 import {
   promoteSteerFollowUps,
   selectSteersForFollowUp,
@@ -44,7 +45,7 @@ import {
 import { getValidAccessToken } from "../services/api/tokenManager";
 import { resolveRunEnabledSkills } from "./useAgent/runSkillOverrides";
 import { planGoalSubmission } from "./useAgent/goalCommands";
-import { translateBackendError } from "../utils/backendErrors";
+import { translateApiError } from "../utils/backendErrors";
 import { dispatchSessionTitleUpdated } from "../utils/sessionTitleEvents";
 import { useAgentList } from "./useAgent/agentList";
 import {
@@ -461,7 +462,10 @@ export function useAgent(options?: UseAgentOptions): UseAgentReturn {
       content: string,
       agentOptions?: Record<string, boolean | string | number>,
       attachments?: MessageAttachment[],
-      runOptions?: { enabledSkills?: string[] },
+      runOptions?: {
+        enabledSkills?: string[];
+        runModes?: Array<"auto" | "goal">;
+      },
       submissionCallbacks?: ChatSubmissionCallbacks,
     ) => {
       if (!content.trim()) {
@@ -514,6 +518,7 @@ export function useAgent(options?: UseAgentOptions): UseAgentReturn {
           content,
           attachments,
           enabledSkills: runOptions?.enabledSkills,
+          runModes: runOptions?.runModes,
         });
 
       setMessages(optimisticMessages);
@@ -562,6 +567,7 @@ export function useAgent(options?: UseAgentOptions): UseAgentReturn {
             enabledSkills,
             requestTeamId,
             goalForRun,
+            runOptions?.runModes?.includes("auto") || undefined,
           ) as Promise<{
             session_id: string;
             run_id: string;
@@ -606,6 +612,8 @@ export function useAgent(options?: UseAgentOptions): UseAgentReturn {
             i18n.t("chat.queued", { position: submitData.queue_position }),
             { id: "chat-queue", duration: Infinity },
           );
+          // 轮询刷新实时排队位置（自终止：出队/换轮次/网络错误即停）
+          startQueuePositionPolling(newSessionId, newRunId);
         }
 
         if (!sessionId && newSessionId) {
@@ -725,9 +733,10 @@ export function useAgent(options?: UseAgentOptions): UseAgentReturn {
         if (err instanceof Error && err.name === "AbortError") {
           return;
         }
+        const errWithMeta = err as Error & { code?: string };
         const errorMessage =
           err instanceof Error
-            ? translateBackendError(err.message, i18n.t.bind(i18n))
+            ? translateApiError(errWithMeta.code, err.message, undefined, i18n.t.bind(i18n))
             : i18n.t("chat.unknownError");
         setError(errorMessage);
         setMessages((prev) =>

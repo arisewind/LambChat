@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 import { clsx } from "clsx";
 import { Copy, Check, GitBranch, Clock, X } from "lucide-react";
 import { useTranslation } from "react-i18next";
@@ -11,6 +11,7 @@ import { getUserMessageActionButtonVisibilityClass } from "./userMessageBubbleSt
 import { copyToClipboard } from "../../../utils/clipboard";
 import { useSessionImageGallery } from "./sessionImageGallery";
 import { SkillChip } from "../SkillChip";
+import { RunModeChip } from "../richComposer/RunModeChip";
 import { FileReferenceChip } from "../richComposer/FileReferenceChip";
 import { splitUserMessageFileReferences } from "./userMessageFileReferences";
 import { cancelSteeredMessage } from "../steerCancelStore";
@@ -22,16 +23,20 @@ export function UserMessageBubble({
   onFork,
   isLastMessage,
   enabledSkills,
+  runModes,
   queued,
   deferred,
   failed,
   messageId,
+  extraActions,
 }: {
   content?: string;
   attachments?: MessageAttachment[];
   onFork?: () => void;
   isLastMessage?: boolean;
   enabledSkills?: string[];
+  /** 发送时激活的运行模式（自动 / 目标），在消息内回显 chip */
+  runModes?: Array<"auto" | "goal">;
   /** 运行中插话的排队态：送达前置灰 + 时钟角标，可取消 */
   queued?: boolean;
   /** 当前任务结束后作为下一条普通消息发送 */
@@ -39,6 +44,8 @@ export function UserMessageBubble({
   /** steer API failed; retain the draft instead of silently sending it later */
   failed?: boolean;
   messageId?: string;
+  /** 追加到 hover 操作栏的自定义按钮（如书签） */
+  extraActions?: ReactNode;
 }) {
   const { t } = useTranslation();
   const [copied, setCopied] = useState(false);
@@ -153,9 +160,17 @@ export function UserMessageBubble({
               }}
             >
               <div
-                className="user-message-inline-markdown leading-relaxed text-[15px] sm:text-base"
+                className="user-message-inline-markdown leading-relaxed text-15 sm:text-base"
                 style={{ color: "var(--theme-text)" }}
               >
+                {/* Run-mode chips - inline with content, ahead of skill chips */}
+                {runModes && runModes.length > 0 && (
+                  <span className="skill-chip-row align-baseline">
+                    {runModes.map((modeKey) => (
+                      <RunModeChip key={modeKey} modeKey={modeKey} readOnly />
+                    ))}
+                  </span>
+                )}
                 {/* Skill chips - inline with content */}
                 {enabledSkills && enabledSkills.length > 0 && (
                   <span className="skill-chip-row align-baseline">
@@ -219,6 +234,7 @@ export function UserMessageBubble({
             >
               {copied ? <Check size={16} /> : <Copy size={16} />}
             </button>
+            {extraActions}
           </div>
         </div>
       </div>

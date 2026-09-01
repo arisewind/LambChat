@@ -1,14 +1,18 @@
 import type {
   ComposerProjection,
   ComposerSnapshot,
+  RunModeKey,
   SerializedComposerNode,
 } from "./composerTypes";
+
+const RUN_MODE_ORDER: readonly RunModeKey[] = ["auto", "goal"];
 
 interface ProjectionAccumulator {
   referenceIds: string[];
   referenceIdSet: Set<string>;
   skillNames: string[];
   skillNameSet: Set<string>;
+  runModeSet: Set<RunModeKey>;
   hasRichNode: boolean;
 }
 
@@ -37,6 +41,14 @@ function projectNode(
     return "";
   }
 
+  if (node.type === "run-mode-reference") {
+    // 模式 chip 是随消息附带的开关，不构成可发送内容（不影响 isEmpty）
+    if (node.modeKey === "auto" || node.modeKey === "goal") {
+      accumulator.runModeSet.add(node.modeKey);
+    }
+    return "";
+  }
+
   const children = node.children ?? [];
   const separator = node.type === "root" ? "\n" : "";
   return children
@@ -52,6 +64,7 @@ export function projectComposerSnapshot(
     referenceIdSet: new Set(),
     skillNames: [],
     skillNameSet: new Set(),
+    runModeSet: new Set(),
     hasRichNode: false,
   };
   const root = snapshot.editorState.root;
@@ -61,6 +74,7 @@ export function projectComposerSnapshot(
     message,
     activeReferenceIds: accumulator.referenceIds,
     enabledSkills: accumulator.skillNames,
+    runModes: RUN_MODE_ORDER.filter((key) => accumulator.runModeSet.has(key)),
     isEmpty: message.length === 0 && !accumulator.hasRichNode,
   };
 }

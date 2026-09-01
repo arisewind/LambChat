@@ -39,7 +39,7 @@ function renderModelTags(model: ModelConfig, compact: boolean) {
       <span
         key="provider"
         className={`glass-tag glass-tag--provider ${
-          compact ? "text-[10px]" : "text-xs"
+          compact ? "text-10" : "text-xs"
         }`}
       >
         {model.provider}
@@ -51,7 +51,7 @@ function renderModelTags(model: ModelConfig, compact: boolean) {
       <span
         key="key"
         className={`glass-tag glass-tag--key ${
-          compact ? "text-[10px]" : "text-xs"
+          compact ? "text-10" : "text-xs"
         }`}
       >
         Key
@@ -63,7 +63,7 @@ function renderModelTags(model: ModelConfig, compact: boolean) {
       <span
         key="api"
         className={`glass-tag glass-tag--api ${
-          compact ? "text-[10px]" : "text-xs"
+          compact ? "text-10" : "text-xs"
         }`}
       >
         API
@@ -75,7 +75,7 @@ function renderModelTags(model: ModelConfig, compact: boolean) {
       <span
         key="temp"
         className={`glass-tag glass-tag--accent ${
-          compact ? "text-[10px]" : "text-xs"
+          compact ? "text-10" : "text-xs"
         }`}
       >
         temp:{model.temperature}
@@ -87,7 +87,7 @@ function renderModelTags(model: ModelConfig, compact: boolean) {
       <span
         key="max"
         className={`glass-tag glass-tag--accent ${
-          compact ? "text-[10px]" : "text-xs"
+          compact ? "text-10" : "text-xs"
         }`}
       >
         max:{model.max_tokens}
@@ -99,7 +99,7 @@ function renderModelTags(model: ModelConfig, compact: boolean) {
       <span
         key="ctx"
         className={`glass-tag glass-tag--accent ${
-          compact ? "text-[10px]" : "text-xs"
+          compact ? "text-10" : "text-xs"
         }`}
       >
         ctx:{model.profile.max_input_tokens}
@@ -111,7 +111,7 @@ function renderModelTags(model: ModelConfig, compact: boolean) {
       <span
         key="image-url-base64"
         className={`glass-tag glass-tag--accent ${
-          compact ? "text-[10px]" : "text-xs"
+          compact ? "text-10" : "text-xs"
         }`}
       >
         img:b64
@@ -225,11 +225,11 @@ const ModelCard = React.memo(function ModelCard({
               icon={model.icon}
               size={22}
             />
-            <h4 className="text-sm font-semibold text-stone-900 dark:text-stone-100 truncate">
+            <h4 className="text-sm font-semibold font-serif text-stone-900 dark:text-stone-100 truncate">
               {model.label}
             </h4>
             {!model.enabled && (
-              <span className="glass-pill glass-pill--disabled text-[10px] px-2 py-0.5 flex-shrink-0">
+              <span className="glass-pill glass-pill--disabled text-10 px-2 py-0.5 flex-shrink-0">
                 {t("agentConfig.off")}
               </span>
             )}
@@ -307,7 +307,7 @@ const ModelCard = React.memo(function ModelCard({
             />
             <div className="min-w-0 flex-1">
               <div className="flex items-center gap-2.5">
-                <h4 className="text-sm font-semibold text-stone-900 dark:text-stone-100 truncate tracking-tight">
+                <h4 className="text-sm font-semibold font-serif text-stone-900 dark:text-stone-100 truncate tracking-tight">
                   {model.label}
                 </h4>
                 {!model.enabled && (

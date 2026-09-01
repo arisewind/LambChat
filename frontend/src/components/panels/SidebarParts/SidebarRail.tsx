@@ -5,6 +5,7 @@ import {
   History,
   MoreHorizontal,
   FolderOpen,
+  Bookmark,
 } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { useAuth } from "../../../hooks/useAuth";
@@ -26,6 +27,7 @@ interface SidebarRailProps {
   onOpenSearch: () => void;
   onOpenRecentChats: () => void;
   onOpenFileLibrary: () => void;
+  onOpenBookmarks: () => void;
   onOpenScheduledTasks: () => void;
   hasMoreMenuItems: boolean;
   onToggleMoreMenu: () => void;
@@ -44,6 +46,7 @@ export function SidebarRail({
   onOpenSearch,
   onOpenRecentChats,
   onOpenFileLibrary,
+  onOpenBookmarks,
   onOpenScheduledTasks,
   hasMoreMenuItems,
   onToggleMoreMenu,
@@ -134,6 +137,15 @@ export function SidebarRail({
         </button>
         <button
           type="button"
+          onClick={onOpenBookmarks}
+          className={railBtn}
+          title={t("bookmarks.title")}
+          aria-label={t("bookmarks.title")}
+        >
+          <Bookmark size={20} />
+        </button>
+        <button
+          type="button"
           ref={recentChatsBtnRef}
           onClick={onOpenRecentChats}
           className={`${railBtn} relative`}
@@ -143,7 +155,7 @@ export function SidebarRail({
           <History size={20} />
           {unreadCount > 0 && (
             <span
-              className={`absolute -top-0 right-0 flex items-center justify-center rounded-full bg-gradient-to-br from-red-400 to-rose-500 text-[9px] font-bold leading-none text-white shadow-[0_1px_3px_rgba(239,68,68,0.4)] ring-1 ring-white/20 ${
+              className={`absolute -top-0 right-0 flex items-center justify-center rounded-full bg-gradient-to-br from-red-400 to-rose-500 text-9 font-bold leading-none text-white shadow-[0_1px_3px_rgba(239,68,68,0.4)] ring-1 ring-white/20 ${
                 unreadCount <= 9 ? "w-3.5 h-3.5" : "h-3.5 min-w-[18px] px-1"
               }`}
             >

@@ -303,7 +303,11 @@ export function AuthPage({ onSuccess, initialMode }: AuthPageProps) {
           (err as Error).message || t("auth.operationFailed");
 
         // 检查是否是邮箱未验证或账户未激活错误，跳转到验证页面
+        // 优先用后端稳定错误码判断（消息文案随 locale 变化，不可靠）
+        const errCode = (err as Error & { code?: string }).code;
         if (
+          errCode === "email_verification_required" ||
+          errCode === "account_not_active" ||
           errorMessage.includes("请先验证邮箱") ||
           errorMessage.includes("账户未激活")
         ) {
@@ -853,7 +857,7 @@ export function AuthPage({ onSuccess, initialMode }: AuthPageProps) {
                 )}
 
                 {/* Switch mode */}
-                <div className="auth-mode-switch mt-6 flex flex-wrap items-center justify-center gap-1.5 text-sm text-slate-500 dark:text-stone-400">
+                <div className="auth-mode-switch mt-6 flex flex-wrap items-center justify-center gap-1.5 text-sm text-slate-500 dark:text-stone-400 font-serif">
                   {registrationEnabled ? (
                     <>
                       <span>
@@ -893,7 +897,7 @@ export function AuthPage({ onSuccess, initialMode }: AuthPageProps) {
                   className="auth-footer-divider w-32 sm:w-40"
                   aria-hidden="true"
                 />
-                <div className="flex flex-wrap items-center justify-center gap-x-2 text-[10px] text-stone-400 dark:text-stone-500 sm:gap-x-3 sm:text-xs">
+                <div className="flex flex-wrap items-center justify-center gap-x-2 text-10 text-stone-400 dark:text-stone-500 sm:gap-x-3 sm:text-xs font-serif">
                   <a
                     href={GITHUB_URL}
                     target="_blank"

@@ -69,19 +69,19 @@ export function SkillPreviewModal({
         title={previewSkill.skill_name}
         subtitle={
           <span className="inline-flex items-center gap-1.5">
-            <span className="skill-meta-pill text-[10px] sm:text-xs">
+            <span className="skill-meta-pill text-10 sm:text-xs">
               v{previewSkill.version}
             </span>
             <button
               type="button"
               onClick={() => setIsDescExpanded((v) => !v)}
-              className="text-left text-[11px] leading-relaxed text-[var(--theme-text-secondary)]"
+              className="text-left text-11 leading-relaxed text-[var(--theme-text-secondary)]"
             >
               <span className={!isDescExpanded ? "line-clamp-1" : ""}>
                 {previewSkill.description || t("marketplace.noDescription")}
               </span>
               {(previewSkill.description?.length || 0) > 80 && (
-                <span className="ml-1 inline-flex items-center gap-0.5 text-[10px] text-[var(--theme-primary)]">
+                <span className="ml-1 inline-flex items-center gap-0.5 text-10 text-[var(--theme-primary)]">
                   {isDescExpanded
                     ? t("marketplace.previewCollapse")
                     : t("marketplace.previewExpand")}
@@ -122,7 +122,7 @@ export function SkillPreviewModal({
             </div>
           ) : previewFiles ? (
             <div>
-              <h3 className="mb-3 flex items-center gap-2 text-sm font-semibold text-[var(--theme-text)]">
+              <h3 className="mb-3 flex items-center gap-2 text-sm font-semibold font-serif text-[var(--theme-text)]">
                 <FileText size={16} className="text-[var(--theme-primary)]" />
                 {t("marketplace.skillFiles")} ({previewFiles.files.length})
               </h3>

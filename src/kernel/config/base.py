@@ -92,6 +92,9 @@ class Settings(BaseSettings):
         "chat_completions"  # OpenAI 协议线格式默认值（chat_completions | responses）
     )
     LLM_MODEL_CACHE_SIZE: int = 50  # 模型实例缓存大小，防止内存泄漏
+    LLM_KV_CACHE: bool = (
+        True  # OpenAI 协议携带 KV 缓存参数（会话级 prompt_cache_key；responses 另含 include/store）
+    )
     LLM_REQUEST_HEADERS: str = ""  # JSON 对象，覆盖模型请求的防封默认头（如 User-Agent）
     DEEPAGENT_SUMMARIZATION_TRIGGER_RATIO: float = 0.70  # 触发摘要的上下文占比（原 0.85）
     DEEPAGENT_SUMMARIZATION_KEEP_RATIO: float = 0.15  # 摘要后保留的上下文占比（原 0.10）
@@ -145,8 +148,12 @@ class Settings(BaseSettings):
     ARQ_WORKER_MAX_JOBS: int = 128
     ARQ_JOB_TIMEOUT_SECONDS: int = 86400
     TASK_STARTUP_CLEANUP_CONCURRENCY: int = 16
-    # 周期孤儿接管间隔：缩短实例死亡后对话自动恢复的停顿（心跳按龄判死 ~30s + 扫描间隔）
+    # 周期孤儿接管间隔：缩短实例死亡后对话自动恢复的停顿（心跳按龄判死 + 扫描间隔）
     TASK_ORPHAN_RECOVERY_INTERVAL_SECONDS: int = 15
+    # 心跳按龄判死阈值（秒）：实例死亡后允许接管的前置等待。恢复入口与 arq
+    # worker 侧均有同款活性复核兜底，20s（2 个心跳周期）不会误接管活任务。
+    # <=0 时回退到内置公式 max(30, 3×心跳间隔)。
+    TASK_HEARTBEAT_STALE_SECONDS: int = 20
     # 流式分片的时间维 flush 间隔（秒）：正文/思考/工具参数攒不够大小阈值时，
     # 每隔该时长也强制下发一次，避免小尾巴要等流结束才出来（<=0 禁用）。
     STREAM_CHUNK_FLUSH_INTERVAL: float = 1.0
@@ -272,6 +279,10 @@ class Settings(BaseSettings):
     LANGSMITH_PROJECT: str = "lambchat"
     LANGSMITH_API_URL: str = "https://api.smith.langchain.com"
     LANGSMITH_SAMPLE_RATE: float = 1.0
+    LANGFUSE_ENABLED: bool = False
+    LANGFUSE_PUBLIC_KEY: Optional[str] = None
+    LANGFUSE_SECRET_KEY: Optional[str] = None
+    LANGFUSE_HOST: str = "http://localhost:3000"
 
     # JWT Authentication Settings
     JWT_SECRET_KEY: str = Field(default_factory=lambda: secrets.token_urlsafe(32))
@@ -544,6 +555,16 @@ class Settings(BaseSettings):
             os.environ["LANGSMITH_API_URL"] = self.LANGSMITH_API_URL
         if self.LANGSMITH_SAMPLE_RATE:
             os.environ["LANGSMITH_SAMPLE_RATE"] = str(self.LANGSMITH_SAMPLE_RATE)
+
+        # Sync Langfuse settings to os.environ (required by langfuse SDK)
+        if self.LANGFUSE_ENABLED:
+            os.environ["LANGFUSE_ENABLED"] = "true"
+        if self.LANGFUSE_PUBLIC_KEY:
+            os.environ["LANGFUSE_PUBLIC_KEY"] = self.LANGFUSE_PUBLIC_KEY
+        if self.LANGFUSE_SECRET_KEY:
+            os.environ["LANGFUSE_SECRET_KEY"] = self.LANGFUSE_SECRET_KEY
+        if self.LANGFUSE_HOST:
+            os.environ["LANGFUSE_HOST"] = self.LANGFUSE_HOST
 
     @field_validator("DEBUG", mode="before")
     @classmethod

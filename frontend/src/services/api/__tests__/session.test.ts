@@ -1,5 +1,6 @@
 import {
   buildCheckpointForkUrl,
+  buildGenerateTitleUrl,
   buildMessageCheckpointUrl,
   buildMessageForkUrl,
   buildSessionRunsUrl,
@@ -84,6 +85,17 @@ test("includes user_timezone in the submit chat body when available", () => {
   });
 });
 
+test("includes auto_mode in the submit chat body when auto mode is on", () => {
+  expect(
+    buildSubmitChatBody({
+      message: "hello",
+      autoMode: true,
+    }).auto_mode,
+  ).toBe(true);
+
+  expect(buildSubmitChatBody({ message: "hello" }).auto_mode).toBeUndefined();
+});
+
 test("includes persona preset fields in the submit chat body", () => {
   expect(
     buildSubmitChatBody({
@@ -100,6 +112,7 @@ test("includes persona preset fields in the submit chat body", () => {
     enabled_skills: ["planning"],
     persona_preset_id: "preset-1",
     disabled_mcp_tools: undefined,
+    auto_mode: undefined,
   });
 });
 
@@ -243,4 +256,33 @@ test("omits unusable attachments from the submit body", () => {
       size: 1,
     },
   ]);
+});
+
+test("generate title url defaults lang to the active ui language", async () => {
+  const { default: i18n } = await import("i18next");
+  const previous = i18n.language;
+  i18n.language = "zh";
+
+  try {
+    expect(buildGenerateTitleUrl("session-1", "你好世界")).toBe(
+      `/api/sessions/session-1/generate-title?message=${encodeURIComponent(
+        "你好世界",
+      )}&lang=zh`,
+    );
+  } finally {
+    i18n.language = previous;
+  }
+});
+
+test("generate title url keeps explicit lang and falls back to english", async () => {
+  expect(buildGenerateTitleUrl("session-1", "hi", "ru")).toContain("&lang=ru");
+
+  const { default: i18n } = await import("i18next");
+  const previous = i18n.language;
+  i18n.language = "";
+  try {
+    expect(buildGenerateTitleUrl("session-1", "hi")).toContain("&lang=en");
+  } finally {
+    i18n.language = previous;
+  }
 });

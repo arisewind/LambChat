@@ -17,10 +17,17 @@ from langgraph.graph import END, START, StateGraph
 
 from src.infra.agent import AgentEventProcessor
 from src.infra.async_utils import run_blocking_io
+from src.infra.llm.responses_cache import (
+    reset_responses_prompt_cache_key,
+    session_prompt_cache_key,
+    set_responses_prompt_cache_key,
+)
 from src.infra.logging import get_logger
+from src.infra.tracing.langfuse_client import build_langfuse_metadata, langfuse_tracer
 from src.infra.utils.datetime import utc_now
 from src.infra.writer.present import Presenter, PresenterConfig
 from src.kernel.config import settings
+from src.kernel.errors import AppError, ErrorCode
 
 logger = get_logger(__name__)
 
@@ -311,7 +318,27 @@ class BaseGraphAgent(ABC):
         """
         if session_id is None:
             session_id = str(uuid.uuid4())
-        return self._stream(message, session_id, user_id=user_id, **kwargs)
+        return self._stream_with_cache_key(message, session_id, user_id=user_id, **kwargs)
+
+    async def _stream_with_cache_key(
+        self,
+        message: str,
+        session_id: str,
+        user_id: Optional[str] = None,
+        **kwargs,
+    ) -> AsyncGenerator[Dict[str, Any], None]:
+        """绑定会话级 prompt_cache_key 后执行 _stream。
+
+        fast/search/team 各自重写 _stream，因此绑定放在这个未被重写的公共
+        入口：graph 任务（ensure_future/create_task 复制当前上下文）与嵌套
+        子 agent 都继承同一个 key，对齐 Codex 的会话级缓存路由语义。
+        """
+        cache_key_token = set_responses_prompt_cache_key(session_id)
+        try:
+            async for event in self._stream(message, session_id, user_id=user_id, **kwargs):
+                yield event
+        finally:
+            reset_responses_prompt_cache_key(cache_key_token)
 
     async def _stream(
         self,
@@ -391,6 +418,17 @@ class BaseGraphAgent(ABC):
                 presenter,
                 langsmith_context,
             )
+            run_metadata = langsmith_metadata
+            langfuse_handler = None
+            if langfuse_tracer.enabled:
+                langfuse_handler = langfuse_tracer.callback_handler()
+                if langfuse_handler is not None:
+                    run_metadata = build_langfuse_metadata(
+                        langsmith_metadata,
+                        session_id=presenter.config.session_id,
+                        user_id=presenter.config.user_id,
+                        trace_name=self._agent_name,
+                    )
             config: RunnableConfig = {
                 "configurable": {
                     "thread_id": session_id,
@@ -399,9 +437,11 @@ class BaseGraphAgent(ABC):
                     "trace_id": presenter.trace_id,
                     **kwargs,
                 },
-                "metadata": langsmith_metadata,
+                "metadata": run_metadata,
                 "recursion_limit": self.recursion_limit,
             }
+            if langfuse_handler is not None:
+                config["callbacks"] = [langfuse_handler]
 
             # 初始状态
             initial_state = {
@@ -603,10 +643,11 @@ class BaseGraphAgent(ABC):
             "recursion_limit": self.recursion_limit,
         }
 
-        result = await self._graph.ainvoke(
-            {"input": message, "session_id": session_id, "messages": []},
-            config,
-        )
+        with session_prompt_cache_key(session_id):
+            result = await self._graph.ainvoke(
+                {"input": message, "session_id": session_id, "messages": []},
+                config,
+            )
         return result.get("output", "")
 
 
@@ -728,7 +769,11 @@ class AgentFactory:
                 discover_agents()
 
             if agent_id not in _AGENT_REGISTRY:
-                raise ValueError(f"Agent '{agent_id}' 未注册。可用: {list(_AGENT_REGISTRY.keys())}")
+                raise AppError(
+                    ErrorCode.AGENT_NOT_REGISTERED,
+                    args={"agent": agent_id},
+                    message=f"Available agents: {list(_AGENT_REGISTRY.keys())}",
+                )
 
             agent_cls = _AGENT_REGISTRY[agent_id]
             agent = agent_cls()
@@ -883,7 +928,7 @@ class AgentFactory:
 def get_agent_class(agent_id: str) -> Type[BaseGraphAgent]:
     """获取已注册的 Agent 类"""
     if agent_id not in _AGENT_REGISTRY:
-        raise ValueError(f"Agent '{agent_id}' 未注册")
+        raise AppError(ErrorCode.AGENT_NOT_REGISTERED, args={"agent": agent_id})
     return _AGENT_REGISTRY[agent_id]
 
 

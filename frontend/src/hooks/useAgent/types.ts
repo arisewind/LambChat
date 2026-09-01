@@ -14,6 +14,7 @@ export type EventType =
   | "user:message"
   | "steer:message"
   | "user:cancel"
+  | "run:resumed"
   | "thinking"
   | "tool:start"
   | "tool:result"
@@ -59,6 +60,8 @@ export interface EventData {
   content?: string;
   thinking_id?: string;
   error?: string;
+  /** 稳定错误码（snake_case），后端统一错误事件携带，供 i18n 翻译 */
+  code?: string;
   type?: string;
   step_name?: string;
   step_id?: string;
@@ -243,6 +246,7 @@ export interface HistoryEventData {
   }>;
   message_id?: string;
   enabled_skills?: string[];
+  run_modes?: unknown[];
   // steer:message 事件字段：用户发送时刻（区别于事件信封的注入时刻）
   created_at?: string;
 }
@@ -285,7 +289,10 @@ export interface UseAgentReturn {
     content: string,
     agentOptions?: Record<string, boolean | string | number>,
     attachments?: MessageAttachment[],
-    runOptions?: { enabledSkills?: string[] },
+    runOptions?: {
+      enabledSkills?: string[];
+      runModes?: Array<"auto" | "goal">;
+    },
     submissionCallbacks?: ChatSubmissionCallbacks,
   ) => Promise<void>;
   steerMessage: (

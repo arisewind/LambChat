@@ -6,10 +6,11 @@
 """
 
 import asyncio
+import json
 import uuid
 from datetime import datetime, timezone
 
-from fastapi import APIRouter, Depends, HTTPException, Query, Request
+from fastapi import APIRouter, Depends, Query, Request
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
 
@@ -17,6 +18,7 @@ from src.agents.core import resolve_agent_name
 from src.agents.core.base import AgentFactory
 from src.api.deps import get_current_user_required, require_permissions
 from src.api.routes.auth.utils import _get_language
+from src.api.routes.chat_language import apply_response_language
 from src.api.routes.chat_sse import (  # noqa: F401 - 供 SSE 路由与既有测试导入
     CHAT_SSE_DATA_MAX_BYTES,
     _format_sse_event,
@@ -38,7 +40,9 @@ from src.infra.task.manager import get_task_manager
 from src.infra.task.status import TaskStatus
 from src.infra.upload.file_record import AttachmentClaimError, FileRecordStorage
 from src.infra.writer.presenter_config import _extract_attachment_keys
+from src.infra.writer.presenter_events import derive_user_message_run_modes
 from src.kernel.config import settings
+from src.kernel.errors import AppError, ErrorCode
 from src.kernel.exceptions import AuthorizationError, NotFoundError
 from src.kernel.schemas.agent import AgentRequest, AttachmentSchema
 from src.kernel.schemas.model import ModelConfig
@@ -439,17 +443,18 @@ async def chat_stream(
             resolve_persona_request(request, user),
             validate_agent_model_access(request.agent_options, user),
         )
-    except HTTPException:
-        raise
     except NotFoundError:
-        raise HTTPException(status_code=404, detail="角色预设不存在")
-    except AuthorizationError as e:
-        raise HTTPException(status_code=403, detail=str(e))
+        raise AppError(ErrorCode.PERSONA_PRESET_NOT_FOUND) from None
+    except AppError:
+        raise
 
     active_goal, agent_message = resolve_goal_for_request(request, existing_metadata)
     active_goal_data = active_goal.model_dump() if active_goal else None
     task_manager = get_task_manager()
     preferred_language = _get_language(http_request)
+    # 界面 locale 固定回复语言；随 agent_options 全链路透传（task_context /
+    # submit / submit_arq / scheduler 均携带 agent_options）
+    apply_response_language(request.agent_options, http_request.headers.get("accept-language"))
 
     formatted_message = await build_model_facing_message(
         agent_message,
@@ -520,10 +525,7 @@ async def chat_stream(
         try:
             await file_records.claim_owned_references(attachment_keys, user.sub)
         except AttachmentClaimError:
-            raise HTTPException(
-                status_code=422,
-                detail={"error": "invalid_attachments"},
-            ) from None
+            raise AppError(ErrorCode.INVALID_ATTACHMENTS) from None
 
     # 检查并发限制
     limiter = get_concurrency_limiter()
@@ -538,15 +540,9 @@ async def chat_stream(
     if concurrency_result.result == ConcurrencyResult.REJECTED_QUEUE:
         if file_records is not None:
             await file_records.release_owned_references(attachment_keys, user.sub)
-        raise HTTPException(
-            status_code=429,
-            detail={
-                "error": "too_many_requests",
-                "message": f"排队已满，当前活跃 {concurrency_result.active_count}/{concurrency_result.max_concurrent}，排队 {concurrency_result.queue_length}",
-                "active": concurrency_result.active_count,
-                "max_concurrent": concurrency_result.max_concurrent,
-                "queue_length": concurrency_result.queue_length,
-            },
+        raise AppError(
+            ErrorCode.TOO_MANY_REQUESTS,
+            args={"active": concurrency_result.active_count},
         )
 
     if concurrency_result.result == ConcurrencyResult.QUEUED:
@@ -589,6 +585,7 @@ async def chat_stream(
                 enabled_skills=request.enabled_skills,
                 attachment_references_claimed=attachment_references_claimed,
                 schedule_search_index=settings.TASK_BACKEND != "arq",
+                run_modes=derive_user_message_run_modes(request.auto_mode, request.goal),
             )
             user_message_persisted = True
             if not await limiter.mark_queued_run_ready(user.sub, run_id):
@@ -728,7 +725,7 @@ async def session_stream(
     session_manager = SessionManager()
     session = await session_manager.get_session(session_id)
     if not session:
-        raise HTTPException(status_code=404, detail="会话不存在")
+        raise AppError(ErrorCode.SESSION_NOT_FOUND)
     verify_session_ownership(session, user)
 
     logger.info(f"[SSE] New connection: session={session_id}, run_id={run_id}")
@@ -757,7 +754,11 @@ async def session_stream(
 
         except Exception as e:
             logger.error(f"[SSE] Generator error: {e}")
-            yield 'event: error\ndata: {"error": "An internal error occurred"}\n\n'
+            payload = json.dumps(
+                {"error": "An internal error occurred", "code": "internal_error"},
+                separators=(",", ":"),
+            )
+            yield f"event: error\ndata: {payload}\n\n"
 
     return StreamingResponse(
         event_generator(),
@@ -787,7 +788,7 @@ async def get_session_status(
     session_manager = SessionManager()
     session = await session_manager.get_session(session_id)
     if not session:
-        raise HTTPException(status_code=404, detail="会话不存在")
+        raise AppError(ErrorCode.SESSION_NOT_FOUND)
     verify_session_ownership(session, user)
 
     task_manager = get_task_manager()
@@ -799,12 +800,24 @@ async def get_session_status(
         status = await task_manager.get_status(session_id)
         error = await task_manager.get_error(session_id)
 
-    return {
+    # error 为动态原文；code 取任务中断码，无则按状态兜底
+    error_code = None
+    if error:
+        error_code = (
+            await task_manager.get_run_error_code(run_id)
+            if run_id and hasattr(task_manager, "get_run_error_code")
+            else getattr(status, "error_code", None)
+        ) or ("internal_error" if status.value == "failed" else None)
+
+    result = {
         "session_id": session_id,
         "run_id": run_id,
         "status": status.value,
         "error": error,
     }
+    if error_code:
+        result["code"] = error_code
+    return result
 
 
 @router.post("/sessions/{session_id}/cancel")
@@ -828,7 +841,7 @@ async def cancel_session(
     session_manager = SessionManager()
     session = await session_manager.get_session(session_id)
     if not session:
-        raise HTTPException(status_code=404, detail="会话不存在")
+        raise AppError(ErrorCode.SESSION_NOT_FOUND)
     verify_session_ownership(session, user)
 
     task_manager = get_task_manager()
@@ -860,7 +873,7 @@ async def resume_session(
     session_manager = SessionManager()
     session = await session_manager.get_session(session_id)
     if not session:
-        raise HTTPException(status_code=404, detail="会话不存在")
+        raise AppError(ErrorCode.SESSION_NOT_FOUND)
     verify_session_ownership(session, user)
 
     task_manager = get_task_manager()
@@ -890,19 +903,19 @@ async def steer_running_agent(
     session_manager = SessionManager()
     session = await session_manager.get_session(session_id)
     if not session:
-        raise HTTPException(status_code=404, detail="会话不存在")
+        raise AppError(ErrorCode.SESSION_NOT_FOUND)
     verify_session_ownership(session, user)
 
     message = request.message.strip()
     if not message:
-        raise HTTPException(status_code=422, detail="插话内容不能为空")
+        raise AppError(ErrorCode.STEER_CONTENT_REQUIRED)
 
     task_manager = get_task_manager()
     status = await task_manager.get_status(session_id)
     if status != TaskStatus.RUNNING:
-        raise HTTPException(
-            status_code=409,
-            detail=f"会话当前状态为 {status.value if hasattr(status, 'value') else status}，仅运行中可插话",
+        raise AppError(
+            ErrorCode.STEER_SESSION_NOT_RUNNING,
+            args={"status": status.value if hasattr(status, "value") else status},
         )
 
     from src.infra.task.steer import SteerItem, get_steer_queue
@@ -933,7 +946,7 @@ async def list_pending_steers(
     session_manager = SessionManager()
     session = await session_manager.get_session(session_id)
     if not session:
-        raise HTTPException(status_code=404, detail="会话不存在")
+        raise AppError(ErrorCode.SESSION_NOT_FOUND)
     verify_session_ownership(session, user)
     from src.infra.task.steer import get_steer_queue
 
@@ -966,7 +979,7 @@ async def cancel_steered_message(
     session_manager = SessionManager()
     session = await session_manager.get_session(session_id)
     if not session:
-        raise HTTPException(status_code=404, detail="会话不存在")
+        raise AppError(ErrorCode.SESSION_NOT_FOUND)
     verify_session_ownership(session, user)
 
     from src.infra.task.steer import get_steer_queue

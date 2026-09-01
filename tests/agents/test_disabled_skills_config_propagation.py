@@ -356,6 +356,7 @@ async def test_fast_agent_node_schedules_recommendations_with_final_output(
         output_text,
         inner_graph,
         inner_config,
+        response_language=None,
     ):
         calls.append((presenter, user_input, output_text, inner_graph, inner_config))
 
@@ -791,11 +792,13 @@ async def test_team_agent_node_adds_code_interpreter_middleware_when_enabled(
     monkeypatch.setattr(team_nodes, "resolve_runtime_team", fake_resolve_runtime_team)
 
     code_middleware = object()
+    captured_sandbox_active = []
     monkeypatch.setattr(
         team_nodes,
         "create_code_interpreter_middleware",
-        lambda agent_options: (
-            [code_middleware] if agent_options.get("enable_code_interpreter") is True else []
+        lambda agent_options, *, sandbox_active=False: (
+            captured_sandbox_active.append(sandbox_active)
+            or ([code_middleware] if agent_options.get("enable_code_interpreter") is True else [])
         ),
     )
 
@@ -822,6 +825,7 @@ async def test_team_agent_node_adds_code_interpreter_middleware_when_enabled(
 
     assert fake_graph.captured_create_kwargs is not None
     assert code_middleware in fake_graph.captured_create_kwargs["middleware"]
+    assert captured_sandbox_active == [False]
 
 
 @pytest.mark.asyncio
@@ -900,3 +904,46 @@ async def test_team_role_subagent_inherits_global_skills_when_role_skills_are_em
 
     router_sections = _section_prompt(fake_graph.captured_create_kwargs["middleware"])
     assert "redbook-publish" not in router_sections
+
+
+@pytest.mark.asyncio
+async def test_fast_agent_node_language_section_bytes_stable_across_turns(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """语言段是 agent_options 的纯函数：连续两轮字节一致，前缀缓存不失效。"""
+    _reset_fake_event_processor()
+    from src.agents.fast_agent import nodes as fast_nodes
+
+    async def run_turn(agent_options: dict) -> str:
+        fake_graph = _FakeDeepAgent()
+        _patch_common(monkeypatch, fast_nodes, fake_graph)
+        context = SimpleNamespace(user_id="user-1", skills=[], deferred_manager=None)
+        await fast_nodes.fast_agent_node(
+            {"input": "hello", "session_id": "session-1", "attachments": []},
+            {
+                "configurable": {
+                    "context": context,
+                    "presenter": object(),
+                    "base_url": "",
+                    "agent_options": dict(agent_options),
+                }
+            },
+        )
+        return _section_prompt(fake_graph.captured_create_kwargs["middleware"])
+
+    first_turn = await run_turn({"response_language": "zh"})
+    second_turn = await run_turn({"response_language": "zh"})
+
+    assert first_turn == second_turn
+    assert "Simplified Chinese" in first_turn
+
+    # 未带语言的请求：段落与历史字节一致，零缓存影响
+    without_language = await run_turn({})
+    assert "Response Language" not in without_language
+    assert without_language == first_turn.replace(
+        "\n\n### Response Language\n- Always respond in Simplified Chinese regardless of"
+        " the language of the user's message or any quoted content.\n- Switch to another"
+        " language only when the user explicitly requests it.\n- Keep code, commands,"
+        " error messages, file paths, and technical identifiers unchanged.",
+        "",
+    )
