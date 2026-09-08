@@ -15,6 +15,7 @@ import type {
   ToolResult,
   TokenUsagePart,
   SandboxPart,
+  MemoryStatusPart,
   TodoPart,
   SummaryPart,
   RecommendQuestion,
@@ -30,11 +31,16 @@ import {
   createSubagentPart,
   createThinkingPart,
   createToolPart,
+  mergeSummaryPart,
   updateSubagentResult,
   updateToolResultInDepth,
   clearAllLoadingStates,
   upgradeGeneratingToolPart,
 } from "./messageParts";
+import {
+  markPendingToolsAwaiting,
+  takeOverDanglingToolPart,
+} from "./suspendedToolParts";
 import type { ThinkingPart } from "../../types";
 
 // ============================================
@@ -245,6 +251,19 @@ export function processMessageEvent(
       break;
     }
 
+    case "hitl:suspended": {
+      // 确认门挂起：pending 工具卡转「等待确认」（Codex 式确认体验——
+      // 挂起期间展示确认卡而非空转的运行卡）
+      result.parts = markPendingToolsAwaiting(parts, true);
+      break;
+    }
+
+    case "human_resume_started": {
+      // 用户已响应、恢复运行开始：转回运行态（result 到达前）
+      result.parts = markPendingToolsAwaiting(parts, false);
+      break;
+    }
+
     case "tool:start": {
       const toolCallId = data.tool_call_id as string | undefined;
       if (toolCallId && hasToolCallId(parts, toolCallId)) {
@@ -264,11 +283,15 @@ export function processMessageEvent(
         data.timestamp as string | undefined,
       );
 
-      // 流式参数已先建生成中 part：原位升级而不是再追加一个
-      // depth 决定升级范围：嵌套 subagent 工具只在自己子树内找目标
-      const upgraded = upgradeGeneratingToolPart(parts, toolPart, depth);
-      if (upgraded) {
-        result.parts = upgraded;
+      // 流式参数已先建生成中 part：原位升级而不是再追加一个；
+      // 升级不成再找确认门挂起遗留的悬挂同名同参卡（interrupt 重放的新
+      // start 接管原卡，避免同一执行渲染两张）。
+      // depth 决定升级/接管范围：嵌套 subagent 工具只在自己子树内找目标
+      const merged =
+        upgradeGeneratingToolPart(parts, toolPart, depth) ??
+        takeOverDanglingToolPart(parts, toolPart, depth);
+      if (merged) {
+        result.parts = merged;
         if (depth === 0) {
           result.toolCalls = [...toolCalls, toolCall];
         }
@@ -411,6 +434,26 @@ export function processMessageEvent(
       break;
     }
 
+    // ---- Memory status events（首轮记忆装配进度，沙箱初始化同款 item）----
+
+    case "status": {
+      if (data.stage === "memory") {
+        result.parts = upsertMemoryStatusPart(parts, {
+          type: "memoryStatus",
+          status: "starting",
+          timestamp: data.timestamp,
+        });
+      } else if (data.stage === "memory_done") {
+        result.parts = upsertMemoryStatusPart(parts, {
+          type: "memoryStatus",
+          status: "ready",
+          timestamp: data.timestamp,
+          completedAt: data.timestamp,
+        });
+      }
+      break;
+    }
+
     // ---- Sandbox events ----
 
     case "sandbox:starting": {
@@ -495,12 +538,16 @@ export function processMessageEvent(
 
     case "summary": {
       const summaryContent = data.content || "";
-      if (!summaryContent) break;
+      const freedTokens =
+        typeof data.freed_tokens === "number" ? data.freed_tokens : undefined;
+      // stats 事件（content 为空、携带 freed_tokens）与正文 chunk 都要处理
+      if (!summaryContent && freedTokens === undefined) break;
 
       const summaryPart: SummaryPart = {
         type: "summary",
         content: summaryContent,
         summary_id: data.summary_id,
+        ...(freedTokens !== undefined ? { freed_tokens: freedTokens } : {}),
         depth,
         agent_id: agentId,
         isStreaming,
@@ -516,25 +563,10 @@ export function processMessageEvent(
           messageId,
         );
       } else {
-        const newParts = [...parts];
-        let lastSummaryIdx = -1;
-        for (let i = newParts.length - 1; i >= 0; i--) {
-          const p = newParts[i];
-          if (p.type === "summary" && p.summary_id === data.summary_id) {
-            lastSummaryIdx = i;
-            break;
-          }
-        }
-        if (lastSummaryIdx >= 0) {
-          const existing = newParts[lastSummaryIdx] as SummaryPart;
-          newParts[lastSummaryIdx] = {
-            ...existing,
-            content: existing.content + summaryContent,
-          };
-        } else {
-          newParts.push(summaryPart);
-        }
-        result.parts = newParts;
+        result.parts = mergeSummaryPart(parts, summaryPart) ?? [
+          ...parts,
+          summaryPart,
+        ];
       }
       break;
     }
@@ -661,6 +693,30 @@ function isTransientAskHumanCancellation(text: string): boolean {
 /** Replace existing sandbox part or append if none exists.
  *  Preserves `startedAt` from the previous part so the original
  *  starting timestamp survives across status transitions. */
+/** Replace existing memory-status part or append if none exists. */
+function upsertMemoryStatusPart(
+  parts: MessagePart[],
+  memoryPart: MemoryStatusPart,
+): MessagePart[] {
+  return parts.some((p) => p.type === "memoryStatus")
+    ? parts.map((p) => {
+        if (p.type !== "memoryStatus") return p;
+        const prevStartedAt = p.startedAt;
+        return {
+          ...memoryPart,
+          startedAt:
+            memoryPart.startedAt ?? prevStartedAt ?? memoryPart.timestamp,
+        };
+      })
+    : [
+        ...parts,
+        {
+          ...memoryPart,
+          startedAt: memoryPart.startedAt ?? memoryPart.timestamp,
+        },
+      ];
+}
+
 function upsertSandboxPart(
   parts: MessagePart[],
   sandboxPart: SandboxPart,

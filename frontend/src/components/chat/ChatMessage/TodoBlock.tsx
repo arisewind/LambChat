@@ -85,7 +85,7 @@ export function TodoBlock({ items, isStreaming, stateKey }: TodoBlockProps) {
               : "text-stone-400 dark:text-stone-500",
           )}
         />
-        <span className="text-xs font-medium text-stone-500 dark:text-stone-400">
+        <span className="text-12 font-medium text-stone-500 dark:text-stone-400">
           {t("chat.todo.progress", {
             completed: completedCount,
             total: totalCount,

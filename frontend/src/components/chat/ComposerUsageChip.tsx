@@ -102,7 +102,7 @@ export function ComposerUsageChip() {
       >
         <span className="flex items-center gap-2">
           <Activity size={16} className="shrink-0" />
-          <span className="hidden sm:inline max-w-40 sm:max-w-52 truncate text-base font-semibold text-blue-600 dark:text-blue-400 font-serif tabular-nums">
+          <span className="hidden sm:inline max-w-40 sm:max-w-52 truncate text-16 font-semibold text-blue-600 dark:text-blue-400 font-serif tabular-nums">
             {snapshot.amount}
           </span>
         </span>
@@ -118,13 +118,13 @@ export function ComposerUsageChip() {
             {/* ── 头部：今日用量 + 金额 ── */}
             <div className="flex items-center justify-between gap-3 px-3 pt-3">
               <span
-                className="text-xs font-medium"
+                className="text-12 font-medium"
                 style={{ color: "var(--theme-text-secondary)" }}
               >
                 {t("usage.todaySpend")}
               </span>
               <span
-                className="font-serif text-sm font-semibold tabular-nums"
+                className="font-serif text-14 font-semibold tabular-nums"
                 style={{ color: "var(--theme-text)" }}
               >
                 {snapshot.amount}
@@ -154,7 +154,7 @@ export function ComposerUsageChip() {
               </div>
               <div className="mt-2 flex flex-col gap-1">
                 {snapshot.shares.map((s) => (
-                  <div key={s.key} className="flex items-center gap-2 text-xs">
+                  <div key={s.key} className="flex items-center gap-2 text-12">
                     <span
                       className={`size-1.5 shrink-0 rounded-full ${
                         SEGMENT_STYLE[s.key].color
@@ -185,7 +185,7 @@ export function ComposerUsageChip() {
 
             {/* ── 请求数 / 缓存命中 ── */}
             <div
-              className="flex items-center justify-between gap-2 border-t px-3 py-2 text-xs"
+              className="flex items-center justify-between gap-2 border-t px-3 py-2 text-12"
               style={{ borderColor: "var(--theme-border)" }}
             >
               <span style={{ color: "var(--theme-text-secondary)" }}>
@@ -217,7 +217,7 @@ export function ComposerUsageChip() {
                 setOpen(false);
                 navigate("/usage");
               }}
-              className="flex w-full cursor-pointer items-center justify-between border-t px-3 py-2 text-xs transition-colors"
+              className="flex w-full cursor-pointer items-center justify-between border-t px-3 py-2 text-12 transition-colors"
               style={{
                 borderColor: "var(--theme-border)",
                 color: "var(--theme-text-secondary)",

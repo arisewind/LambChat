@@ -64,7 +64,7 @@ export function ProjectRevealItem({
             seconds: seconds % 60,
           });
     return (
-      <span className="inline-flex items-center gap-1 text-xs text-[var(--theme-text-secondary)] tabular-nums px-2">
+      <span className="inline-flex items-center gap-1 text-12 text-[var(--theme-text-secondary)] tabular-nums px-2">
         <Clock size={11} className="shrink-0" />
         {text}
       </span>
@@ -275,10 +275,10 @@ export function ProjectRevealItem({
           <Code2 size={20} className="text-red-500" />
         </div>
         <div className="flex-1 min-w-0">
-          <div className="text-sm font-medium text-red-700 dark:text-red-300 truncate">
+          <div className="text-14 font-medium text-red-700 dark:text-red-300 truncate">
             {projectName || t("project.error")}
           </div>
-          <div className="text-xs text-red-500 dark:text-red-400 truncate mt-0.5">
+          <div className="text-12 text-red-500 dark:text-red-400 truncate mt-0.5">
             {error}
           </div>
         </div>
@@ -300,10 +300,10 @@ export function ProjectRevealItem({
           )}
         </div>
         <div className="flex-1 min-w-0">
-          <div className="text-sm font-medium text-theme-text truncate">
+          <div className="text-14 font-medium text-theme-text truncate">
             {projectName || t("project.untitled")}
           </div>
-          <div className="text-xs text-theme-text-tertiary mt-0.5 truncate">
+          <div className="text-12 text-theme-text-tertiary mt-0.5 truncate">
             {t("project.fileCount", { count: fileCount })}
             {mode === "project" && template !== "static"
               ? ` · ${template}`
@@ -328,7 +328,7 @@ export function ProjectRevealItem({
               event.stopPropagation();
               openPreview();
             }}
-            className="px-3 py-1.5 rounded-lg text-xs font-medium bg-theme-bg-subtle text-theme-text-secondary hover:bg-theme-bg-elevated transition-colors"
+            className="px-3 py-1.5 rounded-lg text-12 font-medium bg-theme-bg-subtle text-theme-text-secondary hover:bg-theme-bg-elevated transition-colors"
           >
             {t("project.preview", "预览")}
           </button>

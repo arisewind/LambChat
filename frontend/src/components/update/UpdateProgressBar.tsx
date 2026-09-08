@@ -25,7 +25,7 @@ export function UpdateProgressBar({
 
   return (
     <div className="space-y-1.5">
-      <div className="flex items-center justify-between text-xs text-stone-500 dark:text-stone-400">
+      <div className="flex items-center justify-between text-12 text-stone-500 dark:text-stone-400">
         <span>{t("updateDownloading", "正在下载...")}</span>
         <span>
           {downloadedStr} / {totalStr} — {percent}%

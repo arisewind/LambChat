@@ -65,13 +65,13 @@ export function ExcalidrawDirectViewer({
     return (
       <div className="safe-area-viewport-padding fixed inset-0 z-[300] flex items-center justify-center bg-black/90">
         <div className="flex flex-col items-center gap-3">
-          <p className="text-sm text-white/70">
+          <p className="text-14 text-white/70">
             {t("documents.excalidrawRenderFailed", "Failed to render diagram")}
           </p>
           <button
             type="button"
             onClick={onClose}
-            className="rounded-lg px-4 py-2 text-sm text-white/70 hover:bg-white/10 transition-colors"
+            className="rounded-lg px-4 py-2 text-14 text-white/70 hover:bg-white/10 transition-colors"
           >
             {t("common.close", "Close")}
           </button>

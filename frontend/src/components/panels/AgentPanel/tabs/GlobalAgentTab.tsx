@@ -91,7 +91,7 @@ export function GlobalAgentTab({
 
   return (
     <div className="space-y-4">
-      <p className="hidden px-1 text-sm leading-relaxed text-theme-text-secondary sm:block">
+      <p className="hidden px-1 text-14 leading-relaxed text-theme-text-secondary sm:block">
         {t("agentConfig.globalDescription")}
       </p>
 
@@ -120,16 +120,16 @@ export function GlobalAgentTab({
                     <AgentIcon icon={agent.icon || "Bot"} size={20} />
                   </div>
                   <div className="min-w-0 flex-1">
-                    <h4 className="truncate text-sm font-medium tracking-tight text-theme-text">
+                    <h4 className="truncate text-14 font-medium tracking-tight text-theme-text">
                       {displayName}
                     </h4>
-                    <p className="mt-0.5 hidden truncate text-xs text-theme-text-secondary sm:block">
+                    <p className="mt-0.5 hidden truncate text-12 text-theme-text-secondary sm:block">
                       {displayDescription}
                     </p>
                   </div>
                   <Pencil
                     size={14}
-                    className="flex-shrink-0 text-theme-text-tertiary opacity-0 transition-opacity group-hover:opacity-100"
+                    className="flex-shrink-0 text-theme-text-tertiary opacity-0 transition-opacity group-hover:opacity-100 max-sm:opacity-100"
                   />
                 </button>
 
@@ -150,7 +150,7 @@ export function GlobalAgentTab({
 
       {hasChanges && (
         <div className="glass-divider mt-4 flex items-center justify-between pt-4">
-          <span className="flex items-center gap-1.5 text-xs text-theme-text-tertiary">
+          <span className="flex items-center gap-1.5 text-12 text-theme-text-tertiary">
             <span className="inline-block h-1.5 w-1.5 rounded-full bg-amber-400 animate-pulse" />
             {localAgents.filter((a) => a.enabled).length} / {localAgents.length}{" "}
             {t("agentConfig.agentsEnabled", {
@@ -162,7 +162,7 @@ export function GlobalAgentTab({
             onClick={handleSave}
             loading={isSaving}
             leftIcon={<Save size={16} />}
-            className="px-5 py-2.5 text-sm"
+            className="px-5 py-2.5 text-14"
           >
             {t("common.save")}
           </Button>
@@ -187,7 +187,7 @@ export function GlobalAgentTab({
                   onClick={handleSave}
                   loading={isSaving}
                   leftIcon={<Save size={16} />}
-                  className="px-5 py-2.5 text-sm"
+                  className="px-5 py-2.5 text-14"
                 >
                   {t("common.save")}
                 </Button>

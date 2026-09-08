@@ -81,16 +81,16 @@ export function ForgotPassword() {
                 <div className="auth-status-icon relative mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-emerald-50 dark:bg-emerald-900/20">
                   <CheckCircle className="h-6 w-6 text-emerald-600 dark:text-emerald-400" />
                 </div>
-                <h1 className="text-2xl font-bold tracking-[-0.02em] text-stone-900 dark:text-stone-100 mb-1 font-serif">
+                <h1 className="text-24 font-bold tracking-[-0.02em] text-stone-900 dark:text-stone-100 mb-1 font-serif">
                   {t("auth.checkYourEmail")}
                 </h1>
-                <p className="text-sm leading-relaxed text-stone-400 dark:text-stone-500">
+                <p className="text-14 leading-relaxed text-stone-400 dark:text-stone-500">
                   {t("auth.forgotPasswordEmailSent")}
                 </p>
               </div>
               <button
                 onClick={handleBackToLogin}
-                className="auth-primary-button min-h-12 w-full rounded-xl py-3 text-sm transition-all duration-200 hover:-translate-y-px active:translate-y-0"
+                className="auth-primary-button min-h-12 w-full rounded-xl py-3 text-14 transition-all duration-200 hover:-translate-y-px active:translate-y-0"
               >
                 <span className="inline-flex items-center justify-center gap-2">
                   <BackIcon size={14} />
@@ -101,10 +101,10 @@ export function ForgotPassword() {
           ) : (
             <>
               <div className="mb-5 text-center">
-                <h1 className="text-2xl font-bold tracking-[-0.02em] text-stone-900 dark:text-stone-100 mb-1 font-serif">
+                <h1 className="text-24 font-bold tracking-[-0.02em] text-stone-900 dark:text-stone-100 mb-1 font-serif">
                   {t("auth.forgotPassword")}
                 </h1>
-                <p className="text-sm leading-relaxed text-stone-400 dark:text-stone-500">
+                <p className="text-14 leading-relaxed text-stone-400 dark:text-stone-500">
                   {t("auth.forgotPasswordDesc")}
                 </p>
               </div>
@@ -123,7 +123,7 @@ export function ForgotPassword() {
                         type="email"
                         value={email}
                         onChange={(e) => setEmail(e.target.value)}
-                        className="auth-input w-full rounded-xl py-2.5 pl-10 pr-3 text-sm"
+                        className="auth-input w-full rounded-xl py-2.5 pl-10 pr-3 text-14"
                         placeholder={t("auth.emailPlaceholder")}
                       />
                     </div>
@@ -131,7 +131,7 @@ export function ForgotPassword() {
                   <button
                     type="submit"
                     disabled={isSubmitting}
-                    className="auth-primary-button min-h-12 w-full rounded-xl py-3 text-sm transition-all duration-200 hover:-translate-y-px active:translate-y-0 disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:translate-y-0"
+                    className="auth-primary-button min-h-12 w-full rounded-xl py-3 text-14 transition-all duration-200 hover:-translate-y-px active:translate-y-0 disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:translate-y-0"
                   >
                     <span className="inline-flex items-center justify-center gap-2">
                       {isSubmitting && (

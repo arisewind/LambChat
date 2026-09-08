@@ -153,7 +153,7 @@ export function FeedbackDialog({
 
       <div
         data-yields-sidebar
-        className="safe-area-viewport-padding fixed inset-0 z-[300] flex items-end sm:items-center sm:justify-center sm:pointer-events-none"
+        className="safe-area-viewport-padding-top fixed inset-0 z-[300] flex items-end sm:items-center sm:justify-center sm:pointer-events-none"
       >
         <div
           ref={swipeRef as React.RefObject<HTMLDivElement>}
@@ -174,7 +174,7 @@ export function FeedbackDialog({
                   <ThumbsDown size={14} />
                 )}
               </span>
-              <h3 className="text-lg font-semibold font-serif text-stone-900 dark:text-stone-100">
+              <h3 className="text-18 font-semibold font-serif text-stone-900 dark:text-stone-100">
                 {rating === "up"
                   ? t("feedback.positive")
                   : t("feedback.negative")}
@@ -224,7 +224,7 @@ export function FeedbackDialog({
 
             {/* Upload progress indicator */}
             {isUploading && (
-              <div className="mb-3 flex items-center gap-2 text-xs text-stone-400 dark:text-stone-500">
+              <div className="mb-3 flex items-center gap-2 text-12 text-stone-400 dark:text-stone-500">
                 <Loader2 size={14} className="animate-spin" />
                 <span>{t("feedback.uploading", "上传中...")}</span>
               </div>
@@ -239,7 +239,7 @@ export function FeedbackDialog({
                 className="mb-3 flex items-center gap-2 rounded-lg border border-dashed border-stone-300 dark:border-stone-600 px-3 py-2 text-stone-400 dark:text-stone-500 hover:border-stone-400 dark:hover:border-stone-500 hover:text-stone-500 dark:hover:text-stone-400 transition-colors cursor-pointer"
               >
                 <ImagePlus size={16} />
-                <span className="text-sm">
+                <span className="text-14">
                   {t("feedback.addImage", "添加图片（最多 9 张）")}
                 </span>
               </div>
@@ -253,7 +253,7 @@ export function FeedbackDialog({
                 t("feedback.commentPlaceholder") || "What could be improved?"
               }
               className={clsx(
-                "w-full resize-none rounded-lg border border-stone-200 p-3 text-sm",
+                "w-full resize-none rounded-lg border border-stone-200 p-3 text-14",
                 "bg-stone-50 dark:border-stone-700 dark:bg-stone-900",
                 "text-stone-900 dark:text-stone-100",
                 "placeholder:text-stone-400 dark:placeholder:text-stone-500",
@@ -262,7 +262,7 @@ export function FeedbackDialog({
               )}
               rows={4}
             />
-            <div className="mt-2 text-xs text-stone-400 text-right">
+            <div className="mt-2 text-12 text-stone-400 text-right">
               {t("feedback.pressEnter") || "⌘+Enter to send"}
             </div>
           </div>
@@ -285,14 +285,14 @@ export function FeedbackDialog({
             <button
               onClick={onSkip}
               disabled={isSubmitting || isUploading}
-              className="px-4 py-2 text-sm font-medium text-stone-700 dark:text-stone-300 bg-theme-bg-card dark:bg-stone-800 border border-stone-200 dark:border-stone-600 rounded-lg hover:bg-stone-50 dark:hover:bg-stone-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              className="px-4 py-2 text-14 font-medium text-stone-700 dark:text-stone-300 bg-theme-bg-card dark:bg-stone-800 border border-stone-200 dark:border-stone-600 rounded-lg hover:bg-stone-50 dark:hover:bg-stone-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {t("common.skip") || "Skip"}
             </button>
             <button
               onClick={onSubmit}
               disabled={isSubmitting || isUploading}
-              className="flex items-center gap-2 px-4 py-2 text-sm font-medium bg-stone-900 hover:bg-stone-800 dark:bg-stone-600 dark:hover:bg-stone-500 text-white rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              className="flex items-center gap-2 px-4 py-2 text-14 font-medium bg-stone-900 hover:bg-stone-800 dark:bg-stone-600 dark:hover:bg-stone-500 text-white rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {isSubmitting ? (
                 <span className="relative h-4 w-4">

@@ -125,8 +125,8 @@ export function ProfileToolsTab() {
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <Wrench size={15} className="text-amber-500 dark:text-amber-400" />
-          <h3 className="font-semibold font-serif uppercase tracking-wide text-stone-400 dark:text-stone-500">
+          <Wrench size={13} className="text-amber-500 dark:text-amber-400" />
+          <h3 className="text-12 font-semibold font-serif uppercase tracking-wider text-stone-400 dark:text-stone-500">
             {t("profile.toolsManagement", "MCP Tools")}
           </h3>
         </div>
@@ -140,7 +140,7 @@ export function ProfileToolsTab() {
         </button>
       </div>
 
-      <p className="text-xs text-stone-400 dark:text-stone-500">
+      <p className="text-12 text-stone-400 dark:text-stone-500">
         {t(
           "profile.toolsManagementDesc",
           "Enable or disable tools for your MCP servers.",
@@ -182,7 +182,7 @@ export function ProfileToolsTab() {
             size={32}
             className="mb-2 text-stone-300 dark:text-stone-600"
           />
-          <p className="text-sm">{t("tools.noTools", "No tools available")}</p>
+          <p className="text-14">{t("tools.noTools", "No tools available")}</p>
         </div>
       ) : (
         <div className="space-y-3">
@@ -197,7 +197,7 @@ export function ProfileToolsTab() {
               >
                 {/* Server header */}
                 <div className="px-3 py-2 border-b border-stone-200/60 dark:border-stone-600/40 flex items-center justify-between bg-stone-100/60 dark:bg-stone-800/30">
-                  <span className="text-xs font-semibold text-stone-600 dark:text-stone-300 truncate">
+                  <span className="text-12 font-semibold text-stone-600 dark:text-stone-300 truncate">
                     {serverName}
                   </span>
                   <span className="text-10 text-stone-400 dark:text-stone-500 tabular-nums shrink-0 ml-2">
@@ -252,7 +252,7 @@ export function ProfileToolsTab() {
                         </button>
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center gap-1.5 flex-wrap">
-                            <code className="text-xs font-medium text-stone-700 dark:text-stone-200 truncate">
+                            <code className="text-12 font-medium text-stone-700 dark:text-stone-200 truncate">
                               {baseName}
                             </code>
                           </div>

@@ -159,6 +159,12 @@ def start_memory_compaction_agent() -> None:
     start_memory_compaction_agent()
 
 
+def start_memory_extraction_agent() -> None:
+    from src.infra.memory.extraction import start_memory_extraction_agent
+
+    start_memory_extraction_agent()
+
+
 def start_memory_evolution_scheduler() -> None:
     from src.infra.memory.evolution.scheduler import run_scheduled_evolution
     from src.infra.scheduler import ScheduledJob, get_runtime_scheduler
@@ -190,6 +196,12 @@ def register_orphan_recovery_job() -> None:
     from src.infra.task.orphan_recovery import register_orphan_recovery_job
 
     register_orphan_recovery_job()
+
+
+def register_stale_trace_recovery_job() -> None:
+    from src.infra.task.stale_trace_recovery import register_stale_trace_recovery_job
+
+    register_stale_trace_recovery_job()
 
 
 def register_scheduled_task_reconcile_job(
@@ -245,9 +257,11 @@ async def start_runtime_services() -> None:
 
     if settings.ENABLE_MEMORY:
         start_memory_compaction_agent()
+        start_memory_extraction_agent()
         start_memory_evolution_scheduler()
 
     register_orphan_recovery_job()
+    register_stale_trace_recovery_job()
 
     if settings.ENABLE_SCHEDULED_TASK:
         # Load dynamically-created scheduled tasks from DB only when the feature is enabled.

@@ -199,7 +199,9 @@ export const ModelFormModal = ({
     const priceCacheRead = parsePrice(formPriceCacheRead);
     const priceCacheWrite = parsePrice(formPriceCacheWrite);
     const prices = [priceInput, priceOutput, priceCacheRead, priceCacheWrite];
-    if (prices.some((price) => price !== undefined && (isNaN(price) || price < 0))) {
+    if (
+      prices.some((price) => price !== undefined && (isNaN(price) || price < 0))
+    ) {
       toast.error(t("agentConfig.pricingInvalid"));
       return;
     }
@@ -208,8 +210,12 @@ export const ModelFormModal = ({
       ? {
           ...(priceInput !== undefined ? { input: priceInput } : {}),
           ...(priceOutput !== undefined ? { output: priceOutput } : {}),
-          ...(priceCacheRead !== undefined ? { cache_read: priceCacheRead } : {}),
-          ...(priceCacheWrite !== undefined ? { cache_write: priceCacheWrite } : {}),
+          ...(priceCacheRead !== undefined
+            ? { cache_read: priceCacheRead }
+            : {}),
+          ...(priceCacheWrite !== undefined
+            ? { cache_write: priceCacheWrite }
+            : {}),
         }
       : undefined;
 
@@ -442,7 +448,7 @@ export const ModelFormModal = ({
 
         {/* Advanced (collapsed) */}
         <details className="group">
-          <summary className="text-xs text-theme-text-secondary cursor-pointer select-none hover:text-theme-text transition-colors py-1">
+          <summary className="text-12 text-theme-text-secondary cursor-pointer select-none hover:text-theme-text transition-colors py-1">
             {t("agentConfig.advancedConfig", "高级配置")}
           </summary>
           <div
@@ -547,14 +553,15 @@ export const ModelFormModal = ({
                   value={formApiFormat}
                   onChange={(v) => setFormApiFormat(v as ApiFormat | "")}
                   options={[
-                    { value: "", label: t("agentConfig.apiFormatFollowDefault") },
+                    {
+                      value: "",
+                      label: t("agentConfig.apiFormatFollowDefault"),
+                    },
                     { value: "chat_completions", label: "Chat Completions" },
                     { value: "responses", label: "Responses" },
                   ]}
                 />
-                <p className="es-hint">
-                  {t("agentConfig.modelApiFormatHint")}
-                </p>
+                <p className="es-hint">{t("agentConfig.modelApiFormatHint")}</p>
               </div>
             )}
             <div className="es-field">
@@ -565,7 +572,7 @@ export const ModelFormModal = ({
                 value={formRequestHeaders}
                 onChange={(e) => setFormRequestHeaders(e.target.value)}
                 placeholder={t("agentConfig.modelRequestHeadersPlaceholder")}
-                className="es-input font-mono text-xs"
+                className="es-input font-mono text-12"
                 rows={3}
                 spellCheck={false}
               />
@@ -613,7 +620,7 @@ export const ModelFormModal = ({
               </div>
             </div>
             <div className="es-field">
-              <label className="flex items-start gap-2 text-sm text-theme-text cursor-pointer">
+              <label className="flex items-start gap-2 text-14 text-theme-text cursor-pointer">
                 <Checkbox
                   checked={formSupportsVision}
                   onChange={() => setFormSupportsVision((checked) => !checked)}
@@ -630,7 +637,7 @@ export const ModelFormModal = ({
               </label>
             </div>
             <div className="es-field">
-              <label className="flex items-start gap-2 text-sm text-theme-text cursor-pointer">
+              <label className="flex items-start gap-2 text-14 text-theme-text cursor-pointer">
                 <Checkbox
                   checked={formImageUrlToBase64}
                   onChange={() =>

@@ -107,7 +107,7 @@ export const ExcalidrawThumbnail = memo(function ExcalidrawThumbnail({
   if (hasError) {
     return (
       <div className="safe-area-viewport-padding absolute inset-0 flex items-center justify-center bg-stone-100 dark:bg-stone-800 rounded">
-        <span className="text-xs text-stone-400 truncate px-1">
+        <span className="text-12 text-stone-400 truncate px-1">
           {alt || "…"}
         </span>
       </div>

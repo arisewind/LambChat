@@ -13,7 +13,7 @@ const animationSource = readFileSync(
 describe("CollapsiblePill alignment", () => {
   test("uses a readable line height while preserving monospace labels", () => {
     expect(source).toMatch(
-      /"text-xs font-mono font-medium min-w-0 truncate overflow-hidden leading-none"/,
+      /"text-12 font-mono font-medium min-w-0 truncate overflow-hidden leading-none"/,
     );
     expect(source).not.toContain("tracking-[0.01em]");
     expect(source).not.toContain("translate-y-px");

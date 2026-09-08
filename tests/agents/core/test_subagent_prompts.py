@@ -7,6 +7,7 @@ from src.agents.core.prompt_policy import (
 )
 from src.agents.core.subagent_prompts import (
     CODEBASE_INVESTIGATOR_PROMPT,
+    CONTEXT_WORKER_PROMPT,
     DEFAULT_SUBAGENT_PROMPT,
     DETAILED_SUBAGENT_PROMPT,
     IMPLEMENTATION_WORKER_PROMPT,
@@ -70,7 +71,8 @@ def test_workflow_policy_is_capability_agnostic_and_compact() -> None:
 
 
 def test_storage_and_subagent_policies_fit_compact_budgets() -> None:
-    assert len(SANDBOX_STORAGE_POLICY) <= 330
+    # 400：第三条存储位置（/workspace/.shared 持久目录）入册后的新预算
+    assert len(SANDBOX_STORAGE_POLICY) <= 400
     assert len(SUBAGENT_TASK_GUIDE) <= 560
 
 
@@ -96,6 +98,14 @@ def test_sandbox_storage_is_shared_and_runtime_path_is_separate() -> None:
     assert "transfer_file" not in SANDBOX_SYSTEM_PROMPT
 
 
+def test_storage_and_runtime_policies_document_persistent_shared_dir() -> None:
+    """/workspace/.shared 持久目录约定进全部沙箱策略（文件工具别名 + shell 变量）。"""
+    for policy in (SANDBOX_STORAGE_POLICY, LAZY_SANDBOX_RUNTIME_POLICY, SANDBOX_RUNTIME_POLICY):
+        assert "/workspace/.shared" in policy
+    for runtime in (LAZY_SANDBOX_RUNTIME_POLICY, SANDBOX_RUNTIME_POLICY):
+        assert "$LAMBCHAT_SHARED" in runtime
+
+
 def test_search_lazy_runtime_distinguishes_file_and_shell_workspace_paths() -> None:
     rendered = SANDBOX_RUNTIME_SECTION.format(work_dir="/workspace/session-1")
 
@@ -111,6 +121,45 @@ def test_search_lazy_runtime_distinguishes_file_and_shell_workspace_paths() -> N
             "Never guess or repeat a provider filesystem path",
         ),
     )
+
+
+def test_search_lazy_runtime_documents_file_tool_shell_bridging() -> None:
+    rendered = SANDBOX_RUNTIME_SECTION.format(work_dir="/workspace/session-1")
+
+    # 文件工具与 shell 共享同一沙箱文件系统：alias 与 $LAMBCHAT_WORKSPACE 互为映射
+    _assert_markers(
+        rendered,
+        (
+            "same directory",
+            "file-tool writes appear in the shell",
+            "shell-created files are readable by file tools at `/workspace/session-1/<name>`",
+            "outside the work directory",
+            "never at a guessed `/workspace/<name>`",
+        ),
+    )
+    # /skills 与 /memories 是文件工具专属的虚拟存储；可复用产物进持久共享目录，
+    # 先 ls 检查避免每轮重复转移；一次性文件才进当前会话工作区
+    _assert_markers(
+        rendered,
+        (
+            "exist only for file tools",
+            "transfer_path",
+            "target prefix `/workspace/.shared/`",
+            "$LAMBCHAT_SHARED",
+            "persists across sessions",
+        ),
+    )
+    # URL 下载要落到工作目录 alias，后续 shell 命令才能用
+    _assert_markers(
+        rendered,
+        (
+            "upload_url_to_sandbox",
+            "pass `/workspace/session-1/<name>` as the target",
+            "$LAMBCHAT_WORKSPACE",
+        ),
+    )
+    # 桥接规则属于系统提示词，保持紧凑预算
+    assert len(LAZY_SANDBOX_RUNTIME_POLICY) <= 1700
 
 
 def test_team_runtime_keeps_eager_real_work_dir_semantics() -> None:
@@ -180,11 +229,73 @@ def test_specialist_prompts_keep_distinct_scopes() -> None:
         "implementation-worker",
         "verification-runner",
         "researcher",
+        "context-worker",
     )
     _assert_markers(CODEBASE_INVESTIGATOR_PROMPT, ("do not edit", "relevant files"))
     _assert_markers(IMPLEMENTATION_WORKER_PROMPT, ("scoped", "verification"))
     _assert_markers(VERIFICATION_RUNNER_PROMPT, ("do not change production", "pass/fail"))
     _assert_markers(RESEARCH_SUBAGENT_PROMPT, ("primary sources", "date/version"))
+
+
+def test_fork_mode_context_worker_wired_into_all_main_agents() -> None:
+    """context-worker 以 deepagents 0.7.12+ fork 模式接入三端主 agent：
+    继承父对话历史与状态，承接依赖父上下文的委派。"""
+    from inspect import getsource
+
+    from src.agents.fast_agent.nodes import fast_agent_node
+    from src.agents.search_agent.nodes import agent_node
+    from src.agents.team_agent.nodes import team_router_node
+
+    for node in (fast_agent_node, agent_node, team_router_node):
+        source = getsource(node)
+        assert '"name": "context-worker"' in source, (
+            f"{node.__name__} must register the context-worker subagent"
+        )
+        assert '"mode": "fork"' in source, f"{node.__name__} must set mode='fork' on context-worker"
+
+
+def test_fork_prompt_appends_role_only_without_repeating_base() -> None:
+    """fork 的 system_prompt 追加在继承的父 prompt 之后：只写角色段，
+    不得重复基座（工作流/交付纪律父 prompt 已含）。"""
+    assert "## Context Worker" in CONTEXT_WORKER_PROMPT
+    assert "Handoff Notes" in CONTEXT_WORKER_PROMPT
+    for marker in ("auto-staged", "Completion Gate", "current session workspace", "## Workflow"):
+        assert marker not in CONTEXT_WORKER_PROMPT
+    assert len(CONTEXT_WORKER_PROMPT) <= 500
+
+
+def test_read_only_specialists_omit_artifact_delivery_policy() -> None:
+    """只读子代理（investigator/verification/researcher）不向用户交付产物，
+    Artifact Delivery/Completion Gate 是主 agent 与文件写入角色的职责——
+    裁掉可省每次 spawn 约 500 字符；安全/工作区/进度纪律保留。
+    """
+    for prompt in (
+        CODEBASE_INVESTIGATOR_PROMPT,
+        VERIFICATION_RUNNER_PROMPT,
+        RESEARCH_SUBAGENT_PROMPT,
+    ):
+        assert "auto-staged" not in prompt
+        assert "reveal_file" not in prompt
+        assert "reveal_project" not in prompt
+        assert "Artifact Completion Gate" not in prompt
+        # 保留的纪律：工作区边界 + 安全（untrusted/隐私）+ 进度
+        _assert_markers(
+            prompt,
+            (
+                "current session workspace",
+                "target exists",
+                "untrusted",
+                "privacy",
+                "Handoff Notes",
+            ),
+        )
+        assert len(prompt) <= 2500
+
+
+def test_writer_subagents_keep_artifact_delivery_policy() -> None:
+    """文件写入角色（general-purpose / implementation-worker）保留交付纪律。"""
+    for prompt in (SUBAGENT_PROMPT, IMPLEMENTATION_WORKER_PROMPT):
+        _assert_markers(prompt, ("auto-staged", "reveal_project", "Artifact Completion Gate"))
 
 
 def test_dynamic_prompt_middleware_order_is_canonical() -> None:
@@ -196,9 +307,10 @@ def test_dynamic_prompt_middleware_order_is_canonical() -> None:
     for node in (agent_node, team_router_node):
         source = getsource(node)
         env = source.rfind("EnvVarPromptMiddleware")
-        memory = source.rfind("MemoryIndexMiddleware")
         deferred = source.rfind("ToolSearchMiddleware")
-        assert -1 < env < memory < deferred
+        assert -1 < env < deferred
+        # 记忆索引只附着到 memory_recall 工具，不进入用户消息。
+        assert "MemoryRecallIndexMiddleware" in source
         assert "PromptCachingMiddleware" not in source
 
 

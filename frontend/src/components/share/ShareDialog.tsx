@@ -270,7 +270,7 @@ export function ShareDialog({
       {/* Dialog - bottom sheet on mobile, centered on desktop */}
       <div
         data-yields-sidebar
-        className="safe-area-viewport-padding fixed inset-0 z-[300] flex items-end sm:items-center sm:justify-center sm:pointer-events-none"
+        className="safe-area-viewport-padding-top fixed inset-0 z-[300] flex items-end sm:items-center sm:justify-center sm:pointer-events-none"
       >
         <div
           ref={swipeRef as React.RefObject<HTMLDivElement>}
@@ -285,7 +285,7 @@ export function ShareDialog({
                 size={20}
                 className="text-stone-500 dark:text-stone-400"
               />
-              <h3 className="text-lg font-semibold font-serif text-stone-900 dark:text-stone-100">
+              <h3 className="text-18 font-semibold font-serif text-stone-900 dark:text-stone-100">
                 {t("share.title")}
               </h3>
             </div>
@@ -300,12 +300,12 @@ export function ShareDialog({
           {/* Content */}
           <div className="flex-1 overflow-y-auto p-5 space-y-5">
             {/* Session name */}
-            <div className="text-sm text-stone-600 dark:text-stone-400">
+            <div className="text-14 text-stone-600 dark:text-stone-400">
               <span className="font-medium">{t("share.session")}:</span>{" "}
               {sessionName || t("sidebar.newChat")}
             </div>
 
-            <div className="flex items-start gap-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2.5 text-sm text-amber-900 dark:border-amber-900/50 dark:bg-amber-950/30 dark:text-amber-100">
+            <div className="flex items-start gap-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2.5 text-14 text-amber-900 dark:border-amber-900/50 dark:bg-amber-950/30 dark:text-amber-100">
               <AlertTriangle
                 size={16}
                 className="mt-0.5 flex-shrink-0 text-amber-600 dark:text-amber-300"
@@ -315,13 +315,13 @@ export function ShareDialog({
 
             {/* Share Type */}
             <div className="space-y-2">
-              <label className="text-sm font-medium text-stone-700 dark:text-stone-300">
+              <label className="text-14 font-medium text-stone-700 dark:text-stone-300">
                 {t("share.shareType")}
               </label>
               <div className="flex gap-3">
                 <button
                   onClick={() => setShareType("full")}
-                  className={`flex-1 px-4 py-2.5 rounded-lg border text-sm font-medium transition-colors ${
+                  className={`flex-1 px-4 py-2.5 rounded-lg border text-14 font-medium transition-colors ${
                     shareType === "full"
                       ? "border-stone-500 bg-stone-100 dark:bg-stone-700 text-stone-700 dark:text-stone-200"
                       : "border-stone-200 dark:border-stone-600 text-stone-700 dark:text-stone-300 hover:bg-stone-50 dark:hover:bg-stone-700"
@@ -331,7 +331,7 @@ export function ShareDialog({
                 </button>
                 <button
                   onClick={() => setShareType("partial")}
-                  className={`flex-1 px-4 py-2.5 rounded-lg border text-sm font-medium transition-colors ${
+                  className={`flex-1 px-4 py-2.5 rounded-lg border text-14 font-medium transition-colors ${
                     shareType === "partial"
                       ? "border-stone-500 bg-stone-100 dark:bg-stone-700 text-stone-700 dark:text-stone-200"
                       : "border-stone-200 dark:border-stone-600 text-stone-700 dark:text-stone-300 hover:bg-stone-50 dark:hover:bg-stone-700"
@@ -346,7 +346,7 @@ export function ShareDialog({
             {shareType === "partial" && (
               <div className="space-y-2">
                 <div className="flex items-center justify-between">
-                  <label className="text-sm font-medium text-stone-700 dark:text-stone-300">
+                  <label className="text-14 font-medium text-stone-700 dark:text-stone-300">
                     {t("share.selectRuns")}
                   </label>
                   {!isLoadingRuns && runs.length > 0 && (
@@ -359,7 +359,7 @@ export function ShareDialog({
                             : runs.map((r) => r.run_id),
                         )
                       }
-                      className="text-xs text-stone-400 dark:text-stone-500 hover:text-stone-600 dark:hover:text-stone-300 transition-colors"
+                      className="text-12 text-stone-400 dark:text-stone-500 hover:text-stone-600 dark:hover:text-stone-300 transition-colors"
                     >
                       {selectedRunIds.length === runs.length
                         ? t("share.deselectAll")
@@ -370,7 +370,7 @@ export function ShareDialog({
                 {isLoadingRuns ? (
                   <SkeletonList count={3} className="py-2" />
                 ) : runs.length === 0 ? (
-                  <div className="text-sm text-stone-500 dark:text-stone-400 py-2">
+                  <div className="text-14 text-stone-500 dark:text-stone-400 py-2">
                     {t("share.noRuns")}
                   </div>
                 ) : (
@@ -380,7 +380,7 @@ export function ShareDialog({
                         key={run.run_id}
                         type="button"
                         onClick={() => handleRunClick(run.run_id)}
-                        className={`w-full grid grid-cols-[auto_4rem_1fr] items-center gap-2 px-3 py-2 rounded-lg text-sm transition-colors ${
+                        className={`w-full grid grid-cols-[auto_4rem_1fr] items-center gap-2 px-3 py-2 rounded-lg text-14 transition-colors ${
                           selectedRunIds.includes(run.run_id)
                             ? "bg-stone-100 dark:bg-stone-700 text-stone-700 dark:text-stone-200"
                             : "hover:bg-stone-50 dark:hover:bg-stone-700 text-stone-700 dark:text-stone-300"
@@ -397,7 +397,7 @@ export function ShareDialog({
                             {index + 1}
                           </span>
                         </span>
-                        <span className="min-w-0 text-xs text-stone-400 dark:text-stone-500 truncate text-left">
+                        <span className="min-w-0 text-12 text-stone-400 dark:text-stone-500 truncate text-left">
                           {t("share.userMessage", {
                             message: (
                               run.user_message || t("share.noUserMessage")
@@ -413,7 +413,7 @@ export function ShareDialog({
 
             {/* Visibility */}
             <div className="space-y-2">
-              <label className="text-sm font-medium text-stone-700 dark:text-stone-300">
+              <label className="text-14 font-medium text-stone-700 dark:text-stone-300">
                 {t("share.visibility")}
               </label>
               <div className="space-y-2">
@@ -435,7 +435,7 @@ export function ShareDialog({
                   />
                   <div>
                     <div
-                      className={`text-sm font-medium font-serif ${
+                      className={`text-14 font-medium font-serif ${
                         visibility === "public"
                           ? "text-stone-700 dark:text-stone-200"
                           : "text-stone-700 dark:text-stone-300"
@@ -443,7 +443,7 @@ export function ShareDialog({
                     >
                       {t("share.public")}
                     </div>
-                    <div className="text-xs text-stone-500 dark:text-stone-400 mt-0.5">
+                    <div className="text-12 text-stone-500 dark:text-stone-400 mt-0.5">
                       {t("share.publicDesc")}
                     </div>
                   </div>
@@ -466,7 +466,7 @@ export function ShareDialog({
                   />
                   <div>
                     <div
-                      className={`text-sm font-medium font-serif ${
+                      className={`text-14 font-medium font-serif ${
                         visibility === "authenticated"
                           ? "text-stone-700 dark:text-stone-200"
                           : "text-stone-700 dark:text-stone-300"
@@ -474,7 +474,7 @@ export function ShareDialog({
                     >
                       {t("share.authenticated")}
                     </div>
-                    <div className="text-xs text-stone-500 dark:text-stone-400 mt-0.5">
+                    <div className="text-12 text-stone-500 dark:text-stone-400 mt-0.5">
                       {t("share.authenticatedDesc")}
                     </div>
                   </div>
@@ -493,7 +493,7 @@ export function ShareDialog({
               </div>
             ) : existingShares.length > 0 ? (
               <div className="space-y-2">
-                <label className="text-sm font-medium text-stone-700 dark:text-stone-300">
+                <label className="text-14 font-medium text-stone-700 dark:text-stone-300">
                   {t("share.existingShares")}
                 </label>
                 <div className="space-y-2">
@@ -514,10 +514,10 @@ export function ShareDialog({
                             className="text-amber-500 flex-shrink-0"
                           />
                         )}
-                        <span className="text-xs text-stone-500 dark:text-stone-400 truncate">
+                        <span className="text-12 text-stone-500 dark:text-stone-400 truncate">
                           /shared/{share.share_id}
                         </span>
-                        <span className="text-xs text-stone-400 dark:text-stone-500">
+                        <span className="text-12 text-stone-400 dark:text-stone-500">
                           (
                           {share.share_type === "full"
                             ? t("share.fullSession")
@@ -577,14 +577,14 @@ export function ShareDialog({
             {editingShare && (
               <button
                 onClick={handleCancelEditShare}
-                className="px-4 py-2 text-sm font-medium text-stone-700 dark:text-stone-300 bg-white dark:bg-stone-800 border border-stone-200 dark:border-stone-600 rounded-lg hover:bg-stone-50 dark:hover:bg-stone-700 transition-colors"
+                className="px-4 py-2 text-14 font-medium text-stone-700 dark:text-stone-300 bg-white dark:bg-stone-800 border border-stone-200 dark:border-stone-600 rounded-lg hover:bg-stone-50 dark:hover:bg-stone-700 transition-colors"
               >
                 {t("share.cancelEdit")}
               </button>
             )}
             <button
               onClick={onClose}
-              className="px-4 py-2 text-sm font-medium text-stone-700 dark:text-stone-300 bg-white dark:bg-stone-800 border border-stone-200 dark:border-stone-600 rounded-lg hover:bg-stone-50 dark:hover:bg-stone-700 transition-colors"
+              className="px-4 py-2 text-14 font-medium text-stone-700 dark:text-stone-300 bg-white dark:bg-stone-800 border border-stone-200 dark:border-stone-600 rounded-lg hover:bg-stone-50 dark:hover:bg-stone-700 transition-colors"
             >
               {t("common.close")}
             </button>
@@ -594,7 +594,7 @@ export function ShareDialog({
                 isCreating ||
                 (shareType === "partial" && selectedRunIds.length === 0)
               }
-              className="flex items-center gap-2 px-4 py-2 text-sm font-medium bg-stone-900 hover:bg-stone-800 dark:bg-stone-600 dark:hover:bg-stone-500 text-white rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              className="flex items-center gap-2 px-4 py-2 text-14 font-medium bg-stone-900 hover:bg-stone-800 dark:bg-stone-600 dark:hover:bg-stone-500 text-white rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
               <span className="inline-flex h-4 w-4 items-center justify-center">
                 {isCreating ? (

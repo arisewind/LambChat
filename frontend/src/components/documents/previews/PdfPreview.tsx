@@ -33,10 +33,10 @@ const PdfPreview = memo(function PdfPreview({ url }: PdfPreviewProps) {
     return (
       <div className="flex h-full min-h-[400px] w-full flex-col items-center justify-center gap-4 bg-stone-100 px-6 text-center dark:bg-stone-950">
         <div>
-          <p className="text-sm font-medium font-serif text-stone-700 dark:text-stone-200">
+          <p className="text-14 font-medium font-serif text-stone-700 dark:text-stone-200">
             {t("documents.pdfPreviewUnavailable", "PDF 预览不可用")}
           </p>
-          <p className="mt-1 max-w-sm text-xs text-stone-500 dark:text-stone-400">
+          <p className="mt-1 max-w-sm text-12 text-stone-500 dark:text-stone-400">
             {t(
               "documents.pdfPreviewUnavailableHint",
               "当前浏览器无法在页面内打开这个 PDF，可以在新窗口中查看。",
@@ -47,7 +47,7 @@ const PdfPreview = memo(function PdfPreview({ url }: PdfPreviewProps) {
           href={url}
           target="_blank"
           rel="noreferrer"
-          className="rounded-lg bg-stone-900 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-stone-700 dark:bg-stone-100 dark:text-stone-900 dark:hover:bg-stone-300"
+          className="rounded-lg bg-stone-900 px-4 py-2 text-14 font-medium text-white transition-colors hover:bg-stone-700 dark:bg-stone-100 dark:text-stone-900 dark:hover:bg-stone-300"
         >
           {t("documents.openInNewTab", "在新窗口打开")}
         </a>
@@ -107,7 +107,7 @@ const PdfPreview = memo(function PdfPreview({ url }: PdfPreviewProps) {
       </DocumentViewerFrame>
 
       {numPages > 0 && (
-        <div className="pointer-events-none absolute left-3 top-3 z-10 rounded-lg bg-black/60 px-2.5 py-1.5 text-xs font-medium text-white/75 sm:left-4 sm:top-4 font-serif">
+        <div className="pointer-events-none absolute left-3 top-3 z-10 rounded-lg bg-black/60 px-2.5 py-1.5 text-12 font-medium text-white/75 sm:left-4 sm:top-4 font-serif">
           {pageCountLabel}
         </div>
       )}

@@ -473,7 +473,7 @@ export function ToolResultPanel({
                 <div className="tool-console-title-row flex items-end gap-2 min-w-0 flex-1 overflow-hidden font-serif">
                   <h3
                     id={titleId}
-                    className="tool-console-title min-w-0 max-w-[40%] truncate font-medium text-sm text-theme-text"
+                    className="tool-console-title min-w-0 max-w-[40%] truncate font-medium text-14 text-theme-text"
                     title={title}
                   >
                     {title}
@@ -487,7 +487,7 @@ export function ToolResultPanel({
                       if (!isTagList) {
                         return (
                           <span
-                            className="tool-console-subtitle-pill inline-flex h-5 min-w-0 max-w-[45vw] sm:max-w-[min(32rem,52%)] items-end overflow-hidden px-0 pb-[1px] text-xs font-normal leading-none text-theme-text-tertiary"
+                            className="tool-console-subtitle-pill inline-flex h-5 min-w-0 max-w-[45vw] sm:max-w-[min(32rem,52%)] items-end overflow-hidden px-0 pb-[1px] text-12 font-normal leading-none text-theme-text-tertiary"
                             title={subtitle}
                           >
                             <span className="block min-w-0 truncate">
@@ -504,7 +504,7 @@ export function ToolResultPanel({
                           {visible.map((tag, i) => (
                             <span
                               key={i}
-                              className="tool-console-subtitle-chip inline-flex items-end shrink-0 max-w-full px-0 h-5 pb-[1px] text-xs font-normal leading-none text-theme-text-tertiary"
+                              className="tool-console-subtitle-chip inline-flex items-end shrink-0 max-w-full px-0 h-5 pb-[1px] text-12 font-normal leading-none text-theme-text-tertiary"
                               title={tag}
                             >
                               <span className="block min-w-0 truncate">
@@ -513,7 +513,7 @@ export function ToolResultPanel({
                             </span>
                           ))}
                           {overflow > 0 && (
-                            <span className="tool-console-subtitle-overflow inline-flex items-end shrink-0 h-5 pb-[1px] text-xs font-normal leading-none text-theme-text-tertiary tabular-nums">
+                            <span className="tool-console-subtitle-overflow inline-flex items-end shrink-0 h-5 pb-[1px] text-12 font-normal leading-none text-theme-text-tertiary tabular-nums">
                               +{overflow}
                             </span>
                           )}
@@ -637,11 +637,7 @@ export function ToolResultPanel({
       aria-modal={presentation === "docked" ? undefined : true}
       aria-labelledby={title ? titleId : undefined}
       aria-label={title ? undefined : t("documents.preview", "Content preview")}
-      className={`fixed inset-0 z-[200] flex flex-col ${
-        isFullscreen
-          ? "bg-transparent pointer-events-none"
-          : "safe-area-viewport-padding"
-      } ${
+      className={`fixed inset-0 z-[200] flex flex-col safe-area-viewport-padding safe-area-x ${
         overlayClass
           ? overlayClass
           : isFullscreen

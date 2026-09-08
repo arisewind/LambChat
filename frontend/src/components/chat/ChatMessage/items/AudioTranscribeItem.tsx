@@ -3,6 +3,7 @@ import { Mic, Volume2, Languages } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { CollapsiblePill } from "../../../common";
 import { MarkdownContent } from "../MarkdownContent";
+import { useToolStreamingLabel } from "./useToolStreamingLabel";
 import { extractText } from "./toolUtils";
 import {
   openToolLivePanel,
@@ -35,13 +36,13 @@ function AudioTranscribeDetail({ args, result }: ToolDetailProps) {
 
       <div className="flex flex-wrap gap-1.5">
         {language && (
-          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-theme-bg-subtle text-theme-text-tertiary text-xs">
+          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-theme-bg-subtle text-theme-text-tertiary text-12">
             <Languages size={10} className="opacity-60" />
             {language.toUpperCase()}
           </span>
         )}
         {model && (
-          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-theme-bg-subtle text-theme-text-tertiary text-xs font-mono">
+          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-theme-bg-subtle text-theme-text-tertiary text-12 font-mono">
             <Volume2 size={10} className="opacity-60" />
             {model}
           </span>
@@ -51,7 +52,7 @@ function AudioTranscribeDetail({ args, result }: ToolDetailProps) {
       {transcription && (
         <div className="relative group rounded-lg tool-code-block">
           <div
-            className="prose prose-stone dark:prose-invert max-w-none text-sm leading-relaxed prose-p:my-0.5 prose-headings:my-1 p-3 sm:p-4"
+            className="prose prose-stone dark:prose-invert max-w-none text-14 leading-relaxed prose-p:my-0.5 prose-headings:my-1 p-3 sm:p-4"
             style={{ color: "var(--theme-text)" }}
           >
             <MarkdownContent content={transcription} />
@@ -120,14 +121,22 @@ const AudioTranscribeItem = memo(function AudioTranscribeItem({
     />
   );
 
+  // 进行中：标签学「思考中」，平滑流出正在生成的参数尾部
+  const { label, isStreamingLabel } = useToolStreamingLabel(
+    `${t("chat.message.toolAudioTranscribe")} ${
+      url.length > 50 ? url.slice(0, 47) + "…" : url
+    }`,
+    args,
+    { isPending, result },
+  );
+
   return (
     <>
       <CollapsiblePill
         status={status}
         icon={<Mic size={12} className="shrink-0 opacity-50" />}
-        label={`${t("chat.message.toolAudioTranscribe")} ${
-          url.length > 50 ? url.slice(0, 47) + "…" : url
-        }`}
+        label={label}
+        animatedDots={isStreamingLabel}
         variant="tool"
         expandable={canExpand}
         onPanelOpen={() => {
@@ -176,7 +185,7 @@ const AudioTranscribeItem = memo(function AudioTranscribeItem({
             {transcription && (
               <div className="relative group rounded-md tool-code-block">
                 <div
-                  className="prose prose-stone dark:prose-invert max-w-none text-xs leading-relaxed prose-p:my-0.5 prose-headings:my-1 p-2.5"
+                  className="prose prose-stone dark:prose-invert max-w-none text-12 leading-relaxed prose-p:my-0.5 prose-headings:my-1 p-2.5"
                   style={{ color: "var(--theme-text)" }}
                 >
                   <MarkdownContent

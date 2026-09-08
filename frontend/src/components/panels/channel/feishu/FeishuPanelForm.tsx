@@ -212,7 +212,7 @@ export function FeishuPanelForm({
       <div className="es-section">
         <div className="flex items-center justify-between">
           <div>
-            <div className="text-sm font-medium text-[var(--theme-text)]">
+            <div className="text-14 font-medium text-[var(--theme-text)]">
               {t("feishu.enabled", "Enable Feishu Bot")}
             </div>
             <p className="es-hint mt-0.5">
@@ -246,7 +246,7 @@ export function FeishuPanelForm({
           <button
             type="button"
             onClick={() => setCredentialMode("scan")}
-            className={`rounded-md px-3 py-2 text-sm font-medium transition-all ${
+            className={`rounded-md px-3 py-2 text-14 font-medium transition-all ${
               credentialMode === "scan"
                 ? "bg-[var(--theme-bg-card)] text-[var(--theme-text)] shadow-sm border border-[var(--theme-border)]"
                 : "text-[var(--theme-text-secondary)] hover:text-[var(--theme-text)] border border-transparent"
@@ -257,7 +257,7 @@ export function FeishuPanelForm({
           <button
             type="button"
             onClick={() => setCredentialMode("manual")}
-            className={`rounded-md px-3 py-2 text-sm font-medium transition-all ${
+            className={`rounded-md px-3 py-2 text-14 font-medium transition-all ${
               credentialMode === "manual"
                 ? "bg-[var(--theme-bg-card)] text-[var(--theme-text)] shadow-sm border border-[var(--theme-border)]"
                 : "text-[var(--theme-text-secondary)] hover:text-[var(--theme-text)] border border-transparent"
@@ -269,7 +269,7 @@ export function FeishuPanelForm({
 
         {credentialMode === "scan" && (
           <div className="rounded-xl border border-[var(--theme-border)] bg-[var(--theme-bg-card)] px-4 py-6 text-center">
-            <p className="mx-auto max-w-[28rem] text-sm text-[var(--theme-text-secondary)]">
+            <p className="mx-auto max-w-[28rem] text-14 text-[var(--theme-text-secondary)]">
               {t(
                 "feishu.scanCreateDesc",
                 "Use the Feishu app to scan and create a bot. The current App ID and App Secret will be overwritten.",
@@ -303,13 +303,13 @@ export function FeishuPanelForm({
                     <LoadingSpinner size="md" />
                   )}
                 </div>
-                <div className="mt-3 text-sm font-medium text-[var(--theme-primary)]">
+                <div className="mt-3 text-14 font-medium text-[var(--theme-primary)]">
                   {registrationStatus === "qr_ready"
                     ? t("feishu.waitingForScan", "Waiting for scan")
                     : registrationStatus ||
                       t("feishu.waitingForQr", "Preparing QR")}
                 </div>
-                <div className="mt-2 text-xs text-[var(--theme-text-secondary)]">
+                <div className="mt-2 text-12 text-[var(--theme-text-secondary)]">
                   {t(
                     "feishu.qrExpiresHint",
                     "QR code is valid for 10 minutes and can be scanned once.",
@@ -320,7 +320,7 @@ export function FeishuPanelForm({
                     href={registrationQrUrl}
                     target="_blank"
                     rel="noreferrer"
-                    className="mt-2 inline-flex items-center gap-1 text-xs text-[var(--theme-primary)]"
+                    className="mt-2 inline-flex items-center gap-1 text-12 text-[var(--theme-primary)]"
                   >
                     <ExternalLink size={12} />
                     {t("feishu.openRegistration", "Open in browser")}
@@ -372,10 +372,10 @@ export function FeishuPanelForm({
 
         {credentialMode === "scan" && appId && (
           <div className="mt-4 rounded-lg border border-[var(--theme-border)] bg-[var(--glass-bg-subtle)] px-3 py-2">
-            <div className="text-xs font-medium text-[var(--theme-text-secondary)]">
+            <div className="text-12 font-medium text-[var(--theme-text-secondary)]">
               {t("feishu.currentCredential", "Current credential")}
             </div>
-            <div className="mt-1 truncate text-sm text-[var(--theme-text)]">
+            <div className="mt-1 truncate text-14 text-[var(--theme-text)]">
               {appId}
             </div>
           </div>
@@ -429,7 +429,7 @@ export function FeishuPanelForm({
             <button
               type="button"
               onClick={() => setUseCustomEmoji(!useCustomEmoji)}
-              className={`flex items-center gap-1 rounded-md px-2 py-1 text-xs font-medium transition-colors ${
+              className={`flex items-center gap-1 rounded-md px-2 py-1 text-12 font-medium transition-colors ${
                 useCustomEmoji
                   ? "bg-[var(--theme-primary)] text-white dark:text-[var(--theme-bg-card)]"
                   : "bg-[var(--glass-bg-subtle)] text-theme-text-secondary hover:bg-theme-primary-light"
@@ -472,7 +472,7 @@ export function FeishuPanelForm({
                       type="button"
                       onClick={() => setReactEmoji(emoji.value)}
                       title={t(emoji.labelKey)}
-                      className={`flex h-9 w-full items-center justify-center rounded-lg text-lg font-serif transition-all duration-150 ${
+                      className={`flex h-9 w-full items-center justify-center rounded-lg text-18 font-serif transition-all duration-150 ${
                         isSelected
                           ? "bg-[var(--theme-primary)]/15 ring-1 ring-[var(--theme-primary)]/40"
                           : "hover:bg-[var(--theme-bg-card)]"
@@ -556,7 +556,7 @@ export function FeishuPanelForm({
               }`}
             >
               <div
-                className={`flex h-7 w-7 items-center justify-center rounded-md text-sm font-medium transition-colors ${
+                className={`flex h-7 w-7 items-center justify-center rounded-md text-14 font-medium transition-colors ${
                   groupPolicy === "mention"
                     ? "bg-[var(--theme-primary)] text-white dark:text-[var(--theme-bg-card)]"
                     : "bg-[var(--glass-bg-subtle)] text-[var(--theme-text-secondary)]"
@@ -565,7 +565,7 @@ export function FeishuPanelForm({
                 @
               </div>
               <div className="min-w-0">
-                <span className="block text-xs font-medium text-[var(--theme-text)]">
+                <span className="block text-12 font-medium text-[var(--theme-text)]">
                   {t("feishu.groupPolicyMention", "Mention Only")}
                 </span>
                 <span className="text-10 text-[var(--theme-text-secondary)]">
@@ -583,7 +583,7 @@ export function FeishuPanelForm({
               }`}
             >
               <div
-                className={`flex h-7 w-7 items-center justify-center rounded-md text-sm transition-colors ${
+                className={`flex h-7 w-7 items-center justify-center rounded-md text-14 transition-colors ${
                   groupPolicy === "open"
                     ? "bg-[var(--theme-primary)]"
                     : "bg-[var(--glass-bg-subtle)]"
@@ -592,7 +592,7 @@ export function FeishuPanelForm({
                 💬
               </div>
               <div className="min-w-0">
-                <span className="block text-xs font-medium text-[var(--theme-text)]">
+                <span className="block text-12 font-medium text-[var(--theme-text)]">
                   {t("feishu.groupPolicyOpen", "All Messages")}
                 </span>
                 <span className="text-10 text-[var(--theme-text-secondary)]">

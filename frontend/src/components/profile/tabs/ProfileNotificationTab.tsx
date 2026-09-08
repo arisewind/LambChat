@@ -56,26 +56,26 @@ export function ProfileNotificationTab() {
       <div className="rounded-xl bg-stone-50 dark:bg-stone-700/50 p-3.5 sm:p-4">
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0">
-            <h4 className="font-medium font-serif text-sm text-stone-900 dark:text-stone-100">
+            <h4 className="font-medium font-serif text-14 text-stone-900 dark:text-stone-100">
               {t("profile.browserNotification")}
             </h4>
-            <p className="text-xs text-stone-500 dark:text-stone-400 mt-1 leading-relaxed">
+            <p className="text-12 text-stone-500 dark:text-stone-400 mt-1 leading-relaxed">
               {t("profile.browserNotificationDesc")}
             </p>
           </div>
           {!isSupported && !isAppNotificationRuntime ? (
-            <span className="shrink-0 text-xs text-stone-400 mt-0.5">
+            <span className="shrink-0 text-12 text-stone-400 mt-0.5">
               {t("profile.notSupported")}
             </span>
           ) : permission === "granted" ? (
-            <span className="shrink-0 text-xs text-green-600 dark:text-green-400 flex items-center gap-1 mt-0.5">
+            <span className="shrink-0 text-12 text-green-600 dark:text-green-400 flex items-center gap-1 mt-0.5">
               <Check size={14} />
               {t("profile.enabled")}
             </span>
           ) : (
             <button
               onClick={requestPermission}
-              className="shrink-0 px-3 py-1.5 text-xs bg-amber-500 hover:bg-amber-600 text-white rounded-lg transition-colors font-medium"
+              className="shrink-0 px-3 py-1.5 text-12 bg-amber-500 hover:bg-amber-600 text-white rounded-lg transition-colors font-medium"
             >
               {permission === "denied"
                 ? t("profile.retry")
@@ -85,7 +85,7 @@ export function ProfileNotificationTab() {
         </div>
 
         {permission === "denied" && (
-          <p className="text-xs text-red-500 mt-2.5 flex items-start gap-1.5">
+          <p className="text-12 text-red-500 mt-2.5 flex items-start gap-1.5">
             <AlertCircle size={12} className="shrink-0 mt-0.5" />
             {t("profile.notificationDeniedHint")}
           </p>
@@ -96,10 +96,10 @@ export function ProfileNotificationTab() {
       <div className="rounded-xl bg-stone-50 dark:bg-stone-700/50 p-3.5 sm:p-4">
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0">
-            <h4 className="font-medium font-serif text-sm text-stone-900 dark:text-stone-100">
+            <h4 className="font-medium font-serif text-14 text-stone-900 dark:text-stone-100">
               {t("profile.realtimeNotification")}
             </h4>
-            <p className="text-xs text-stone-500 dark:text-stone-400 mt-1 leading-relaxed">
+            <p className="text-12 text-stone-500 dark:text-stone-400 mt-1 leading-relaxed">
               {t("profile.realtimeNotificationDesc")}
             </p>
           </div>
@@ -110,10 +110,10 @@ export function ProfileNotificationTab() {
       <div className="rounded-xl bg-stone-50 dark:bg-stone-700/50 p-3.5 sm:p-4">
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0">
-            <h4 className="font-medium font-serif text-sm text-stone-900 dark:text-stone-100">
+            <h4 className="font-medium font-serif text-14 text-stone-900 dark:text-stone-100">
               {t("profile.pushNotification")}
             </h4>
-            <p className="text-xs text-stone-500 dark:text-stone-400 mt-1 leading-relaxed">
+            <p className="text-12 text-stone-500 dark:text-stone-400 mt-1 leading-relaxed">
               {t("profile.pushNotificationDesc")}
             </p>
           </div>
@@ -121,12 +121,12 @@ export function ProfileNotificationTab() {
             <button
               onClick={unsubscribePush}
               disabled={isPushLoading}
-              className="shrink-0 px-3 py-1.5 text-xs bg-red-500 hover:bg-red-600 text-white rounded-lg transition-colors font-medium disabled:opacity-50"
+              className="shrink-0 px-3 py-1.5 text-12 bg-red-500 hover:bg-red-600 text-white rounded-lg transition-colors font-medium disabled:opacity-50"
             >
               {t("profile.pushDisabled")}
             </button>
           ) : pushStatus === "unavailable" || pushStatus === "loading" ? (
-            <span className="shrink-0 text-xs text-stone-400 mt-0.5">
+            <span className="shrink-0 text-12 text-stone-400 mt-0.5">
               {pushStatus === "loading"
                 ? t("profile.loading") || "..."
                 : t("profile.notSupported")}
@@ -135,7 +135,7 @@ export function ProfileNotificationTab() {
             <button
               onClick={handlePushSubscribe}
               disabled={isPushLoading}
-              className="shrink-0 px-3 py-1.5 text-xs bg-amber-500 hover:bg-amber-600 text-white rounded-lg transition-colors font-medium disabled:opacity-50"
+              className="shrink-0 px-3 py-1.5 text-12 bg-amber-500 hover:bg-amber-600 text-white rounded-lg transition-colors font-medium disabled:opacity-50"
             >
               {t("profile.pushEnabled")}
             </button>

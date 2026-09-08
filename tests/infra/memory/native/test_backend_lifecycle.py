@@ -118,6 +118,8 @@ async def test_get_memory_model_uses_native_model_id(monkeypatch: pytest.MonkeyP
         fake_resolve_model_reference,
     )
     monkeypatch.setattr(backend_module.settings, "NATIVE_MEMORY_MODEL", "memory-model-id")
+    # 钉住 max_tokens——测试不得依赖开发者本地 .env 的覆盖值
+    monkeypatch.setattr(backend_module.settings, "NATIVE_MEMORY_MAX_TOKENS", 2000)
     monkeypatch.setattr(backend_module.settings, "NATIVE_MEMORY_API_BASE", "https://unused.test/v1")
     monkeypatch.setattr(backend_module.settings, "NATIVE_MEMORY_API_KEY", "unused-key")
 
@@ -130,6 +132,34 @@ async def test_get_memory_model_uses_native_model_id(monkeypatch: pytest.MonkeyP
             "max_tokens": 2000,
         }
     ]
+
+
+@pytest.mark.asyncio
+async def test_get_memory_model_no_cap_when_max_tokens_zero(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """NATIVE_MEMORY_MAX_TOKENS=0（默认）= 不限制：不传 max_tokens。"""
+
+    calls: list[dict] = []
+
+    async def fake_get_model(**kwargs):
+        calls.append(kwargs)
+        return object()
+
+    async def fake_resolve_model_reference(_value):
+        return "default-id", None
+
+    monkeypatch.setattr("src.infra.llm.client.LLMClient.get_model", fake_get_model)
+    monkeypatch.setattr(
+        "src.infra.llm.models_service.resolve_model_reference",
+        fake_resolve_model_reference,
+    )
+    monkeypatch.setattr(backend_module.settings, "NATIVE_MEMORY_MODEL", "")
+    monkeypatch.setattr(backend_module.settings, "NATIVE_MEMORY_MAX_TOKENS", 0)
+
+    await NativeMemoryBackend._get_memory_model()
+
+    assert calls and "max_tokens" not in calls[0]
 
 
 @pytest.mark.asyncio
@@ -151,6 +181,7 @@ async def test_get_memory_model_uses_default_model_when_native_model_empty(
         fake_resolve_model_reference,
     )
     monkeypatch.setattr(backend_module.settings, "NATIVE_MEMORY_MODEL", "")
+    monkeypatch.setattr(backend_module.settings, "NATIVE_MEMORY_MAX_TOKENS", 2000)
 
     await NativeMemoryBackend._get_memory_model()
 
@@ -268,3 +299,32 @@ async def test_vector_index_failure_is_non_fatal(
     monkeypatch.setattr(backend_module, "run_blocking_io", direct)
 
     await backend._maybe_create_vector_index()  # 不抛异常即通过
+
+
+@pytest.mark.asyncio
+async def test_embedding_client_keeps_connections_warm(monkeypatch: pytest.MonkeyPatch):
+    """embedding 客户端 keepalive 必须拉长：httpx 默认 5s 闲置断连，
+    每条隔闲消息重付 ~1.5s TLS 握手，恰好击穿 1.5s 注入预算
+    （staging 实测：冷 1.99s 注入失败 → 热 0.44s 注入成功）。"""
+    import httpx
+
+    recorded: dict[str, object] = {}
+    real_client = httpx.AsyncClient
+
+    def spy_client(**kwargs):
+        recorded.update(kwargs)
+        return real_client(**kwargs)
+
+    monkeypatch.setattr(httpx, "AsyncClient", spy_client)
+    backend = NativeMemoryBackend()
+    monkeypatch.setattr(
+        backend_module.settings, "NATIVE_MEMORY_EMBEDDING_API_BASE", "https://unused.test/v1"
+    )
+    monkeypatch.setattr(backend_module.settings, "NATIVE_MEMORY_EMBEDDING_API_KEY", "unused-key")
+
+    backend._setup_embedding_fn()
+
+    assert backend._embedding_fn is not None, "应创建 embedding 函数"
+    limits = recorded.get("limits")
+    assert limits is not None and limits.keepalive_expiry >= 60  # type: ignore[union-attr]
+    await backend.close()

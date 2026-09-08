@@ -24,20 +24,15 @@ declare module "@capacitor/filesystem" {
     uri: string;
   }
 
-  export const Filesystem: {
-    writeFile: (options: WriteFileOptions) => Promise<WriteFileResult>;
-  };
-}
-
-declare module "@capacitor/share" {
-  export interface ShareOptions {
-    title?: string;
-    text?: string;
-    url?: string;
-    path?: string;
+  export interface AppendFileOptions {
+    path: string;
+    data: string;
+    directory?: Directory;
+    recursive?: boolean;
   }
 
-  export const Share: {
-    share: (options: ShareOptions) => Promise<void>;
+  export const Filesystem: {
+    writeFile: (options: WriteFileOptions) => Promise<WriteFileResult>;
+    appendFile: (options: AppendFileOptions) => Promise<void>;
   };
 }

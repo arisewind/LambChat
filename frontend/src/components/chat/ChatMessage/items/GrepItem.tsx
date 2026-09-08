@@ -3,6 +3,7 @@ import { Search, FileText } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { CollapsiblePill } from "../../../common";
 import { DeferredCodeMirrorViewer } from "../../../common/DeferredCodeMirrorViewer";
+import { useToolStreamingLabel } from "./useToolStreamingLabel";
 import { extractText } from "./toolUtils";
 import {
   openToolLivePanel,
@@ -77,14 +78,14 @@ function GrepDetail({ args, result }: ToolDetailProps) {
           </span>
         )}
         {glob && (
-          <span className="shrink-0 px-2 py-0.5 rounded-md bg-theme-bg-subtle text-theme-text-secondary text-xs ring-1 ring-theme-border/50">
+          <span className="shrink-0 px-2 py-0.5 rounded-md bg-theme-bg-subtle text-theme-text-secondary text-12 ring-1 ring-theme-border/50">
             {glob}
           </span>
         )}
       </ToolArgsBlock>
       {parsedResult.files.length > 0 && (
         <div>
-          <div className="text-xs text-theme-text-tertiary mb-2">
+          <div className="text-12 text-theme-text-tertiary mb-2">
             {t("chat.message.toolFileCount", {
               count: parsedResult.files.length,
             })}
@@ -93,14 +94,14 @@ function GrepDetail({ args, result }: ToolDetailProps) {
             {parsedResult.files.slice(0, 20).map((f, i) => (
               <span
                 key={i}
-                className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-theme-bg-subtle text-xs text-theme-text-secondary font-mono"
+                className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-theme-bg-subtle text-12 text-theme-text-secondary font-mono"
               >
                 <FileText size={11} className="shrink-0 opacity-40" />
                 {f.split("/").pop() || f}
               </span>
             ))}
             {parsedResult.files.length > 20 && (
-              <span className="text-xs text-theme-text-tertiary px-1 py-1">
+              <span className="text-12 text-theme-text-tertiary px-1 py-1">
                 {t("chat.message.toolMoreFiles", {
                   count: parsedResult.files.length - 20,
                 })}
@@ -130,7 +131,7 @@ function GrepDetail({ args, result }: ToolDetailProps) {
           return text &&
             parsedResult.lines.length === 0 &&
             parsedResult.files.length === 0 ? (
-            <pre className="group/result relative text-xs text-theme-text-tertiary whitespace-pre-wrap break-words p-3 rounded-lg bg-theme-bg border border-theme-border">
+            <pre className="group/result relative text-12 text-theme-text-tertiary whitespace-pre-wrap break-words p-3 rounded-lg bg-theme-bg border border-theme-border">
               {text}
               <ToolHoverCopyButton
                 text={text}
@@ -188,6 +189,15 @@ const GrepItem = memo(function GrepItem({
         ? "success"
         : "error";
 
+  // 进行中：标签学「思考中」，平滑流出正在生成的参数尾部
+  const { label, isStreamingLabel } = useToolStreamingLabel(
+    `${t("chat.message.toolSearch")} ${pattern || ""}${
+      parsedResult.files.length > 0 ? ` (${parsedResult.files.length})` : ""
+    }`,
+    args,
+    { isPending, result },
+  );
+
   const detailContent = canExpand && (
     <GrepDetail
       args={args}
@@ -205,7 +215,8 @@ const GrepItem = memo(function GrepItem({
       <CollapsiblePill
         status={status}
         icon={<Search size={12} className="shrink-0 opacity-50" />}
-        label={`${t("chat.message.toolSearch")} ${pattern || ""}`}
+        label={label}
+        animatedDots={isStreamingLabel}
         variant="tool"
         expandable={canExpand}
         onPanelOpen={() => {
@@ -243,7 +254,7 @@ const GrepItem = memo(function GrepItem({
             </ToolArgsBlock>
             {parsedResult.files.length > 0 && (
               <div className="mb-2">
-                <div className="text-xs text-theme-text-tertiary mb-1">
+                <div className="text-12 text-theme-text-tertiary mb-1">
                   {t("chat.message.toolFileCount", {
                     count: parsedResult.files.length,
                   })}
@@ -252,14 +263,14 @@ const GrepItem = memo(function GrepItem({
                   {parsedResult.files.slice(0, 10).map((f, i) => (
                     <span
                       key={i}
-                      className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-theme-bg-subtle text-xs text-theme-text-secondary font-mono"
+                      className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-theme-bg-subtle text-12 text-theme-text-secondary font-mono"
                     >
                       <FileText size={10} className="shrink-0 opacity-40" />
                       {f.split("/").pop() || f}
                     </span>
                   ))}
                   {parsedResult.files.length > 10 && (
-                    <span className="text-xs text-theme-text-tertiary px-1">
+                    <span className="text-12 text-theme-text-tertiary px-1">
                       {t("chat.message.toolMoreFiles", {
                         count: parsedResult.files.length - 10,
                       })}
@@ -281,7 +292,7 @@ const GrepItem = memo(function GrepItem({
                   copyButtonClassName="!bg-theme-bg-card/80 !rounded-md !border !border-theme-border"
                 />
                 {parsedResult.lines.length > 50 && (
-                  <div className="text-theme-text-tertiary mt-1 text-xs px-2 pb-2">
+                  <div className="text-theme-text-tertiary mt-1 text-12 px-2 pb-2">
                     {t("chat.message.toolMoreLines", {
                       count: parsedResult.lines.length - 50,
                     })}
@@ -295,7 +306,7 @@ const GrepItem = memo(function GrepItem({
                 return text &&
                   parsedResult.lines.length === 0 &&
                   parsedResult.files.length === 0 ? (
-                  <pre className="group/result relative text-xs text-theme-text-tertiary whitespace-pre-wrap break-words overflow-y-auto min-w-0">
+                  <pre className="group/result relative text-12 text-theme-text-tertiary whitespace-pre-wrap break-words overflow-y-auto min-w-0">
                     {text}
                     <ToolHoverCopyButton text={text} position="resultCompact" />
                   </pre>

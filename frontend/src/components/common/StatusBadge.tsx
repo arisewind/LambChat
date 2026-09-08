@@ -82,7 +82,7 @@ export function StatusBadge({
 
   return (
     <span
-      className={`inline-flex items-center gap-1.5 rounded-full ${SIZE_MAP[size]} text-xs font-medium ${c.bg} ${c.text}`}
+      className={`inline-flex items-center gap-1.5 rounded-full ${SIZE_MAP[size]} text-12 font-medium ${c.bg} ${c.text}`}
     >
       <span className={`inline-block h-1.5 w-1.5 rounded-full ${c.dot}`} />
       {label}

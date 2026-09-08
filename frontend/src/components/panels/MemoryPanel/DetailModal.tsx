@@ -153,7 +153,7 @@ export function DetailModal({
           </div>
         ) : (
           <div className="es-section">
-            <p className="text-sm text-theme-text whitespace-pre-wrap leading-relaxed">
+            <p className="text-14 text-theme-text whitespace-pre-wrap leading-relaxed">
               {content || memory.summary}
             </p>
           </div>

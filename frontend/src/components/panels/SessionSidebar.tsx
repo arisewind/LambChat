@@ -686,7 +686,7 @@ export const SessionSidebar = forwardRef<
       {/* Touch drag indicator */}
       {touchDrag.dragIndicatorPos && (
         <div
-          className="fixed z-[100] pointer-events-none px-3 py-1.5 rounded-lg bg-stone-700 dark:bg-stone-200 text-white dark:text-stone-800 text-xs shadow-lg max-w-[200px] truncate"
+          className="fixed z-[100] pointer-events-none px-3 py-1.5 rounded-lg bg-stone-700 dark:bg-stone-200 text-white dark:text-stone-800 text-12 shadow-lg max-w-[200px] truncate"
           style={{
             left: touchDrag.dragIndicatorPos.x - 20,
             top: touchDrag.dragIndicatorPos.y - 40,

@@ -51,7 +51,7 @@ export function Pagination({
       {/* Info */}
       <p
         className={`text-stone-500 dark:text-stone-400 whitespace-nowrap ${
-          isMobile ? "text-xs" : "text-sm"
+          isMobile ? "text-12" : "text-14"
         }`}
       >
         {isMobile

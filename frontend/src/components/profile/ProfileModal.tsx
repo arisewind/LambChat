@@ -141,14 +141,14 @@ export function ProfileModal({
         target="_blank"
         rel="noopener noreferrer"
         onClick={(e) => e.stopPropagation()}
-        className="text-11 text-stone-400 dark:text-stone-500 tabular-nums hover:text-stone-600 dark:hover:text-stone-300 transition-colors"
+        className="text-11 text-stone-400 dark:text-stone-500 tabular-nums hover:text-stone-600 dark:hover:text-stone-300 transition-colors flex items-center gap-1 leading-none"
       >
         <BrandWordmark
           decorative
-          className="inline-block h-4 w-auto align-[-0.2em] text-stone-500 dark:text-stone-400"
+          className="inline-block h-4 w-auto text-stone-500 dark:text-stone-400"
         />
         {versionInfo?.app_version && (
-          <span className="ml-1 opacity-70 font-serif">
+          <span className="opacity-70 font-serif leading-none">
             v{versionInfo.app_version}
           </span>
         )}
@@ -158,7 +158,7 @@ export function ProfileModal({
         target="_blank"
         rel="noopener noreferrer"
         onClick={(e) => e.stopPropagation()}
-        className="px-1.5 sm:px-2 text-11 font-medium text-stone-400 dark:text-stone-500 hover:text-stone-600 dark:hover:text-stone-300 transition-colors py-1 rounded-md hover:bg-stone-100 dark:hover:bg-stone-700/60 shrink-0 font-serif"
+        className="px-1.5 sm:px-2 text-11 font-medium text-stone-400 dark:text-stone-500 hover:text-stone-600 dark:hover:text-stone-300 transition-colors py-1 rounded-md hover:bg-stone-100 dark:hover:bg-stone-700/60 shrink-0 font-serif leading-none"
       >
         {t("common.poweredBy")}
       </a>
@@ -168,7 +168,7 @@ export function ProfileModal({
   return createPortal(
     <div
       data-yields-sidebar
-      className="safe-area-viewport-padding fixed inset-0 z-[300] flex items-end sm:items-center sm:justify-center"
+      className="safe-area-viewport-padding-top fixed inset-0 z-[300] flex items-end sm:items-center sm:justify-center"
       onClick={() => onCloseProfileModal()}
     >
       {/* Backdrop */}
@@ -177,7 +177,7 @@ export function ProfileModal({
       {/* ===== Mobile: bottom sheet ===== */}
       <div
         ref={swipeRef as React.RefObject<HTMLDivElement>}
-        className="sm:hidden relative z-10 w-full bg-white dark:bg-stone-800 rounded-t-2xl shadow-2xl shadow-black/20 dark:shadow-black/50 border-x border-t border-stone-200/80 dark:border-stone-700/60 overflow-hidden max-h-[90dvh] flex flex-col animate-slide-up-sheet"
+        className="sm:hidden relative z-10 w-full bg-white dark:bg-stone-800 rounded-t-2xl shadow-2xl shadow-black/20 dark:shadow-black/50 border-x border-t border-stone-200/80 dark:border-stone-700/60 overflow-hidden max-h-[90dvh] flex flex-col animate-slide-up-sheet safe-area-bottom"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Drag handle */}
@@ -209,7 +209,7 @@ export function ProfileModal({
                   ref={isActive ? activeTabRef : undefined}
                   onClick={() => setActiveTab(tab.key)}
                   style={{ scrollSnapAlign: "start" }}
-                  className={`relative shrink-0 flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-medium transition-all whitespace-nowrap ${
+                  className={`relative shrink-0 flex items-center gap-1.5 px-3 py-2 rounded-lg text-12 font-medium transition-all whitespace-nowrap ${
                     isActive
                       ? "bg-stone-900 text-white dark:bg-stone-100 dark:text-stone-900"
                       : "text-stone-500 dark:text-stone-400 hover:bg-stone-100 dark:hover:bg-stone-700/50"
@@ -225,7 +225,7 @@ export function ProfileModal({
                 logout();
                 onCloseProfileModal();
               }}
-              className="relative shrink-0 flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-medium transition-all whitespace-nowrap text-red-500 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20"
+              className="relative shrink-0 flex items-center gap-1.5 px-3 py-2 rounded-lg text-12 font-medium transition-all whitespace-nowrap text-red-500 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20"
             >
               <LogOut size={14} />
               {t("auth.logout")}
@@ -250,7 +250,7 @@ export function ProfileModal({
         {/* Header */}
         <div className="px-5 py-4 flex items-center justify-between border-b border-stone-100 dark:border-stone-700/50">
           <div>
-            <h3 className="text-sm font-semibold font-serif text-stone-900 dark:text-stone-100 tracking-tight">
+            <h3 className="text-14 font-semibold font-serif text-stone-900 dark:text-stone-100 tracking-tight">
               {t("profile.title")}
             </h3>
             <p className="text-11 text-stone-400 dark:text-stone-500 mt-0.5">
@@ -271,7 +271,7 @@ export function ProfileModal({
                 <button
                   key={tab.key}
                   onClick={() => setActiveTab(tab.key)}
-                  className={`w-full text-left flex items-center gap-2.5 px-3 py-2.5 rounded-lg text-xs font-medium transition-all ${
+                  className={`w-full text-left flex items-center gap-2.5 px-3 py-2.5 rounded-lg text-12 font-medium transition-all ${
                     isActive
                       ? "bg-white dark:bg-stone-800 text-stone-900 dark:text-stone-100 shadow-sm border border-stone-200/80 dark:border-stone-700/60"
                       : "text-stone-500 dark:text-stone-400 hover:text-stone-700 dark:hover:text-stone-200 hover:bg-white/60 dark:hover:bg-stone-800/60 border border-transparent"
@@ -297,7 +297,7 @@ export function ProfileModal({
                   logout();
                   onCloseProfileModal();
                 }}
-                className="w-full text-left flex items-center gap-2.5 px-3 py-2.5 rounded-lg text-xs font-medium transition-all text-red-500 dark:text-red-400 hover:text-red-600 dark:hover:text-red-300 hover:bg-red-50 dark:hover:bg-red-900/20 border border-transparent"
+                className="w-full text-left flex items-center gap-2.5 px-3 py-2.5 rounded-lg text-12 font-medium transition-all text-red-500 dark:text-red-400 hover:text-red-600 dark:hover:text-red-300 hover:bg-red-50 dark:hover:bg-red-900/20 border border-transparent"
               >
                 <LogOut size={15} className="opacity-70" />
                 {t("auth.logout")}

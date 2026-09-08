@@ -90,7 +90,7 @@ export function BookmarksPanel() {
 
         {status === "error" && (
           <div className="flex min-h-64 flex-col items-center justify-center gap-3 text-center">
-            <p className="text-sm text-[var(--theme-text-secondary)]">
+            <p className="text-14 text-[var(--theme-text-secondary)]">
               {t("bookmarks.loadFailed")}
             </p>
             <button
@@ -110,10 +110,10 @@ export function BookmarksPanel() {
               <Bookmark size={26} strokeWidth={1.5} />
             </div>
             <div>
-              <p className="font-serif text-base font-semibold text-[var(--theme-text)]">
+              <p className="font-serif text-16 font-semibold text-[var(--theme-text)]">
                 {t("bookmarks.empty")}
               </p>
-              <p className="mx-auto mt-1 max-w-88 text-sm leading-relaxed text-[var(--theme-text-secondary)]">
+              <p className="mx-auto mt-1 max-w-88 text-14 leading-relaxed text-[var(--theme-text-secondary)]">
                 {t("bookmarks.emptyHint")}
               </p>
             </div>
@@ -137,7 +137,7 @@ export function BookmarksPanel() {
                 className="glass-card group relative flex flex-col rounded-xl p-4 sm:p-5 cursor-pointer transition-all duration-200 animate-glass-enter"
               >
                 <div className="flex items-start justify-between gap-2">
-                  <p className="line-clamp-2 min-w-0 flex-1 text-left font-serif text-sm font-semibold leading-relaxed text-[var(--theme-text)] sm:text-base">
+                  <p className="line-clamp-2 min-w-0 flex-1 text-left font-serif text-14 font-semibold leading-relaxed text-[var(--theme-text)] sm:text-16">
                     {bookmark.label?.trim() || t("bookmarks.untitled")}
                   </p>
                   <button
@@ -146,7 +146,7 @@ export function BookmarksPanel() {
                       e.stopPropagation();
                       void handleRemove(bookmark);
                     }}
-                    className="shrink-0 rounded-md p-1.5 text-[var(--theme-text-secondary)] opacity-0 transition-all group-hover:opacity-100 focus-visible:opacity-100 hover:text-red-500 dark:hover:text-red-400"
+                    className="shrink-0 rounded-md p-1.5 text-[var(--theme-text-secondary)] opacity-0 transition-all group-hover:opacity-100 focus-visible:opacity-100 hover:text-red-500 dark:hover:text-red-400 max-sm:opacity-100"
                     title={t("bookmarks.remove")}
                     aria-label={t("bookmarks.remove")}
                   >

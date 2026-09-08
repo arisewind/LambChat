@@ -17,6 +17,7 @@ from src.infra.session.storage import SessionStorage
 from src.infra.utils.datetime import utc_now_iso
 from src.infra.writer.presenter_events import derive_user_message_run_modes
 from src.kernel.config import settings
+from src.kernel.errors import AppError, ErrorCode
 from src.kernel.schemas.session import SessionCreate, SessionUpdate
 
 from .cancellation import TaskCancellation
@@ -25,6 +26,7 @@ from .heartbeat import TaskHeartbeat
 from .stall_watchdog import aiter_with_stall_timeout
 from .state_machine import TaskStateMachine
 from .status import TaskStatus
+from .steer import emit_undelivered_steer_events
 
 logger = get_logger(__name__)
 _TERMINAL_STREAM_TTL_SECONDS = 60
@@ -43,6 +45,24 @@ def _run_stall_timeout_seconds() -> float:
 def should_schedule_recommend_questions() -> bool:
     """Return whether this run should generate follow-up question suggestions."""
     return bool(getattr(settings, "ENABLE_RECOMMEND_QUESTIONS", True))
+
+
+def _is_main_agent_text_event(event: Any) -> bool:
+    """主代理（depth=0）的非空 message:chunk —— run 有用户可见正文的判据。
+
+    子代理 chunk 带 data.depth>0，纯空白不算正文；图片/文件类结果没有独立
+    事件类型（随 tool:result 与最终文本一起出），因此只认 message:chunk。
+    """
+    if not isinstance(event, dict) or event.get("event") != "message:chunk":
+        return False
+    data = event.get("data")
+    if not isinstance(data, dict):
+        return False
+    depth = data.get("depth", 0)
+    if isinstance(depth, int) and depth > 0:
+        return False
+    content = data.get("content")
+    return isinstance(content, str) and bool(content.strip())
 
 
 class TaskExecutor:
@@ -96,6 +116,7 @@ class TaskExecutor:
         attachment_references_claimed: bool = False,
         hitl_resume: Optional[Dict[str, Any]] = None,
         interrupted_resume: bool = False,
+        base_url: str = "",
     ) -> bool | None:
         """执行任务"""
         from src.infra.writer.present import Presenter, PresenterConfig
@@ -221,6 +242,7 @@ class TaskExecutor:
             # 3. Redis Stream 有 TTL 自动过期
 
             # 执行 agent，统一保存所有事件；watchdog 保证事件流停滞时迁移 error 终态
+            produced_main_text = False
             async for event in aiter_with_stall_timeout(
                 executor(
                     session_id,
@@ -240,10 +262,13 @@ class TaskExecutor:
                     active_goal=active_goal,
                     auto_mode=auto_mode,
                     hitl_resume=hitl_resume,
+                    base_url=base_url,
                 ),
                 timeout=_run_stall_timeout_seconds(),
             ):
                 await presenter.save_event(event)
+                if not produced_main_text and _is_main_agent_text_event(event):
+                    produced_main_text = True
 
             # interrupt 模式挂起（issue #218）：保留 checkpoint，标记 WAITING_HUMAN
             if presenter is not None and getattr(presenter, "hitl_suspended", False):
@@ -262,6 +287,20 @@ class TaskExecutor:
                     session_id, run_id, TaskStatus.WAITING_HUMAN, user_id
                 )
                 return True
+
+            # 兜底守卫：run 正常走到终点却没有任何主代理正文 → 按 error 终结，
+            # 绝不假装 completed 让用户对着空气泡。判定信号有两个来源：
+            # ① 本循环里流过的事件；② presenter.produced_main_text——
+            # AgentEventProcessor 的缓冲 flush 走 presenter.emit 直连路径，
+            # message:chunk 往往不经过本循环（2026-09-05 生产事故教训），
+            # 两条路径都在 presenter.save_event 汇聚并统一标记。
+            if not produced_main_text and presenter is not None:
+                produced_main_text = bool(getattr(presenter, "produced_main_text", False))
+            if not produced_main_text:
+                raise AppError(ErrorCode.MODEL_EMPTY_RESPONSE)
+
+            # 终态补写未注入的插话（steer:undelivered），落库可见、不静默丢失
+            await emit_undelivered_steer_events(session_id, run_id, presenter)
 
             # 完成 trace（更新 MongoDB trace 状态为 completed）
             await presenter.complete("completed")
@@ -342,6 +381,8 @@ class TaskExecutor:
                 pass
         trace_id = presenter.trace_id if presenter else None
         if dual_writer is not None:
+            # 终态补写未注入的插话（steer:undelivered）
+            await emit_undelivered_steer_events(session_id, run_id, presenter)
             await self._emit_cancel_terminal_events(
                 session_id=session_id,
                 run_id=run_id,
@@ -468,6 +509,8 @@ class TaskExecutor:
             logger.warning(f"Failed to flush events on TaskInterruptedError: {flush_error}")
         trace_id = presenter.trace_id if presenter else None
         if dual_writer is not None:
+            # 终态补写未注入的插话（steer:undelivered）
+            await emit_undelivered_steer_events(session_id, run_id, presenter)
             await self._emit_cancel_terminal_events(
                 session_id=session_id,
                 run_id=run_id,
@@ -534,7 +577,7 @@ class TaskExecutor:
         presenter: Any,
     ) -> None:
         """处理通用异常"""
-        error_msg = str(error) or type(error).__name__
+        error_msg = getattr(error, "display_message", None) or str(error) or type(error).__name__
         await self._update_session_status(session_id, TaskStatus.FAILED, error_msg, run_id=run_id)
         logger.error(
             f"Task failed: session={session_id}, run_id={run_id}, error={error}", exc_info=True
@@ -556,12 +599,14 @@ class TaskExecutor:
 
         # 写入错误事件（包含 trace_id 以写入 MongoDB）；code 为稳定错误码供前端翻译
         trace_id = presenter.trace_id if presenter else None
+        # 终态补写未注入的插话（steer:undelivered）
+        await emit_undelivered_steer_events(session_id, run_id, presenter)
         error_code = getattr(error, "error_code", None)
         await dual_writer.write_event(
             session_id=session_id,
             event_type="error",
             data={
-                "error": str(error),
+                "error": getattr(error, "display_message", str(error)),
                 "code": error_code.code if error_code else "internal_error",
                 "type": type(error).__name__,
                 "run_id": run_id,

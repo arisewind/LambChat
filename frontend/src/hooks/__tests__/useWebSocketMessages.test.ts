@@ -93,3 +93,60 @@ test("ignores malformed recommendation payloads", () => {
 
   expect(recommendations).toEqual([]);
 });
+
+// ---------------------------------------------------------------------------
+// sandbox:presence 消息分发（presence 推送直达 store）
+// ---------------------------------------------------------------------------
+
+test("dispatches valid sandbox:presence messages", () => {
+  const onSandboxPresence = vi.fn();
+  dispatchWebSocketMessage(
+    {
+      type: "sandbox:presence",
+      data: {
+        machines: [
+          {
+            machine_id: "m1",
+            name: "MacBook",
+            platform: "darwin",
+            version: "0.4.0",
+            confirm_policy: "all",
+            online: true,
+            last_seen: 1700_000_000,
+          },
+        ],
+        default_machine_id: "m1",
+        legacy_online: false,
+        revision: 100.5,
+      },
+    },
+    { onSandboxPresence },
+  );
+  expect(onSandboxPresence).toHaveBeenCalledTimes(1);
+  const notification = onSandboxPresence.mock.calls[0][0];
+  expect(notification.data.machines[0].machine_id).toBe("m1");
+  expect(notification.data.revision).toBe(100.5);
+});
+
+test("drops sandbox:presence with invalid payloads", () => {
+  const onSandboxPresence = vi.fn();
+  dispatchWebSocketMessage(
+    { type: "sandbox:presence", data: { machines: "nope", revision: 1 } },
+    { onSandboxPresence },
+  );
+  dispatchWebSocketMessage(
+    { type: "sandbox:presence", data: { machines: [], revision: "bad" } },
+    { onSandboxPresence },
+  );
+  dispatchWebSocketMessage(
+    {
+      type: "sandbox:presence",
+      data: {
+        machines: [{ name: "no-machine-id" }],
+        revision: 2,
+      },
+    },
+    { onSandboxPresence },
+  );
+  expect(onSandboxPresence).not.toHaveBeenCalled();
+});

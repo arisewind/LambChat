@@ -33,10 +33,10 @@ export function PublishDialog({
   if (!publishConfirm) return null;
 
   return (
-    <div className="safe-area-viewport-padding fixed inset-0 z-50 flex items-end justify-center bg-black/60 p-0 sm:items-center sm:p-4 animate-fade-in">
+    <div className="safe-area-viewport-padding-top fixed inset-0 z-50 flex items-end justify-center bg-black/60 p-0 sm:items-center sm:p-4 animate-fade-in">
       <div
         ref={swipeRef as React.RefObject<HTMLDivElement>}
-        className="skill-theme-shell w-full max-w-lg rounded-t-[1.75rem] border border-[var(--skill-border)] bg-[var(--skill-surface)] shadow-[0_28px_80px_-36px_rgba(15,23,42,0.55)] sm:rounded-[1.75rem] sm:animate-scale-in max-sm:animate-slide-up-sheet"
+        className="skill-theme-shell w-full max-w-lg rounded-t-[1.75rem] border border-[var(--skill-border)] bg-[var(--skill-surface)] shadow-[0_28px_80px_-36px_rgba(15,23,42,0.55)] sm:rounded-[1.75rem] sm:animate-scale-in max-sm:animate-slide-up-sheet safe-area-bottom"
       >
         {/* Mobile drag handle */}
         <div className="flex justify-center pt-3 pb-1 sm:hidden">
@@ -69,11 +69,11 @@ export function PublishDialog({
           <div className="skill-modal-section">
             <div className="flex items-center gap-2">
               <PackageX className="h-3.5 w-3.5 text-[var(--theme-text-secondary)]" />
-              <p className="text-xs font-medium uppercase tracking-wide text-[var(--theme-text-secondary)]">
+              <p className="text-12 font-medium uppercase tracking-wide text-[var(--theme-text-secondary)]">
                 {t("skills.publishLocalSkill")}
               </p>
             </div>
-            <p className="mt-1.5 font-mono text-sm text-[var(--theme-text)] break-all">
+            <p className="mt-1.5 font-mono text-14 text-[var(--theme-text)] break-all">
               {publishConfirm.localSkillName}
             </p>
           </div>
@@ -146,14 +146,14 @@ export function PublishDialog({
                 </span>
               ))}
               {publishConfirm.tagsInput.trim().length === 0 && (
-                <span className="text-xs text-[var(--theme-text-secondary)]/80">
+                <span className="text-12 text-[var(--theme-text-secondary)]/80">
                   {t("adminMarketplace.tagsPlaceholder")}
                 </span>
               )}
             </div>
           </FormField>
           {publishConfirm.error && (
-            <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-2.5 text-sm text-red-600 dark:border-red-900/40 dark:bg-red-900/20 dark:text-red-400">
+            <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-2.5 text-14 text-red-600 dark:border-red-900/40 dark:bg-red-900/20 dark:text-red-400">
               {publishConfirm.error}
             </div>
           )}

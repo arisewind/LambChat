@@ -82,17 +82,17 @@ export function RoleSelector({ selectedRoles, onChange }: RoleSelectorProps) {
       {/* Selected roles as chips */}
       <div
         onClick={() => setIsOpen(!isOpen)}
-        className="w-full min-h-[38px] rounded-lg border border-stone-200 bg-white px-2 py-1.5 text-sm cursor-pointer flex flex-wrap items-center gap-1 focus:border-stone-500 focus:outline-none focus:ring-1 focus:ring-stone-500 dark:border-stone-700 dark:bg-stone-800 dark:text-stone-100 dark:focus:border-amber-500 dark:focus:ring-amber-500"
+        className="w-full min-h-[38px] rounded-lg border border-stone-200 bg-white px-2 py-1.5 text-14 cursor-pointer flex flex-wrap items-center gap-1 focus:border-stone-500 focus:outline-none focus:ring-1 focus:ring-stone-500 dark:border-stone-700 dark:bg-stone-800 dark:text-stone-100 dark:focus:border-amber-500 dark:focus:ring-amber-500"
       >
         {selectedRoles.length === 0 ? (
-          <span className="text-stone-400 dark:text-stone-500 text-xs">
+          <span className="text-stone-400 dark:text-stone-500 text-12">
             {loading ? "..." : t("mcp.form.allRoles")}
           </span>
         ) : (
           selectedRoles.map((name) => (
             <span
               key={name}
-              className="inline-flex items-center gap-0.5 rounded bg-blue-100 dark:bg-blue-900/50 px-1.5 py-0.5 text-xs text-blue-700 dark:text-blue-300"
+              className="inline-flex items-center gap-0.5 rounded bg-blue-100 dark:bg-blue-900/50 px-1.5 py-0.5 text-12 text-blue-700 dark:text-blue-300"
             >
               <Shield size={10} />
               {name}
@@ -129,7 +129,7 @@ export function RoleSelector({ selectedRoles, onChange }: RoleSelectorProps) {
                 value={search}
                 onValueChange={setSearch}
                 placeholder={t("mcp.form.searchRoles")}
-                className="flex-1 bg-transparent text-xs text-stone-700 dark:text-stone-200 placeholder:text-stone-400 dark:placeholder:text-stone-500 focus:outline-none"
+                className="flex-1 bg-transparent text-12 text-stone-700 dark:text-stone-200 placeholder:text-stone-400 dark:placeholder:text-stone-500 focus:outline-none"
                 autoFocus
               />
             </div>
@@ -160,7 +160,7 @@ export function RoleSelector({ selectedRoles, onChange }: RoleSelectorProps) {
                     className="rounded border-stone-300 dark:border-stone-600 text-amber-500 focus:ring-amber-400"
                   />
                   <div className="flex-1 min-w-0">
-                    <span className="text-xs font-medium text-stone-700 dark:text-stone-200">
+                    <span className="text-12 font-medium text-stone-700 dark:text-stone-200">
                       {role.name}
                     </span>
                     {role.description && (
@@ -184,7 +184,7 @@ export function RoleSelector({ selectedRoles, onChange }: RoleSelectorProps) {
               <button
                 type="button"
                 onClick={() => onChange([])}
-                className="w-full text-center text-xs text-stone-400 hover:text-red-500 dark:hover:text-red-400 transition-colors"
+                className="w-full text-center text-12 text-stone-400 hover:text-red-500 dark:hover:text-red-400 transition-colors"
               >
                 {t("mcp.form.clearAll")}
               </button>

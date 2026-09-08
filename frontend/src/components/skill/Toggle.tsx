@@ -27,7 +27,7 @@ export function Toggle({
           }`}
         />
       </button>
-      <span className="text-sm text-stone-700 dark:text-stone-300">
+      <span className="text-14 text-stone-700 dark:text-stone-300">
         {label}
       </span>
     </label>

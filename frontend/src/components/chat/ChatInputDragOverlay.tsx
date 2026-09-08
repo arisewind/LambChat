@@ -22,7 +22,7 @@ export function ChatInputDragOverlay() {
           }}
         />
         <span
-          className="text-sm font-medium"
+          className="text-14 font-medium"
           style={{
             color: "var(--theme-primary)",
             opacity: 0.7,

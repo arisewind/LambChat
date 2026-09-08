@@ -110,11 +110,11 @@ export function TeamPickerModal({
   return createPortal(
     <div
       data-yields-sidebar
-      className="safe-area-viewport-padding fixed inset-0 z-[290] flex items-end justify-center bg-black/30 p-0 sm:items-center sm:p-6"
+      className="safe-area-viewport-padding-top fixed inset-0 z-[290] flex items-end justify-center bg-black/30 p-0 sm:items-center sm:p-6"
       onClick={onClose}
     >
       <div
-        className="flex max-h-[90dvh] w-full flex-col overflow-hidden rounded-t-2xl shadow-2xl sm:max-w-3xl md:max-w-4xl lg:max-w-5xl xl:max-w-6xl sm:rounded-2xl"
+        className="flex max-h-[90dvh] w-full flex-col overflow-hidden rounded-t-2xl shadow-2xl sm:max-w-3xl md:max-w-4xl lg:max-w-5xl xl:max-w-6xl sm:rounded-2xl safe-area-bottom"
         style={{ background: "var(--theme-bg-card)" }}
         onClick={(event) => event.stopPropagation()}
       >
@@ -128,13 +128,13 @@ export function TeamPickerModal({
             </div>
             <div>
               <h2
-                className="text-base font-semibold"
+                className="text-16 font-semibold"
                 style={{ color: "var(--theme-text)" }}
               >
                 {t("team.plaza", "团队广场")}
               </h2>
               <p
-                className="text-xs"
+                className="text-12"
                 style={{ color: "var(--theme-text-secondary)" }}
               >
                 {t("team.selectTeamDesc", "选择一个团队进行协作")}
@@ -157,7 +157,7 @@ export function TeamPickerModal({
             <button
               type="button"
               onClick={handleCreateNew}
-              className="inline-flex h-8 items-center justify-center rounded-lg px-3 text-xs font-medium transition-colors"
+              className="inline-flex h-8 items-center justify-center rounded-lg px-3 text-12 font-medium transition-colors"
               style={{
                 background: "var(--theme-primary)",
                 color: "var(--theme-bg)",
@@ -172,7 +172,7 @@ export function TeamPickerModal({
               <button
                 type="button"
                 onClick={handleClear}
-                className="rounded-lg border px-3 py-1.5 text-xs font-medium transition-colors hover:border-[var(--theme-text-secondary)]"
+                className="rounded-lg border px-3 py-1.5 text-12 font-medium transition-colors hover:border-[var(--theme-text-secondary)]"
                 style={{
                   borderColor: "var(--theme-border)",
                   color: "var(--theme-text-secondary)",
@@ -188,7 +188,7 @@ export function TeamPickerModal({
                   onClose();
                   onManageTeams();
                 }}
-                className="ml-auto inline-flex h-8 items-center justify-center rounded-lg border px-3 text-xs font-medium transition-colors hover:border-[var(--theme-text-secondary)]"
+                className="ml-auto inline-flex h-8 items-center justify-center rounded-lg border px-3 text-12 font-medium transition-colors hover:border-[var(--theme-text-secondary)]"
                 style={{
                   borderColor: "var(--theme-border)",
                   color: "var(--theme-text-secondary)",
@@ -210,7 +210,7 @@ export function TeamPickerModal({
               value={query}
               onValueChange={setQuery}
               placeholder={t("team.search", "搜索团队")}
-              className="w-full rounded-lg border bg-transparent py-2 pl-9 pr-3 text-sm outline-none"
+              className="w-full rounded-lg border bg-transparent py-2 pl-9 pr-3 text-14 outline-none"
               style={{
                 borderColor: "var(--theme-border)",
                 color: "var(--theme-text)",
@@ -221,11 +221,11 @@ export function TeamPickerModal({
 
         <div className="min-h-0 flex-1 overflow-y-auto px-5 py-4">
           {loading ? (
-            <div className="py-10 text-center text-sm text-stone-500">
+            <div className="py-10 text-center text-14 text-stone-500">
               {t("common.loading", "加载中...")}
             </div>
           ) : filteredTeams.length === 0 ? (
-            <div className="py-10 text-center text-sm text-stone-500">
+            <div className="py-10 text-center text-14 text-stone-500">
               {t("team.noTeams", "暂无团队。创建一个团队以开始协作。")}
             </div>
           ) : (
@@ -265,7 +265,7 @@ export function TeamPickerModal({
                           iconSize={20}
                         />
                         <div className="min-w-0 flex-1">
-                          <h3 className="truncate text-base font-semibold font-serif  text-[var(--theme-text)] leading-tight">
+                          <h3 className="truncate text-16 font-semibold font-serif  text-[var(--theme-text)] leading-tight">
                             {team.name}
                           </h3>
                           <div className="mt-1.5 flex items-center gap-2 text-11 text-[var(--theme-text-secondary)]">
@@ -288,7 +288,7 @@ export function TeamPickerModal({
                           {team.members.slice(0, 3).map((member) => (
                             <span
                               key={member.member_id}
-                              className="scb__mini-tag"
+                              className="scb__mini-tag font-serif"
                               style={{ cursor: "default" }}
                             >
                               {member.role_name}

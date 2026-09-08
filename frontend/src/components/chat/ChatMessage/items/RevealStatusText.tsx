@@ -9,11 +9,11 @@ export function RevealStatusText({
 }) {
   return (
     <div className="flex-1 min-w-0">
-      <div className="text-sm font-medium text-theme-text-secondary truncate">
+      <div className="text-14 font-medium text-theme-text-secondary truncate">
         {title}
       </div>
       {subtitle != null && (
-        <div className="text-xs text-theme-text-tertiary truncate mt-0.5">
+        <div className="text-12 text-theme-text-tertiary truncate mt-0.5">
           {subtitle}
         </div>
       )}
@@ -23,6 +23,6 @@ export function RevealStatusText({
 
 export function RevealStatusLabel({ children }: { children: ReactNode }) {
   return (
-    <div className="text-xs text-amber-600 dark:text-amber-400">{children}</div>
+    <div className="text-12 text-amber-600 dark:text-amber-400">{children}</div>
   );
 }

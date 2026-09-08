@@ -20,10 +20,10 @@ export function SectionHeading({
           <span className="block w-8 h-px bg-gradient-to-l from-transparent to-stone-300/40 dark:to-stone-600/25" />
         </div>
       )}
-      <h2 className="text-[1.65rem] sm:text-3xl lg:text-4xl font-extrabold font-serif tracking-[-0.025em] text-stone-900 dark:text-stone-50 mb-5 leading-[1.15] bg-gradient-to-b from-stone-900 via-stone-800 to-stone-600 dark:from-stone-50 dark:via-stone-200 dark:to-stone-400 bg-clip-text text-transparent">
+      <h2 className="text-[1.65rem] sm:text-30 lg:text-36 font-extrabold font-serif tracking-[-0.025em] text-stone-900 dark:text-stone-50 mb-5 leading-[1.15] bg-gradient-to-b from-stone-900 via-stone-800 to-stone-600 dark:from-stone-50 dark:via-stone-200 dark:to-stone-400 bg-clip-text text-transparent">
         {title}
       </h2>
-      <p className="blog-prose text-stone-400 dark:text-stone-500 max-w-md lg:max-w-lg mx-auto text-sm sm:text-15 leading-[1.8]">
+      <p className="blog-prose text-stone-400 dark:text-stone-500 max-w-md lg:max-w-lg mx-auto text-14 sm:text-15 leading-[1.8]">
         {description}
       </p>
     </div>

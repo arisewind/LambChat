@@ -50,7 +50,7 @@ export function HeroSection({ onLogin }: HeroSectionProps) {
           className="flex items-center justify-center gap-2.5 sm:gap-3 mb-8 sm:mb-12"
         >
           <span className="block w-6 sm:w-8 h-px bg-gradient-to-r from-transparent to-stone-300 dark:to-stone-600" />
-          <span className="relative text-10 sm:text-xs font-semibold tracking-[0.16em] sm:tracking-[0.18em] uppercase text-stone-400 dark:text-stone-500">
+          <span className="relative text-10 sm:text-12 font-semibold tracking-[0.16em] sm:tracking-[0.18em] uppercase text-stone-400 dark:text-stone-500">
             {t("landing.badge")}
             <span className="blog-pulse-dot absolute -top-1.5 -right-2.5 w-1.5 h-1.5 rounded-full bg-emerald-400" />
           </span>
@@ -73,7 +73,7 @@ export function HeroSection({ onLogin }: HeroSectionProps) {
         <p
           data-reveal
           data-reveal-delay="3"
-          className="blog-prose text-15 sm:text-lg lg:text-xl text-stone-500 dark:text-stone-400 max-w-[20rem] sm:max-w-lg mx-auto leading-[1.8] sm:leading-[1.85] mb-11 sm:mb-16"
+          className="blog-prose text-15 sm:text-18 lg:text-20 text-stone-500 dark:text-stone-400 max-w-[20rem] sm:max-w-lg mx-auto leading-[1.8] sm:leading-[1.85] mb-11 sm:mb-16"
         >
           {t("landing.heroDescription")}
         </p>
@@ -86,7 +86,7 @@ export function HeroSection({ onLogin }: HeroSectionProps) {
         >
           <button
             onClick={onLogin}
-            className="blog-btn-primary min-h-12 w-full sm:w-auto group inline-flex items-center justify-center gap-2.5 rounded-full bg-stone-900 dark:bg-stone-50 px-8 py-3.5 sm:px-9 sm:py-4 text-sm font-semibold text-white dark:text-stone-900 transition-all duration-300 hover:-translate-y-0.5 hover:bg-stone-800 dark:hover:bg-white hover:shadow-xl hover:shadow-stone-900/12 dark:hover:shadow-stone-50/10 active:translate-y-0"
+            className="blog-btn-primary min-h-12 w-full sm:w-auto group inline-flex items-center justify-center gap-2.5 rounded-full bg-stone-900 dark:bg-stone-50 px-8 py-3.5 sm:px-9 sm:py-4 text-14 font-semibold text-white dark:text-stone-900 transition-all duration-300 hover:-translate-y-0.5 hover:bg-stone-800 dark:hover:bg-white hover:shadow-xl hover:shadow-stone-900/12 dark:hover:shadow-stone-50/10 active:translate-y-0"
           >
             {t("landing.startUsing")}
             <span className="transition-transform duration-300 group-hover:translate-x-0.5">
@@ -97,7 +97,7 @@ export function HeroSection({ onLogin }: HeroSectionProps) {
             href={GITHUB_URL}
             target="_blank"
             rel="noopener noreferrer"
-            className="blog-btn-ghost min-h-12 w-full sm:w-auto group inline-flex items-center justify-center gap-2.5 rounded-full border border-stone-200/80 dark:border-stone-700/50 bg-white/55 dark:bg-stone-800/35 px-8 py-3.5 sm:px-9 sm:py-4 text-sm font-medium text-stone-600 dark:text-stone-300 transition-all duration-300 hover:-translate-y-0.5 hover:border-stone-300 dark:hover:border-stone-600 hover:shadow-lg hover:shadow-stone-200/30 dark:hover:shadow-stone-900/30 active:translate-y-0"
+            className="blog-btn-ghost min-h-12 w-full sm:w-auto group inline-flex items-center justify-center gap-2.5 rounded-full border border-stone-200/80 dark:border-stone-700/50 bg-white/55 dark:bg-stone-800/35 px-8 py-3.5 sm:px-9 sm:py-4 text-14 font-medium text-stone-600 dark:text-stone-300 transition-all duration-300 hover:-translate-y-0.5 hover:border-stone-300 dark:hover:border-stone-600 hover:shadow-lg hover:shadow-stone-200/30 dark:hover:shadow-stone-900/30 active:translate-y-0"
           >
             <GitHubIcon />
             {t("landing.viewOnGitHub")}
@@ -117,7 +117,7 @@ export function HeroSection({ onLogin }: HeroSectionProps) {
             {TECH_STACK.map((tech) => (
               <span
                 key={tech.label}
-                className={`blog-tech-pill inline-flex items-center rounded-full px-3 py-1 text-11 sm:text-xs font-medium ${tech.color} border border-stone-100/60 dark:border-stone-700/20`}
+                className={`blog-tech-pill inline-flex items-center rounded-full px-3 py-1 text-11 sm:text-12 font-medium ${tech.color} border border-stone-100/60 dark:border-stone-700/20`}
               >
                 {tech.label}
               </span>

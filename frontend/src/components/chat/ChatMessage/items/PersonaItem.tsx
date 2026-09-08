@@ -4,6 +4,7 @@ import { UserRound, Tag, Sparkles, Zap, MessageSquare } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { CollapsiblePill, CopyButton } from "../../../common";
 import { ImageWithSkeleton } from "../ImageWithSkeleton";
+import { useToolStreamingLabel } from "./useToolStreamingLabel";
 import { extractText } from "./toolUtils";
 import {
   openToolLivePanel,
@@ -182,7 +183,7 @@ function PersonaDetail({ args, result }: ToolDetailProps) {
               >
                 <div
                   className={clsx(
-                    "rounded-2xl flex items-center justify-center text-2xl sm:text-3xl leading-none shrink-0 overflow-hidden relative",
+                    "rounded-2xl flex items-center justify-center text-24 sm:text-30 leading-none shrink-0 overflow-hidden relative",
                     gradient ? "w-14 h-14 sm:w-16 sm:h-16" : "w-11 h-11",
                   )}
                   style={
@@ -224,7 +225,7 @@ function PersonaDetail({ args, result }: ToolDetailProps) {
                 </div>
                 <div className="min-w-0 flex-1 pt-0.5">
                   <div className="flex items-center gap-2 flex-wrap">
-                    <h3 className="text-base sm:text-lg font-bold text-theme-text truncate tracking-tight">
+                    <h3 className="text-16 sm:text-18 font-bold text-theme-text truncate tracking-tight">
                       {displayName}
                     </h3>
                     {statusVal && statusVal !== "published" && (
@@ -243,7 +244,7 @@ function PersonaDetail({ args, result }: ToolDetailProps) {
                     )}
                   </div>
                   {description && (
-                    <p className="text-xs sm:text-13 text-theme-text-secondary/80 mt-1 leading-relaxed line-clamp-2">
+                    <p className="text-12 sm:text-13 text-theme-text-secondary/80 mt-1 leading-relaxed line-clamp-2">
                       {description}
                     </p>
                   )}
@@ -303,7 +304,7 @@ function PersonaDetail({ args, result }: ToolDetailProps) {
             </span>
           }
         >
-          <div className="rounded-lg overflow-hidden border border-theme-border bg-theme-bg p-3 sm:p-4 [&_.markdown-content]:text-xs sm:[&_.markdown-content]:text-sm [&_.markdown-content_p:first-child]:mt-0 [&_.markdown-content_p:last-child]:mb-0">
+          <div className="rounded-lg overflow-hidden border border-theme-border bg-theme-bg p-3 sm:p-4 [&_.markdown-content]:text-12 sm:[&_.markdown-content]:text-14 [&_.markdown-content_p:first-child]:mt-0 [&_.markdown-content_p:last-child]:mb-0">
             <MarkdownContent content={systemPrompt} />
           </div>
           <div className="flex justify-end mt-2">
@@ -348,7 +349,7 @@ function PersonaDetail({ args, result }: ToolDetailProps) {
                     "transition-all duration-200",
                   )}
                 >
-                  <div className="w-8 h-8 rounded-lg flex items-center justify-center text-lg shrink-0 bg-[color-mix(in_srgb,var(--theme-primary)_8%,var(--theme-bg-card))]">
+                  <div className="w-8 h-8 rounded-lg flex items-center justify-center text-18 shrink-0 bg-[color-mix(in_srgb,var(--theme-primary)_8%,var(--theme-bg-card))]">
                     {sp.icon || (
                       <MessageSquare
                         size={14}
@@ -356,7 +357,7 @@ function PersonaDetail({ args, result }: ToolDetailProps) {
                       />
                     )}
                   </div>
-                  <span className="text-sm text-theme-text leading-relaxed line-clamp-2">
+                  <span className="text-14 text-theme-text leading-relaxed line-clamp-2">
                     {text}
                   </span>
                 </div>
@@ -368,7 +369,7 @@ function PersonaDetail({ args, result }: ToolDetailProps) {
 
       {/* Raw result fallback */}
       {result && !displayName && (
-        <pre className="group/result relative text-xs text-theme-text-tertiary whitespace-pre-wrap break-words p-3 rounded-lg bg-theme-bg border border-theme-border">
+        <pre className="group/result relative text-12 text-theme-text-tertiary whitespace-pre-wrap break-words p-3 rounded-lg bg-theme-bg border border-theme-border">
           {(() => {
             const text = extractText(result);
             return text.length > 600 ? text.slice(0, 597) + "…" : text;
@@ -457,12 +458,20 @@ const PersonaItem = memo(function PersonaItem({
 
   // ── Inline (compact) view ──
 
+  // 进行中：标签学「思考中」，平滑流出正在生成的参数尾部
+  const { label, isStreamingLabel } = useToolStreamingLabel(
+    `${t("chat.message.toolPersonaPreset")} ${displayName || ""}`,
+    args,
+    { isPending, result },
+  );
+
   return (
     <>
       <CollapsiblePill
         status={status}
         icon={<UserRound size={12} className="shrink-0 opacity-50" />}
-        label={`${t("chat.message.toolPersonaPreset")} ${displayName || ""}`}
+        label={label}
+        animatedDots={isStreamingLabel}
         variant="tool"
         expandable={canExpand}
         onPanelOpen={() => {
@@ -493,7 +502,7 @@ const PersonaItem = memo(function PersonaItem({
               >
                 <div
                   className={clsx(
-                    "w-6 h-6 rounded-md flex items-center justify-center text-sm leading-none shrink-0 overflow-hidden",
+                    "w-6 h-6 rounded-md flex items-center justify-center text-14 leading-none shrink-0 overflow-hidden",
                     "bg-[color-mix(in_srgb,var(--theme-primary)_8%,var(--theme-bg-card))]",
                   )}
                 >
@@ -509,7 +518,7 @@ const PersonaItem = memo(function PersonaItem({
                   />
                 </div>
                 <div className="min-w-0 flex-1">
-                  <div className="text-xs text-theme-text font-medium truncate">
+                  <div className="text-12 text-theme-text font-medium truncate">
                     {displayName}
                   </div>
                   {description && (
@@ -541,7 +550,7 @@ const PersonaItem = memo(function PersonaItem({
               </div>
             )}
             {result && !displayName && (
-              <pre className="group/result relative text-xs text-theme-text-tertiary whitespace-pre-wrap break-words overflow-y-auto min-w-0">
+              <pre className="group/result relative text-12 text-theme-text-tertiary whitespace-pre-wrap break-words overflow-y-auto min-w-0">
                 {(() => {
                   const text = extractText(result);
                   return text.length > 300 ? text.slice(0, 297) + "…" : text;

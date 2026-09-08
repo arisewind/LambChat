@@ -1,4 +1,4 @@
-import { Globe, Wrench } from "lucide-react";
+import { Globe, Wrench, Clock } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { CollapsiblePill, CopyButton, LoadingSpinner } from "../../common";
@@ -12,6 +12,7 @@ import {
   updatePersistentToolPanel,
   isPersistentToolPanelOpen,
 } from "./items/persistentToolPanelState";
+import { useToolStreamingLabel } from "./items/useToolStreamingLabel";
 import {
   toolCallPanelStore,
   type ToolCallPanelData,
@@ -163,38 +164,51 @@ function ToolCallPanelContent({ toolCallId }: { toolCallId: string }) {
   const hasArgs = Object.keys(data.args).length > 0;
 
   return (
-    <div className="space-y-3 max-h-full overflow-y-auto p-2 sm:p-4 [&_pre]:!text-sm">
-      {hasArgs && (
-        <CollapsibleSection title={t("chat.message.args")}>
-          <ToolArgsDisplay args={data.args} />
-        </CollapsibleSection>
-      )}
+    <div className="relative flex h-full min-h-0 flex-col overflow-y-auto p-2 sm:p-4 [&_pre]:!text-14 [&_pre]:!max-h-none">
+      <div className="flex min-h-0 flex-1 flex-col space-y-3">
+        {hasArgs && (
+          <CollapsibleSection title={t("chat.message.args")}>
+            <ToolArgsDisplay args={data.args} />
+          </CollapsibleSection>
+        )}
 
-      {data.result !== undefined && (
-        <CollapsibleSection
-          title={t("chat.message.result")}
-          action={
-            <CopyButton
-              text={
-                typeof data.result === "string"
-                  ? data.result
-                  : JSON.stringify(data.result, null, 2)
-              }
-              size={12}
-            />
-          }
-        >
-          <ToolResultContent result={data.result} hideCopyButton />
-        </CollapsibleSection>
-      )}
+        {data.result !== undefined && (
+          <CollapsibleSection
+            title={t("chat.message.result")}
+            action={
+              <CopyButton
+                text={
+                  typeof data.result === "string"
+                    ? data.result
+                    : JSON.stringify(data.result, null, 2)
+                }
+                size={12}
+              />
+            }
+            expandedClassName="flex min-h-0 flex-col grow shrink-0"
+          >
+            <ToolResultContent result={data.result} hideCopyButton />
+          </CollapsibleSection>
+        )}
 
-      {data.isPending && (
-        <div className="flex items-center gap-2 text-xs text-amber-600 dark:text-amber-400">
-          <LoadingSpinner size="xs" />
-          <span>{t("chat.message.running")}</span>
-          <span className="tabular-nums">{formatElapsed(elapsedSeconds)}</span>
-        </div>
-      )}
+        {data.isPending && (
+          <div className="flex items-center gap-2 text-12 text-amber-600 dark:text-amber-400">
+            {data.awaitingConfirmation ? (
+              <Clock size={12} className="shrink-0 animate-none" />
+            ) : (
+              <LoadingSpinner size="xs" />
+            )}
+            <span>
+              {data.awaitingConfirmation
+                ? t("chat.message.waitingConfirm")
+                : t("chat.message.running")}
+            </span>
+            <span className="tabular-nums">
+              {formatElapsed(elapsedSeconds)}
+            </span>
+          </div>
+        )}
+      </div>
     </div>
   );
 }
@@ -244,6 +258,7 @@ export function ToolCallItem({
   result,
   success,
   isPending,
+  awaitingConfirmation,
   cancelled,
   startedAt,
   completedAt,
@@ -254,6 +269,7 @@ export function ToolCallItem({
   result?: string | Record<string, unknown>;
   success?: boolean;
   isPending?: boolean;
+  awaitingConfirmation?: boolean;
   cancelled?: boolean;
   startedAt?: string;
   completedAt?: string;
@@ -295,7 +311,17 @@ export function ToolCallItem({
 
   const canExpand = hasArgs || hasResult;
   const pillSummary = buildToolPillSummary(displayArgs);
-  const pillLabel = pillSummary ? `${toolName} ${pillSummary}` : toolName;
+
+  // 进行中：标签学「思考中」，平滑流出正在生成的参数尾部
+  // （等待人工确认时参数已完整，不视为流式）
+  const { label, isStreamingLabel } = useToolStreamingLabel(
+    pillSummary ? `${toolName} ${pillSummary}` : toolName,
+    args,
+    {
+      isPending: !!isPending && !awaitingConfirmation,
+      result,
+    },
+  );
 
   // Build a panelKey from the tool call ID (used for persistent panel identity)
   const panelKey = useMemo(() => (id ? `tool:${id}` : undefined), [id]);
@@ -312,6 +338,7 @@ export function ToolCallItem({
             result,
             success,
             isPending,
+            awaitingConfirmation,
             cancelled,
             startedAt,
             completedAt,
@@ -326,6 +353,7 @@ export function ToolCallItem({
       result,
       success,
       isPending,
+      awaitingConfirmation,
       cancelled,
       startedAt,
       completedAt,
@@ -379,9 +407,17 @@ export function ToolCallItem({
       )}
 
       {isPending && (
-        <div className="flex items-center gap-2 text-xs text-amber-600 dark:text-amber-400">
-          <LoadingSpinner size="xs" />
-          <span>{t("chat.message.running")}</span>
+        <div className="flex items-center gap-2 text-12 text-amber-600 dark:text-amber-400">
+          {awaitingConfirmation ? (
+            <Clock size={12} className="shrink-0 animate-none" />
+          ) : (
+            <LoadingSpinner size="xs" />
+          )}
+          <span>
+            {awaitingConfirmation
+              ? t("chat.message.waitingConfirm")
+              : t("chat.message.running")}
+          </span>
           <span className="tabular-nums">{formatElapsed(elapsedSeconds)}</span>
         </div>
       )}
@@ -412,7 +448,8 @@ export function ToolCallItem({
             <Wrench size={12} className="shrink-0 opacity-50" />
           )
         }
-        label={pillLabel}
+        label={label}
+        animatedDots={isStreamingLabel}
         suffix={
           serverName ? (
             <span className="shrink-0 text-9 px-1.5 py-0.5 rounded-md bg-white/30 dark:bg-black/20 opacity-70 font-medium truncate max-w-[120px]">

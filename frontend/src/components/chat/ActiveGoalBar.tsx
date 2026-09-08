@@ -69,7 +69,7 @@ function EmbeddedGoalBar({
     <div
       ref={containerRef}
       className={[
-        "flex items-center gap-3 p-3 text-sm",
+        "flex items-center gap-3 p-3 text-14",
         exiting ? "animate-goal-exit" : "animate-goal-enter",
         className,
       ]
@@ -163,7 +163,7 @@ export function ActiveGoalBar({
 
   return (
     <div
-      className={`mx-auto flex w-full max-w-[52rem] min-w-0 items-center gap-2 rounded-md border px-3 py-2 text-sm shadow-sm ${className}`}
+      className={`mx-auto flex w-full max-w-[52rem] min-w-0 items-center gap-2 rounded-md border px-3 py-2 text-14 shadow-sm ${className}`}
       style={{
         borderColor: "var(--theme-border)",
         backgroundColor: "var(--theme-primary-bg, rgba(245,158,11,0.08))",
@@ -179,7 +179,7 @@ export function ActiveGoalBar({
         {goal.objective}
       </span>
       {durationLabel && durationText && (
-        <span className="shrink-0 text-xs" style={{ opacity: 0.6 }}>
+        <span className="shrink-0 text-12" style={{ opacity: 0.6 }}>
           {durationLabel} {durationText}
         </span>
       )}

@@ -4,6 +4,7 @@ import clsx from "clsx";
 import toast from "react-hot-toast";
 import { useTranslation } from "react-i18next";
 import { useBookmarks } from "../../../hooks/useBookmarks";
+import { Tooltip } from "../../common/Tooltip";
 import { toggleMessageBookmark } from "../../../stores/bookmarkStore";
 import { isBookmarked } from "../../../utils/bookmarks";
 
@@ -50,27 +51,28 @@ export function BookmarkButton({
     }
   };
 
+  const bookmarkLabel = active
+    ? t("chat.message.removeBookmark")
+    : t("chat.message.addBookmark");
+
   return (
-    <button
-      onClick={handleClick}
-      disabled={busy}
-      className={clsx(
-        "p-1.5 rounded-md transition-colors",
-        "hover:bg-stone-200 dark:hover:bg-stone-700",
-        active
-          ? "text-amber-500 dark:text-amber-400"
-          : "text-stone-400 dark:text-stone-500 hover:text-stone-600 dark:hover:text-stone-300",
-        busy && "opacity-60 cursor-wait",
-      )}
-      title={
-        active ? t("chat.message.removeBookmark") : t("chat.message.addBookmark")
-      }
-      aria-label={
-        active ? t("chat.message.removeBookmark") : t("chat.message.addBookmark")
-      }
-      aria-pressed={active}
-    >
-      <Bookmark size={16} fill={active ? "currentColor" : "none"} />
-    </button>
+    <Tooltip content={bookmarkLabel}>
+      <button
+        onClick={handleClick}
+        disabled={busy}
+        className={clsx(
+          "p-1.5 rounded-md transition-colors",
+          "hover:bg-stone-200 dark:hover:bg-stone-700",
+          active
+            ? "text-amber-500 dark:text-amber-400"
+            : "text-stone-400 dark:text-stone-500 hover:text-stone-600 dark:hover:text-stone-300",
+          busy && "opacity-60 cursor-wait",
+        )}
+        aria-label={bookmarkLabel}
+        aria-pressed={active}
+      >
+        <Bookmark size={16} fill={active ? "currentColor" : "none"} />
+      </button>
+    </Tooltip>
   );
 }

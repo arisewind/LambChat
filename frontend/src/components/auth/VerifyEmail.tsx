@@ -96,7 +96,7 @@ export function VerifyEmail() {
   const GoToLoginButton = () => (
     <button
       onClick={handleGoToLogin}
-      className="blog-btn-primary auth-primary-button w-full rounded-full py-2.5 text-sm font-medium transition-all"
+      className="blog-btn-primary auth-primary-button w-full rounded-full py-2.5 text-14 font-medium transition-all"
     >
       {t("auth.goToLogin")}
     </button>
@@ -106,13 +106,13 @@ export function VerifyEmail() {
     <AuthLayout>
       <div className="mb-5 text-center">
         <StatusIcon type={status} />
-        <h1 className="text-xl font-bold text-stone-900 dark:text-stone-100 mb-1 font-serif">
+        <h1 className="text-20 font-bold text-stone-900 dark:text-stone-100 mb-1 font-serif">
           {status === "loading" && t("auth.verifyingEmail")}
           {status === "success" && t("auth.verifyEmailSuccessTitle")}
           {status === "error" && t("auth.verifyEmailFailed")}
           {status === "idle" && t("auth.verifyEmail")}
         </h1>
-        <p className="text-sm text-stone-400 dark:text-stone-500">
+        <p className="text-14 text-stone-400 dark:text-stone-500">
           {(status === "loading" || status === "idle") && t("auth.pleaseWait")}
           {status === "success" && t("auth.verifyEmailSuccessDesc")}
           {status === "error" && t("auth.verifyEmailFailedDesc")}
@@ -123,7 +123,7 @@ export function VerifyEmail() {
         <button
           onClick={handleResend}
           disabled={isSubmitting}
-          className="blog-btn-ghost auth-secondary-button mb-2.5 w-full rounded-full py-2.5 text-sm font-medium disabled:cursor-not-allowed disabled:opacity-50"
+          className="blog-btn-ghost auth-secondary-button mb-2.5 w-full rounded-full py-2.5 text-14 font-medium disabled:cursor-not-allowed disabled:opacity-50"
         >
           <span className="inline-flex items-center justify-center gap-2">
             {isSubmitting && <LoadingSpinner size="sm" />}

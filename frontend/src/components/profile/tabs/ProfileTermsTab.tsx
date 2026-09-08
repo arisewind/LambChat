@@ -17,12 +17,12 @@ export function ProfileTermsTab() {
 
   return (
     <div className="space-y-3">
-      <h3 className="text-sm font-semibold font-serif text-stone-800 dark:text-stone-100">
+      <h3 className="text-14 font-semibold font-serif text-stone-800 dark:text-stone-100">
         {t("profile.termsTitle")}
       </h3>
 
       <div className="p-3 rounded-lg bg-amber-50/50 dark:bg-amber-500/[0.04]">
-        <span className="text-xs leading-relaxed text-stone-600 dark:text-stone-300">
+        <span className="text-12 leading-relaxed text-stone-600 dark:text-stone-300">
           <Trans
             i18nKey="profile.termsItem1"
             components={{ a: regulationLink }}
@@ -31,7 +31,7 @@ export function ProfileTermsTab() {
       </div>
 
       <div className="p-3 rounded-lg bg-red-50/50 dark:bg-red-500/[0.04]">
-        <span className="text-xs leading-relaxed text-stone-600 dark:text-stone-300">
+        <span className="text-12 leading-relaxed text-stone-600 dark:text-stone-300">
           <Trans
             i18nKey="profile.termsItem3"
             components={{ a: regulationLink, strong: <strong /> }}
@@ -45,7 +45,7 @@ export function ProfileTermsTab() {
             key={key}
             className="p-2.5 rounded-lg bg-stone-50/60 dark:bg-stone-800/40"
           >
-            <span className="text-xs leading-relaxed text-stone-600 dark:text-stone-300">
+            <span className="text-12 leading-relaxed text-stone-600 dark:text-stone-300">
               {t(`profile.${key}`)}
             </span>
           </div>

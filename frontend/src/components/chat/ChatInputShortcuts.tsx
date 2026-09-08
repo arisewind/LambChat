@@ -70,7 +70,7 @@ export function ShortcutDialog({
       >
         <div className="flex items-center justify-between mb-4">
           <h3
-            className="text-base font-semibold"
+            className="text-16 font-semibold"
             style={{ color: "var(--theme-text)" }}
           >
             {t("chat.keyboardShortcuts", "键盘快捷键")}

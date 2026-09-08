@@ -13,6 +13,7 @@ import {
 } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { CollapsiblePill } from "../../../common";
+import { useToolStreamingLabel } from "./useToolStreamingLabel";
 import { extractText } from "./toolUtils";
 import {
   openToolLivePanel,
@@ -100,7 +101,7 @@ function FieldDisplay({ field, value }: { field: FormField; value: unknown }) {
     return (
       <div className="space-y-1.5">
         <label
-          className="block text-xs font-medium"
+          className="block text-12 font-medium"
           style={{ color: "var(--theme-text-secondary)" }}
         >
           {field.label}
@@ -168,7 +169,7 @@ function FieldDisplay({ field, value }: { field: FormField; value: unknown }) {
           )}
         </div>
         <span
-          className="text-sm"
+          className="text-14"
           style={{ color: "var(--theme-text-secondary)" }}
         >
           {field.label}
@@ -181,7 +182,7 @@ function FieldDisplay({ field, value }: { field: FormField; value: unknown }) {
   return (
     <div className="space-y-1">
       <label
-        className="block text-xs font-medium"
+        className="block text-12 font-medium"
         style={{ color: "var(--theme-text-secondary)" }}
       >
         {field.label}
@@ -193,14 +194,14 @@ function FieldDisplay({ field, value }: { field: FormField; value: unknown }) {
       </label>
       {displayValue !== null ? (
         <div
-          className="approval-input approval-answer-filled px-3 py-2 text-sm rounded-lg min-h-[2.25rem] whitespace-pre-wrap break-words"
+          className="approval-input approval-answer-filled px-3 py-2 text-14 rounded-lg min-h-[2.25rem] whitespace-pre-wrap break-words"
           style={{ color: "var(--theme-text)" }}
         >
           {displayValue}
         </div>
       ) : (
         <div
-          className="approval-input px-3 py-2 text-sm rounded-lg min-h-[2.25rem]"
+          className="approval-input px-3 py-2 text-14 rounded-lg min-h-[2.25rem]"
           style={{ color: "var(--theme-text-dim)", opacity: 0.5 }}
         >
           {field.placeholder || "—"}
@@ -274,11 +275,7 @@ function AnswerSummary({
  * 模块作用域声明保证组件类型稳定，流式更新只 patch props，
  * 不会重置内部本地状态（FieldDisplay 等只读展示，无表单输入）。
  */
-function AskHumanDetail({
-  args,
-  result,
-  isPending,
-}: ToolDetailProps) {
+function AskHumanDetail({ args, result, isPending }: ToolDetailProps) {
   const { t } = useTranslation();
 
   const parsed = useMemo(() => parseArgs(args), [args]);
@@ -337,7 +334,7 @@ function AskHumanDetail({
           {!isPending && parsedResult && (
             <span
               className={clsx(
-                "ml-auto flex items-center gap-1 text-xs font-medium",
+                "ml-auto flex items-center gap-1 text-12 font-medium",
                 parsedResult.status === "success"
                   ? "text-emerald-600 dark:text-emerald-400"
                   : parsedResult.status === "timeout"
@@ -360,7 +357,7 @@ function AskHumanDetail({
             </span>
           )}
           {isPending && (
-            <span className="approval-timer ml-auto flex items-center gap-1 text-xs">
+            <span className="approval-timer ml-auto flex items-center gap-1 text-12">
               <Clock size={14} className="animate-pulse" />
               {t("chat.message.askHumanWaiting")}
             </span>
@@ -371,7 +368,7 @@ function AskHumanDetail({
         {message && (
           <div className="approval-message">
             <div
-              className="prose prose-stone dark:prose-invert max-w-none text-sm leading-relaxed prose-p:my-0.5 prose-headings:my-1"
+              className="prose prose-stone dark:prose-invert max-w-none text-14 leading-relaxed prose-p:my-0.5 prose-headings:my-1"
               style={{ color: "var(--theme-text)" }}
             >
               <MarkdownContent content={message} />
@@ -420,7 +417,7 @@ function AskHumanDetail({
               <div className="approval-result-section">
                 <div
                   className={clsx(
-                    "text-xs px-3 py-2 rounded-lg",
+                    "text-12 px-3 py-2 rounded-lg",
                     parsedResult.status === "timeout"
                       ? "bg-amber-50 dark:bg-amber-950/25 text-amber-700 dark:text-amber-300"
                       : "bg-red-50 dark:bg-red-950/25 text-red-600 dark:text-red-400",
@@ -435,7 +432,7 @@ function AskHumanDetail({
 
       {/* Raw result fallback (when no structured result) */}
       {result && !parsedResult && (
-        <pre className="group/result relative text-xs text-theme-text-tertiary whitespace-pre-wrap break-words p-3 rounded-lg bg-theme-bg border border-theme-border">
+        <pre className="group/result relative text-12 text-theme-text-tertiary whitespace-pre-wrap break-words p-3 rounded-lg bg-theme-bg border border-theme-border">
           {(() => {
             const text = extractText(result);
             return text.length > 600 ? text.slice(0, 597) + "…" : text;
@@ -544,6 +541,12 @@ const AskHumanItem = memo(function AskHumanItem({
     return base;
   })();
 
+  // 进行中：标签学「思考中」，平滑流出正在生成的参数尾部
+  const { label, isStreamingLabel } = useToolStreamingLabel(labelText, args, {
+    isPending,
+    result,
+  });
+
   // ── Inline (compact) content ──
 
   const compactContent = canExpand && (
@@ -555,7 +558,7 @@ const AskHumanItem = memo(function AskHumanItem({
             size={12}
             className="shrink-0 mt-0.5 text-[#f59e0b] dark:text-[#fbbf24]"
           />
-          <span className="text-xs text-theme-text leading-relaxed line-clamp-2">
+          <span className="text-12 text-theme-text leading-relaxed line-clamp-2">
             {message.length > 200 ? message.slice(0, 197) + "…" : message}
           </span>
         </div>
@@ -609,7 +612,7 @@ const AskHumanItem = memo(function AskHumanItem({
 
       {/* Raw fallback */}
       {result && !parsedResult && (
-        <pre className="group/result relative text-xs text-theme-text-tertiary whitespace-pre-wrap break-words overflow-y-auto min-w-0">
+        <pre className="group/result relative text-12 text-theme-text-tertiary whitespace-pre-wrap break-words overflow-y-auto min-w-0">
           {(() => {
             const text = extractText(result);
             return text.length > 300 ? text.slice(0, 297) + "…" : text;
@@ -628,7 +631,8 @@ const AskHumanItem = memo(function AskHumanItem({
       <CollapsiblePill
         status={status}
         icon={<ShieldCheck size={12} className="shrink-0 opacity-50" />}
-        label={labelText}
+        label={label}
+        animatedDots={isStreamingLabel}
         variant="tool"
         expandable={canExpand}
         onPanelOpen={() => {

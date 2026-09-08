@@ -14,6 +14,7 @@ import { useTranslation } from "react-i18next";
 import type { MessagePart } from "../../../types";
 import { getFileTypeInfo, isImageFile } from "../../documents/utils";
 import { ImageViewer } from "../../common";
+import { Tooltip } from "../../common/Tooltip";
 import { openPersistentToolPanel } from "./items/persistentToolPanelState";
 import type { RevealPreviewOpenSource } from "./items/revealPreviewState";
 import type { RevealPreviewRequest } from "./items/revealPreviewData";
@@ -164,44 +165,56 @@ function TreeFileRow({
         getFileIcon(node.artifact.name)
       )}
       <div className="flex-1 min-w-0 text-left">
-        <div className="text-sm text-stone-700 dark:text-stone-300 truncate">
+        <div className="text-14 text-stone-700 dark:text-stone-300 truncate">
           {node.artifact.name}
         </div>
-        <div className="text-xs text-stone-400 dark:text-stone-500 mt-0.5">
+        <div className="text-12 text-stone-400 dark:text-stone-500 mt-0.5">
           {node.artifact.fileSize
             ? formatSize(node.artifact.fileSize)
             : node.artifact.description || node.artifact.path}
         </div>
       </div>
-      <span
-        onClick={(e) => {
-          e.stopPropagation();
-          downloadFile(node.artifact.name, node.artifact.preview.signedUrl);
-        }}
-        className="shrink-0 p-1.5 rounded-lg text-stone-400 dark:text-stone-500 hover:text-stone-600 dark:hover:text-stone-300 hover:bg-stone-100 dark:hover:bg-stone-700 opacity-0 group-hover:opacity-100 transition-all"
-        title={t("project.exportZip")}
+      <Tooltip content={t("project.exportZip")}>
+        <span
+          role="button"
+          tabIndex={0}
+          onClick={(e) => {
+            e.stopPropagation();
+            downloadFile(node.artifact.name, node.artifact.preview.signedUrl);
+          }}
+          aria-label={t("project.exportZip")}
+          className="shrink-0 p-1.5 rounded-lg text-stone-400 dark:text-stone-500 hover:text-stone-600 dark:hover:text-stone-300 hover:bg-stone-100 dark:hover:bg-stone-700 opacity-0 group-hover:opacity-100 transition-all"
+        >
+          <Download size={20} />
+        </span>
+      </Tooltip>
+      <Tooltip
+        content={copied ? t("chat.message.copied") : t("chat.message.copy")}
       >
-        <Download size={20} />
-      </span>
-      <span
-        onClick={(e) => {
-          e.stopPropagation();
-          copyToClipboard(
-            node.artifact.preview.signedUrl || node.artifact.path,
-          );
-          setCopied(true);
-          setTimeout(() => setCopied(false), 2000);
-        }}
-        className={clsx(
-          "shrink-0 p-1.5 rounded-lg transition-all opacity-0 group-hover:opacity-100",
-          copied
-            ? "text-emerald-500 dark:text-emerald-400"
-            : "text-stone-400 dark:text-stone-500 hover:text-stone-600 dark:hover:text-stone-300 hover:bg-stone-100 dark:hover:bg-stone-700",
-        )}
-        title={copied ? t("chat.message.copied") : t("chat.message.copy")}
-      >
-        {copied ? <Check size={20} /> : <Copy size={20} />}
-      </span>
+        <span
+          role="button"
+          tabIndex={0}
+          onClick={(e) => {
+            e.stopPropagation();
+            copyToClipboard(
+              node.artifact.preview.signedUrl || node.artifact.path,
+            );
+            setCopied(true);
+            setTimeout(() => setCopied(false), 2000);
+          }}
+          aria-label={
+            copied ? t("chat.message.copied") : t("chat.message.copy")
+          }
+          className={clsx(
+            "shrink-0 p-1.5 rounded-lg transition-all opacity-0 group-hover:opacity-100",
+            copied
+              ? "text-emerald-500 dark:text-emerald-400"
+              : "text-stone-400 dark:text-stone-500 hover:text-stone-600 dark:hover:text-stone-300 hover:bg-stone-100 dark:hover:bg-stone-700",
+          )}
+        >
+          {copied ? <Check size={20} /> : <Copy size={20} />}
+        </span>
+      </Tooltip>
     </button>
   );
 }
@@ -247,75 +260,77 @@ function TreeDirRow({
         >
           <FolderIcon size={36} className="shrink-0" />
           <div className="flex-1 min-w-0">
-            <div className="text-sm font-medium text-stone-800 dark:text-stone-200 truncate">
+            <div className="text-14 font-medium text-stone-800 dark:text-stone-200 truncate">
               {node.name}
             </div>
             {expanded && dirSize > 0 && (
-              <div className="text-xs text-stone-400 dark:text-stone-500 mt-0.5">
+              <div className="text-12 text-stone-400 dark:text-stone-500 mt-0.5">
                 {formatSize(dirSize)}
               </div>
             )}
           </div>
         </button>
         {hasDownloadableFiles && (
+          <Tooltip content={t("project.exportZip")}>
+            <button
+              type="button"
+              aria-label={`${t("project.exportZip")}: ${node.name}`}
+              aria-busy={isDownloading}
+              disabled={isDownloading}
+              onClick={async () => {
+                if (isDownloading) return;
+                if (skippedCount > 0) {
+                  toast.error(
+                    `${t(
+                      "chat.message.downloadFailed",
+                      "下载失败",
+                    )}: ${skippedPaths.join(", ")}`,
+                  );
+                  return;
+                }
+                try {
+                  setIsDownloading(true);
+                  await exportProjectZip({}, node.name, binaryFiles, {
+                    failOnBinaryError: true,
+                  });
+                } catch (error) {
+                  toast.error(
+                    getDownloadFailureMessage(
+                      t("chat.message.downloadFailed", "下载失败"),
+                      error,
+                    ),
+                  );
+                } finally {
+                  setIsDownloading(false);
+                }
+              }}
+              className="shrink-0 rounded-lg p-1.5 text-stone-400 opacity-100 transition-all hover:bg-stone-100 hover:text-stone-600 disabled:pointer-events-none disabled:opacity-50 dark:hover:bg-stone-700 dark:hover:text-stone-300 sm:opacity-0 sm:group-hover:opacity-100 sm:focus-visible:opacity-100"
+            >
+              {isDownloading ? (
+                <Loader2 size={18} className="animate-spin" />
+              ) : (
+                <Download size={18} />
+              )}
+            </button>
+          </Tooltip>
+        )}
+        <Tooltip content={toggleLabel}>
           <button
             type="button"
-            aria-label={`${t("project.exportZip")}: ${node.name}`}
-            aria-busy={isDownloading}
-            disabled={isDownloading}
-            onClick={async () => {
-              if (isDownloading) return;
-              if (skippedCount > 0) {
-                toast.error(
-                  `${t(
-                    "chat.message.downloadFailed",
-                    "下载失败",
-                  )}: ${skippedPaths.join(", ")}`,
-                );
-                return;
-              }
-              try {
-                setIsDownloading(true);
-                await exportProjectZip({}, node.name, binaryFiles, {
-                  failOnBinaryError: true,
-                });
-              } catch (error) {
-                toast.error(
-                  getDownloadFailureMessage(
-                    t("chat.message.downloadFailed", "下载失败"),
-                    error,
-                  ),
-                );
-              } finally {
-                setIsDownloading(false);
-              }
-            }}
-            title={t("project.exportZip")}
-            className="shrink-0 rounded-lg p-1.5 text-stone-400 opacity-100 transition-all hover:bg-stone-100 hover:text-stone-600 disabled:pointer-events-none disabled:opacity-50 dark:hover:bg-stone-700 dark:hover:text-stone-300 sm:opacity-0 sm:group-hover:opacity-100 sm:focus-visible:opacity-100"
+            aria-expanded={expanded}
+            aria-label={toggleLabel}
+            onClick={toggleExpanded}
+            className="shrink-0 rounded-lg p-1.5 text-stone-400 transition-colors hover:bg-stone-100 hover:text-stone-600 dark:hover:bg-stone-700 dark:hover:text-stone-300"
           >
-            {isDownloading ? (
-              <Loader2 size={18} className="animate-spin" />
-            ) : (
-              <Download size={18} />
-            )}
+            <ChevronRight
+              size={18}
+              className={clsx(
+                "transition-transform duration-200",
+                expanded && "rotate-90",
+              )}
+            />
           </button>
-        )}
-        <button
-          type="button"
-          aria-expanded={expanded}
-          aria-label={toggleLabel}
-          onClick={toggleExpanded}
-          title={toggleLabel}
-          className="shrink-0 rounded-lg p-1.5 text-stone-400 transition-colors hover:bg-stone-100 hover:text-stone-600 dark:hover:bg-stone-700 dark:hover:text-stone-300"
-        >
-          <ChevronRight
-            size={18}
-            className={clsx(
-              "transition-transform duration-200",
-              expanded && "rotate-90",
-            )}
-          />
-        </button>
+        </Tooltip>
       </div>
       {expanded && (
         <div
@@ -382,10 +397,10 @@ function ProjectRow({
         />
       </span>
       <span className="min-w-0 flex-1 text-left">
-        <span className="block truncate text-sm font-medium leading-5 text-[var(--theme-text)]">
+        <span className="block truncate text-14 font-medium leading-5 text-[var(--theme-text)]">
           {artifact.name}
         </span>
-        <span className="mt-0.5 block truncate text-xs leading-4 text-[var(--theme-text-secondary)]">
+        <span className="mt-0.5 block truncate text-12 leading-4 text-[var(--theme-text-secondary)]">
           {subtitle}
         </span>
       </span>
@@ -508,8 +523,8 @@ function DownloadAllButton({ artifacts }: { artifacts: RevealArtifact[] }) {
       }}
       disabled={isDownloading}
       aria-busy={isDownloading}
+      aria-label={t("chat.message.downloadAll", "下载全部")}
       className="flex items-center gap-1 rounded-md px-2 py-0.5 text-11 font-medium text-[var(--theme-text-secondary)] hover:bg-[var(--theme-bg-subtle)] transition-colors disabled:opacity-50"
-      title={t("chat.message.downloadAll", "下载全部")}
     >
       {isDownloading ? (
         <Loader2 size={12} className="animate-spin" />
@@ -695,15 +710,15 @@ export function RevealArtifactsSummary({
             <FolderIcon size={28} className="shrink-0" />
           </div>
           <div className="min-w-0 flex-1">
-            <div className="truncate text-sm font-semibold font-serif text-[var(--theme-text)]">
+            <div className="truncate text-14 font-semibold font-serif text-[var(--theme-text)]">
               {t("chat.message.allFiles", "全部文件")}
             </div>
-            <div className="mt-0.5 truncate text-xs text-[var(--theme-text-secondary)]">
+            <div className="mt-0.5 truncate text-12 text-[var(--theme-text-secondary)]">
               {subtitle}
             </div>
           </div>
           <div className="relative z-10 flex shrink-0 items-center gap-1">
-            <span className="rounded-lg bg-[var(--theme-primary-light)] px-3 py-1.5 text-xs font-medium text-[var(--theme-primary)] ring-1 ring-[var(--theme-border)] transition-colors group-hover:bg-[var(--theme-primary)]/15 group-hover:ring-[var(--theme-text-secondary)]/20">
+            <span className="rounded-lg bg-[var(--theme-primary-light)] px-3 py-1.5 text-12 font-medium text-[var(--theme-primary)] ring-1 ring-[var(--theme-border)] transition-colors group-hover:bg-[var(--theme-primary)]/15 group-hover:ring-[var(--theme-text-secondary)]/20">
               {t("project.preview", "预览")}
             </span>
           </div>

@@ -104,7 +104,7 @@ export function BinaryFilePreview({
           <Icon size={18} className={iconColor} />
         </div>
         <div className="flex-1 min-w-0">
-          <p className="text-sm font-medium text-[var(--theme-text)] truncate">
+          <p className="text-14 font-medium text-[var(--theme-text)] truncate">
             {fileName}
           </p>
           <p className="text-11 text-[var(--theme-text-secondary)]">
@@ -114,7 +114,7 @@ export function BinaryFilePreview({
         <button
           type="button"
           onClick={handleDownload}
-          className="flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-medium text-[var(--theme-text-secondary)] hover:bg-[var(--theme-bg-card)] transition-colors cursor-pointer"
+          className="flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-xl text-12 font-medium text-[var(--theme-text-secondary)] hover:bg-[var(--theme-bg-card)] transition-colors cursor-pointer"
           title={t("documents.download")}
         >
           <Download size={14} />
@@ -134,7 +134,7 @@ export function BinaryFilePreview({
           >
             {!imageLoaded && (
               <div className="absolute inset-0 flex items-center justify-center bg-[var(--theme-bg-card)]/50 rounded-lg">
-                <div className="flex items-center gap-2 rounded-xl bg-white/80 px-3 py-2 text-xs text-stone-500 shadow-sm dark:bg-stone-800/80 dark:text-stone-400">
+                <div className="flex items-center gap-2 rounded-xl bg-white/80 px-3 py-2 text-12 text-stone-500 shadow-sm dark:bg-stone-800/80 dark:text-stone-400">
                   <Loader2 size={14} className="animate-spin" />
                   <span>{t("documents.loadingImage")}</span>
                 </div>
@@ -158,7 +158,7 @@ export function BinaryFilePreview({
           <div className="relative flex items-center justify-center bg-gradient-to-b from-stone-900 to-stone-950 p-4 sm:p-8 min-h-full">
             {!videoLoaded && (
               <div className="absolute inset-0 flex items-center justify-center">
-                <div className="flex items-center gap-2 rounded-xl bg-white/10 px-3 py-2 text-xs text-white/60 shadow-sm">
+                <div className="flex items-center gap-2 rounded-xl bg-white/10 px-3 py-2 text-12 text-white/60 shadow-sm">
                   <Loader2 size={14} className="animate-spin" />
                   <span>{t("documents.loadingVideo")}</span>
                 </div>
@@ -213,16 +213,16 @@ export function BinaryFilePreview({
                 <Icon size={36} className={iconColor} />
               </div>
               <div className="text-center">
-                <p className="text-sm font-medium text-[var(--theme-text)] mb-1">
+                <p className="text-14 font-medium text-[var(--theme-text)] mb-1">
                   {t("skills.binaryPreview.title")}
                 </p>
-                <p className="text-xs text-[var(--theme-text-secondary)] max-w-xs">
+                <p className="text-12 text-[var(--theme-text-secondary)] max-w-xs">
                   {t("skills.binaryPreview.unsupportedHint")}
                 </p>
               </div>
               <button
                 onClick={handleDownload}
-                className="mt-2 inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-[var(--theme-primary)] text-white text-sm font-medium hover:opacity-90 transition-all active:scale-95 cursor-pointer"
+                className="mt-2 inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-[var(--theme-primary)] text-white text-14 font-medium hover:opacity-90 transition-all active:scale-95 cursor-pointer"
               >
                 <Download size={16} />
                 {t("skills.binaryPreview.download")}

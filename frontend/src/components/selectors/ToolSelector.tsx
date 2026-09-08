@@ -177,7 +177,7 @@ export function ToolSelector({
             value={searchQuery}
             onValueChange={setSearchQuery}
             placeholder={t("tools.searchPlaceholder")}
-            className="w-full rounded-2xl border border-stone-200 bg-white py-2.5 pl-9 pr-3 text-sm text-stone-700 shadow-sm outline-none transition-colors placeholder:text-stone-400 focus:border-[var(--theme-primary)] focus:bg-white dark:border-stone-700 dark:bg-stone-950/60 dark:text-stone-100 dark:placeholder:text-stone-500 dark:focus:bg-stone-950"
+            className="w-full rounded-2xl border border-stone-200 bg-white py-2.5 pl-9 pr-3 text-14 text-stone-700 shadow-sm outline-none transition-colors placeholder:text-stone-400 focus:border-[var(--theme-primary)] focus:bg-white dark:border-stone-700 dark:bg-stone-950/60 dark:text-stone-100 dark:placeholder:text-stone-500 dark:focus:bg-stone-950"
           />
         </div>
       </div>
@@ -218,10 +218,10 @@ export function ToolSelector({
                     />
                   </div>
                   <div className="flex-1 min-w-0">
-                    <span className="text-13 sm:text-sm font-semibold font-serif text-stone-800 dark:text-stone-100">
+                    <span className="text-13 sm:text-14 font-semibold font-serif text-stone-800 dark:text-stone-100">
                       {t(`tools.categories.${cat}`)}
                     </span>
-                    <span className="ml-1.5 sm:ml-2 text-xs sm:text-xs text-stone-400 dark:text-stone-500 tabular-nums">
+                    <span className="ml-1.5 sm:ml-2 text-12 sm:text-12 text-stone-400 dark:text-stone-500 tabular-nums">
                       {enabledInCategory}/{allCategoryTools.length}
                     </span>
                   </div>
@@ -284,17 +284,17 @@ export function ToolSelector({
                                     {tool.name}
                                   </span>
                                   {tool.server && (
-                                    <span className="text-9 sm:text-xs px-1.5 py-0.5 rounded-md bg-stone-100 dark:bg-amber-500/20 text-stone-500 dark:text-amber-400 font-medium">
+                                    <span className="text-9 sm:text-12 px-1.5 py-0.5 rounded-md bg-stone-100 dark:bg-amber-500/20 text-stone-500 dark:text-amber-400 font-medium">
                                       {tool.server}
                                     </span>
                                   )}
                                   {tool.system_disabled && (
-                                    <span className="text-9 sm:text-xs px-1.5 py-0.5 rounded-md bg-red-100 dark:bg-red-500/20 text-red-600 dark:text-red-400 font-medium">
+                                    <span className="text-9 sm:text-12 px-1.5 py-0.5 rounded-md bg-red-100 dark:bg-red-500/20 text-red-600 dark:text-red-400 font-medium">
                                       {t("tools.systemDisabled")}
                                     </span>
                                   )}
                                 </div>
-                                <p className="text-xs sm:text-xs text-stone-400 dark:text-stone-500 truncate mt-0.5 leading-relaxed text-left">
+                                <p className="text-12 sm:text-12 text-stone-400 dark:text-stone-500 truncate mt-0.5 leading-relaxed text-left">
                                   {tool.description || t("tools.noDescription")}
                                 </p>
                               </div>
@@ -315,13 +315,13 @@ export function ToolSelector({
                                       size={10}
                                       className="text-stone-400 dark:text-stone-500 sm:w-[11px] sm:h-[11px]"
                                     />
-                                    <span className="text-xs sm:text-xs font-medium text-stone-500 dark:text-stone-400 uppercase tracking-wide">
+                                    <span className="text-12 sm:text-12 font-medium text-stone-500 dark:text-stone-400 uppercase tracking-wide">
                                       {t("tools.parameters")}
                                     </span>
                                   </div>
                                   {/* Table Body */}
                                   <div className="bg-white dark:bg-stone-800">
-                                    <table className="w-full text-xs sm:text-xs">
+                                    <table className="w-full text-12 sm:text-12">
                                       <thead>
                                         <tr className="border-b border-stone-100 dark:border-stone-700">
                                           <th className="px-2.5 sm:px-3 py-1.5 text-left font-medium text-stone-400 dark:text-stone-500 uppercase tracking-wide w-auto">
@@ -355,7 +355,7 @@ export function ToolSelector({
                                                 </div>
                                               </td>
                                               <td className="px-2.5 sm:px-3 py-1.5">
-                                                <span className="px-1.5 py-0.5 rounded bg-stone-100 dark:bg-stone-700 text-stone-600 dark:text-stone-300 font-mono text-xs">
+                                                <span className="px-1.5 py-0.5 rounded bg-stone-100 dark:bg-stone-700 text-stone-600 dark:text-stone-300 font-mono text-12">
                                                   {param.type}
                                                 </span>
                                               </td>
@@ -382,7 +382,7 @@ export function ToolSelector({
           },
         )}
         {filteredTools.length === 0 && (
-          <div className="rounded-xl border border-dashed border-stone-200 bg-stone-50/70 px-4 py-6 text-center text-sm text-stone-500 dark:border-stone-700 dark:bg-stone-800/40 dark:text-stone-400">
+          <div className="rounded-xl border border-dashed border-stone-200 bg-stone-50/70 px-4 py-6 text-center text-14 text-stone-500 dark:border-stone-700 dark:bg-stone-800/40 dark:text-stone-400">
             {t("tools.noMatchingTools")}
           </div>
         )}

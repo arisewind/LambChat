@@ -120,7 +120,7 @@ function CodeBlock({
   if (inline) {
     return (
       <code
-        className="rounded bg-stone-200 dark:bg-stone-700 px-1.5 py-0.5 text-sm text-stone-800 dark:text-stone-200 font-mono cursor-pointer hover:bg-stone-300 dark:hover:bg-stone-600 transition-colors"
+        className="rounded bg-stone-200 dark:bg-stone-700 px-1.5 py-0.5 text-14 text-stone-800 dark:text-stone-200 font-mono cursor-pointer hover:bg-stone-300 dark:hover:bg-stone-600 transition-colors"
         onClick={() => {
           copyToClipboard(String(children));
           toast.success(t("chat.message.copied"));
@@ -146,7 +146,7 @@ function CodeBlock({
             aria-hidden="true"
           />
           {/* Language label */}
-          <span className="ai-code-block__language text-xs font-medium text-stone-500 dark:text-stone-400 truncate">
+          <span className="ai-code-block__language text-12 font-medium text-stone-500 dark:text-stone-400 truncate">
             {language || "text"}
           </span>
         </div>
@@ -154,7 +154,7 @@ function CodeBlock({
         <button
           onClick={handleCopy}
           className={clsx(
-            "ai-code-block__copy flex items-center gap-1 rounded-md px-2 py-1 text-xs font-medium transition-all touch-manipulation",
+            "ai-code-block__copy flex items-center gap-1 rounded-md px-2 py-1 text-12 font-medium transition-all touch-manipulation",
             "min-h-[32px] min-w-[32px]",
             copied
               ? "text-green-600 dark:text-green-400"
@@ -265,7 +265,7 @@ function TableBlock({ children }: { children: React.ReactNode }) {
           "ai-data-table__toolbar flex items-center justify-between px-2.5 py-2 font-serif",
         )}
       >
-        <span className="ai-data-table__title flex items-center gap-1.5 text-11 sm:text-xs font-medium select-none">
+        <span className="ai-data-table__title flex items-center gap-1.5 text-11 sm:text-12 font-medium select-none">
           <Table2 size={12} aria-hidden="true" />
           {t("chat.message.table", "Table")}
         </span>
@@ -273,7 +273,7 @@ function TableBlock({ children }: { children: React.ReactNode }) {
           <button
             onClick={handleCopy}
             className={clsx(
-              "ai-data-table__action flex items-center gap-1 rounded px-1.5 py-0.5 text-11 sm:text-xs font-medium transition-colors",
+              "ai-data-table__action flex items-center gap-1 rounded px-1.5 py-0.5 text-11 sm:text-12 font-medium transition-colors",
               copied
                 ? "ai-data-table__action--copied"
                 : "text-stone-500 dark:text-stone-400",
@@ -288,7 +288,7 @@ function TableBlock({ children }: { children: React.ReactNode }) {
           </button>
           <button
             onClick={handleExport}
-            className="ai-data-table__action flex items-center gap-1 rounded px-1.5 py-0.5 text-11 sm:text-xs font-medium text-stone-500 dark:text-stone-400 transition-colors"
+            className="ai-data-table__action flex items-center gap-1 rounded px-1.5 py-0.5 text-11 sm:text-12 font-medium text-stone-500 dark:text-stone-400 transition-colors"
             aria-label={t("chat.message.exportCsv", "Export CSV")}
             title={t("chat.message.exportCsv", "Export CSV")}
           >
@@ -338,7 +338,7 @@ export const MarkdownContent = memo(function MarkdownContent({
                 id={id}
                 data-outline-anchor="true"
                 data-outline-id={id}
-                className="text-2xl font-bold text-stone-900 dark:text-stone-100 mt-4 mb-3 first:mt-0 group/head scroll-mt-4"
+                className="text-24 font-bold text-stone-900 dark:text-stone-100 mt-4 mb-3 first:mt-0 group/head scroll-mt-4"
               >
                 <a
                   href={`#${id}`}
@@ -356,7 +356,7 @@ export const MarkdownContent = memo(function MarkdownContent({
                 id={id}
                 data-outline-anchor="true"
                 data-outline-id={id}
-                className="text-xl font-bold text-stone-900 dark:text-stone-100 mt-3 mb-2 group/head scroll-mt-4"
+                className="text-20 font-bold text-stone-900 dark:text-stone-100 mt-3 mb-2 group/head scroll-mt-4"
               >
                 <a
                   href={`#${id}`}
@@ -374,7 +374,7 @@ export const MarkdownContent = memo(function MarkdownContent({
                 id={id}
                 data-outline-anchor="true"
                 data-outline-id={id}
-                className="text-lg font-semibold text-stone-900 dark:text-stone-100 mt-2 mb-1.5 group/head scroll-mt-4"
+                className="text-18 font-semibold text-stone-900 dark:text-stone-100 mt-2 mb-1.5 group/head scroll-mt-4"
               >
                 <a
                   href={`#${id}`}
@@ -392,7 +392,7 @@ export const MarkdownContent = memo(function MarkdownContent({
                 id={id}
                 data-outline-anchor="true"
                 data-outline-id={id}
-                className="text-base font-semibold text-stone-800 dark:text-stone-200 mt-2 mb-1 group/head scroll-mt-4"
+                className="text-16 font-semibold text-stone-800 dark:text-stone-200 mt-2 mb-1 group/head scroll-mt-4"
               >
                 <a
                   href={`#${id}`}
@@ -431,7 +431,7 @@ export const MarkdownContent = memo(function MarkdownContent({
               className="my-3 pl-4 pr-3 py-2 border-l-[5px] border-amber-400 bg-amber-50 dark:bg-amber-900/20"
               style={{ borderRadius: "4px" }}
             >
-              <div className="text-stone-600 dark:text-stone-300 text-sm [&>p]:italic [&>p:first-child]:italic">
+              <div className="text-stone-600 dark:text-stone-300 text-14 [&>p]:italic [&>p:first-child]:italic">
                 {children}
               </div>
             </blockquote>

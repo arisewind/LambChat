@@ -244,6 +244,23 @@
         "max": "最強",
         "medium": "中"
       }
+    },
+    "sandbox": {
+      "label": "サンドボックス",
+      "description": "サンドボックスのコマンド実行場所を選択します",
+      "options": {
+        "cloud": "クラウドPC",
+        "local": "ローカルPC"
+      },
+      "offlineHint": "ローカルサンドボックスはオフラインです：ダウンロードして起動すると利用できます",
+      "downloadEntry": "ローカルサンドボックスをダウンロード"
+    },
+    "sandboxMachine": {
+      "label": "マシン",
+      "description": "ローカルサンドボックスコマンドの実行マシンを選択",
+      "auto": "自動（デフォルトマシン）",
+      "offline": "オフライン",
+      "offlineHint": "そのPCは現在オフラインのため、実行マシンとして選択できません"
     }
   },
   "agents": {
@@ -267,7 +284,6 @@
     "continue": "続ける",
     "enterResponse": "返信を入力...",
     "ignore": "無視",
-    "mainGoal": "主な目標",
     "multiSelectHint": "複数選択できます · クリックで選択/解除",
     "needsConfirmation": "確認が必要です",
     "next": "次の項目",
@@ -289,7 +305,7 @@
     },
     "selectOption": "オプションを選択",
     "send": "送信",
-    "shortcutHint": "↑↓ 移動 · Enter 決定 · 1-9 選択",
+    "shortcutHint": "Enter で送信",
     "submit": "確定"
   },
   "auth": {
@@ -460,6 +476,8 @@
     "publishSkillFailed": "スキルの公開に失敗しました。",
     "refreshTokenInvalid": "リフレッシュトークンが無効です。",
     "refreshTokenMissing": "リフレッシュトークンがありません。",
+    "releaseAssetFetchFailed": "リリースアセットの取得に失敗しました（HTTP {{status}}）",
+    "releaseAssetNotFound": "リリースアセット {{name}} が見つかりません",
     "registrationClosed": "登録は停止されています。",
     "repositoryOrBranchNotFound": "リポジトリまたはブランチが見つかりません。",
     "resetTokenExpired": "リセットトークンの有効期限が切れています。",
@@ -628,7 +646,19 @@
     "roleNameExists": "ロール名 {{name}} は既に存在します",
     "systemRoleProtected": "システムロールは変更・削除できません",
     "agentNotRegistered": "エージェント '{{agent}}' は登録されていません",
-    "bookmarkUpdateFailed": "ブックマーク状態の更新に失敗しました"
+    "bookmarkUpdateFailed": "ブックマーク状態の更新に失敗しました",
+    "modelEmptyResponse": "モデルは再試行後も空の応答を返しました。再試行するか、モデルを変更してください",
+    "patNotFound": "パーソナルアクセストークンが見つからないか失効しています",
+    "patExpired": "パーソナルアクセストークンの有効期限が切れました",
+    "patScopeDenied": "トークンに必要なスコープ {{scope}} がありません",
+    "daemonOffline": "ローカルサンドボックスデーモンはオフラインです",
+    "sandboxTimeout": "ローカルサンドボックス呼び出しがタイムアウトしました（{{seconds}}秒）",
+    "sandboxResultMismatch": "マシン「{{machine}}」が送信した結果は、この呼び出しの配送先マシンと一致しません",
+    "sandboxPayloadTooLarge": "ローカルサンドボックスのペイロードが大きすぎます",
+    "sandboxExecFailed": "ローカルサンドボックスの実行に失敗しました：{{detail}}",
+    "daemonVersionUnsupported": "ローカルサンドボックスデーモンのバージョン {{version}} は最低要件 {{min}} 未満です。アップデートしてください",
+    "sandboxMachineOffline": "選択したサンドボックスマシン「{{machine}}」は現在オフラインです",
+    "sandboxMachineNotFound": "サンドボックスマシン「{{machine}}」が見つからないか、削除されました"
   },
   "categories": {
     "agent": "エージェント",
@@ -763,6 +793,7 @@
     "mermaid": "Mermaid",
     "mermaidDiagram": "Mermaid 図",
     "message": {
+      "addBookmark": "ブックマークに追加",
       "allFiles": "すべてのファイル",
       "args": "引数",
       "artifactsSubtitleFiles": "{{count}} 件のファイル",
@@ -777,6 +808,9 @@
       "askHumanWaiting": "入力待ち…",
       "askHumanYourAnswer": "あなたの回答",
       "assistant": "アシスタント",
+      "bookmarkAdded": "ブックマークに追加しました",
+      "bookmarkRemoved": "ブックマークを削除しました",
+      "bookmarkToggleFailed": "ブックマーク操作に失敗しました",
       "cancelled": "生成がキャンセルされました",
       "codePreview": "コードプレビュー",
       "collapse": "折りたたむ",
@@ -814,10 +848,12 @@
       "processing": "過程",
       "projects": "プロジェクト",
       "rejected": "ユーザーにより操作が拒否されました",
+      "removeBookmark": "ブックマークを削除",
       "result": "結果",
       "retryAnswer": "回答を再生成",
       "runStepsCount": "{{count}} ステップ",
       "runStepsDetail": "詳細を表示",
+      "runStepsStopped": "停止しました",
       "runStepsSummary": "{{duration}} 作業",
       "runStepsToggle": "実行ステップを展開・折りたたみ",
       "runStepsWorking": "作業中 {{duration}}",
@@ -828,6 +864,7 @@
       "subagentProgress": "サブエージェントの進捗",
       "summary": "要約",
       "summaryDescription": "要点",
+      "summaryFreedTokens": "{{tokens}} トークンを解放",
       "synthesizing": "{{count}}件のサブエージェントの結果を統合中...",
       "systemPrompt": "システムプロンプト",
       "table": "テーブル",
@@ -863,7 +900,7 @@
       "toolFileCount": "{{count}} ファイル",
       "toolFileCount_one": "{{count}} ファイル",
       "toolFileCount_other": "{{count}} ファイル",
-      "toolGlob": "Glob",
+      "toolGlob": "ファイル検索",
       "toolHistoryAssistant": "アシスタント",
       "toolHistoryDetail": "履歴詳細",
       "toolHistoryMatchAssistant": "アシスタント",
@@ -876,6 +913,8 @@
       "toolHistoryMoreTurns_one": "+{{count}} 件の対話",
       "toolHistoryMoreTurns_other": "+{{count}} 件の対話",
       "toolHistorySearch": "履歴検索",
+      "toolHistorySessionCount": "{{count}} 件のセッションが見つかりました",
+      "toolHistoryTurnCount": "{{count}} 往復",
       "toolHistoryUser": "ユーザー",
       "toolImageAnalyze": "画像分析",
       "toolImageAnalyzeCount": "{{count}} 枚の画像",
@@ -891,7 +930,7 @@
       "toolImageTag": "画像生成",
       "toolInPath": "{{path}} 内",
       "toolItemCount": "({{count}} 項目)",
-      "toolLs": "一覧",
+      "toolLs": "ディレクトリ参照",
       "toolMemberCount": "{{count}} 人のメンバー",
       "toolMemoryContent": "メモリ内容",
       "toolMemoryDaysAgo": "{{count}}日前",
@@ -910,8 +949,12 @@
       "toolMemoryToday": "今日",
       "toolMemoryYearsAgo": "{{count}}年前",
       "toolMemoryYesterday": "昨日",
-      "toolMoreFiles": "+{{count}} 件",
-      "toolMoreLines": "... +{{count}} 行",
+      "toolMoreFiles": "+{{count}} 件のファイル",
+      "toolMoreImages": "+{{count}} 枚の画像",
+      "toolMoreLines": "+{{count}} 行",
+      "toolMoreMemories": "+{{count}} 件のメモリ",
+      "toolMoreTasks": "+{{count}} 件のタスク",
+      "toolMoreTools": "+{{count}} 件のツール",
       "toolOpenFile": "ファイルを開く",
       "toolOutput": "ツール出力",
       "toolParseError": "プロジェクトデータの解析に失敗しました",
@@ -930,9 +973,9 @@
       "toolScheduledTaskRun": "タスク実行",
       "toolScheduledTaskUpdate": "タスク更新",
       "toolSearch": "検索",
-      "toolSearchAlreadyAvailable": "利用可能",
+      "toolSearchAlreadyAvailable": "利用可能 {{count}} 件",
       "toolSearchMoreParams": "他のパラメータ",
-      "toolSearchNewlyLoaded": "新規",
+      "toolSearchNewlyLoaded": "新規ロード {{count}} 件",
       "toolSearchPersonas": "検索",
       "toolSearchToolCount": "{{count}} 件見つかりました",
       "toolSearchTools": "ツール検索",
@@ -951,11 +994,7 @@
       "toolUploadUrlToSandbox": "URLをサンドボックスへアップロード",
       "toolVarCount": "{{count}} 個の変数",
       "toolWrite": "書込",
-      "addBookmark": "ブックマークに追加",
-      "bookmarkAdded": "ブックマークに追加しました",
-      "bookmarkRemoved": "ブックマークを削除しました",
-      "bookmarkToggleFailed": "ブックマーク操作に失敗しました",
-      "removeBookmark": "ブックマークを削除"
+      "waitingConfirm": "確認待ち"
     },
     "messageInput": "メッセージ入力",
     "noPermission": "メッセージを送信する権限がありません",
@@ -970,6 +1009,10 @@
     "rateLimited": "リクエストが多すぎます。しばらくしてからお試しください",
     "requestFailed": "セッションの読み込みに失敗しました",
     "runningPlaceholder": "入力を続けると修正が順番にキューされます…",
+    "memory": {
+      "initializing": "関連するメモリを検索中",
+      "ready": "メモリ検索完了"
+    },
     "sandbox": {
       "elapsed": "経過時間 {{duration}}",
       "error": "初期化に失敗しました",
@@ -985,6 +1028,9 @@
     "sendLongTextAsText": "テキストのまま送信",
     "sessionUnavailable": "セッションが存在しないか、削除されました",
     "shiftEnterNewLine": "で改行",
+    "runMode": {
+      "sandbox": "サンドボックス"
+    },
     "skillCreated": "スキルが作成されました",
     "skillUpdated": "スキルが更新されました",
     "slashCommands": {
@@ -1548,6 +1594,7 @@
     "agents": "Agent",
     "architecture": "セルフホスト型アーキテクチャ",
     "architectureDesc": "FastAPI + React ワークスペースを展開し、LangGraph/deepagents 実行、Redis/MongoDB 永続化、サンドボックス分離、MCP・Skills・メモリ・モデルプロバイダーの拡張レイヤーを組み合わせます。",
+    "autoLoginPending": "サインインしています…",
     "badge": "セルフホスト型 AI Agent ワークスペース",
     "channels": "チャネル",
     "channelsIntegrations": "エンタープライズチャネル",
@@ -1923,7 +1970,6 @@
     "users": "ユーザーアカウントとアクセスの管理"
   },
   "notification": {
-    "active": "アクティブ",
     "cancel": "キャンセル",
     "collapse": "詳細を隠す",
     "contentLabel": "内容",
@@ -1938,7 +1984,6 @@
     "endTime": "終了時刻",
     "expand": "詳細を表示",
     "expired": "期限切れ",
-    "inactive": "非アクティブ",
     "isActive": "有効",
     "noNotifications": "お知らせはありません",
     "save": "保存",
@@ -2085,6 +2130,8 @@
     "changeAvatar": "アバターを変更",
     "changePassword": "パスワードを変更",
     "confirmPassword": "パスワードを確認",
+    "cloudSandbox": "クラウドサンドボックス",
+    "cloudSandboxDesc": "クラウドサンドボックスでコードを実行する前に、このポリシーに従って確認を求めます",
     "darkTheme": "ダーク",
     "defaultModel": "デフォルトモデル",
     "defaultModelDesc": "新しい会話のデフォルトモデルを選択",
@@ -2106,6 +2153,67 @@
     "lightTheme": "ライト",
     "limitedSupport": "一部対応",
     "loading": "読み込み中...",
+    "serverUrl": {
+      "title": "サーバー",
+      "desc": "アプリが接続する LambChat サーバーのアドレスです。変更するとアプリが再読み込みされ、再度ログインが必要になります。",
+      "change": "変更",
+      "cancel": "キャンセル",
+      "reset": "デフォルトに戻す",
+      "resetTitle": "実行時の設定をクリアし、インストールパッケージ既定のサーバーに戻します"
+    },
+    "localSandbox": {
+      "title": "ローカルサンドボックス",
+      "desc": "デスクトップアプリを介して、あなた自身のPC上でコマンドとファイル操作を実行します",
+      "statusOnline": "オンライン",
+      "statusOffline": "オフライン",
+      "version": "daemon {{version}}",
+      "processRunning": "実行中",
+      "processStopped": "停止済み",
+      "pairTitle": "LambChat アカウントでローカルサンドボックスをペアリングすると、この端末でコードを実行できます。",
+      "pairWithCurrent": "現在のアカウントでペアリング",
+      "pairOtherAccount": "または別のアカウントでペアリング：",
+      "pairNeedLogin": "ログインしていません。先にログインしてからペアリングしてください。",
+      "pairButton": "ペアリングして開始",
+      "paired": "ペアリング完了",
+      "policy": "実行確認ポリシー",
+      "policyOptions": {
+        "all": "すべての操作を確認",
+        "commands": "コマンドのみ確認",
+        "none": "確認なし"
+      },
+      "openWorkspaces": "ワークスペースを開く",
+      "openAudit": "監査フォルダを開く",
+      "restartDaemon": "daemon を再起動",
+      "needDesktop": "ローカルサンドボックスは現在オフラインです。LambChat デスクトップアプリでペアリングすると、ウェブでも利用できます。",
+      "webManaged": "ペアリング済みデスクトップアプリで管理",
+      "pairFailed": "ペアリングに失敗しました。認証情報を確認して再試行してください。",
+      "unpair": "ペアリング解除",
+      "unpaired": "ペアリングを解除しました",
+      "machines": "マイマシン",
+      "machinesDesc": "接続中のローカルサンドボックスマシン。セッションごとに実行先を選択でき、未選択時はデフォルト機を使用します。",
+      "machinesEmpty": "オンラインのマシンはありません",
+      "currentServer": "サーバー",
+      "setDefault": "デフォルトに設定",
+      "defaultBadge": "デフォルト",
+      "rename": "名前を変更",
+      "renameSave": "保存",
+      "renameCancel": "キャンセル",
+      "platform": {
+        "windows": "Windows",
+        "macos": "macOS",
+        "linux": "Linux",
+        "unknown": "不明"
+      },
+      "downloadCta": "ローカルサンドボックスをダウンロード",
+      "offlineBadge": "オフライン",
+      "lastSeen": {
+        "minutes": "{{minutes}}分前にオンライン",
+        "hours": "{{hours}}時間前にオンライン",
+        "days": "{{days}}日前にオンライン"
+      },
+      "forgetMachine": "このマシンを削除",
+      "forgetMachineConfirm": "「{{name}}」を削除しますか？名前とデフォルト設定が消去されます。"
+    },
     "maxPinnedModels": "最大{{max}}個のモデルをピン留めできます",
     "memoryToggle": "セッション横断メモリ",
     "mobileNotification": "モバイル通知",
@@ -2134,6 +2242,7 @@
     "realtimeNotificationDesc": "WebSocketでタスク完了通知を受け取る",
     "retry": "再試行",
     "roles": "ロール",
+    "sandbox": "サンドボックス",
     "searchModels": "モデルを検索",
     "sendBehavior": "送信動作",
     "sendOnEnter": "メッセージ送信",
@@ -2429,7 +2538,20 @@
     "bookmarks": {
       "description": "アウトラインやまとめなど重要なメッセージを保存し、いつでもワンクリックで戻れます。",
       "title": "メッセージブックマーク"
+    },
+    "download": {
+      "title": "ローカルサンドボックスのダウンロード"
     }
+  },
+  "serverSetup": {
+    "title": "LambChat サーバーに接続",
+    "desc": "サーバーアドレスを入力して開始します",
+    "label": "サーバーアドレス",
+    "connect": "接続",
+    "testing": "接続中…",
+    "fail": "サーバー応答異常（HTTP {{status}}）。アドレスを確認してください",
+    "unreachable": "このアドレスに接続できません。サーバーが起動しているか確認してください",
+    "invalid": "アドレスの形式が正しくありません"
   },
   "session": {
     "deleteFailed": "セッションの削除に失敗しました",
@@ -2540,7 +2662,7 @@
     "LANGFUSE_SECRET_KEY": "Langfuse シークレットキー",
     "LANGFUSE_HOST": "Langfuse サーバーアドレス",
     "LLM_FALLBACK_MODEL": "プライマリモデルが再試行後も失敗した場合（モデルごとのフォールバック未設定時）に切り替えるモデル（空欄で無効）",
-    "LLM_FIRST_EVENT_TIMEOUT": "ストリーミング応答の最初のproviderイベントを待つ秒数（0以下で無効。以降は合計時間やchunkアイドルのタイムアウトなし）",
+    "LLM_FIRST_EVENT_TIMEOUT": "ストリーミング応答の最初のproviderイベントを待つ秒数（0以下で無効。以降は合計時間の制限なし）",
     "LLM_MAX_RETRIES": "最初のLLM呼び出し失敗後の再試行回数（タイムアウト、ネットワーク、レート制限、5xx）",
     "LLM_MODEL_CACHE_SIZE": "LLMモデルインスタンスキャッシュサイズ（各インスタンス約10-30MB）。デフォルト50、マルチユーザー/マルチパラメータシナリオに対応。小さすぎると頻繁な作成/破棄、大きすぎるとメモリ消費増加。",
     "LLM_KV_CACHE": "OpenAI 互換リクエストに Codex と同じ KV キャッシュルーティングを適用します：/v1/responses と /v1/chat/completions の両方にセッション単位の prompt_cache_key を付与（responses では暗号化推論コンテンツの再生とステートレス store も含む）。プロバイダがこれらの標準フィールドを拒否する場合のみ無効化してください。",
@@ -2562,6 +2684,13 @@
     "MCP_SERVER_LOAD_CONCURRENCY": "MCP サーバー読み込みの並行数",
     "MCP_USER_CACHE_MAX_ENTRIES": "ユーザー別MCPキャッシュの最大エントリ数",
     "MCP_USER_CACHE_TTL_SECONDS": "ユーザー別MCPキャッシュTTL（秒）",
+    "MEMORY_EXTRACTION_ENABLED": "Codex 方式のアイドルセッション記憶抽出を有効にします。会話全体を出典参照付きの永続記憶に要約します。",
+    "MEMORY_EXTRACTION_IDLE_SECONDS": "セッション終了後、記憶抽出の対象になるまで待機する秒数。",
+    "MEMORY_EXTRACTION_INTERVAL_SECONDS": "記憶抽出待ちセッションをバックグラウンドで走査する間隔（秒）。",
+    "MEMORY_EXTRACTION_MAX_AGE_DAYS": "終了後この日数以内のセッションのみ抽出します。",
+    "MEMORY_EXTRACTION_MAX_ATTEMPTS": "1セッションの記憶抽出が失敗した場合の最大試行回数。",
+    "MEMORY_EXTRACTION_MAX_SESSIONS_PER_PASS": "1回の抽出処理で取得して処理するセッションの上限。",
+    "MEMORY_EXTRACTION_TRANSCRIPT_MAX_CHARS": "セッションごとに記憶抽出モデルへ送る会話記録の最大文字数。",
     "MEMORY_PERFORM": "使用するメモリプロバイダー",
     "MONGODB_AUTH_SOURCE": "MongoDB認証データベース",
     "MONGODB_DB": "MongoDBデータベース名",
@@ -2590,17 +2719,18 @@
     "NATIVE_MEMORY_HYDRATE_CONCURRENCY": "メモリハイドレーション（ストレージバックエンドから全コンテンツを復元）の並行数",
     "NATIVE_MEMORY_IMPORT_TOTAL_CONTENT_MAX_CHARS": "メモリインポート時の全アイテム最大合計コンテンツ文字数",
     "NATIVE_MEMORY_INDEX_CACHE_TTL": "メモリインデックスキャッシュTTL（秒、ユーザーごと）",
-    "NATIVE_MEMORY_INDEX_ENABLED": "コンテキスト認識のためにシステムプロンプトにメモリインデックスを挿入",
+    "NATIVE_MEMORY_INDEX_ENABLED": "コンパクトなメモリインデックスを memory_recall ツールの説明に追加し、モデルのリコール判断を支援します。インデックス自体は回答の根拠ではありません。",
     "NATIVE_MEMORY_INLINE_CONTENT_MAX_CHARS": "完全なメモリ本文をストレージバックエンドにオフロードする前に、MongoDBにインラインで保持する最大文字数。",
     "NATIVE_MEMORY_MAX_AUTO_RETAIN_PER_DAY": "ユーザーあたりの1日自動メモリ評価上限（0=無制限、デフォルト 20）",
-    "NATIVE_MEMORY_MAX_TOKENS": "メモリLLMレスポンスの最大トークン数（抽出、統合、再ランキング）。高い値は長い要約を生成するがコストが増加。",
+    "NATIVE_MEMORY_MAX_TOKENS": "メモリLLM呼び出し（抽出・統合・再ランキング）の出力トークン上限。0 = 無制限（デフォルト、モデルの既定上限を使用）。思考型モデルは無制限を推奨（思考ブロックが予算を圧迫し出力が途切れるため）。",
     "NATIVE_MEMORY_MODEL": "メモリ抽出、統合、再ランキング用のモデル設定。空の場合はデフォルトモデルを使用します。従来のモデル値も引き続きサポートされます。",
     "NATIVE_MEMORY_PRUNE_THRESHOLD": "アクセスされていないメモリが統合時に削除されるまでの日数",
     "NATIVE_MEMORY_QDRANT_API_KEY": "Qdrant APIキー（認証なしなら空欄）",
     "NATIVE_MEMORY_QDRANT_URL": "Qdrant サーバーアドレス（例: http://127.0.0.1:6333）",
-    "NATIVE_MEMORY_QUERY_CONTEXT_ENABLED": "各ターンのメッセージ作成時に関連メモリを自動付与（書き込み時注入、デフォルト無効）",
-    "NATIVE_MEMORY_QUERY_CONTEXT_MAX_CHARS": "注入ブロックの文字数予算（デフォルト 1200）",
-    "NATIVE_MEMORY_QUERY_CONTEXT_TOP_K": "1ターンに注入する関連メモリの上限（デフォルト 3）",
+    "NATIVE_MEMORY_QUERY_CONTEXT_ENABLED": "従来の自動クエリコンテキスト挿入との互換性のために残された設定です。現在の読み取り経路はユーザーメッセージへメモリを挿入せず、モデルが必要に応じて memory_recall を呼び出します。",
+    "NATIVE_MEMORY_QUERY_CONTEXT_MAX_CHARS": "従来の自動クエリコンテキスト挿入用文字数上限。現在のリコールツールインデックスでは使用されません。",
+    "NATIVE_MEMORY_QUERY_CONTEXT_TIMEOUT_SECONDS": "従来の自動クエリコンテキスト挿入用リコールタイムアウト。現在のリコールツールインデックスでは使用されません。",
+    "NATIVE_MEMORY_QUERY_CONTEXT_TOP_K": "従来の自動クエリコンテキスト挿入用結果上限。現在のリコールツールインデックスでは使用されません。",
     "NATIVE_MEMORY_RECALL_MIN_SCORE": "メモリリコール結果の最小関連性スコア",
     "NATIVE_MEMORY_RERANK_API_BASE": "ネイティブメモリ再ランキングモデルエンドポイントのAPIベースURL。",
     "NATIVE_MEMORY_RERANK_API_KEY": "ネイティブメモリ再ランキングモデルエンドポイントのAPIキー。",
@@ -2645,7 +2775,7 @@
     "S3_CUSTOM_DOMAIN": "S3ファイルのカスタムCDNドメイン",
     "S3_ENABLED": "ファイルアップロード用のS3互換ストレージを有効化",
     "S3_ENDPOINT_URL": "S3エンドポイントURL（MinIOとカスタムプロバイダーに必須）",
-    "S3_INTERNAL_UPLOAD_MAX_SIZE": "最大内部アップロードサイズ（バイト、デフォルト：50MB）",
+    "S3_INTERNAL_UPLOAD_MAX_SIZE": "統一ファイルサイズ上限（バイト、デフォルト 1GB）：reveal ファイル配信・ローカルサンドボックスダウンロード・S3 内部アップロードで共用。変更は即時反映、超過時は file_too_large エラー",
     "S3_MAX_FILE_SIZE": "最大ファイルサイズ（バイト、デフォルト：10MB）",
     "S3_PATH_STYLE": "パススタイルURLを使用（MinIOに必須）",
     "S3_PRESIGNED_URL_EXPIRES": "署名付きURL有効期限（秒、デフォルト：7日）",
@@ -2654,6 +2784,7 @@
     "S3_REGION": "S3リージョン",
     "S3_SECRET_KEY": "S3シークレットキー",
     "SANDBOX_GREP_TIMEOUT": "サンドボックスgrepコマンドのタイムアウト（秒）",
+    "SANDBOX_LOCAL_EXEC_TIMEOUT": "ローカルサンドボックスのコマンド実行タイムアウト（秒）。ハングしたコマンドは期限で強制終了され、変更は以降のコマンドに即時反映されます。",
     "SANDBOX_PLATFORM": "使用するサンドボックスプラットフォーム",
     "SESSION_EVENT_CHUNK_DUAL_WRITE_LEGACY": "分割保存した trace イベントを従来の events 配列にも書き込む",
     "SESSION_EVENT_CHUNK_SIZE": "各 trace event chunk ドキュメントに保存する最大イベント数",
@@ -2685,7 +2816,8 @@
     "WELCOME_SUGGESTION_ICON": "アイコン",
     "WELCOME_SUGGESTION_ITEM": "候補",
     "WELCOME_SUGGESTION_LANG": "言語",
-    "WELCOME_SUGGESTION_TEXT": "テキスト"
+    "WELCOME_SUGGESTION_TEXT": "テキスト",
+    "LLM_STREAM_IDLE_TIMEOUT": "ストリーミングchunk間の最大アイドル秒数。上游の停滞で実行が固まるのを防ぐ（0以下で無効）"
   },
   "settings": {
     "defaultModel": "デフォルトモデル",
@@ -2866,6 +2998,7 @@
     "noSessions": "まだチャットセッションがありません",
     "older": "それ以前",
     "open": "開く",
+    "pendingStatus": "待機中",
     "pinToTop": "ピン留め",
     "pinToggleFailed": "ピン留め状態の更新に失敗しました",
     "pinned": "ピン留めしました",
@@ -2886,6 +3019,7 @@
     "renameFailed": "セッション名の変更に失敗しました",
     "renamed": "セッション名が変更されました",
     "retry": "再試行",
+    "runningStatus": "実行中",
     "scrollToTop": "トップへ戻る",
     "searchResultCount": "{{count}} 件",
     "searchSessions": "セッションを検索",
@@ -3273,6 +3407,7 @@
   },
   "updateDownload": "今すぐ更新",
   "updateDownloading": "ダウンロード中...",
+  "updateDownloadNetworkError": "ダウンロードに失敗しました。ネットワークを確認して再試行してください",
   "updateError": "更新に失敗しました",
   "updateGoToDownload": "ダウンロードページへ",
   "updateNewVersion": "新バージョン {{version}} が利用可能",
@@ -3467,5 +3602,56 @@
     "sessionTitle": "この会話のブックマーク",
     "locating": "ブックマークを定位しています…",
     "messageMissing": "ブックマークのメッセージが履歴に見つかりません。削除された可能性があります"
+  },
+  "update": {
+    "aboutTitle": "について",
+    "checkNow": "更新を確認",
+    "notificationBody": "バージョン {{version}} が公開されました。設定で更新を確認してください",
+    "notificationTitle": "新バージョンがあります",
+    "upToDate": "最新バージョンです",
+    "installPermissionHint": "まず LambChat に不明なアプリのインストールを許可してから、再度アップグレードをタップしてください",
+    "updateRelaunchInstall": "再起動してインストール"
+  },
+  "download": {
+    "title": "ローカルサンドボックスのダウンロード",
+    "description": "Agent のコマンド実行とファイル操作を自分の PC で行えます——データは端末の外に出ません。",
+    "latestVersion": "最新バージョン：{{version}}",
+    "detectedPlatform": "この端末",
+    "back": "チャットに戻る",
+    "viewAllReleases": "GitHub ですべてのリリースを見る",
+    "loadFailed": "現在ダウンロードリンクを取得できません。GitHub Releases から最新パッケージを入手できます：",
+    "noAssets": "このリリースにはパッケージがありません。",
+    "desktop": {
+      "title": "デスクトップアプリ（推奨）",
+      "desc": "インストールして LambChat アカウントでログインすると自動でペアリングされ、Web からローカルサンドボックスを選択できます。"
+    },
+    "daemon": {
+      "title": "スタンドアロン daemon（サーバー / GUI なし）",
+      "desc": "サーバーや開発機で daemon を実行——デスクトップアプリは不要です。",
+      "usage": "使い方：プラットフォーム用のバイナリをダウンロードして実行権限を付け、サーバーにログインして起動し続けます。",
+      "binaries": "バイナリ"
+    },
+    "tutorial": {
+      "title": "ペアリングチュートリアル",
+      "step1": "デスクトップアプリをインストールして LambChat アカウントでログイン（自動ペアリング）。サーバー利用者は上記の daemon コマンドを実行してください。",
+      "step2": "LambChat の Web を開き、設定 → 環境設定 → サンドボックスでローカルサンドボックスが「オンライン」になっていることを確認します。",
+      "step3": "チャット入力欄の「サンドボックス」セレクターで「ローカル」に切り替えると、Agent が自分の PC で実行されます。"
+    },
+    "macInstall": {
+      "title": "ターミナル一行インストール（推奨）",
+      "body": "以下のコマンドをターミナルに貼り付けて実行すると、最新版を自動でダウンロード・インストールします。ターミナル経由のインストールでは「破損」表示は発生しません。"
+    },
+    "macGatekeeper": {
+      "title": "macOS 初回起動時の注意",
+      "body": "ブラウザーからダウンロードした公証されていないアプリは、初回起動時に「破損している」と表示されることがあります。LambChat を「アプリケーション」フォルダーにドラッグした後、ターミナルで以下のコマンドを実行して隔離フラグを解除すると、正常に起動できます："
+    },
+    "tag": "LambChat · ローカルサンドボックス",
+    "heroCta": "デスクトップアプリを入手",
+    "heroCtaTutorial": "ペアリングチュートリアルを見る",
+    "downloadFor": "{{platform}} 版をダウンロード",
+    "mobile": {
+      "title": "モバイルアプリ",
+      "desc": "LambChat Android クライアント（APK 直接インストール）。Web と同じアカウントでログインできます。"
+    }
   }
 }

@@ -98,7 +98,7 @@ export function PersonaScopeDropdown({
               }}
               role="menuitemradio"
               aria-checked={scopeFilter === key}
-              className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm transition-colors"
+              className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-14 transition-colors"
               style={{
                 background:
                   scopeFilter === key
@@ -114,7 +114,7 @@ export function PersonaScopeDropdown({
               <span className="flex-1 text-left">{label}</span>
               {typeof count === "number" && (
                 <span
-                  className="text-xs"
+                  className="text-12"
                   style={{ color: "var(--theme-text-secondary)" }}
                 >
                   {count}

@@ -61,7 +61,7 @@ export function RankingList({
           strokeWidth={2}
           className="shrink-0 text-theme-text-tertiary"
         />
-        <h3 className="min-w-0 flex-1 truncate text-13 font-bold text-theme-text sm:text-sm">
+        <h3 className="min-w-0 flex-1 truncate text-13 font-bold text-theme-text sm:text-14">
           {title}
         </h3>
         {items.length > 0 && (
@@ -74,7 +74,7 @@ export function RankingList({
       {/* Items */}
       <div className="flex flex-col gap-3">
         {items.length === 0 ? (
-          <p className="py-6 text-center text-xs text-theme-text-tertiary sm:py-8">
+          <p className="py-6 text-center text-12 text-theme-text-tertiary sm:py-8">
             {emptyLabel}
           </p>
         ) : (
@@ -85,10 +85,10 @@ export function RankingList({
             >
               <div className="mb-1 flex items-center gap-1.5 sm:gap-2">
                 <RankBadge rank={idx + 1} />
-                <span className="min-w-0 flex-1 truncate text-11 font-medium text-theme-text-secondary sm:text-xs">
+                <span className="min-w-0 flex-1 truncate text-11 font-medium text-theme-text-secondary sm:text-12">
                   {item.name || item.id || "-"}
                 </span>
-                <span className="shrink-0 text-11 font-bold tabular-nums text-theme-text sm:text-xs">
+                <span className="shrink-0 text-11 font-bold tabular-nums text-theme-text sm:text-12">
                   {fmt(item.tokens)}
                 </span>
               </div>
@@ -151,14 +151,14 @@ export function DistributionList({
           strokeWidth={2}
           className="shrink-0 text-theme-text-tertiary"
         />
-        <h3 className="min-w-0 flex-1 truncate text-13 font-bold text-theme-text sm:text-sm">
+        <h3 className="min-w-0 flex-1 truncate text-13 font-bold text-theme-text sm:text-14">
           {title}
         </h3>
       </div>
 
       <div className="flex flex-col gap-3">
         {items.length === 0 ? (
-          <p className="py-6 text-center text-xs text-theme-text-tertiary sm:py-8">
+          <p className="py-6 text-center text-12 text-theme-text-tertiary sm:py-8">
             {emptyLabel}
           </p>
         ) : (
@@ -170,10 +170,10 @@ export function DistributionList({
                 className="min-w-0 transition-transform duration-200 hover:-translate-y-px"
               >
                 <div className="mb-1 flex items-center justify-between gap-2">
-                  <span className="min-w-0 truncate text-11 font-medium text-theme-text-secondary sm:text-xs">
+                  <span className="min-w-0 truncate text-11 font-medium text-theme-text-secondary sm:text-12">
                     {item.name || item.id || "-"}
                   </span>
-                  <span className="shrink-0 text-11 font-bold tabular-nums text-theme-text sm:text-xs">
+                  <span className="shrink-0 text-11 font-bold tabular-nums text-theme-text sm:text-12">
                     {pct(share)}
                   </span>
                 </div>

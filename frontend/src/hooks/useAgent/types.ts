@@ -35,6 +35,7 @@ export type EventType =
   | "token:usage"
   | "skills:changed"
   | "queue_update"
+  | "status"
   | "goal:start"
   | "goal:end"
   | "complete"
@@ -48,6 +49,8 @@ export interface StreamEvent {
 
 export interface EventData {
   session_id?: string;
+  /** user:cancel 的中断原因（"steer" = 插话打断 ask_human 挂起） */
+  reason?: string;
   agent_id?: string;
   agent_name?: string;
   agent_avatar?: string;
@@ -127,6 +130,8 @@ export interface EventData {
   files_count?: number;
   // queue_update event fields
   status?: string;
+  // status event fields
+  stage?: string;
   queue_position?: number;
   // goal:start / goal:end event fields
   goal?: {
@@ -145,6 +150,8 @@ export interface EventData {
   updated_index?: number;
   // summary event fields
   summary_id?: string;
+  /** summary 事件：本次压缩释放的上下文 token 数（stats 事件 content 为空） */
+  freed_tokens?: number;
   // recommend:questions / followup:questions event fields
   questions?: Array<
     | string
@@ -202,6 +209,8 @@ export interface SubagentStackItem {
 // History event data structure
 export interface HistoryEventData {
   content?: string;
+  /** user:cancel 的中断原因（"steer" = 插话打断 ask_human 挂起） */
+  reason?: string;
   tool?: string;
   tool_call_id?: string;
   id?: string;

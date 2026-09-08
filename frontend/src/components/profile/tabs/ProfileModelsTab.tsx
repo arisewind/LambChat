@@ -15,14 +15,14 @@ export function ProfileModelsTab() {
   return (
     <div className="rounded-2xl bg-stone-50 dark:bg-stone-700/40 p-4 border border-stone-200/60 dark:border-stone-600/40">
       <div className="flex items-center gap-2 mb-3">
-        <Cpu size={15} className="text-amber-500 dark:text-amber-400" />
-        <h3 className="font-semibold font-serif uppercase tracking-wide text-stone-400 dark:text-stone-500">
+        <Cpu size={13} className="text-amber-500 dark:text-amber-400" />
+        <h3 className="text-12 font-semibold font-serif uppercase tracking-wider text-stone-400 dark:text-stone-500">
           {t("profile.modelIntro")}
         </h3>
       </div>
 
       {!availableModels || availableModels.length === 0 ? (
-        <p className="text-sm text-stone-400 dark:text-stone-500 py-4 text-center">
+        <p className="text-14 text-stone-400 dark:text-stone-500 py-4 text-center">
           {t("profile.noModels")}
         </p>
       ) : (
@@ -42,7 +42,7 @@ export function ProfileModelsTab() {
                   icon={model.icon}
                   size={22}
                 />
-                <span className="flex-1 min-w-0 text-sm font-medium text-stone-800 dark:text-stone-200 truncate">
+                <span className="flex-1 min-w-0 text-14 font-medium text-stone-800 dark:text-stone-200 truncate">
                   {model.label}
                 </span>
                 {model.provider && (
@@ -61,7 +61,7 @@ export function ProfileModelsTab() {
               </button>
               {expanded === model.id && model.description && (
                 <div className="px-3 pb-2.5 pt-0">
-                  <p className="text-xs text-stone-500 dark:text-stone-400 leading-relaxed">
+                  <p className="text-12 text-stone-500 dark:text-stone-400 leading-relaxed">
                     {model.description}
                   </p>
                 </div>

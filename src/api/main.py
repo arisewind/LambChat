@@ -40,6 +40,7 @@ from src.api.routes import (
     push,
     revealed_file,
     role,
+    sandbox,
     scheduled_task,
     session,
     session_queue,
@@ -55,6 +56,8 @@ from src.api.routes import (
 from src.api.routes import settings as settings_router
 from src.api.routes.agent import config as agent_config
 from src.api.routes.agent import model as agent_model
+from src.api.routes.auth import pat as auth_pat
+from src.api.startup_indexes import get_startup_index_initializers as _startup_index_initializers
 from src.frontend_resolution import resolve_frontend_target
 from src.infra.async_utils import run_blocking_io
 from src.infra.distributed_validation import validate_distributed_runtime_settings
@@ -115,6 +118,13 @@ _STALE_TASK_CLEANUP_RECHECK_DELAY_SECONDS = max(5.0, HEARTBEAT_TIMEOUT * 2 + 5)
 
 def _is_body_limit_exempt(scope: Scope) -> bool:
     path = str(scope.get("path") or "")
+
+    # 本地沙箱流式回传：二进制帧 chunked POST（无 Content-Length），端点自带
+    # 分级上限（总量 S3_INTERNAL_UPLOAD_MAX_SIZE + 1MiB、单帧 8MiB、断流哨兵
+    # 补齐），不归全局请求体门限管——否则 >8MiB 的流式下载必然 413，daemon
+    # 断通道重连、调用超时并连坐同机在飞调用。
+    if path.startswith("/api/sandbox/results/stream/"):
+        return True
 
     headers = {
         key.decode("latin-1").lower(): value.decode("latin-1")
@@ -353,144 +363,6 @@ async def _cancel_lifespan_background_tasks_for_shutdown(app: FastAPI) -> None:
     await _cancel_background_tasks(app, *_LIFESPAN_BACKGROUND_TASK_NAMES)
 
 
-def _startup_index_initializers():
-    async def _init_agent_config_storage() -> None:
-        from src.infra.agent.config_storage import get_agent_config_storage
-
-        await get_agent_config_storage().ensure_indexes()
-        logger.info("Agent config storage indexes initialized")
-
-    async def _init_model_storage() -> None:
-        from src.infra.agent.model_storage import get_model_storage
-
-        await get_model_storage().ensure_indexes()
-        logger.info("Model storage indexes initialized")
-
-    async def _init_channel_storage() -> None:
-        from src.infra.channel.channel_storage import ChannelStorage
-
-        await ChannelStorage().ensure_indexes_if_needed()
-        logger.info("Channel storage indexes initialized")
-
-    async def _init_skill_indexes() -> None:
-        from src.infra.skill import init_skill_indexes
-
-        await init_skill_indexes()
-        logger.info("Skill indexes initialized")
-
-    async def _init_trace_storage() -> None:
-        from src.infra.session.trace_storage import get_trace_storage
-
-        await get_trace_storage().ensure_indexes_if_needed()
-        logger.info("TraceStorage initialized")
-
-    async def _init_session_storage() -> None:
-        from src.infra.session.storage import SessionStorage
-
-        await SessionStorage().ensure_indexes_if_needed()
-        logger.info("SessionStorage indexes initialized")
-
-    async def _init_revealed_file_storage() -> None:
-        from src.infra.revealed_file.storage import get_revealed_file_storage
-
-        await get_revealed_file_storage().ensure_indexes_if_needed()
-        logger.info("RevealedFileStorage indexes initialized")
-
-    async def _init_notification_storage() -> None:
-        from src.infra.notification.storage import NotificationStorage
-
-        await NotificationStorage().create_indexes()
-        logger.info("NotificationStorage indexes initialized")
-
-    async def _init_push_subscription_storage() -> None:
-        from src.infra.push.storage import PushSubscriptionStorage
-
-        await PushSubscriptionStorage().create_indexes()
-        logger.info("PushSubscription indexes initialized")
-
-    async def _init_user_storage() -> None:
-        from src.infra.user.storage import UserStorage
-
-        await UserStorage().ensure_indexes_if_needed()
-        logger.info("UserStorage indexes initialized")
-
-    async def _init_usage_storage() -> None:
-        from src.infra.usage.storage import get_usage_storage
-
-        await get_usage_storage().ensure_indexes()
-        logger.info("UsageStorage indexes initialized")
-
-    async def _init_bookmark_storage() -> None:
-        from src.infra.bookmark.storage import BookmarkStorage
-
-        await BookmarkStorage().create_indexes()
-        logger.info("BookmarkStorage indexes initialized")
-
-    async def _init_pricing_storage() -> None:
-        from src.infra.pricing.storage import get_pricing_storage
-
-        await get_pricing_storage().ensure_indexes()
-        logger.info("PricingStorage indexes initialized")
-
-    async def _init_team_storage() -> None:
-        from src.infra.team.storage import TeamStorage
-
-        await TeamStorage().ensure_indexes()
-        logger.info("TeamStorage indexes initialized")
-
-    async def _init_project_storage() -> None:
-        from src.infra.folder.storage import ProjectStorage
-
-        await ProjectStorage().ensure_indexes()
-        logger.info("ProjectStorage indexes initialized")
-
-    async def _init_persona_preset_storage() -> None:
-        from src.infra.persona_preset.storage import PersonaPresetStorage
-
-        await PersonaPresetStorage().ensure_indexes()
-        logger.info("PersonaPresetStorage indexes initialized")
-
-    async def _init_role_storage() -> None:
-        from src.infra.role.storage import RoleStorage
-
-        await RoleStorage().ensure_indexes()
-        logger.info("RoleStorage indexes initialized")
-
-    async def _init_mcp_storage() -> None:
-        from src.infra.mcp.storage import MCPStorage
-
-        await MCPStorage().ensure_indexes()
-        logger.info("MCPStorage indexes initialized")
-
-    async def _init_file_record_storage() -> None:
-        from src.infra.upload.file_record import FileRecordStorage
-
-        await FileRecordStorage().initialize_indexes()
-        logger.info("FileRecordStorage indexes initialized")
-
-    return [
-        ("agent_config_storage", _init_agent_config_storage),
-        ("model_storage", _init_model_storage),
-        ("channel_storage", _init_channel_storage),
-        ("skill_indexes", _init_skill_indexes),
-        ("trace_storage", _init_trace_storage),
-        ("session_storage", _init_session_storage),
-        ("revealed_file_storage", _init_revealed_file_storage),
-        ("notification_storage", _init_notification_storage),
-        ("push_subscription_storage", _init_push_subscription_storage),
-        ("user_storage", _init_user_storage),
-        ("usage_storage", _init_usage_storage),
-        ("team_storage", _init_team_storage),
-        ("project_storage", _init_project_storage),
-        ("persona_preset_storage", _init_persona_preset_storage),
-        ("role_storage", _init_role_storage),
-        ("mcp_storage", _init_mcp_storage),
-        ("file_record_storage", _init_file_record_storage),
-        ("pricing_storage", _init_pricing_storage),
-        ("bookmark_storage", _init_bookmark_storage),
-    ]
-
-
 async def _initialize_startup_indexes() -> None:
     """Initialize independent storage indexes concurrently before serving traffic."""
 
@@ -522,6 +394,16 @@ async def lifespan(app: FastAPI):
     """应用生命周期管理"""
     # 启动时初始化
     logger.info("%s v%s starting...", settings.APP_NAME, settings.APP_VERSION)
+
+    # 登记主事件循环：本地沙箱同步文件操作的协程桥接统一投递到该循环，
+    # 共享 redis.asyncio 连接池不再跨循环复用（2026-09-06 生产事故修复）
+    from src.infra.async_utils import loop_bridge
+
+    loop_bridge.set_main_loop(asyncio.get_running_loop())
+    # 复位进程关闭标志（进程复用/热重载场景），随后才允许扫描/恢复入口工作
+    from src.infra.task.lifecycle import clear_shutting_down
+
+    clear_shutting_down()
 
     # 初始化日志系统
     setup_logging()
@@ -677,7 +559,15 @@ async def lifespan(app: FastAPI):
     finally:
         # 关闭时清理
         from src.agents import AgentFactory
+        from src.infra.async_utils import loop_bridge
         from src.infra.sandbox import SandboxFactory
+
+        loop_bridge.clear_main_loop()
+        # 第一时间置进程关闭标志：此后周期扫描/孤儿接管不再发起新的恢复，
+        # 否则依赖逐个断开期间，垂死实例会把恢复任务塞给自己并随即被杀掉。
+        from src.infra.task.lifecycle import mark_shutting_down
+
+        mark_shutting_down()
 
         # 先关闭飞书长连接并释放 lease，避免快速重启时旧锁阻止新实例启动。
         await _stop_feishu_channels_for_shutdown(app)
@@ -831,6 +721,8 @@ def create_app() -> FastAPI:
     # Model 配置路由: /api/agent/models CRUD
     app.include_router(agent_model.router, prefix="/api/agent/models", tags=["Models"])
     app.include_router(auth.router, prefix="/api/auth", tags=["Auth"])
+    # PAT 个人访问令牌管理: /api/auth/pat CRUD
+    app.include_router(auth_pat.router, prefix="/api/auth/pat", tags=["Auth"])
     app.include_router(user.router, prefix="/api/users", tags=["Users"])
     app.include_router(role.router, prefix="/api/roles", tags=["Roles"])
     app.include_router(
@@ -870,6 +762,8 @@ def create_app() -> FastAPI:
     app.include_router(
         scheduled_task.router, prefix="/api/scheduled-tasks", tags=["Scheduled Tasks"]
     )
+    # Sandbox daemon 中继: /api/sandbox channel/results/status
+    app.include_router(sandbox.router, prefix="/api/sandbox", tags=["Sandbox"])
     # WebSocket 路由: /ws 用于实时通知
     app.include_router(websocket.router, tags=["WebSocket"])
 

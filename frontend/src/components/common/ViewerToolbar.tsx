@@ -95,7 +95,7 @@ export function ViewerToolbar({
           icon={<ZoomOut size={18} />}
         />
 
-        <span className="min-w-[48px] sm:min-w-[52px] text-center text-white/70 text-xs sm:text-sm font-medium tabular-nums">
+        <span className="min-w-[48px] sm:min-w-[52px] text-center text-white/70 text-12 sm:text-14 font-medium tabular-nums">
           {scalePercentage}%
         </span>
 

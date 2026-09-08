@@ -63,7 +63,7 @@ export function SandboxItem({
       }
       suffix={
         status === "ready" && sandboxId ? (
-          <span className="text-xs font-mono font-medium min-w-0 truncate overflow-hidden leading-none">
+          <span className="text-12 font-mono font-medium min-w-0 truncate overflow-hidden leading-none">
             {t("chat.sandboxId", { id: sandboxId })}
           </span>
         ) : undefined
@@ -75,7 +75,7 @@ export function SandboxItem({
       {isExpanded && hasDetails && (
         <div className="mt-1 ml-4 pl-3 border-l-2 border-theme-border max-h-40 overflow-y-auto">
           {status === "ready" && (
-            <div className="text-xs text-theme-text pl-1 py-0.5 font-mono flex items-center gap-1.5">
+            <div className="text-12 text-theme-text pl-1 py-0.5 font-mono flex items-center gap-1.5">
               {sandboxId && (
                 <span>{t("chat.sandboxId", { id: sandboxId })}</span>
               )}
@@ -87,14 +87,14 @@ export function SandboxItem({
             </div>
           )}
           {status === "error" && (
-            <div className="text-xs text-red-600 dark:text-red-400 pl-1 py-0.5">
+            <div className="text-12 text-red-600 dark:text-red-400 pl-1 py-0.5">
               {error || t("chat.sandboxInitFailed")}
               {durationText &&
                 ` · ${t("chat.sandbox.elapsed", { duration: durationText })}`}
             </div>
           )}
           {status === "cancelled" && (
-            <div className="text-xs text-amber-600 dark:text-amber-400 pl-1 py-1">
+            <div className="text-12 text-amber-600 dark:text-amber-400 pl-1 py-1">
               {t("chat.cancelled")}
               {durationText &&
                 ` · ${t("chat.sandbox.elapsed", { duration: durationText })}`}

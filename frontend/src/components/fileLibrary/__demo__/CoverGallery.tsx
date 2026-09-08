@@ -105,7 +105,8 @@ const DEMO_FILES: RevealedFileItem[] = [
   file({
     file_name: "季度财务报表.xlsx",
     file_type: "document",
-    mime_type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    mime_type:
+      "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
     url: `${OSS_BASE}/report.xlsx`,
   }),
   file({
@@ -119,8 +120,8 @@ const DEMO_FILES: RevealedFileItem[] = [
 function noop() {}
 
 export function CoverGalleryDemo() {
-  const [dark, setDark] = useState(
-    () => document.documentElement.classList.contains("dark"),
+  const [dark, setDark] = useState(() =>
+    document.documentElement.classList.contains("dark"),
   );
 
   const toggleTheme = () => {
@@ -134,10 +135,10 @@ export function CoverGalleryDemo() {
       <div className="mx-auto max-w-6xl">
         <div className="mb-6 flex items-center justify-between">
           <div>
-            <h1 className="text-lg font-semibold text-theme-text">
+            <h1 className="text-18 font-semibold text-theme-text">
               Studio Covers · 16:9
             </h1>
-            <p className="mt-1 text-xs text-theme-text-tertiary">
+            <p className="mt-1 text-12 text-theme-text-tertiary">
               dev-only gallery — 真实 RevealedFileCard，覆盖全部封面类型
             </p>
           </div>
@@ -161,7 +162,7 @@ export function CoverGalleryDemo() {
           ))}
         </div>
 
-        <h2 className="mb-3 mt-10 text-sm font-semibold text-theme-text">
+        <h2 className="mb-3 mt-10 text-14 font-semibold text-theme-text">
           List view · compact tiles
         </h2>
         <div className="space-y-2">

@@ -21,6 +21,7 @@ import type {
 } from "./types";
 import { convertAttachments, processMessageEvent } from "./eventProcessor";
 import { clearAllLoadingStates, createToolPart } from "./messageParts";
+import { markInterruptedBySteer } from "./steerTurnSplit";
 import { parseDate } from "../../utils/datetime";
 
 function resolveUserMessageId(
@@ -46,6 +47,12 @@ interface ProcessHistoryOptions {
       metadata?: Record<string, unknown>;
     }) => void;
   };
+  /** 审批状态查询回调：无论 pending 与否都会收到，用于补收尾历史幽灵 pill。 */
+  onApprovalLookup?: (approval: {
+    id: string;
+    status: string;
+    metadata?: Record<string, unknown> | null;
+  }) => void;
   activeSubagentStack: SubagentStackItem[];
 }
 
@@ -87,7 +94,9 @@ const STEER_REPLY_TEXT_EVENTS = new Set(["thinking", "message:chunk"]);
  * 文本事件（thinking / message:chunk），插到该文本块开始处。带
  * created_at 的新版事件按注入时刻写入，位置天然正确，直接跳过。
  */
-function anchorLegacySteerMessageEvents(events: HistoryEvent[]): HistoryEvent[] {
+function anchorLegacySteerMessageEvents(
+  events: HistoryEvent[],
+): HistoryEvent[] {
   const anchored = [...events];
   for (let i = 0; i < anchored.length; i += 1) {
     const event = anchored[i];
@@ -170,6 +179,9 @@ function processHistoryEvent(
       message?: string;
       type?: string;
       fields?: FormField[];
+      /** sandbox_confirm = 沙箱确认门（服务端 origin 标记）：执行卡 +
+       * 审批面板已完整表达，不合成 ask_human 工具卡（避免一次执行双卡） */
+      origin?: string;
     };
     if (!currentAssistantMessage) {
       currentAssistantMessage = {
@@ -182,11 +194,20 @@ function processHistoryEvent(
         runId: event.run_id,
       };
     }
+    // 沙箱确认门（origin=sandbox_confirm）：执行卡（等待确认→结果）+
+    // 审批面板已完整表达，不合成 ask_human 工具卡（避免一次执行双卡）；
+    // 常规审批（ask_human/定时任务）保持合成，历史回放与直播对齐。
     // approval_required.id is the persisted approval id; resolution events
     // identify the tool part by tool_call_id. Keep the tool part keyed by the
     // latter so historical approvals resolve exactly like live events.
     const toolCallId = approvalData.tool_call_id || approvalData.id;
+    // 旧数据兜底：origin 标记上线前落库的沙箱确认事件，按确认门固定文案
+    // 前缀识别（后端 local.py 硬编码中文，稳定）
+    const isSandboxConfirm =
+      approvalData.origin === "sandbox_confirm" ||
+      /^确认(在本机|上传)/.test(approvalData.message || "");
     if (
+      !isSandboxConfirm &&
       toolCallId &&
       !currentAssistantMessage.parts?.some(
         (part) => part.type === "tool" && part.id === toolCallId,
@@ -210,8 +231,12 @@ function processHistoryEvent(
         ],
       };
     }
-    if (approvalData.id && opts.options?.onApprovalRequired) {
+    if (
+      approvalData.id &&
+      (opts.options?.onApprovalRequired || opts.onApprovalLookup)
+    ) {
       authFetch<{
+        id?: string;
         status: string;
         message?: string;
         type?: string;
@@ -220,6 +245,15 @@ function processHistoryEvent(
       }>(buildApiUrl(`/human/${approvalData.id}`))
         .then((data) => data ?? null)
         .then((approval) => {
+          if (approval?.id) {
+            // 无论 pending 与否都上报：已决的 scheduled-task 审批要在此
+            // 补收尾历史幽灵 pill（旧版事件没有 approval_resolved 可回放）
+            opts.onApprovalLookup?.({
+              id: approval.id,
+              status: approval.status,
+              metadata: approval.metadata ?? null,
+            });
+          }
           if (approval?.status === "pending") {
             opts.options?.onApprovalRequired?.({
               id: approvalData.id!,
@@ -339,9 +373,7 @@ function resetInterruptedAssistantForResume(
 }
 
 export function normalizeEventRunIds(events: HistoryEvent[]): HistoryEvent[] {
-  const prevRunIdByIndex: Array<string | undefined> = new Array(
-    events.length,
-  );
+  const prevRunIdByIndex: Array<string | undefined> = new Array(events.length);
   let lastSeenRunId: string | undefined;
   for (let index = 0; index < events.length; index++) {
     prevRunIdByIndex[index] = lastSeenRunId;
@@ -349,9 +381,7 @@ export function normalizeEventRunIds(events: HistoryEvent[]): HistoryEvent[] {
     if (runId) lastSeenRunId = runId;
   }
 
-  const nextRunIdByIndex: Array<string | undefined> = new Array(
-    events.length,
-  );
+  const nextRunIdByIndex: Array<string | undefined> = new Array(events.length);
   let nextSeenRunId: string | undefined;
   for (let index = events.length - 1; index >= 0; index--) {
     nextRunIdByIndex[index] = nextSeenRunId;
@@ -413,7 +443,8 @@ export function reconstructMessagesFromEvents(
     // Handle steer message separately（独立事件，不参与用户消息去重）
     if (eventType === "steer:message") {
       if (currentAssistantMessage) {
-        pushMessage(currentAssistantMessage);
+        // 插话即打断：封存的前一段回答标记「已停止」，与实时分割视觉一致
+        pushMessage(markInterruptedBySteer(currentAssistantMessage));
         currentAssistantMessage = null;
       }
       const steerData = eventData as HistoryEventData & {
@@ -502,6 +533,9 @@ export function reconstructMessagesFromEvents(
 
     // Handle user cancel
     if (eventType === "user:cancel") {
+      // reason=steer：插话打断 ask_human 挂起。已停止是状态行文字切换
+      // （cancelled 标志 → RunStepsCollapse「已停止」），不追加已取消胶囊。
+      const steerInterrupted = eventData.reason === "steer";
       if (currentAssistantMessage) {
         const clearedParts = clearAllLoadingStates(
           currentAssistantMessage.parts || [],
@@ -521,10 +555,12 @@ export function reconstructMessagesFromEvents(
           ...currentAssistantMessage,
           isStreaming: false,
           cancelled: true,
-          parts: [...updatedParts, { type: "cancelled" as const }],
+          parts: steerInterrupted
+            ? updatedParts
+            : [...updatedParts, { type: "cancelled" as const }],
         };
         pushMessage(updatedMessage);
-      } else {
+      } else if (!steerInterrupted) {
         pushMessage({
           id: uuid(),
           role: "assistant",
@@ -839,4 +875,82 @@ export function extractGoalsByRunFromEvents(
   }
 
   return goalsByRunId;
+}
+
+/**
+ * 补收尾历史幽灵 ask_human pill：scheduled_task_create 的确认审批
+ * （approval_required 事件）会生成 ask_human pill，但工具结果带的是
+ * scheduled_task_create 自己的 tool_call_id，pill 永远停在「加载中」。
+ * 新版后端会写 approval_resolved 事件；旧数据靠审批终态查询在此兜底。
+ */
+export function resolveLegacyScheduledTaskApproval(
+  messages: Message[],
+  approval: {
+    id: string;
+    status: string;
+    metadata?: Record<string, unknown> | null;
+  },
+): Message[] {
+  if (
+    !approval?.id ||
+    approval.status === "pending" ||
+    approval.metadata?.approval_type !== "scheduled_task_create"
+  ) {
+    return messages;
+  }
+
+  const approved = approval.status === "approved";
+  const resultStatus = approved
+    ? "success"
+    : approval.status === "expired" || approval.status === "timeout"
+      ? "timeout"
+      : "rejected";
+
+  let changed = false;
+  const next = messages.map((message) => {
+    const hasPhantom = message.parts?.some(
+      (part) =>
+        part.type === "tool" &&
+        part.name === "ask_human" &&
+        part.id === approval.id &&
+        part.isPending,
+    );
+    if (!hasPhantom) return message;
+    changed = true;
+    return {
+      ...message,
+      parts: message.parts?.map((part) =>
+        part.type === "tool" &&
+        part.name === "ask_human" &&
+        part.id === approval.id &&
+        part.isPending
+          ? {
+              ...part,
+              isPending: false,
+              success: approved,
+              result: {
+                status: resultStatus,
+                message: `Scheduled task creation ${approval.status}.`,
+                values: {},
+              },
+            }
+          : part,
+      ),
+    };
+  });
+  return changed ? next : messages;
+}
+
+/** 构造 onApprovalLookup 回调：查到已决 scheduled-task 审批时补收尾幽灵 pill。 */
+export function createScheduledTaskApprovalLookup(
+  setMessages: (updater: (previous: Message[]) => Message[]) => void,
+) {
+  return (approval: {
+    id: string;
+    status: string;
+    metadata?: Record<string, unknown> | null;
+  }) =>
+    setMessages((previous) =>
+      resolveLegacyScheduledTaskApproval(previous, approval),
+    );
 }

@@ -13,6 +13,7 @@ import {
 } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { CollapsiblePill } from "../../../common";
+import { useToolStreamingLabel } from "./useToolStreamingLabel";
 import { extractText } from "./toolUtils";
 import {
   openToolLivePanel,
@@ -166,7 +167,7 @@ function MemoryRecallDetail({ args, result }: ToolDetailProps) {
       {resultQuery && (
         <div className="flex items-center gap-2.5 px-3.5 py-2.5 rounded-xl bg-[color-mix(in_srgb,var(--theme-primary)_7%,var(--theme-bg-card))] border border-[color-mix(in_srgb,var(--theme-primary)_16%,var(--theme-border))] shadow-[0_10px_24px_-22px_color-mix(in_srgb,var(--theme-primary)_45%,transparent)]">
           <Search size={14} className="text-[var(--theme-primary)] shrink-0" />
-          <span className="text-sm sm:text-base text-theme-text min-w-0 truncate flex-1">
+          <span className="text-14 sm:text-16 text-theme-text min-w-0 truncate flex-1">
             {resultQuery}
           </span>
           {searchMode && (
@@ -211,7 +212,7 @@ function MemoryRecallDetail({ args, result }: ToolDetailProps) {
                     <div className="flex items-start gap-2">
                       <div className="flex-1 min-w-0">
                         {mem.title && (
-                          <div className="text-sm sm:text-base font-semibold text-theme-text truncate leading-snug tracking-tight">
+                          <div className="text-14 sm:text-16 font-semibold text-theme-text truncate leading-snug tracking-tight">
                             {mem.title}
                           </div>
                         )}
@@ -220,7 +221,7 @@ function MemoryRecallDetail({ args, result }: ToolDetailProps) {
 
                     {/* Summary / content preview */}
                     {(mem.summary || mem.preview) && (
-                      <p className="text-xs sm:text-sm text-theme-text-secondary/80 leading-relaxed line-clamp-3">
+                      <p className="text-12 sm:text-14 text-theme-text-secondary/80 leading-relaxed line-clamp-3">
                         {mem.summary || mem.preview}
                       </p>
                     )}
@@ -233,7 +234,7 @@ function MemoryRecallDetail({ args, result }: ToolDetailProps) {
                       {/* Type badge */}
                       <span
                         className={clsx(
-                          "inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-xs font-medium",
+                          "inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-12 font-medium",
                           typeStyle,
                         )}
                       >
@@ -248,7 +249,7 @@ function MemoryRecallDetail({ args, result }: ToolDetailProps) {
                       {sourceStyle && (
                         <span
                           className={clsx(
-                            "inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-xs font-medium",
+                            "inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-12 font-medium",
                             sourceStyle,
                           )}
                         >
@@ -263,7 +264,7 @@ function MemoryRecallDetail({ args, result }: ToolDetailProps) {
                       )}
 
                       {/* Date */}
-                      <span className="inline-flex items-center gap-1 text-xs text-theme-text-tertiary ml-auto">
+                      <span className="inline-flex items-center gap-1 text-12 text-theme-text-tertiary ml-auto">
                         <Clock size={10} className="opacity-50" />
                         {formatDate(mem.created_at, t)}
                       </span>
@@ -276,7 +277,7 @@ function MemoryRecallDetail({ args, result }: ToolDetailProps) {
                           size={13}
                           className="text-amber-500 dark:text-amber-400 shrink-0 mt-0.5"
                         />
-                        <span className="text-xs text-amber-700 dark:text-amber-300 leading-relaxed">
+                        <span className="text-12 text-amber-700 dark:text-amber-300 leading-relaxed">
                           {mem.staleness_warning}
                         </span>
                       </div>
@@ -291,7 +292,7 @@ function MemoryRecallDetail({ args, result }: ToolDetailProps) {
 
       {/* Raw result fallback */}
       {result && memories.length === 0 && !resultQuery && (
-        <pre className="group/result relative text-xs text-theme-text-tertiary whitespace-pre-wrap break-words p-3 rounded-lg bg-theme-bg border border-theme-border">
+        <pre className="group/result relative text-12 text-theme-text-tertiary whitespace-pre-wrap break-words p-3 rounded-lg bg-theme-bg border border-theme-border">
           {(() => {
             const text = extractText(result);
             return text.length > 600 ? text.slice(0, 597) + "…" : text;
@@ -392,12 +393,19 @@ const MemoryRecallItem = memo(function MemoryRecallItem({
         } (${memories.length})`
       : t("chat.message.toolMemoryRecall");
 
+  // 进行中：标签学「思考中」，平滑流出正在生成的参数尾部
+  const { label, isStreamingLabel } = useToolStreamingLabel(pillLabel, args, {
+    isPending,
+    result,
+  });
+
   return (
     <>
       <CollapsiblePill
         status={pillStatus}
         icon={<Brain size={12} className="shrink-0 opacity-50" />}
-        label={pillLabel}
+        label={label}
+        animatedDots={isStreamingLabel}
         variant="tool"
         expandable={canExpand}
         onPanelOpen={() => {
@@ -429,7 +437,7 @@ const MemoryRecallItem = memo(function MemoryRecallItem({
                   size={12}
                   className="text-[var(--theme-primary)] shrink-0"
                 />
-                <span className="text-xs text-theme-text-secondary min-w-0 truncate flex-1">
+                <span className="text-12 text-theme-text-secondary min-w-0 truncate flex-1">
                   {resultQuery.length > 50
                     ? resultQuery.slice(0, 47) + "…"
                     : resultQuery}
@@ -455,7 +463,7 @@ const MemoryRecallItem = memo(function MemoryRecallItem({
                       >
                         {t(`memory.type.${mem.type}`, mem.type)}
                       </span>
-                      <span className="text-xs text-theme-text-secondary min-w-0 truncate flex-1">
+                      <span className="text-12 text-theme-text-secondary min-w-0 truncate flex-1">
                         {mem.title ||
                           (mem.summary
                             ? mem.summary.slice(0, 40)
@@ -468,8 +476,8 @@ const MemoryRecallItem = memo(function MemoryRecallItem({
                   );
                 })}
                 {memories.length > 5 && (
-                  <div className="text-xs text-theme-text-tertiary px-2.5">
-                    {t("chat.message.toolMoreFiles", {
+                  <div className="text-12 text-theme-text-tertiary px-2.5">
+                    {t("chat.message.toolMoreMemories", {
                       count: memories.length - 5,
                     })}
                   </div>
@@ -478,7 +486,7 @@ const MemoryRecallItem = memo(function MemoryRecallItem({
             )}
 
             {result && memories.length === 0 && !resultQuery && (
-              <pre className="group/result relative text-xs text-theme-text-tertiary whitespace-pre-wrap break-words overflow-y-auto min-w-0">
+              <pre className="group/result relative text-12 text-theme-text-tertiary whitespace-pre-wrap break-words overflow-y-auto min-w-0">
                 {(() => {
                   const text = extractText(result);
                   return text.length > 300 ? text.slice(0, 297) + "…" : text;

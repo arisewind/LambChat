@@ -33,42 +33,114 @@ jobs:
       fail-fast: false
       matrix:
         include:
+      # pbs_platform：fetch-pbs.py 的 --platform 取值（内嵌 Python 运行时
+      # 归档按平台落 resources/python/<tag>/，与 daemon 平台一一对应）
+      # updater_*：即发即传时增量合并 latest.json 的平台条目（macOS 走
+      # .app.tar.gz updater 产物，dmg 仅用于首装不分发更新）
           - label: Linux x86_64
             runner: ubuntu-latest
             bundles: appimage,deb,rpm
             artifact_slug: linux-x86_64
             arch: x86_64
+            pbs_platform: linux-x86_64
+            updater_key: linux-x86_64
+            updater_sig: "*_amd64.AppImage.sig"
+            updater_asset_suffix: Linux-x86_64.AppImage
           - label: Linux ARM64
             runner: ubuntu-24.04-arm
             bundles: appimage,deb,rpm
             artifact_slug: linux-arm64
             arch: arm64
+            pbs_platform: linux-aarch64
+            updater_key: linux-aarch64
+            updater_sig: "*_aarch64.AppImage.sig"
+            updater_asset_suffix: Linux-arm64.AppImage
           - label: Windows
             runner: windows-2022
             bundles: msi
             artifact_slug: windows
-          - label: macOS
+            pbs_platform: windows-x86_64
+            updater_key: windows-x86_64
+            updater_sig: "*_x64_en-US.msi.sig"
+            updater_asset_suffix: Windows.msi
+          # macOS 双架构（M5）：两条目都在 macos-14（arm64）上构建——Rust 侧
+          # 交叉编译 x86_64（rustup target），daemon 侧由 build-daemon.sh 的
+          # Rosetta 路径产 x86_64 sidecar（PyInstaller 不支持交叉编译）。
+          # asset_suffix 带架构：双 mac 构建产物不得同名互踩。
+          - label: macOS Apple Silicon
             runner: macos-14
-            bundles: dmg
-            artifact_slug: macos
-            target: universal-apple-darwin
+            bundles: dmg,app
+            artifact_slug: macos-apple-silicon
+            target: aarch64-apple-darwin
+            asset_suffix: macOS-Apple-Silicon
+            pbs_platform: macos-arm64
+            updater_key: darwin-aarch64
+            updater_sig: "*-macOS-Apple-Silicon.app.tar.gz.sig"
+            updater_asset_suffix: macOS-Apple-Silicon.app.tar.gz
+          - label: macOS Intel
+            runner: macos-14
+            bundles: dmg,app
+            artifact_slug: macos-intel
+            target: x86_64-apple-darwin
+            asset_suffix: macOS-Intel
+            pbs_platform: macos-x64
+            updater_key: darwin-x86_64
+            updater_sig: "*-macOS-Intel.app.tar.gz.sig"
+            updater_asset_suffix: macOS-Intel.app.tar.gz
 
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Validate app URL
+      # 版本漂移曾导致 v2.8.2 release 的 latest.json 写入 2.8.1、桌面端永远
+      # 检测不到更新：tag 与各端版本文件不一致时立即失败，而不是静默产出
+      # 错误清单。
+      - name: Preflight version consistency
         shell: bash
         run: |
-          test -n "$LAMBCHAT_APP_URL"
-          case "$LAMBCHAT_APP_URL" in
-            https://*) ;;
-            *) echo "LAMBCHAT_APP_URL must be an https:// URL"; exit 1 ;;
-          esac
+          set -euo pipefail
+          tag="${RELEASE_TAG#v}"
+          pkg="$(node -p 'require("./frontend/package.json").version')"
+          tauri="$(node -p 'JSON.parse(require("fs").readFileSync("frontend/src-tauri/tauri.conf.json","utf8")).version')"
+          gradle_name="$(grep -E '^\s+versionName' frontend/android/app/build.gradle | sed -E 's/.*versionName "([^"]+)".*/\1/')"
+          gradle_code="$(grep -E '^\s+versionCode' frontend/android/app/build.gradle | sed -E 's/.*versionCode ([0-9]+).*/\1/')"
+          ios="$(grep -m1 'MARKETING_VERSION' frontend/ios/App/App.xcodeproj/project.pbxproj | sed -E 's/.*= ([^;]+);.*/\1/')"
+          pyproject="$(grep -m1 '^version = ' pyproject.toml | sed -E 's/version = "([^"]+)"/\1/')"
+          daemon="$(grep -m1 '^__version__ = ' client/lambchat_sandbox/__init__.py | sed -E 's/__version__ = "([^"]+)"/\1/')"
+          want_code="$(printf '%s' "$tag" | tr -d '.')"
+          fail=0
+          for entry in "frontend/package.json=$pkg" "tauri.conf.json=$tauri" "android versionName=$gradle_name" "iOS MARKETING_VERSION=$ios" "pyproject.toml=$pyproject" "daemon __version__=$daemon"; do
+            k="${entry%%=*}"; v="${entry#*=}"
+            if [ "$v" != "$tag" ]; then echo "✗ $k is $v, expected $tag"; fail=1; fi
+          done
+          if [ "$gradle_code" != "$want_code" ]; then
+            echo "✗ android versionCode is $gradle_code, expected $want_code (digits of $tag)"; fail=1
+          fi
+          if [ "$fail" != 0 ]; then
+            echo "Version drift detected: bump ALL platform version files before tagging $RELEASE_TAG"
+            exit 1
+          fi
+          echo "All platform versions match $tag"
+
+      - name: Validate app URL (optional)
+        # app_url 可选：提供则构建期烘焙为默认服务器（VITE_API_BASE）；
+        # 缺省打「运行时配置」包——安装后首启设置屏填 base_url 即可用。
+        shell: bash
+        run: |
+          if [ -n "$LAMBCHAT_APP_URL" ]; then
+            case "$LAMBCHAT_APP_URL" in
+              https://*) ;;
+              *) echo "LAMBCHAT_APP_URL must be an https:// URL"; exit 1 ;;
+            esac
+          else
+            echo "LAMBCHAT_APP_URL not set: building runtime-configured package (first-run setup)"
+          fi
 
       - name: Install Linux desktop dependencies
         if: runner.os == 'Linux'
         run: |
+          # xdg-utils：tauri deb 打包要拷贝 /usr/bin/xdg-open 入包；x86_64 官方
+          # 镜像预装、ubuntu-24.04-arm 不带（缺失时 deb bundle 直接失败）
           sudo apt-get update
           sudo apt-get install -y \
             build-essential \
@@ -78,7 +150,8 @@ jobs:
             libayatana-appindicator3-dev \
             librsvg2-dev \
             patchelf \
-            rpm
+            rpm \
+            xdg-utils
 
       - name: Setup pnpm
         uses: pnpm/action-setup@v4
@@ -95,10 +168,10 @@ jobs:
       - name: Setup Rust
         uses: dtolnay/rust-toolchain@stable
 
-      - name: Add macOS universal Rust targets
+      - name: Add macOS Rust target
         if: runner.os == 'macOS'
-        run: |
-          rustup target add aarch64-apple-darwin x86_64-apple-darwin
+        # 双架构条目各取所需（Intel 条目在 arm64 宿主上交叉编译 x86_64）
+        run: rustup target add ${{ matrix.target }}
 
       - name: Install frontend dependencies
         run: pnpm install --frozen-lockfile
@@ -118,6 +191,40 @@ jobs:
           "TMP=D:\temp" | Out-File -FilePath $env:GITHUB_ENV -Append
           New-Item -ItemType Directory -Force D:\pnpm-store,D:\npm-cache,D:\temp | Out-Null
 
+      # M4：daemon sidecar（PyInstaller onefile → binaries/lambchat-daemon-<triple>，
+      # Windows 为 <triple>.exe）三平台同链路。externalBin 声明了该产物且
+      # binaries/ 被 gitignore，缺此步 Tauri 打包必败。直调 build-daemon.sh
+      # 而非 make client-build-daemon：windows-2022 镜像不预装 GNU make。
+      # uv 安装方式与 lint.yml 保持一致。
+      - name: Install uv
+        uses: astral-sh/setup-uv@v4
+
+      - name: Set up Python
+        run: uv python install 3.12
+
+      - name: Build sandbox daemon sidecar (PyInstaller)
+        shell: bash
+        env:
+          # uv 安装方式与 lint.yml 保持一致。DAEMON_TARGET_TRIPLE：与
+          # Tauri --target 对齐的 sidecar triple（Intel 条目在 arm64 宿主上
+          # 触发 build-daemon.sh 的 Rosetta 路径；Linux/Windows 无 target 键
+          # → 空串 → 宿主探测，行为不变）。
+          DAEMON_TARGET_TRIPLE: ${{ matrix.target || '' }}
+          # uv.lock pins a CN mirror; GH-hosted runners throttle under
+          # uv's 50 parallel downloads (same mitigation as lint.yml).
+          UV_CONCURRENT_DOWNLOADS: "8"
+        run: |
+          uv sync --group dev || (sleep 15 && uv sync --group dev)
+          bash client/scripts/build-daemon.sh
+
+      # M4：内嵌 Python 运行时（python-build-standalone install_only 归档，
+      # ~111MB/平台）落到 tauri resources 约定位置，使 bundle.resources 有货。
+      # tar.gz 由 daemon 首启解压（lambchat_sandbox.pbs.ensure_runtime）。
+      # 产物体积大且随 PBS_TAG 锁定可复现，CI 缓存后加（本任务不做）。
+      - name: Fetch embedded Python runtime (PBS)
+        shell: bash
+        run: uv run python client/scripts/fetch-pbs.py --platform ${{ matrix.pbs_platform }}
+
       - name: Build desktop package with Tauri
         env:
           TAURI_BUNDLES: ${{ matrix.bundles }}
@@ -127,6 +234,50 @@ jobs:
           CARGO_BUILD_JOBS: 1
         run: pnpm package:desktop
         working-directory: frontend
+
+      # macOS 签名门禁：v2.8.4 及更早的 .app 没有 bundle 封印（无
+      # _CodeSignature/CodeResources，Tauri 无 signingIdentity 时跳过签名），
+      # 浏览器下载带隔离标记后被 Gatekeeper 判「已损坏」。signingIdentity "-"
+      # 让 Tauri 在产出 dmg/updater 产物前 ad-hoc 封印 bundle。
+      # runtime 标志必须在打包期就 absence（tauri.conf.json hardenedRuntime:
+      # false）：PyInstaller 运行时解包出的内嵌 dylib 是构建期 ad-hoc 签名
+      # （无团队 ID），hardened runtime 隐含的 library validation 下 dlopen 即
+      # SIGKILL——v2.9.2 macOS「daemon 起不来」的根因。不能打包后重封 sidecar
+      # 补救：改内嵌二进制会破坏外层 CodeResources 封印（deep verify 必红），
+      # 且 updater .app.tar.gz 在 Tauri 打包期已生成，重封晚于归档、包内仍是
+      # 坏字节。本步只验证不修改：sidecar 无 runtime 标志 + bundle 封印 +
+      # 嵌套可执行逐一签名（arm64 内核要求全部可执行代码至少 ad-hoc 签名），
+      # 签名标志显式打印作 CI 证据。
+      - name: Verify macOS code signing (sidecar must have no runtime flag)
+        if: runner.os == 'macOS'
+        shell: bash
+        run: |
+          set -euo pipefail
+          app_path="$(find frontend/src-tauri/target -path '*/release/bundle/macos/*.app' -type d | head -1)"
+          if [ -z "$app_path" ]; then
+            echo "No .app bundle found to verify"
+            exit 1
+          fi
+          daemon_bin="$app_path/Contents/MacOS/lambchat-daemon"
+          if [ -f "$daemon_bin" ]; then
+            echo "== daemon sidecar signature =="
+            codesign -dv --verbose=4 "$daemon_bin" 2>&1 | grep -E "Signature|flags|TeamIdentifier|Identifier=" || true
+            # 门禁：CodeDirectory flags 不得含 runtime (0x10000)——应在打包期由
+            # tauri.conf.json 的 hardenedRuntime: false 保证，出现即打包链回归
+            if codesign -dv --verbose=4 "$daemon_bin" 2>&1 | grep -E "flags=0x[0-9a-f]*1[0-9a-f]{4}"; then
+              echo "!! daemon sidecar 带 runtime 标志——检查 tauri.conf.json 的 bundle.macOS.hardenedRuntime 是否为 false"
+              exit 1
+            fi
+          fi
+          echo "Verifying bundle seal: $app_path"
+          test -f "$app_path/Contents/_CodeSignature/CodeResources"
+          codesign --verify --deep --strict --verbose=2 "$app_path"
+          # 嵌套可执行（daemon sidecar）逐一验证
+          while IFS= read -r -d '' bin; do
+            echo "Verifying nested executable: $bin"
+            codesign --verify --verbose=2 "$bin"
+          done < <(find "$app_path/Contents/MacOS" -type f -perm -111 -print0)
+          echo "OK: .app sealed (ad-hoc, no runtime flag on sidecar), all nested executables signed"
 
       - name: Collect Linux desktop artifacts
         if: runner.os == 'Linux'
@@ -156,6 +307,8 @@ jobs:
             echo "No Linux desktop artifacts found"
             exit 1
           fi
+          # daemon sidecar 资产：保留 triple 原名（selfupdate 按 lambchat-daemon-<triple> 前缀匹配）
+          cp frontend/src-tauri/binaries/lambchat-daemon-* release-assets/
 
       - name: Collect Windows desktop artifacts
         if: runner.os == 'Windows'
@@ -186,6 +339,8 @@ jobs:
           ) -Encoding UTF8
           Compress-Archive -Path "$portableDir/*" -DestinationPath "release-assets/LambChat-$env:RELEASE_TAG-Windows-Portable.zip" -Force
           Remove-Item -Recurse -Force $portableDir
+          # daemon sidecar 资产：保留 triple 原名（selfupdate 按 lambchat-daemon-<triple> 前缀匹配）
+          Copy-Item 'frontend/src-tauri/binaries/lambchat-daemon-*.exe' 'release-assets/'
 
       - name: Collect macOS desktop artifacts
         if: runner.os == 'macOS'
@@ -206,11 +361,26 @@ jobs:
             exit 1
           fi
           if [ -n "$app_path" ]; then
-            ditto -c -k --sequesterRsrc --keepParent "$app_path" "release-assets/LambChat-${RELEASE_TAG}-macOS.zip"
+            ditto -c -k --sequesterRsrc --keepParent "$app_path" "release-assets/LambChat-${RELEASE_TAG}-${{ matrix.asset_suffix }}.zip"
           else
             echo "No macOS .app bundle found; uploading DMG only."
           fi
-          cp "$dmg_path" "release-assets/LambChat-${RELEASE_TAG}-macOS.dmg"
+          cp "$dmg_path" "release-assets/LambChat-${RELEASE_TAG}-${{ matrix.asset_suffix }}.dmg"
+          # Tauri updater 的 macOS 产物（createUpdaterArtifacts + 签名密钥）。
+          # 缺失会让本架构 darwin 条目被静默略过、mac 永远收不到更新，
+          # 因此这里直接失败而不是跳过。
+          app_tgz="$(find "$bundle_root" -path '*/release/bundle/*' -name '*.app.tar.gz' -type f | sort | head -1 || true)"
+          if [ -z "$app_tgz" ]; then
+            echo "No macOS .app.tar.gz updater artifact found (requires TAURI_SIGNING_PRIVATE_KEY)"
+            exit 1
+          fi
+          cp "$app_tgz" "release-assets/LambChat-${RELEASE_TAG}-${{ matrix.updater_asset_suffix }}"
+          cp "$app_tgz".sig "release-assets/LambChat-${RELEASE_TAG}-${{ matrix.updater_asset_suffix }}.sig"
+          # 稳定名副本（一键安装脚本按 releases/latest/download/<稳定名> 直链
+          # 下载，免版本号解析、免 API 限流）。双架构各一份稳定名。
+          cp "$app_tgz" "release-assets/LambChat-${{ matrix.asset_suffix }}-latest.app.tar.gz"
+          # daemon sidecar 资产：保留 triple 原名（selfupdate 按 lambchat-daemon-<triple> 前缀匹配）
+          cp frontend/src-tauri/binaries/lambchat-daemon-* release-assets/
 
       - name: Collect updater manifest artifacts
         shell: bash
@@ -220,12 +390,117 @@ jobs:
           find frontend/src-tauri/target -name "*.sig" -exec cp {} release-assets/ \; 2>/dev/null || true
           ls -la release-assets/ 2>/dev/null || true
 
+      # 打包产物冒烟门禁：v2.9.0~v2.9.2 的三次生产事故（sidecar 路径、Windows
+      # 弹终端/卡死、macOS 内嵌库签名击杀）全部只在用户装包后才暴露——CI 从
+      # 未真正运行过打包产物里的 daemon。本步在**真实打包产物**上跑 daemon
+      # version：macOS 直接执行 .app 内的 sidecar（签名/dylib 击杀当场红）、
+      # Linux 解包 deb 后执行（同时锁布局：sidecar 与主程序同级且去 triple）、
+      # Windows 执行构建产物 sidecar。输出必须等于 tag 版本。
+      - name: Packaged daemon smoke (version assert)
+        if: runner.os != 'Linux' || matrix.arch == 'amd64'
+        shell: bash
+        run: |
+          set -euo pipefail
+          expected="${RELEASE_TAG#v}"
+          run_daemon() {
+            local bin="$1"
+            echo "== smoke: $bin =="
+            actual="$("$bin" version | tail -1 | tr -d '\r')"
+            echo "version -> $actual (expect $expected)"
+            [ "$actual" = "$expected" ]
+          }
+          case "${{ runner.os }}" in
+            macOS)
+              app_path="$(find frontend/src-tauri/target -path '*/release/bundle/macos/*.app' -type d | head -1)"
+              run_daemon "$app_path/Contents/MacOS/lambchat-daemon"
+              ;;
+            Linux)
+              deb="$(find frontend/src-tauri/target -name '*.deb' -type f | head -1)"
+              mkdir -p /tmp/deb-x && dpkg-deb -x "$deb" /tmp/deb-x
+              # 布局断言：externalBin 落位主程序同目录且去 triple（v2.9.0 路径事故锚点）
+              test -x /tmp/deb-x/usr/bin/lambchat
+              run_daemon /tmp/deb-x/usr/bin/lambchat-daemon
+              ;;
+            Windows)
+              run_daemon "frontend/src-tauri/binaries/lambchat-daemon-x86_64-pc-windows-msvc.exe"
+              ;;
+          esac
+          echo "OK: packaged daemon smoke passed"
+
       - name: Upload desktop artifacts
         uses: actions/upload-artifact@v4
         with:
           name: LambChat-${{ matrix.artifact_slug }}-${{ env.RELEASE_TAG }}
           path: release-assets/*
           if-no-files-found: error
+
+      # 即发即传：本平台构建完成立即上传 Release，不等六端汇总。多 job 并发
+      # 创建同一 Release 的竞态用「已存在即跳过 + 退避重试」收敛；重跑同一
+      # tag 时 --clobber 原地替换同名资产。
+      - name: Publish desktop assets to release immediately
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          for delay in 0 5 15; do
+            if [ "$delay" -gt 0 ]; then sleep "$delay"; fi
+            if gh release view "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+              break
+            fi
+            if gh release create "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" \
+              --target "$GITHUB_SHA" --title "LambChat $RELEASE_TAG" \
+              --generate-notes >/dev/null 2>&1; then
+              break
+            fi
+          done
+          gh release view "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" >/dev/null
+          gh release upload "$RELEASE_TAG" release-assets/* --clobber --repo "$GITHUB_REPOSITORY"
+
+      # latest.json 增量合并：本平台 sig 就绪即把平台条目并入已发布的
+      # latest.json（下载-合并-上传）。并发读合写的丢条目竞态由汇总 job 的
+      # 权威重生成兜底。node 合并：三平台镜像都装了 Node，规避 Windows 无
+      # python3 的可执行名差异。
+      - name: Merge updater platform entry into latest.json
+        if: matrix.updater_key != ''
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          UPDATER_KEY: ${{ matrix.updater_key }}
+          UPDATER_SIG: ${{ matrix.updater_sig }}
+          UPDATER_ASSET_SUFFIX: ${{ matrix.updater_asset_suffix }}
+        run: |
+          set -euo pipefail
+          sig_file="$(compgen -G "release-assets/$UPDATER_SIG" | head -1 || true)"
+          if [ -z "$sig_file" ]; then
+            echo "No sig matches $UPDATER_SIG; skip latest.json merge"
+            exit 0
+          fi
+          export SIG_FILE="$sig_file"
+          rm -f latest.json
+          gh release download "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" \
+            --pattern latest.json --dir . >/dev/null 2>&1 || true
+          node -e '
+            const fs = require("fs");
+            const key = process.env.UPDATER_KEY;
+            const signature = fs.readFileSync(process.env.SIG_FILE, "utf8").trim();
+            const asset = `LambChat-${process.env.RELEASE_TAG}-${process.env.UPDATER_ASSET_SUFFIX}`;
+            const base = `https://github.com/${process.env.GITHUB_REPOSITORY}/releases/download/${process.env.RELEASE_TAG}`;
+            let manifest = {};
+            if (fs.existsSync("latest.json")) {
+              try { manifest = JSON.parse(fs.readFileSync("latest.json", "utf8")); } catch {}
+            }
+            manifest.platforms = manifest.platforms || {};
+            manifest.platforms[key] = { signature, url: `${base}/${asset}` };
+            // 版本必须取自 tag：v2.8.2 发布时 tauri.conf.json 仍写 2.8.1，
+            // 导致 latest.json 报 2.8.1、桌面端永远检测不到更新。
+            manifest.version = process.env.RELEASE_TAG.replace(/^v/, "");
+            manifest.notes = `LambChat ${process.env.RELEASE_TAG}`;
+            manifest.pub_date = new Date().toISOString().replace(/\.\d+Z$/, "Z");
+            fs.writeFileSync("latest.json", JSON.stringify(manifest, null, 2));
+            console.log("latest.json platforms:", Object.keys(manifest.platforms).sort().join(", "));
+          '
+          gh release upload "$RELEASE_TAG" latest.json --clobber --repo "$GITHUB_REPOSITORY"
 
   android:
     name: Android
@@ -236,6 +511,35 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+
+      # 同 desktop job：版本漂移在打包前拦截（v2.8.2 的 APK versionName 仍
+      # 写 2.8.1 就是这类漂移）
+      - name: Preflight version consistency
+        shell: bash
+        run: |
+          set -euo pipefail
+          tag="${RELEASE_TAG#v}"
+          pkg="$(node -p 'require("./frontend/package.json").version')"
+          tauri="$(node -p 'JSON.parse(require("fs").readFileSync("frontend/src-tauri/tauri.conf.json","utf8")).version')"
+          gradle_name="$(grep -E '^\s+versionName' frontend/android/app/build.gradle | sed -E 's/.*versionName "([^"]+)".*/\1/')"
+          gradle_code="$(grep -E '^\s+versionCode' frontend/android/app/build.gradle | sed -E 's/.*versionCode ([0-9]+).*/\1/')"
+          ios="$(grep -m1 'MARKETING_VERSION' frontend/ios/App/App.xcodeproj/project.pbxproj | sed -E 's/.*= ([^;]+);.*/\1/')"
+          pyproject="$(grep -m1 '^version = ' pyproject.toml | sed -E 's/version = "([^"]+)"/\1/')"
+          daemon="$(grep -m1 '^__version__ = ' client/lambchat_sandbox/__init__.py | sed -E 's/__version__ = "([^"]+)"/\1/')"
+          want_code="$(printf '%s' "$tag" | tr -d '.')"
+          fail=0
+          for entry in "frontend/package.json=$pkg" "tauri.conf.json=$tauri" "android versionName=$gradle_name" "iOS MARKETING_VERSION=$ios" "pyproject.toml=$pyproject" "daemon __version__=$daemon"; do
+            k="${entry%%=*}"; v="${entry#*=}"
+            if [ "$v" != "$tag" ]; then echo "✗ $k is $v, expected $tag"; fail=1; fi
+          done
+          if [ "$gradle_code" != "$want_code" ]; then
+            echo "✗ android versionCode is $gradle_code, expected $want_code (digits of $tag)"; fail=1
+          fi
+          if [ "$fail" != 0 ]; then
+            echo "Version drift detected: bump ALL platform version files before tagging $RELEASE_TAG"
+            exit 1
+          fi
+          echo "All platform versions match $tag"
 
       - name: Validate app URL
         run: |
@@ -320,6 +624,28 @@ jobs:
           path: release-assets/*
           if-no-files-found: error
 
+      # 即发即传：不等六端汇总（与 desktop job 同款创建竞态收敛）
+      - name: Publish Android assets to release immediately
+        if: steps.android-artifact.outputs.has_artifact == 'true'
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          for delay in 0 5 15; do
+            if [ "$delay" -gt 0 ]; then sleep "$delay"; fi
+            if gh release view "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+              break
+            fi
+            if gh release create "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" \
+              --target "$GITHUB_SHA" --title "LambChat $RELEASE_TAG" \
+              --generate-notes >/dev/null 2>&1; then
+              break
+            fi
+          done
+          gh release view "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" >/dev/null
+          gh release upload "$RELEASE_TAG" release-assets/* --clobber --repo "$GITHUB_REPOSITORY"
+
   ios:
     name: iOS
     runs-on: macos-latest
@@ -328,14 +654,47 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Validate app URL
+      # 同 desktop/android job：版本漂移在打包前拦截
+      - name: Preflight version consistency
         shell: bash
         run: |
-          test -n "$LAMBCHAT_APP_URL"
-          case "$LAMBCHAT_APP_URL" in
-            https://*) ;;
-            *) echo "LAMBCHAT_APP_URL must be an https:// URL"; exit 1 ;;
-          esac
+          set -euo pipefail
+          tag="${RELEASE_TAG#v}"
+          pkg="$(node -p 'require("./frontend/package.json").version')"
+          tauri="$(node -p 'JSON.parse(require("fs").readFileSync("frontend/src-tauri/tauri.conf.json","utf8")).version')"
+          gradle_name="$(grep -E '^\s+versionName' frontend/android/app/build.gradle | sed -E 's/.*versionName "([^"]+)".*/\1/')"
+          gradle_code="$(grep -E '^\s+versionCode' frontend/android/app/build.gradle | sed -E 's/.*versionCode ([0-9]+).*/\1/')"
+          ios="$(grep -m1 'MARKETING_VERSION' frontend/ios/App/App.xcodeproj/project.pbxproj | sed -E 's/.*= ([^;]+);.*/\1/')"
+          pyproject="$(grep -m1 '^version = ' pyproject.toml | sed -E 's/version = "([^"]+)"/\1/')"
+          daemon="$(grep -m1 '^__version__ = ' client/lambchat_sandbox/__init__.py | sed -E 's/__version__ = "([^"]+)"/\1/')"
+          want_code="$(printf '%s' "$tag" | tr -d '.')"
+          fail=0
+          for entry in "frontend/package.json=$pkg" "tauri.conf.json=$tauri" "android versionName=$gradle_name" "iOS MARKETING_VERSION=$ios" "pyproject.toml=$pyproject" "daemon __version__=$daemon"; do
+            k="${entry%%=*}"; v="${entry#*=}"
+            if [ "$v" != "$tag" ]; then echo "✗ $k is $v, expected $tag"; fail=1; fi
+          done
+          if [ "$gradle_code" != "$want_code" ]; then
+            echo "✗ android versionCode is $gradle_code, expected $want_code (digits of $tag)"; fail=1
+          fi
+          if [ "$fail" != 0 ]; then
+            echo "Version drift detected: bump ALL platform version files before tagging $RELEASE_TAG"
+            exit 1
+          fi
+          echo "All platform versions match $tag"
+
+      - name: Validate app URL (optional)
+        # app_url 可选：提供则构建期烘焙为默认服务器（VITE_API_BASE）；
+        # 缺省打「运行时配置」包——安装后首启设置屏填 base_url 即可用。
+        shell: bash
+        run: |
+          if [ -n "$LAMBCHAT_APP_URL" ]; then
+            case "$LAMBCHAT_APP_URL" in
+              https://*) ;;
+              *) echo "LAMBCHAT_APP_URL must be an https:// URL"; exit 1 ;;
+            esac
+          else
+            echo "LAMBCHAT_APP_URL not set: building runtime-configured package (first-run setup)"
+          fi
 
       - name: Setup pnpm
         uses: pnpm/action-setup@v4
@@ -394,6 +753,27 @@ jobs:
           path: release-assets/*
           if-no-files-found: error
 
+      # 即发即传：不等六端汇总（与 desktop job 同款创建竞态收敛）
+      - name: Publish iOS archive to release immediately
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          for delay in 0 5 15; do
+            if [ "$delay" -gt 0 ]; then sleep "$delay"; fi
+            if gh release view "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+              break
+            fi
+            if gh release create "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" \
+              --target "$GITHUB_SHA" --title "LambChat $RELEASE_TAG" \
+              --generate-notes >/dev/null 2>&1; then
+              break
+            fi
+          done
+          gh release view "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" >/dev/null
+          gh release upload "$RELEASE_TAG" release-assets/* --clobber --repo "$GITHUB_REPOSITORY"
+
   release:
     name: Publish GitHub Release
     runs-on: ubuntu-latest
@@ -402,8 +782,18 @@ jobs:
       - android
       - ios
     if: always()
+    # 即发即传改造后本 job 的职责：① 权威重生成完整 latest.json（修复各
+    # 平台增量合并的读-合-写竞态丢条目）；② 部分平台失败时的打捞重发
+    # （needs + always()，资产已即时上传的 --clobber 原地替换幂等）。
 
     steps:
+      # checkout 必须先于 artifact 下载：actions/checkout@v4.2+ 在 init 前
+      # "Deleting the contents of <workspace>"——放下载之后会把已下载的
+      # release-assets/ 整目录清掉（v0.2.0-rc1 首发实测：latest.json 步骤
+      # ENOENT + 全平台 sig glob 落空）。
+      - name: Checkout repository (app version for updater manifest)
+        uses: actions/checkout@v4
+
       - name: Download release artifacts
         uses: actions/download-artifact@v4
         with:
@@ -420,31 +810,25 @@ jobs:
           find release-assets -type f -print
           test "$(find release-assets -type f | wc -l)" -gt 0
 
-      - name: Merge updater manifests into latest.json
+      - name: Generate latest.json updater manifest
+        # 公共生成器（scripts/generate_updater_manifest.py，与手动 publish
+        # 工作流共用）。烘焙门控：仓库变量 DESKTOP_UPDATER_AUTO_PUBLISH != true
+        # 时 latest.json 不随出包上传——资产在 Release 上可供手工验证，但
+        # 桌面端自更新不感知，待人工/真机抽检后跑 Publish Updater 工作流才
+        # 真正推送（v2.9.0~v2.9.2 三连热修的流程性根治）。
+        env:
+          RELEASE_TAG: ${{ env.RELEASE_TAG }}
+          ASSET_DIR: release-assets
         run: |
-          python3 -c "
-          import json, glob, os
-          platform_files = glob.glob('release-assets/latest*.json') or glob.glob('release-assets/*-latest.json')
-          if not platform_files:
-              print('No updater manifests found')
-              exit(0)
-          merged = {}
-          for f in sorted(platform_files):
-              data = json.load(open(f))
-              if 'platforms' in data:
-                  merged['platforms'] = merged.get('platforms', {})
-                  merged['platforms'].update(data['platforms'])
-              if 'version' not in merged and 'version' in data:
-                  merged['version'] = data['version']
-              if 'notes' not in merged and 'notes' in data:
-                  merged['notes'] = data['notes']
-              if 'pub_date' not in merged and 'pub_date' in data:
-                  merged['pub_date'] = data['pub_date']
-          if merged:
-              with open('release-assets/latest.json', 'w') as out:
-                  json.dump(merged, out, indent=2)
-              print(f'Merged {len(platform_files)} manifests into latest.json')
-          "
+          set -euo pipefail
+          python3 scripts/generate_updater_manifest.py || {
+            echo "!! latest.json 平台不齐——见上方 WARN"; exit 1; }
+          if [ "${{ vars.DESKTOP_UPDATER_AUTO_PUBLISH }}" != "true" ]; then
+            rm -f release-assets/latest.json
+            echo "::notice::出包完成（烘焙态）：latest.json 未上传。真机抽检后到 Actions 跑 Desktop Updater Publish（tag: ${RELEASE_TAG}）推给桌面端。"
+          else
+            echo "::notice::DESKTOP_UPDATER_AUTO_PUBLISH=true——latest.json 随包发布"
+          fi
 
       - name: Publish release
         uses: softprops/action-gh-release@v2
@@ -454,3 +838,41 @@ jobs:
           files: release-assets/*
           fail_on_unmatched_files: true
           generate_release_notes: true
+
+      # macOS 安装引导：无 Apple 开发者证书只能 ad-hoc 签名，浏览器下载的
+      # 未公证包首次打开会被 Gatekeeper 判「已损坏」。Release Notes 固定附
+      # xattr 解法（与下载页 macOS 分区提示同一命令）；marker 保证重跑幂等。
+      - name: Append macOS Gatekeeper install note
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          gh release view "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" --json body -q .body > body.md || true
+          if grep -q "macos-gatekeeper-note" body.md 2>/dev/null; then
+            echo "Gatekeeper note already present; skip"
+            exit 0
+          fi
+          cat >> body.md <<'NOTE'
+
+          ---
+
+          <!-- macos-gatekeeper-note -->
+          ### macOS 安装提示 / macOS install note
+
+          推荐终端一键安装（curl 下载无隔离标记，装完直接可用）：
+          `curl -fsSL https://lambchat.com/install.sh | sh`
+
+          浏览器下载 dmg 首次打开若提示「已损坏，无法打开」：将 LambChat 拖入
+          「应用程序」文件夹后，在「终端」执行 `xattr -cr /Applications/LambChat.app`，
+          再启动即可。
+
+          Recommended: install from Terminal with one line (curl downloads carry no
+          quarantine flag, the app just works):
+          `curl -fsSL https://lambchat.com/install.sh | sh`
+
+          If you downloaded the dmg in a browser and macOS reports the app as damaged:
+          drag LambChat into Applications, run
+          `xattr -cr /Applications/LambChat.app` in Terminal, then launch it.
+          NOTE
+          gh release edit "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" --notes-file body.md

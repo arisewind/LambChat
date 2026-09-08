@@ -8,6 +8,7 @@ import {
   toolDetailPropsFromPanelData,
   type ToolDetailProps,
 } from "./ToolLivePanelContent";
+import { useToolStreamingLabel } from "./useToolStreamingLabel";
 import { ToolArgsBlock } from "./ToolArgsBlock";
 import { ToolInlineDetails } from "./ToolInlineDetails";
 import { ToolDurationFooter } from "./ToolDurationFooter";
@@ -68,7 +69,7 @@ function SkillSearchDetail({ args, result }: ToolDetailProps) {
   const hasRawFallback = !!result && matches.length === 0;
 
   return (
-    <div className="space-y-3 max-h-full overflow-y-auto p-2 sm:p-4">
+    <div className="flex h-full min-h-0 flex-col space-y-3 overflow-y-auto p-2 sm:p-4 [&_pre]:!max-h-none">
       {query && (
         <ToolArgsBlock size="detail">
           <Search
@@ -93,12 +94,12 @@ function SkillSearchDetail({ args, result }: ToolDetailProps) {
                   size={13}
                   className="shrink-0 text-violet-500 dark:text-violet-400"
                 />
-                <span className="text-sm font-semibold text-theme-text truncate">
+                <span className="text-14 font-semibold text-theme-text truncate">
                   {match.name}
                 </span>
               </div>
               {match.description && (
-                <p className="text-xs text-theme-text-secondary leading-relaxed line-clamp-3">
+                <p className="text-12 text-theme-text-secondary leading-relaxed line-clamp-3">
                   {match.description}
                 </p>
               )}
@@ -120,7 +121,7 @@ function SkillSearchDetail({ args, result }: ToolDetailProps) {
       )}
 
       {hasRawFallback && (
-        <pre className="group/result relative text-xs text-theme-text-tertiary whitespace-pre-wrap break-words p-3 rounded-lg bg-theme-bg border border-theme-border">
+        <pre className="group/result relative text-12 text-theme-text-tertiary whitespace-pre-wrap break-words p-3 rounded-lg bg-theme-bg border border-theme-border">
           {truncate(extractText(result as never), 600)}
           <ToolHoverCopyButton
             text={extractText(result as never)}
@@ -177,6 +178,12 @@ const SkillSearchItem = memo(function SkillSearchItem({
     matches.length > 0 ? ` (${matches.length})` : ""
   }`.trim();
 
+  // 进行中：标签学「思考中」，平滑流出正在生成的参数尾部
+  const { label, isStreamingLabel } = useToolStreamingLabel(pillLabel, args, {
+    isPending,
+    result,
+  });
+
   const detailContent = canExpand && (
     <SkillSearchDetail
       args={args}
@@ -193,7 +200,8 @@ const SkillSearchItem = memo(function SkillSearchItem({
     <CollapsiblePill
       status={status}
       icon={<Sparkles size={12} className="shrink-0 opacity-50" />}
-      label={pillLabel}
+      label={label}
+      animatedDots={isStreamingLabel}
       variant="tool"
       formatLabel={false}
       expandable={canExpand}
@@ -238,7 +246,7 @@ const SkillSearchItem = memo(function SkillSearchItem({
                     size={11}
                     className="shrink-0 text-violet-500 dark:text-violet-400 opacity-70"
                   />
-                  <span className="text-xs text-theme-text font-medium min-w-0 truncate flex-1">
+                  <span className="text-12 text-theme-text font-medium min-w-0 truncate flex-1">
                     {match.name}
                   </span>
                   {match.tags[0] && (
@@ -249,7 +257,7 @@ const SkillSearchItem = memo(function SkillSearchItem({
                 </div>
               ))}
               {matches.length > 4 && (
-                <div className="text-xs text-theme-text-tertiary px-2.5">
+                <div className="text-12 text-theme-text-tertiary px-2.5">
                   {t("chat.message.toolSkillMore", {
                     count: matches.length - 4,
                   })}

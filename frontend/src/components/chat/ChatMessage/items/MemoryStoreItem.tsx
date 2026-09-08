@@ -16,6 +16,7 @@ import {
 } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { CollapsiblePill, CopyButton } from "../../../common";
+import { useToolStreamingLabel } from "./useToolStreamingLabel";
 import { extractText } from "./toolUtils";
 import {
   openToolLivePanel,
@@ -112,7 +113,7 @@ function MemoryStoreDetail({
             size={14}
             className="text-[var(--theme-success)] shrink-0"
           />
-          <span className="text-xs sm:text-sm text-theme-text flex-1">
+          <span className="text-12 sm:text-14 text-theme-text flex-1">
             {action === "delete"
               ? t("chat.message.toolMemoryDeleteSuccess")
               : isUpdate
@@ -133,7 +134,7 @@ function MemoryStoreDetail({
             size={14}
             className="text-[var(--theme-error)] shrink-0"
           />
-          <span className="text-xs sm:text-sm text-theme-text flex-1">
+          <span className="text-12 sm:text-14 text-theme-text flex-1">
             {action === "delete"
               ? t("chat.message.toolMemoryDeleteFailed")
               : t("chat.message.toolMemoryStoreRejected")}
@@ -163,7 +164,7 @@ function MemoryStoreDetail({
             {title && (
               <div className="px-3.5 pt-3 pb-1.5">
                 <div className="flex items-center gap-2">
-                  <h4 className="text-sm font-semibold text-theme-text truncate leading-snug">
+                  <h4 className="text-14 font-semibold text-theme-text truncate leading-snug">
                     {title}
                   </h4>
                   {memoryType && (
@@ -199,14 +200,14 @@ function MemoryStoreDetail({
             {/* Summary */}
             {summary && (
               <div className="px-3.5 pb-2">
-                <p className="text-11 sm:text-xs text-theme-text-secondary/80 leading-relaxed">
+                <p className="text-11 sm:text-12 text-theme-text-secondary/80 leading-relaxed">
                   {summary}
                 </p>
               </div>
             )}
 
             {/* Content body */}
-            <pre className="px-3.5 pb-3 text-11 sm:text-xs text-theme-text-secondary leading-relaxed whitespace-pre-wrap break-words overflow-y-auto max-h-60">
+            <pre className="px-3.5 pb-3 text-11 sm:text-12 text-theme-text-secondary leading-relaxed whitespace-pre-wrap break-words overflow-y-auto max-h-60">
               {content.length > 500 ? content.slice(0, 497) + "…" : content}
             </pre>
 
@@ -260,7 +261,7 @@ function MemoryStoreDetail({
             <div className="text-10 text-theme-text-tertiary">
               {t("chat.message.toolMemoryDeleteTarget")}
             </div>
-            <div className="text-xs font-mono text-theme-text-secondary truncate mt-0.5">
+            <div className="text-12 font-mono text-theme-text-secondary truncate mt-0.5">
               {memoryIdArg}
             </div>
           </div>
@@ -284,7 +285,7 @@ function MemoryStoreDetail({
 
       {/* Raw result fallback */}
       {result && !parsed && (
-        <pre className="group/result relative text-xs text-theme-text-tertiary whitespace-pre-wrap break-words p-3 rounded-lg bg-theme-bg border border-theme-border">
+        <pre className="group/result relative text-12 text-theme-text-tertiary whitespace-pre-wrap break-words p-3 rounded-lg bg-theme-bg border border-theme-border">
           {(() => {
             const text = extractText(result);
             return text.length > 600 ? text.slice(0, 597) + "…" : text;
@@ -398,6 +399,12 @@ const MemoryStoreItem = memo(function MemoryStoreItem({
 
   // ── Inline (compact) view ──
 
+  // 进行中：标签学「思考中」，平滑流出正在生成的参数尾部
+  const { label, isStreamingLabel } = useToolStreamingLabel(pillLabel, args, {
+    isPending,
+    result,
+  });
+
   return (
     <>
       <CollapsiblePill
@@ -409,7 +416,8 @@ const MemoryStoreItem = memo(function MemoryStoreItem({
             <Brain size={12} className="shrink-0 opacity-50" />
           )
         }
-        label={pillLabel}
+        label={label}
+        animatedDots={isStreamingLabel}
         variant="tool"
         expandable={canExpand}
         onPanelOpen={() => {
@@ -445,7 +453,7 @@ const MemoryStoreItem = memo(function MemoryStoreItem({
             {action === "retain" && content && (
               <div className="rounded-lg px-2.5 py-2 bg-theme-bg border border-theme-border hover:border-[color-mix(in_srgb,var(--theme-text-secondary)_12%,var(--theme-border))] transition-colors">
                 {title && (
-                  <div className="text-xs text-theme-text font-medium truncate">
+                  <div className="text-12 text-theme-text font-medium truncate">
                     {title}
                   </div>
                 )}
@@ -491,7 +499,7 @@ const MemoryStoreItem = memo(function MemoryStoreItem({
               !parsed &&
               !(action === "retain" && content) &&
               !(action === "delete" && memoryIdArg) && (
-                <pre className="group/result relative text-xs text-theme-text-tertiary whitespace-pre-wrap break-words overflow-y-auto min-w-0">
+                <pre className="group/result relative text-12 text-theme-text-tertiary whitespace-pre-wrap break-words overflow-y-auto min-w-0">
                   {(() => {
                     const text = extractText(result);
                     return text.length > 300 ? text.slice(0, 297) + "…" : text;

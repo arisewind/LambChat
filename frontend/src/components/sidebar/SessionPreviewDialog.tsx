@@ -107,10 +107,10 @@ export function SessionPreviewDialog({
         className="fixed inset-0 z-[299] bg-black/50"
         onClick={onClose}
       />
-      <div className="safe-area-viewport-padding fixed inset-0 z-[300] flex items-end sm:items-center sm:justify-center sm:pointer-events-none">
+      <div className="safe-area-viewport-padding-top fixed inset-0 z-[300] flex items-end sm:items-center sm:justify-center sm:pointer-events-none">
         <div
           ref={swipeRef as React.RefObject<HTMLDivElement>}
-          className="relative z-10 w-full sm:max-w-2xl sm:mx-4 sm:pointer-events-auto bg-white dark:bg-stone-800 sm:rounded-xl rounded-t-xl shadow-xl border border-stone-200 dark:border-stone-700 overflow-hidden duration-300 max-h-[85vh] max-h-[85dvh] flex flex-col animate-slide-up-sheet sm:animate-in sm:fade-in sm:zoom-in-95 sm:duration-200"
+          className="relative z-10 w-full sm:max-w-2xl sm:mx-4 sm:pointer-events-auto bg-white dark:bg-stone-800 sm:rounded-xl rounded-t-xl shadow-xl border border-stone-200 dark:border-stone-700 overflow-hidden duration-300 max-h-[85vh] max-h-[85dvh] flex flex-col animate-slide-up-sheet sm:animate-in sm:fade-in sm:zoom-in-95 sm:duration-200 safe-area-bottom"
         >
           {/* Header */}
           <div className="flex items-center justify-between px-5 py-4 border-b border-stone-200 dark:border-stone-700 shrink-0">
@@ -128,7 +128,7 @@ export function SessionPreviewDialog({
                   fill="currentColor"
                 />
               </svg>
-              <h2 className="text-sm font-semibold font-serif text-stone-800 dark:text-stone-100 truncate">
+              <h2 className="text-14 font-semibold font-serif text-stone-800 dark:text-stone-100 truncate">
                 {sessionName}
               </h2>
             </div>
@@ -147,7 +147,7 @@ export function SessionPreviewDialog({
                 <Loader2 size={20} className="animate-spin text-stone-400" />
               </div>
             ) : messages.length === 0 ? (
-              <div className="text-center py-12 text-sm text-stone-400 dark:text-stone-500">
+              <div className="text-center py-12 text-14 text-stone-400 dark:text-stone-500">
                 {t("sidebar.noMessages") || "No messages yet"}
               </div>
             ) : (

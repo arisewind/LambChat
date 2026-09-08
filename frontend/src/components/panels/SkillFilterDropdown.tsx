@@ -133,14 +133,14 @@ export function SkillFilterDropdown<T extends string>({
               {tags.length > 0 && (
                 <>
                   <div className="mb-2 flex items-center justify-between">
-                    <p className="text-xs font-semibold uppercase tracking-[0.16em] text-[var(--theme-text-secondary)]">
+                    <p className="text-12 font-semibold uppercase tracking-[0.16em] text-[var(--theme-text-secondary)]">
                       {tagsLabel}
                     </p>
                     {hasActiveFilters && (
                       <button
                         type="button"
                         onClick={onClearFilters}
-                        className="text-xs text-[var(--theme-text-secondary)] transition-colors hover:text-[var(--theme-primary)]"
+                        className="text-12 text-[var(--theme-text-secondary)] transition-colors hover:text-[var(--theme-primary)]"
                       >
                         {clearLabel}
                       </button>

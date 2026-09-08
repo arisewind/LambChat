@@ -210,7 +210,7 @@ export const FileUploadButton = memo(function FileUploadButton({
             })}
             {uploadLimits && (
               <div
-                className="px-3.5 py-2 border-t text-xs"
+                className="px-3.5 py-2 border-t text-12"
                 style={{
                   borderColor: "var(--theme-border)",
                   color: "var(--theme-text-secondary)",

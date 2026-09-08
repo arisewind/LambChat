@@ -208,7 +208,7 @@ export function SkillCard({
                           onOpenMenu(null);
                           onEdit(skill.skill_name);
                         }}
-                        className="flex w-full items-center gap-2 px-3 py-2 text-xs text-[var(--theme-text)] transition-colors hover:bg-[var(--theme-bg-subtle)]"
+                        className="flex w-full items-center gap-2 px-3 py-2 text-12 text-[var(--theme-text)] transition-colors hover:bg-[var(--theme-bg-subtle)]"
                       >
                         <Pencil size={12} />
                         {t("common.edit")}
@@ -219,7 +219,7 @@ export function SkillCard({
                         onOpenMenu(null);
                         onActivate(skill.skill_name, !skill.is_active);
                       }}
-                      className="flex w-full items-center gap-2 px-3 py-2 text-xs text-[var(--theme-text)] transition-colors hover:bg-[var(--theme-bg-subtle)]"
+                      className="flex w-full items-center gap-2 px-3 py-2 text-12 text-[var(--theme-text)] transition-colors hover:bg-[var(--theme-bg-subtle)]"
                     >
                       {skill.is_active ? (
                         <>
@@ -238,7 +238,7 @@ export function SkillCard({
                         onOpenMenu(null);
                         onDelete(skill.skill_name);
                       }}
-                      className="flex w-full items-center gap-2 px-3 py-2 text-xs text-red-600 transition-colors hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-900/20"
+                      className="flex w-full items-center gap-2 px-3 py-2 text-12 text-red-600 transition-colors hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-900/20"
                     >
                       <Trash2 size={12} />
                       {t("common.delete")}

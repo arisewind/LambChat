@@ -11,7 +11,11 @@ import {
   isExcalidrawFile,
 } from "../documents/utils";
 import { getFullUrl } from "../../services/api";
-import { buildChatThumbUrl, buildFileCoverUrl, isChatCoverableFile } from "../../utils/chatThumbs";
+import {
+  buildChatThumbUrl,
+  buildFileCoverUrl,
+  isChatCoverableFile,
+} from "../../utils/chatThumbs";
 
 // Re-export formatFileSize for external use
 // eslint-disable-next-line react-refresh/only-export-components
@@ -179,7 +183,7 @@ export const AttachmentCard = memo(function AttachmentCard({
             {attachment.name}
           </span>
           <div className="mt-0.5 flex items-center justify-between gap-2 min-w-0">
-            <span className="text-xs text-stone-400 dark:text-stone-500 truncate">
+            <span className="text-12 text-stone-400 dark:text-stone-500 truncate">
               {isUploading
                 ? uploadStatusLabel
                 : isFailed
@@ -358,10 +362,10 @@ export const AttachmentCard = memo(function AttachmentCard({
 
       {/* 文件信息 */}
       <div className="flex flex-col justify-center px-3 sm:px-3.5 py-2 min-w-0 flex-1">
-        <div className="text-13 sm:text-sm font-medium truncate text-stone-800 dark:text-stone-100 leading-tight">
+        <div className="text-13 sm:text-14 font-medium truncate text-stone-800 dark:text-stone-100 leading-tight">
           {attachment.name}
         </div>
-        <div className="flex items-center justify-between mt-0.5 sm:mt-1 text-11 sm:text-xs text-stone-400 dark:text-stone-500">
+        <div className="flex items-center justify-between mt-0.5 sm:mt-1 text-11 sm:text-12 text-stone-400 dark:text-stone-500">
           <span className="capitalize truncate">{displayLabel}</span>
           <span className="shrink-0 ml-2">
             {isUploading

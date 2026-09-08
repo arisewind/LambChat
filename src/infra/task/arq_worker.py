@@ -67,6 +67,23 @@ async def worker_startup(ctx: dict[str, Any]) -> None:
     del ctx
     validate_distributed_runtime_settings(settings)
 
+    # 登记本进程事件循环：本地沙箱同步文件操作的协程桥接统一投递到该循环，
+    # 共享 redis.asyncio 连接池不再跨循环复用（对齐 API 进程 lifespan 的登记）
+    from src.infra.async_utils import loop_bridge
+
+    loop_bridge.set_main_loop(asyncio.get_running_loop())
+
+
+async def worker_shutdown(ctx: dict[str, Any]) -> None:
+    """Mark the worker process as shutting down so recovery entrypoints go quiet."""
+    del ctx
+    from src.infra.async_utils import loop_bridge
+
+    from .lifecycle import mark_shutting_down
+
+    loop_bridge.clear_main_loop()
+    mark_shutting_down()
+
 
 def _resolve_executor(executor_key: str) -> Any:
     executor_fn = get_registered_executor(executor_key)
@@ -238,6 +255,7 @@ async def run_agent_task(ctx: dict[str, Any], dispatch_id: str) -> None:
             attachment_references_claimed=bool(payload.get("attachment_references_claimed", False)),
             hitl_resume=payload.get("hitl_resume"),
             interrupted_resume=interrupted_resume,
+            base_url=str(payload.get("base_url") or ""),
         )
         watchdog_timeout = _run_watchdog_timeout()
         if watchdog_timeout is None:
@@ -321,3 +339,4 @@ async def update_user_message_search_index(ctx: dict[str, Any], run_id: str) -> 
 class WorkerSettings:
     functions = [run_agent_task, update_user_message_search_index]
     on_startup = worker_startup
+    on_shutdown = worker_shutdown

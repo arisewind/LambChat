@@ -22,7 +22,7 @@ export function FileTabs({
           key={index}
           type="button"
           onClick={() => onSelect(index)}
-          className={`group flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium whitespace-nowrap transition-all duration-150 ${
+          className={`group flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-12 font-medium whitespace-nowrap transition-all duration-150 ${
             activeFileIndex === index
               ? "bg-[var(--theme-bg-subtle)] text-[var(--theme-text)] shadow-sm"
               : "text-stone-500 hover:bg-stone-100 dark:text-stone-400 dark:hover:bg-stone-800"

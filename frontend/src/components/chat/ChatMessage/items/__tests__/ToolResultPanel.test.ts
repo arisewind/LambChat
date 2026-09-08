@@ -84,10 +84,10 @@ test("tool result header truncates long titles and subtitles on narrow screens",
     /className="tool-console-title-row flex items-end gap-2 min-w-0 flex-1 overflow-hidden font-serif"/,
   );
   expect(componentSource).toMatch(
-    /className="tool-console-title min-w-0 max-w-\[40%\] truncate font-medium text-sm text-theme-text"/,
+    /className="tool-console-title min-w-0 max-w-\[40%\] truncate font-medium text-14 text-theme-text"/,
   );
   expect(componentSource).toMatch(
-    /className="tool-console-subtitle-pill inline-flex h-5 min-w-0 max-w-\[45vw\] sm:max-w-\[min\(32rem,52%\)\] items-end overflow-hidden px-0 pb-\[1px\] text-xs font-normal leading-none text-theme-text-tertiary"/,
+    /className="tool-console-subtitle-pill inline-flex h-5 min-w-0 max-w-\[45vw\] sm:max-w-\[min\(32rem,52%\)\] items-end overflow-hidden px-0 pb-\[1px\] text-12 font-normal leading-none text-theme-text-tertiary"/,
   );
   expect(componentSource).toMatch(
     /<span className="block min-w-0 truncate">\s*\{subtitle\}\s*<\/span>/s,
@@ -96,10 +96,10 @@ test("tool result header truncates long titles and subtitles on narrow screens",
     /className="tool-console-subtitle-list inline-flex items-end gap-1 min-w-0 max-w-\[45vw\] sm:max-w-\[min\(32rem,52%\)\] overflow-hidden"/,
   );
   expect(componentSource).toMatch(
-    /className="tool-console-subtitle-chip inline-flex items-end shrink-0 max-w-full px-0 h-5 pb-\[1px\] text-xs font-normal leading-none text-theme-text-tertiary"/,
+    /className="tool-console-subtitle-chip inline-flex items-end shrink-0 max-w-full px-0 h-5 pb-\[1px\] text-12 font-normal leading-none text-theme-text-tertiary"/,
   );
   expect(componentSource).toMatch(
-    /className="tool-console-subtitle-overflow inline-flex items-end shrink-0 h-5 pb-\[1px\] text-xs font-normal leading-none text-theme-text-tertiary tabular-nums"/,
+    /className="tool-console-subtitle-overflow inline-flex items-end shrink-0 h-5 pb-\[1px\] text-12 font-normal leading-none text-theme-text-tertiary tabular-nums"/,
   );
   expect(componentSource).not.toMatch(
     /tool-console-command-pill|tool-console-command-text/,

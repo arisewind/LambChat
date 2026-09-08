@@ -20,7 +20,6 @@ from src.agents.core.node_utils import (
     emit_token_usage,
     inline_image_attachments_as_data_urls,
     isolated_nested_graph_run,
-    resolve_auto_memory_capture_text,
     resolve_fallback_model,
     resolve_model_image_url_to_base64,
     resolve_model_supports_vision,
@@ -29,6 +28,7 @@ from src.agents.core.persona import build_persona_prompt_sections
 from src.agents.core.startup_preparation import prepare_agent_inputs
 from src.agents.core.subagent_prompts import (
     CODEBASE_INVESTIGATOR_PROMPT,
+    CONTEXT_WORKER_PROMPT,
     IMPLEMENTATION_WORKER_PROMPT,
     MAIN_AGENT_PROMPT_SECTIONS,
     RESEARCH_SUBAGENT_PROMPT,
@@ -46,6 +46,7 @@ from src.infra.agent.middleware import (
     ArtifactDeliveryMiddleware,
     ImageUrlToBase64Middleware,
     MainAgentContextMiddleware,
+    MemoryRecallIndexMiddleware,
     SectionPromptMiddleware,
     SteerMiddleware,
     SubagentActivityMiddleware,
@@ -262,6 +263,15 @@ async def fast_agent_node(state: Dict[str, Any], config: RunnableConfig) -> Dict
             "system_prompt": RESEARCH_SUBAGENT_PROMPT,
             "middleware": _build_subagent_middleware("researcher"),
         },
+        {
+            # deepagents 0.7.12+：fork 模式继承父对话历史与状态，承接需要
+            # 父上下文的委派（沿用既定决策/标识符，而非孤立重述任务背景）。
+            "name": "context-worker",
+            "description": SPECIALIZED_SUBAGENT_DESCRIPTIONS["context-worker"],
+            "system_prompt": CONTEXT_WORKER_PROMPT,
+            "middleware": _build_subagent_middleware("context-worker"),
+            "mode": "fork",
+        },
     ]
 
     # 构建中间件栈：steer → retry → binary upload → authored prompts → memory_index → tool search
@@ -287,13 +297,13 @@ async def fast_agent_node(state: Dict[str, Any], config: RunnableConfig) -> Dict
     ]
     if _prompt_sections:
         user_middleware.append(SectionPromptMiddleware(sections=_prompt_sections))
-    if settings.ENABLE_MEMORY and settings.NATIVE_MEMORY_INDEX_ENABLED and context.user_id:
-        from src.infra.agent.middleware import MemoryIndexMiddleware
-
+    if settings.ENABLE_MEMORY and context.user_id:
         user_middleware.append(
-            MemoryIndexMiddleware(user_id=context.user_id, session_id=context.session_id)
+            MemoryRecallIndexMiddleware(
+                user_id=context.user_id,
+                session_id=str(state.get("session_id") or "") or None,
+            )
         )
-
     if context.deferred_manager is not None:
         from src.infra.agent.middleware import ToolSearchMiddleware
 
@@ -361,7 +371,16 @@ async def fast_agent_node(state: Dict[str, Any], config: RunnableConfig) -> Dict
     if hitl_resume is not None:
         from langgraph.types import Command
 
-        graph_input: Any = Command(resume=hitl_resume.get("resume_value"))
+        resume_map = hitl_resume.get("resume_value")
+        sandbox_message = hitl_resume.get("sandbox_confirm_message")
+        if sandbox_message and isinstance(resume_map, dict):
+            # 沙箱确认门整批：同批全部中断共享批复值（并行工具各任务各中断）
+            from src.infra.task.hitl import expand_sandbox_confirm_resume
+
+            resume_map = await expand_sandbox_confirm_resume(
+                inner_graph, inner_config, resume_map, message=sandbox_message
+            )
+        graph_input: Any = Command(resume=resume_map)
     else:
         if supports_vision:
             attachments = await inline_image_attachments_as_data_urls(
@@ -445,29 +464,11 @@ async def fast_agent_node(state: Dict[str, Any], config: RunnableConfig) -> Dict
             logger.warning("[FastAgent] Failed to inspect graph state after run: %s", e)
 
     if settings.ENABLE_MEMORY and context.user_id:
-        memory_text = resolve_auto_memory_capture_text(
-            hitl_suspended=getattr(presenter, "hitl_suspended", False),
-            user_input=user_input,
-            recommendation_input=recommendation_input,
-            assistant_text=event_processor.output_text,
-        )
-        if memory_text:
-            from src.infra.logging.context import TraceContext
-            from src.infra.memory.tools import schedule_auto_memory_capture
-            from src.kernel.schemas.conversation_history import ConversationSourceRef
+        # Codex 式 Phase 1 记忆提取：run 结束后 kick 一轮「空闲会话」扫描，
+        # 完整会话转录提炼 raw_memory（替代旧的每轮最后一条交换评估器）。
+        from src.infra.memory.extraction import schedule_memory_extraction
 
-            request_context = TraceContext.get_request_context()
-            source_refs = (
-                [
-                    ConversationSourceRef(
-                        session_id=request_context.session_id,
-                        run_id=request_context.run_id,
-                    )
-                ]
-                if request_context.session_id and request_context.run_id
-                else None
-            )
-            schedule_auto_memory_capture(context.user_id, memory_text, source_refs=source_refs)
+        schedule_memory_extraction(context.user_id)
 
     session_id = state.get("session_id")
     if (

@@ -116,12 +116,12 @@ export function ZipUploadModal({
             {isDragging ? <FileArchive size={24} /> : <UploadCloud size={24} />}
           </div>
           <div className="text-center">
-            <p className="text-sm font-medium text-[var(--theme-text)]">
+            <p className="text-14 font-medium text-[var(--theme-text)]">
               {isDragging
                 ? t("skills.dropZoneActive")
                 : t("skills.dropZoneTitle")}
             </p>
-            <p className="mt-1 text-xs text-[var(--theme-text-secondary)]">
+            <p className="mt-1 text-12 text-[var(--theme-text-secondary)]">
               {t("skills.dropZoneHint")}
             </p>
           </div>
@@ -131,10 +131,10 @@ export function ZipUploadModal({
                 size={14}
                 className="text-[var(--theme-primary)] shrink-0"
               />
-              <span className="text-xs font-medium text-[var(--theme-text)] truncate max-w-[200px]">
+              <span className="text-12 font-medium text-[var(--theme-text)] truncate max-w-[200px]">
                 {zipFile.name}
               </span>
-              <span className="text-xs text-[var(--theme-text-secondary)]">
+              <span className="text-12 text-[var(--theme-text-secondary)]">
                 ({(zipFile.size / 1024).toFixed(1)} KB)
               </span>
             </div>
@@ -142,7 +142,7 @@ export function ZipUploadModal({
         </div>
 
         {zipPreviewing && (
-          <div className="flex items-center justify-center gap-2 py-3 text-sm text-[var(--theme-text-secondary)]">
+          <div className="flex items-center justify-center gap-2 py-3 text-14 text-[var(--theme-text-secondary)]">
             <LoadingSpinner size="sm" />
             {t("skills.preview")}
           </div>
@@ -152,7 +152,7 @@ export function ZipUploadModal({
           <div className="es-section space-y-3">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
-                <label className="text-sm font-medium text-[var(--theme-text)]">
+                <label className="text-14 font-medium text-[var(--theme-text)]">
                   {t("skills.selectSkillsToInstall")}
                 </label>
                 <span className="inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-[var(--theme-primary)]/10 px-1.5 text-11 font-semibold text-[var(--theme-primary)]">
@@ -168,7 +168,7 @@ export function ZipUploadModal({
                     selectedZipSkills.length === allNew.length ? [] : allNew,
                   );
                 }}
-                className="rounded-md px-2 py-1 text-xs font-medium text-[var(--theme-primary)] transition-colors hover:bg-[var(--theme-primary)]/8"
+                className="rounded-md px-2 py-1 text-12 font-medium text-[var(--theme-primary)] transition-colors hover:bg-[var(--theme-primary)]/8"
               >
                 {selectedZipSkills.length === newCount
                   ? t("common.deselectAll")
@@ -202,7 +202,7 @@ export function ZipUploadModal({
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2">
                         <p
-                          className={`text-sm font-medium truncate transition-colors ${
+                          className={`text-14 font-medium truncate transition-colors ${
                             selected
                               ? "text-[var(--theme-primary)]"
                               : "text-[var(--theme-text)]"
@@ -222,7 +222,7 @@ export function ZipUploadModal({
                         )}
                       </div>
                       {skill.description && (
-                        <p className="mt-0.5 text-xs text-[var(--theme-text-secondary)] truncate">
+                        <p className="mt-0.5 text-12 text-[var(--theme-text-secondary)] truncate">
                           {skill.description}
                         </p>
                       )}

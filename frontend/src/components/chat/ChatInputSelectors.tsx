@@ -1,10 +1,22 @@
 import { useNavigate } from "react-router-dom";
+import { useTranslation } from "react-i18next";
+import { toast } from "react-hot-toast";
+import { Download } from "lucide-react";
 import { ToolSelector } from "../selectors/ToolSelector";
 import { SkillSelector } from "../selectors/SkillSelector";
 import { AgentModeSelector } from "../selectors/AgentModeSelector";
 import { PersonaPresetSelector } from "../persona/PersonaPresetSelector";
 import { TeamPickerModal } from "../team/TeamPickerModal";
 import { AgentOptionButton } from "./AgentOptionButton";
+import { useSandboxStatus } from "../../hooks/useSandboxStatus";
+import { isShellAvailable } from "../../services/tauri/sandboxShell";
+import {
+  SANDBOX_AGENT_OPTION_KEY,
+  SANDBOX_MACHINE_AGENT_OPTION_KEY,
+  adaptSandboxAgentOption,
+  buildSandboxMachineOption,
+  shouldShowSandboxMachineOption,
+} from "./sandboxOption";
 import type { FeaturePanel } from "../selectors/FeatureMenu";
 import type {
   ToolState,
@@ -123,6 +135,25 @@ export function ChatInputSelectors({
   modelSupportsThinking,
 }: ChatInputSelectorsProps) {
   const navigate = useNavigate();
+  const { t } = useTranslation();
+  // 沙箱选择器动态适配：壳检测 + daemon 在线状态双条件
+  const {
+    online: sandboxOnline,
+    machines,
+    defaultMachineId,
+  } = useSandboxStatus();
+  const sandboxShell = isShellAvailable();
+  // 多机 daemon：本地档时动态注入机器选择器（sandbox_machine_id 会话级选机）
+  const sandboxValue = agentOptionValues[SANDBOX_AGENT_OPTION_KEY] ?? "cloud";
+  const machineOption = shouldShowSandboxMachineOption(sandboxValue, machines)
+    ? buildSandboxMachineOption(machines, defaultMachineId, t)
+    : null;
+  const enrichedAgentOptions = machineOption
+    ? {
+        ...(agentOptions ?? {}),
+        [SANDBOX_MACHINE_AGENT_OPTION_KEY]: machineOption,
+      }
+    : agentOptions ?? {};
 
   return (
     <>
@@ -208,7 +239,7 @@ export function ChatInputSelectors({
       {agentOptions &&
         onToggleAgentOption &&
         Object.keys(agentOptions).length > 0 &&
-        Object.entries(agentOptions)
+        Object.entries(enrichedAgentOptions)
           .filter(
             ([key, opt]) =>
               opt.options &&
@@ -216,19 +247,105 @@ export function ChatInputSelectors({
               // 仅思考选项按模型能力隐藏；未来其他枚举型选项不受连带影响
               (key !== "enable_thinking" || modelSupportsThinking !== false),
           )
-          .map(([key, option]) => (
-            <AgentOptionButton
-              key={key}
-              optionKey={key}
-              option={option}
-              value={agentOptionValues[key] ?? option.default}
-              onChange={(value) => onToggleAgentOption(key, value)}
-              isOpen={activePanel === "thinking"}
-              onOpenChange={(open) =>
-                onActivePanelChange(open ? "thinking" : null)
+          .map(([key, option]) => {
+            const storedValue = agentOptionValues[key] ?? option.default;
+            const isSandbox = key === SANDBOX_AGENT_OPTION_KEY;
+            const isMachine = key === SANDBOX_MACHINE_AGENT_OPTION_KEY;
+
+            // 沙箱选项：按壳/在线状态裁剪档位并回退显示值（不篡改已存会话值）
+            const adapted = isSandbox
+              ? adaptSandboxAgentOption(
+                  option,
+                  { shell: sandboxShell, online: sandboxOnline },
+                  storedValue,
+                )
+              : { option, value: storedValue };
+
+            const handleChange = (value: boolean | string | number) => {
+              if (isSandbox && value === "local" && !sandboxOnline) {
+                // 离线选本地档：五语提示，但选择仍然生效（不拦截用户意图）
+                toast.error(t("agentOptions.sandbox.offlineHint"));
               }
-            />
-          ))}
+              if (
+                isMachine &&
+                typeof value === "string" &&
+                machines.some((m) => m.machine_id === value && m.online === false)
+              ) {
+                // 离线机不可选为目标：置灰保留展示仅为告知存在，点击提示不落选
+                toast.error(t("agentOptions.sandboxMachine.offlineHint"));
+                return;
+              }
+              onToggleAgentOption(key, value);
+            };
+
+            if (isSandbox) {
+              // 离线（壳内或纯 web 本地档置灰可见）：统一提示 + 底部下载引导
+              const note = !sandboxOnline
+                ? t("agentOptions.sandbox.offlineHint")
+                : undefined;
+              const downloadFooter = !sandboxOnline ? (
+                <button
+                  type="button"
+                  onClick={() => navigate("/download")}
+                  className="flex w-full items-center gap-2 px-3 py-2 rounded-xl text-14 cursor-pointer transition-colors hover:bg-black/5 dark:hover:bg-white/5"
+                  style={{ color: "var(--theme-primary)" }}
+                  data-sandbox-download-entry
+                >
+                  <Download size={14} className="shrink-0" />
+                  {t("agentOptions.sandbox.downloadEntry")}
+                </button>
+              ) : undefined;
+              // 独立 panel key：与思考档模态互斥，同帧只开一个选项模态；
+              // 触发入口在 RunModePopover 的"沙箱"条目（含 daemon 状态点）。
+              return (
+                <AgentOptionButton
+                  key={key}
+                  optionKey={key}
+                  option={adapted.option}
+                  value={adapted.value}
+                  onChange={handleChange}
+                  note={note}
+                  footer={downloadFooter}
+                  isOpen={activePanel === "sandbox"}
+                  onOpenChange={(open) =>
+                    onActivePanelChange(open ? "sandbox" : null)
+                  }
+                />
+              );
+            }
+
+            if (isMachine) {
+              // 机器选择器同样独立 panel key（不与思考档共用）；
+              // 触发入口在 RunModePopover 沙箱条目下的"机器"子条目。
+              return (
+                <AgentOptionButton
+                  key={key}
+                  optionKey={key}
+                  option={option}
+                  value={storedValue}
+                  onChange={handleChange}
+                  isOpen={activePanel === "machine"}
+                  onOpenChange={(open) =>
+                    onActivePanelChange(open ? "machine" : null)
+                  }
+                />
+              );
+            }
+
+            return (
+              <AgentOptionButton
+                key={key}
+                optionKey={key}
+                option={adapted.option}
+                value={adapted.value}
+                onChange={handleChange}
+                isOpen={activePanel === "thinking"}
+                onOpenChange={(open) =>
+                  onActivePanelChange(open ? "thinking" : null)
+                }
+              />
+            );
+          })}
     </>
   );
 }

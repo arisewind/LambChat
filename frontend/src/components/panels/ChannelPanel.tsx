@@ -284,11 +284,11 @@ export function ChannelPanel({
             className="flex items-center justify-between rounded-lg bg-[var(--glass-bg-subtle)] px-3 py-2.5"
           >
             <div>
-              <span className="text-sm font-medium font-serif text-stone-700 dark:text-stone-200">
+              <span className="text-14 font-medium font-serif text-stone-700 dark:text-stone-200">
                 {field.title}
               </span>
               {field.description && (
-                <p className="text-xs text-stone-500 dark:text-stone-400">
+                <p className="text-12 text-stone-500 dark:text-stone-400">
                   {field.description}
                 </p>
               )}
@@ -313,7 +313,7 @@ export function ChannelPanel({
       case "select":
         return (
           <div key={field.name}>
-            <label className="mb-1 block text-sm font-medium font-serif text-stone-700 dark:text-stone-200">
+            <label className="mb-1 block text-14 font-medium font-serif text-stone-700 dark:text-stone-200">
               {field.title}
             </label>
             <Select
@@ -330,13 +330,13 @@ export function ChannelPanel({
       case "password":
         return (
           <div key={field.name}>
-            <label className="mb-1 block text-sm font-medium font-serif text-stone-700 dark:text-stone-200">
+            <label className="mb-1 block text-14 font-medium font-serif text-stone-700 dark:text-stone-200">
               {field.title}{" "}
               {field.required && !hasExistingConfig && (
                 <span className="text-red-500">*</span>
               )}
               {hasExistingConfig && field.sensitive && (
-                <span className="ml-1 text-xs text-stone-400">
+                <span className="ml-1 text-12 text-stone-400">
                   ({t("channel.leaveEmpty")})
                 </span>
               )}
@@ -349,7 +349,7 @@ export function ChannelPanel({
                 field.placeholder ||
                 (hasExistingConfig ? t("common.masked") : "")
               }
-              className="px-3 py-2 text-sm text-stone-900 placeholder-stone-400 focus:border-stone-500 dark:text-stone-100 dark:placeholder-stone-500"
+              className="px-3 py-2 text-14 text-stone-900 placeholder-stone-400 focus:border-stone-500 dark:text-stone-100 dark:placeholder-stone-500"
             />
           </div>
         );
@@ -357,7 +357,7 @@ export function ChannelPanel({
       default:
         return (
           <div key={field.name}>
-            <label className="mb-1 block text-sm font-medium font-serif text-stone-700 dark:text-stone-200">
+            <label className="mb-1 block text-14 font-medium font-serif text-stone-700 dark:text-stone-200">
               {field.title}
               {field.required && (!hasExistingConfig || !field.sensitive) && (
                 <span className="text-red-500"> *</span>
@@ -368,7 +368,7 @@ export function ChannelPanel({
               value={String(value)}
               onChange={(e) => updateFormField(field.name, e.target.value)}
               placeholder={field.placeholder || ""}
-              className="px-3 py-2 text-sm text-stone-900 placeholder-stone-400 focus:border-stone-500 dark:text-stone-100 dark:placeholder-stone-500"
+              className="px-3 py-2 text-14 text-stone-900 placeholder-stone-400 focus:border-stone-500 dark:text-stone-100 dark:placeholder-stone-500"
             />
           </div>
         );
@@ -421,7 +421,7 @@ export function ChannelPanel({
               )}
               <div>
                 <span
-                  className={`text-sm font-semibold ${
+                  className={`text-14 font-semibold ${
                     status.connected
                       ? "text-green-600 dark:text-green-400"
                       : "text-red-600 dark:text-red-400"
@@ -449,7 +449,7 @@ export function ChannelPanel({
                 size={16}
                 className="flex-shrink-0 text-red-500 dark:text-red-400"
               />
-              <span className="text-sm text-red-700 dark:text-red-300">
+              <span className="text-14 text-red-700 dark:text-red-300">
                 {status.error_message}
               </span>
             </div>
@@ -459,7 +459,7 @@ export function ChannelPanel({
 
       {/* Configuration Card */}
       <div className="glass-card rounded-xl p-4">
-        <h3 className="mb-4 text-sm font-semibold font-serif text-stone-900 dark:text-stone-100">
+        <h3 className="mb-4 text-14 font-semibold font-serif text-stone-900 dark:text-stone-100">
           {t("channel.configuration", "Configuration")}
         </h3>
 
@@ -467,7 +467,7 @@ export function ChannelPanel({
           {/* Instance Name - only show for new instances */}
           {isNewInstance && (
             <div>
-              <label className="mb-1 block text-sm font-medium font-serif text-stone-700 dark:text-stone-200">
+              <label className="mb-1 block text-14 font-medium font-serif text-stone-700 dark:text-stone-200">
                 {t("channel.instanceName", "Instance Name")}{" "}
                 <span className="text-red-500">*</span>
               </label>
@@ -479,7 +479,7 @@ export function ChannelPanel({
                   "channel.instanceNamePlaceholder",
                   "e.g., My Work Bot",
                 )}
-                className="px-3 py-2 text-sm text-stone-900 placeholder-stone-400 focus:border-stone-500 dark:text-stone-100 dark:placeholder-stone-500"
+                className="px-3 py-2 text-14 text-stone-900 placeholder-stone-400 focus:border-stone-500 dark:text-stone-100 dark:placeholder-stone-500"
               />
             </div>
           )}
@@ -487,10 +487,10 @@ export function ChannelPanel({
           {/* Instance Name Display - show for existing instances */}
           {!isNewInstance && hasExistingConfig && (
             <div className="rounded-lg bg-[var(--glass-bg-subtle)] px-3 py-2.5">
-              <span className="text-sm font-medium font-serif text-stone-700 dark:text-stone-200">
+              <span className="text-14 font-medium font-serif text-stone-700 dark:text-stone-200">
                 {t("channel.instanceName", "Instance Name")}
               </span>
-              <p className="text-sm text-stone-900 dark:text-stone-100">
+              <p className="text-14 text-stone-900 dark:text-stone-100">
                 {instanceName}
               </p>
             </div>
@@ -499,10 +499,10 @@ export function ChannelPanel({
           {/* Enable Toggle */}
           <div className="flex items-center justify-between rounded-lg bg-[var(--glass-bg-subtle)] px-3 py-2.5">
             <div>
-              <span className="text-sm font-medium font-serif text-stone-700 dark:text-stone-200">
+              <span className="text-14 font-medium font-serif text-stone-700 dark:text-stone-200">
                 {t("channel.enabled", "Enable Channel")}
               </span>
-              <p className="text-xs text-stone-500 dark:text-stone-400">
+              <p className="text-12 text-stone-500 dark:text-stone-400">
                 {t("channel.enabledDesc", "Enable or disable this channel")}
               </p>
             </div>
@@ -535,10 +535,10 @@ export function ChannelPanel({
         <div className="glass-card-subtle rounded-xl p-4">
           <div className="flex items-start gap-3">
             <div className="min-w-0 flex-1">
-              <p className="text-sm font-semibold text-stone-900 dark:text-stone-100">
+              <p className="text-14 font-semibold text-stone-900 dark:text-stone-100">
                 {t("channel.setupGuide", "Setup Guide")}
               </p>
-              <ol className="mt-2 list-decimal list-outside ml-4 space-y-1 text-sm text-stone-600 dark:text-stone-300">
+              <ol className="mt-2 list-decimal list-outside ml-4 space-y-1 text-14 text-stone-600 dark:text-stone-300">
                 {metadata.setup_guide.map((step, index) => (
                   <li key={index} className="leading-relaxed">
                     {step}

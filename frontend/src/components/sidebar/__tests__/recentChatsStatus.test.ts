@@ -15,8 +15,12 @@ test("recent chats renders the same task status indicators as the sidebar", () =
   );
   expect(source).toMatch(/taskStatus === "waiting_human"/);
   expect(source).toMatch(/data-session-status="ask-human"/);
-  expect(source).toMatch(/title=\{t\(/);
-  expect(source).toMatch(/aria-label=\{t\(/);
-  expect(source).toMatch(/title="Ask human · 等待你的回复"/);
+  expect(source).toMatch(/aria-label=\{runningLabel\}/);
   expect(source).toMatch(/animate-spin/);
+});
+
+test("recent chats keeps status labels reachable via long-press tooltip, never forced open by row touch", () => {
+  expect(source).toMatch(/<Tooltip/);
+  expect(source).not.toMatch(/statusTooltipOpen/);
+  expect(source).toMatch(/sidebar\.waitingHuman/);
 });

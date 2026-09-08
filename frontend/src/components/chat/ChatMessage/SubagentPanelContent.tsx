@@ -189,7 +189,7 @@ export function SubagentPanelContent({ agentId }: { agentId: string }) {
             title={t("chat.message.args")}
             action={<CopyButton text={data.input} />}
           >
-            <div className="text-sm text-stone-600 dark:text-stone-300 leading-relaxed">
+            <div className="text-14 text-stone-600 dark:text-stone-300 leading-relaxed">
               <SidebarMarkdownContent content={data.input} />
             </div>
           </CollapsibleSection>
@@ -212,7 +212,7 @@ export function SubagentPanelContent({ agentId }: { agentId: string }) {
                 <button
                   type="button"
                   onClick={() => setShowFullProcess(true)}
-                  className="inline-flex min-h-8 items-center gap-1.5 rounded-md border border-theme-border bg-theme-bg-card px-2.5 text-xs font-medium text-theme-text-secondary transition-colors hover:bg-theme-bg-subtle hover:text-theme-text"
+                  className="inline-flex min-h-8 items-center gap-1.5 rounded-md border border-theme-border bg-theme-bg-card px-2.5 text-12 font-medium text-theme-text-secondary transition-colors hover:bg-theme-bg-subtle hover:text-theme-text"
                 >
                   <Maximize2 size={12} />
                   {t("common.expand", "Expand")}
@@ -240,7 +240,7 @@ export function SubagentPanelContent({ agentId }: { agentId: string }) {
             action={<CopyButton text={data.error} />}
             variant="error"
           >
-            <div className="text-xs text-red-700 dark:text-red-300 leading-relaxed">
+            <div className="text-12 text-red-700 dark:text-red-300 leading-relaxed">
               {data.error}
             </div>
           </CollapsibleSection>
@@ -251,7 +251,7 @@ export function SubagentPanelContent({ agentId }: { agentId: string }) {
             action={<CopyButton text={data.result} />}
             expandedClassName="flex min-h-0 flex-col grow shrink-0"
           >
-            <div className="text-sm text-stone-700 dark:text-stone-300 leading-relaxed">
+            <div className="text-14 text-stone-700 dark:text-stone-300 leading-relaxed">
               <SidebarMarkdownContent content={data.result} />
             </div>
           </CollapsibleSection>
@@ -259,7 +259,7 @@ export function SubagentPanelContent({ agentId }: { agentId: string }) {
         {data.isPending && !data.parts?.length && (
           <div className="flex items-center gap-2 text-stone-500 dark:text-stone-400">
             <LoadingSpinner size="sm" />
-            <span className="text-sm">{t("chat.message.executing")}</span>
+            <span className="text-14">{t("chat.message.executing")}</span>
           </div>
         )}
         <div ref={bottomRef} className="h-px" />
@@ -268,7 +268,7 @@ export function SubagentPanelContent({ agentId }: { agentId: string }) {
         <button
           type="button"
           onClick={handleJumpToBottom}
-          className="sticky bottom-3 left-1/2 z-10 mt-3 inline-flex min-h-9 -translate-x-1/2 items-center gap-1.5 rounded-full border border-theme-border bg-theme-bg-card/95 px-3 text-xs font-medium text-theme-text-secondary shadow-lg transition-colors hover:bg-theme-bg-subtle hover:text-theme-text"
+          className="sticky bottom-3 left-1/2 z-10 mt-3 inline-flex min-h-9 -translate-x-1/2 items-center gap-1.5 rounded-full border border-theme-border bg-theme-bg-card/95 px-3 text-12 font-medium text-theme-text-secondary shadow-lg transition-colors hover:bg-theme-bg-subtle hover:text-theme-text"
         >
           <ArrowDown size={13} />
           {t("common.scrollToBottom")}

@@ -109,7 +109,7 @@ export function UserMessageBubble({
           {/* 排队中的插话：时钟角标 + 取消 */}
           {queued && (
             <div
-              className="mb-1 flex items-center gap-1.5 text-xs"
+              className="mb-1 flex items-center gap-1.5 text-12"
               style={{ color: "var(--theme-text-secondary)" }}
             >
               <Clock size={12} style={{ color: "var(--theme-primary)" }} />
@@ -129,7 +129,7 @@ export function UserMessageBubble({
           )}
           {deferred && !queued && (
             <div
-              className="mb-1 text-xs"
+              className="mb-1 text-12"
               style={{ color: "var(--theme-text-secondary)" }}
             >
               {t("chat.steerNext", "当前任务结束后发送")}
@@ -137,7 +137,7 @@ export function UserMessageBubble({
           )}
           {failed && !queued && !deferred && (
             <div
-              className="mb-1 text-xs"
+              className="mb-1 text-12"
               style={{ color: "var(--theme-error, #b42318)" }}
             >
               {t("chat.steerFailedRetry", "插话发送失败，请检查网络后重试")}
@@ -160,7 +160,7 @@ export function UserMessageBubble({
               }}
             >
               <div
-                className="user-message-inline-markdown leading-relaxed text-15 sm:text-base"
+                className="user-message-inline-markdown leading-relaxed text-15 sm:text-16"
                 style={{ color: "var(--theme-text)" }}
               >
                 {/* Run-mode chips - inline with content, ahead of skill chips */}
@@ -220,6 +220,7 @@ export function UserMessageBubble({
                 <GitBranch size={16} />
               </button>
             )}
+            {extraActions}
             <button
               onClick={handleCopy}
               className={clsx(
@@ -234,7 +235,6 @@ export function UserMessageBubble({
             >
               {copied ? <Check size={16} /> : <Copy size={16} />}
             </button>
-            {extraActions}
           </div>
         </div>
       </div>

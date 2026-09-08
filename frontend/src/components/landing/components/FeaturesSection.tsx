@@ -33,14 +33,14 @@ export function FeaturesSection() {
                 {String(i + 1).padStart(2, "0")}
               </span>
               <div
-                className={`flex items-center justify-center w-11 h-11 sm:w-12 sm:h-12 rounded-xl bg-gradient-to-br ${f.gradient} text-lg sm:text-xl mb-5 sm:mb-6 shadow-sm transition-all duration-500 group-hover:scale-115 group-hover:rotate-3 group-hover:shadow-lg group-hover:shadow-black/5 dark:group-hover:shadow-black/20`}
+                className={`flex items-center justify-center w-11 h-11 sm:w-12 sm:h-12 rounded-xl bg-gradient-to-br ${f.gradient} text-18 sm:text-20 mb-5 sm:mb-6 shadow-sm transition-all duration-500 group-hover:scale-115 group-hover:rotate-3 group-hover:shadow-lg group-hover:shadow-black/5 dark:group-hover:shadow-black/20`}
               >
                 {f.icon}
               </div>
-              <h3 className="text-15 sm:text-base font-bold text-stone-900 dark:text-stone-100 mb-2.5 leading-snug">
+              <h3 className="text-15 sm:text-16 font-bold text-stone-900 dark:text-stone-100 mb-2.5 leading-snug">
                 {t(`landing.${f.titleKey}`, f.titleKey)}
               </h3>
-              <p className="text-13 sm:text-sm leading-[1.7] text-stone-400 dark:text-stone-500">
+              <p className="text-13 sm:text-14 leading-[1.7] text-stone-400 dark:text-stone-500">
                 {t(`landing.${f.descKey}`, f.descKey)}
               </p>
             </div>

@@ -64,7 +64,7 @@ export function ImageWithSkeleton({
     () => thumbSrc ?? resolvedSrc,
   );
   const [isLoaded, setIsLoaded] = useState(() =>
-    loadedImages.has((thumbSrc ?? resolvedSrc) ?? ""),
+    loadedImages.has(thumbSrc ?? resolvedSrc ?? ""),
   );
   const [hasError, setHasError] = useState(false);
 
@@ -104,7 +104,7 @@ export function ImageWithSkeleton({
         {hasError ? (
           errorFallback ?? (
             <div className="absolute inset-0 flex items-center justify-center bg-stone-100 dark:bg-stone-800 rounded-[inherit]">
-              <span className="text-xs text-stone-400 truncate px-1">
+              <span className="text-12 text-stone-400 truncate px-1">
                 {alt || "…"}
               </span>
             </div>
@@ -176,7 +176,7 @@ export function ImageWithSkeleton({
       {hasError &&
         (errorFallback ?? (
           <div
-            className="flex items-center justify-center rounded-lg text-xs text-stone-400"
+            className="flex items-center justify-center rounded-lg text-12 text-stone-400"
             style={{
               aspectRatio,
               backgroundColor: "var(--theme-bg-card, #f5f5f4)",

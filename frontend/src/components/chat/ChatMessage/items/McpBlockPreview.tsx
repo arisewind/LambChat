@@ -72,14 +72,14 @@ export function BlockPreviewPortal() {
     title = preview.fileName || t("chat.message.toolFile");
     content = (
       <div className="p-4 sm:p-5 space-y-3">
-        <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-theme-bg-subtle text-sm text-theme-text-tertiary font-mono overflow-hidden">
+        <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-theme-bg-subtle text-14 text-theme-text-tertiary font-mono overflow-hidden">
           <span className="min-w-0 flex-1 truncate">{preview.url}</span>
         </div>
         <a
           href={preview.url}
           target="_blank"
           rel="noopener noreferrer"
-          className="inline-flex items-center gap-2 px-4 py-2.5 rounded-lg bg-theme-bg-subtle text-sm text-theme-text-secondary hover:bg-theme-bg-elevated transition-colors border border-theme-border"
+          className="inline-flex items-center gap-2 px-4 py-2.5 rounded-lg bg-theme-bg-subtle text-14 text-theme-text-secondary hover:bg-theme-bg-elevated transition-colors border border-theme-border"
         >
           <ExternalLink size={14} />
           {t("chat.message.toolOpenFile", "Open file")}
@@ -94,7 +94,7 @@ export function BlockPreviewPortal() {
         <div className="flex justify-end mb-2">
           <CopyButton text={preview.text} />
         </div>
-        <pre className="text-sm text-theme-text-secondary whitespace-pre-wrap break-words font-mono">
+        <pre className="text-14 text-theme-text-secondary whitespace-pre-wrap break-words font-mono">
           {preview.text}
         </pre>
       </div>
@@ -157,7 +157,7 @@ export function McpBlockPreview({ block }: { block: McpContentBlock }) {
     return (
       <button
         onClick={() => openBlockPreview({ type: "file", url, fileName })}
-        className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-md bg-theme-bg-subtle text-xs text-theme-text-secondary hover:bg-theme-bg-elevated transition-colors border border-theme-border cursor-pointer"
+        className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-md bg-theme-bg-subtle text-12 text-theme-text-secondary hover:bg-theme-bg-elevated transition-colors border border-theme-border cursor-pointer"
       >
         <File size={12} />
         {fileName}
@@ -170,7 +170,7 @@ export function McpBlockPreview({ block }: { block: McpContentBlock }) {
       <div className="group/pre relative">
         <pre
           onClick={() => openBlockPreview({ type: "text", text: block.text })}
-          className="text-xs text-theme-text-secondary whitespace-pre-wrap break-words overflow-y-auto min-w-0 cursor-pointer hover:text-theme-text transition-colors"
+          className="text-12 text-theme-text-secondary whitespace-pre-wrap break-words overflow-y-auto min-w-0 cursor-pointer hover:text-theme-text transition-colors"
         >
           {block.text}
         </pre>
@@ -222,7 +222,7 @@ function GeneratedImageResults({ images }: { images: GeneratedImageResult[] }) {
                 wrapperClassName="!my-0 !shadow-none"
               />
             </button>
-            <figcaption className="flex items-center gap-2 border-t border-theme-border px-3 py-2 text-xs text-theme-text-secondary">
+            <figcaption className="flex items-center gap-2 border-t border-theme-border px-3 py-2 text-12 text-theme-text-secondary">
               <ImageIcon
                 size={14}
                 className="shrink-0 text-theme-text-tertiary"
@@ -315,7 +315,7 @@ export function ToolResultContent({
     return (
       <div className="space-y-1.5">
         {combinedText && (
-          <div className="group/result relative text-xs text-theme-text-secondary overflow-y-auto">
+          <div className="group/result relative text-12 text-theme-text-secondary overflow-y-auto">
             {isMarkdownText(combinedText) ? (
               <MarkdownContent content={combinedText} />
             ) : (
@@ -350,7 +350,7 @@ export function ToolResultContent({
       <div className="space-y-1.5">
         {mcp.text &&
           (isMarkdownText(mcp.text) ? (
-            <div className="group/result relative text-xs text-theme-text-secondary overflow-y-auto">
+            <div className="group/result relative text-12 text-theme-text-secondary overflow-y-auto">
               <MarkdownContent content={mcp.text} />
               <ToolHoverCopyButton
                 text={mcp.text}
@@ -359,7 +359,7 @@ export function ToolResultContent({
               />
             </div>
           ) : (
-            <pre className="group/result relative text-xs text-theme-text-secondary whitespace-pre-wrap break-words max-h-64 overflow-y-auto">
+            <pre className="group/result relative text-12 text-theme-text-secondary whitespace-pre-wrap break-words max-h-64 overflow-y-auto">
               {mcp.text}
               <ToolHoverCopyButton
                 text={mcp.text}
@@ -400,12 +400,12 @@ export function ToolResultContent({
                 href={url}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="text-xs font-medium text-theme-text hover:underline min-w-0 flex-1 truncate"
+                className="text-12 font-medium text-theme-text hover:underline min-w-0 flex-1 truncate"
               >
                 {title || url}
               </a>
             ) : (
-              <span className="text-xs font-medium text-theme-text min-w-0 flex-1 truncate">
+              <span className="text-12 font-medium text-theme-text min-w-0 flex-1 truncate">
                 {title}
               </span>
             )}
@@ -417,7 +417,7 @@ export function ToolResultContent({
             )}
           </div>
         )}
-        <div className="group/rich relative p-3 text-xs text-theme-text-secondary max-h-96 overflow-y-auto">
+        <div className="group/rich relative p-3 text-12 text-theme-text-secondary max-h-96 overflow-y-auto">
           <MarkdownContent content={result.content} />
           <div className="absolute top-1 right-1 opacity-0 group-hover/rich:opacity-100 transition-opacity">
             {!hideCopyButton && <CopyButton text={result.content} size={12} />}
@@ -455,7 +455,7 @@ export function ToolResultContent({
 
   if (textContent) {
     return isMarkdownText(textContent) ? (
-      <div className="group/result relative text-xs text-theme-text-secondary overflow-y-auto">
+      <div className="group/result relative text-12 text-theme-text-secondary overflow-y-auto">
         <MarkdownContent content={textContent} />
         <ToolHoverCopyButton
           text={textContent}
@@ -464,7 +464,7 @@ export function ToolResultContent({
         />
       </div>
     ) : (
-      <pre className="group/result relative text-xs text-theme-text-secondary overflow-y-auto whitespace-pre-wrap break-words">
+      <pre className="group/result relative text-12 text-theme-text-secondary overflow-y-auto whitespace-pre-wrap break-words">
         {textContent}
         <ToolHoverCopyButton
           text={textContent}
@@ -501,14 +501,14 @@ function JsonFallback({
       <div className="absolute top-1 right-1 opacity-0 group-hover/json:opacity-100 transition-opacity z-10">
         {!hideCopyButton && <CopyButton text={str} size={12} />}
       </div>
-      <pre className="text-xs text-theme-text-secondary overflow-y-auto whitespace-pre-wrap break-words min-w-0">
+      <pre className="text-12 text-theme-text-secondary overflow-y-auto whitespace-pre-wrap break-words min-w-0">
         {display}
       </pre>
       {needsTruncation && (
         <button
           onClick={() => setExpanded((v) => !v)}
           aria-expanded={expanded}
-          className="flex items-center gap-1 mt-1 text-xs text-theme-text-tertiary hover:text-theme-text transition-colors"
+          className="flex items-center gap-1 mt-1 text-12 text-theme-text-tertiary hover:text-theme-text transition-colors"
         >
           {expanded ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
           {expanded ? t("chat.message.collapse") : t("chat.message.expandAll")}
@@ -552,7 +552,7 @@ function RejectionResult({ data }: { data: Record<string, unknown> }) {
           {/* Task name (if available) */}
           {taskName && (
             <p
-              className="text-sm font-medium truncate"
+              className="text-14 font-medium truncate"
               style={{ color: "var(--theme-text)" }}
             >
               {taskName}
@@ -561,7 +561,7 @@ function RejectionResult({ data }: { data: Record<string, unknown> }) {
 
           {/* Summary / reason */}
           <p
-            className="text-xs"
+            className="text-12"
             style={{ color: "var(--theme-text-secondary)" }}
           >
             {summary}
@@ -599,7 +599,7 @@ function RejectionResult({ data }: { data: Record<string, unknown> }) {
                     {t("chat.message.description")}
                   </p>
                   <p
-                    className="text-xs whitespace-pre-wrap break-words"
+                    className="text-12 whitespace-pre-wrap break-words"
                     style={{ color: "var(--theme-text-secondary)" }}
                   >
                     {description}

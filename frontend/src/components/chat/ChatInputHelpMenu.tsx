@@ -118,7 +118,7 @@ export function ChatInputHelpMenu({ className }: { className?: string }) {
         aria-label={t("common.help", "帮助")}
         aria-expanded={open}
         onClick={() => setOpen((v) => !v)}
-        className="flex items-center justify-center w-5 h-5 sm:w-7 sm:h-7 text-xs font-medium rounded-full shadow-md transition-all duration-200 hover:shadow-lg hover:scale-110 active:scale-95"
+        className="flex items-center justify-center w-5 h-5 sm:w-7 sm:h-7 text-12 font-medium rounded-full shadow-md transition-all duration-200 hover:shadow-lg hover:scale-110 active:scale-95"
         style={buttonStyle}
       >
         <CircleHelp size={14} className="sm:w-4 sm:h-4" />

@@ -225,7 +225,7 @@ export function MCPServerToolsSidebar({
       {/* Tools */}
       <div className="flex flex-col gap-1">
         <div className="flex items-center justify-between px-1 py-1.5">
-          <span className="text-xs font-medium text-[var(--theme-text)]">
+          <span className="text-12 font-medium text-[var(--theme-text)]">
             {t("mcp.card.tools")}
           </span>
           {tools.length > 0 && !toolsLoading && (
@@ -236,20 +236,20 @@ export function MCPServerToolsSidebar({
         </div>
 
         {toolsLoading && (
-          <div className="flex items-center gap-2 py-6 text-xs text-[var(--theme-text-tertiary)] justify-center">
+          <div className="flex items-center gap-2 py-6 text-12 text-[var(--theme-text-tertiary)] justify-center">
             <Loader2 size={14} className="animate-spin" />
             <span>{t("mcp.card.discovering")}</span>
           </div>
         )}
 
         {toolsError && (
-          <div className="text-xs text-red-500 dark:text-red-400 py-2 px-1">
+          <div className="text-12 text-red-500 dark:text-red-400 py-2 px-1">
             {toolsError}
           </div>
         )}
 
         {!toolsLoading && tools.length === 0 && !toolsError && (
-          <div className="text-xs text-[var(--theme-text-tertiary)] py-3 px-1 text-center">
+          <div className="text-12 text-[var(--theme-text-tertiary)] py-3 px-1 text-center">
             {t("mcp.card.noTools")}
           </div>
         )}

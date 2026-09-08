@@ -172,6 +172,55 @@ async def test_recall_memories_filters_low_scores_before_hydrating_store_content
 
 
 @pytest.mark.asyncio
+async def test_recall_memories_marks_store_text_complete_when_hydrated(monkeypatch):
+    from src.infra.memory.client.native.content import hydrate_formatted_memory
+
+    class Store:
+        async def aget(self, namespace, key):
+            assert key == "memory:m1"
+            return {"text": "完整正文：供应商A报价15元，供应商B报价16元。"}
+
+    backend = type("Backend", (), {"_store": Store()})()
+    memory = {
+        "memory_id": "m1",
+        "user_id": "u1",
+        "text": "截断预览...",
+        "storage_mode": "store",
+        "content_store_key": "memory:m1",
+    }
+
+    hydrated = await hydrate_formatted_memory(backend, memory)
+
+    assert hydrated["text"] == "完整正文：供应商A报价15元，供应商B报价16元。"
+    assert hydrated["text_complete"] is True
+    assert hydrated["preview"] == "截断预览..."
+
+
+@pytest.mark.asyncio
+async def test_recall_memories_marks_store_text_incomplete_when_hydration_falls_back():
+    from src.infra.memory.client.native.content import hydrate_formatted_memory
+
+    class Store:
+        async def aget(self, namespace, key):
+            return None
+
+    backend = type("Backend", (), {"_store": Store()})()
+    memory = {
+        "memory_id": "m1",
+        "user_id": "u1",
+        "text": "截断预览...",
+        "storage_mode": "store",
+        "content_store_key": "memory:m1",
+    }
+
+    hydrated = await hydrate_formatted_memory(backend, memory)
+
+    assert hydrated["text"] == "截断预览..."
+    assert hydrated["text_complete"] is False
+    assert hydrated["text_incomplete_reason"] == "content_store_unavailable"
+
+
+@pytest.mark.asyncio
 async def test_recall_memories_limits_concurrent_hydration(monkeypatch):
     from src.infra.memory.client.native import search as search_module
 
@@ -243,7 +292,14 @@ async def test_recall_memories_caps_requested_max_results(monkeypatch):
     seen: dict[str, int] = {}
 
     async def fake_text_search(
-        _collection, _logger, _user_id, _query, limit, _memory_types, context_filter=None
+        _collection,
+        _logger,
+        _user_id,
+        _query,
+        limit,
+        _memory_types,
+        context_filter=None,
+        project_id=None,
     ):
         seen["text_limit"] = limit
         return [
@@ -293,13 +349,20 @@ async def test_recall_memories_clips_oversized_query_before_search(monkeypatch):
     seen: dict[str, str] = {}
 
     async def fake_text_search(
-        _collection, _logger, _user_id, query, _limit, _memory_types, context_filter=None
+        _collection,
+        _logger,
+        _user_id,
+        query,
+        _limit,
+        _memory_types,
+        context_filter=None,
+        project_id=None,
     ):
         seen["text_query"] = query
         return []
 
     async def fake_vector_search(
-        _backend, _user_id, query, _limit, _memory_types, context_filter=None
+        _backend, _user_id, query, _limit, _memory_types, context_filter=None, project_id=None
     ):
         seen["vector_query"] = query
         return []

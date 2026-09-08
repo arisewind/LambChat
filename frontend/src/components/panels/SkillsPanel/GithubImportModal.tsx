@@ -104,10 +104,10 @@ export function GithubImportModal({
             <Sparkles size={18} />
           </div>
           <div>
-            <p className="text-sm font-medium text-[var(--theme-text)]">
+            <p className="text-14 font-medium text-[var(--theme-text)]">
               {t("skills.importFromGitHub")}
             </p>
-            <p className="mt-1 text-xs leading-5 text-[var(--theme-text-secondary)]">
+            <p className="mt-1 text-12 leading-5 text-[var(--theme-text-secondary)]">
               {t("skills.importFromGitHubTitle")}
             </p>
           </div>
@@ -162,7 +162,7 @@ export function GithubImportModal({
           <div className="es-section space-y-3">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
-                <label className="text-sm font-medium text-[var(--theme-text)]">
+                <label className="text-14 font-medium text-[var(--theme-text)]">
                   {t("skills.selectSkillsToInstall")}
                 </label>
                 <span className="inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-[var(--theme-primary)]/10 px-1.5 text-11 font-semibold text-[var(--theme-primary)]">
@@ -178,7 +178,7 @@ export function GithubImportModal({
                       : allNames,
                   );
                 }}
-                className="rounded-md px-2 py-1 text-xs font-medium text-[var(--theme-primary)] transition-colors hover:bg-[var(--theme-primary)]/8"
+                className="rounded-md px-2 py-1 text-12 font-medium text-[var(--theme-primary)] transition-colors hover:bg-[var(--theme-primary)]/8"
               >
                 {selectedGithubSkills.length === githubSkills.length
                   ? t("common.deselectAll")
@@ -205,7 +205,7 @@ export function GithubImportModal({
                     />
                     <div className="flex-1 min-w-0">
                       <p
-                        className={`text-sm font-medium truncate transition-colors ${
+                        className={`text-14 font-medium truncate transition-colors ${
                           selected
                             ? "text-[var(--theme-primary)]"
                             : "text-[var(--theme-text)]"
@@ -214,7 +214,7 @@ export function GithubImportModal({
                         {skill.name}
                       </p>
                       {skill.description && (
-                        <p className="mt-0.5 text-xs text-[var(--theme-text-secondary)] truncate">
+                        <p className="mt-0.5 text-12 text-[var(--theme-text-secondary)] truncate">
                           {skill.description}
                         </p>
                       )}

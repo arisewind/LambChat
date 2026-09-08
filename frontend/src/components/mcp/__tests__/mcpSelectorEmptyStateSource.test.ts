@@ -10,7 +10,7 @@ const consumers = ["../RoleSelector.tsx"];
 test("mcp selector dropdown empty states share one presentation component", () => {
   expect(componentSource).toMatch(/export function McpSelectorEmptyState\(/);
   expect(componentSource).toMatch(
-    /className="py-3 text-center text-xs text-stone-400 dark:text-stone-500"/,
+    /className="py-3 text-center text-12 text-stone-400 dark:text-stone-500"/,
   );
 
   for (const relativePath of consumers) {
@@ -20,7 +20,7 @@ test("mcp selector dropdown empty states share one presentation component", () =
     );
     expect(source).toMatch(/<McpSelectorEmptyState>/);
     expect(source).not.toMatch(
-      /py-3 text-center text-xs text-stone-400 dark:text-stone-500/,
+      /py-3 text-center text-12 text-stone-400 dark:text-stone-500/,
     );
   }
 });

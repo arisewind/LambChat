@@ -398,17 +398,17 @@ const WordPreview = memo(function WordPreview({
               className="text-red-500 flex-shrink-0 mt-0.5"
             />
             <div className="min-w-0">
-              <p className="text-sm font-medium text-red-600 dark:text-red-400">
+              <p className="text-14 font-medium text-red-600 dark:text-red-400">
                 {t("documents.wordPreviewError")}
               </p>
-              <p className="text-xs text-red-500 dark:text-red-400/80 mt-1 break-words">
+              <p className="text-12 text-red-500 dark:text-red-400/80 mt-1 break-words">
                 {error}
               </p>
             </div>
           </div>
           <div className="flex items-center justify-center gap-2 text-stone-400 dark:text-stone-500">
             <FileText size={16} />
-            <span className="text-xs">
+            <span className="text-12">
               {t("documents.supportedFormats") || "Word documents (.docx)"}
             </span>
           </div>

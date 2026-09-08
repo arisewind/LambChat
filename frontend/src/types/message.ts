@@ -44,6 +44,7 @@ export type MessagePart =
   | SubagentPart
   | ThinkingPart
   | SandboxPart
+  | MemoryStatusPart
   | TokenUsagePart
   | CancelledPart
   | TodoPart
@@ -57,6 +58,15 @@ export interface SandboxPart {
   sandbox_id?: string;
   work_dir?: string;
   error?: string;
+  timestamp?: string;
+  startedAt?: string;
+  completedAt?: string;
+}
+
+// Memory 检索状态块类型（首轮记忆装配进度，渲染与沙箱初始化同款 item）
+export interface MemoryStatusPart {
+  type: "memoryStatus";
+  status: "starting" | "ready" | "cancelled";
   timestamp?: string;
   startedAt?: string;
   completedAt?: string;
@@ -117,6 +127,8 @@ export interface SummaryPart {
   depth?: number;
   agent_id?: string;
   isStreaming?: boolean;
+  /** 本次压缩释放的上下文 token 数（来自后端 stats 事件，可能先于正文到达） */
+  freed_tokens?: number;
 }
 
 export interface RecommendQuestion {
@@ -160,6 +172,8 @@ export interface ToolPart {
   success?: boolean;
   error?: string;
   isPending?: boolean;
+  /** 图因确认门（ask_human/沙箱确认）挂起：工具卡转「等待确认」而非运行中 */
+  awaitingConfirmation?: boolean;
   cancelled?: boolean;
   depth?: number;
   agent_id?: string;

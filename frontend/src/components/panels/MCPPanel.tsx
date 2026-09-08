@@ -431,7 +431,7 @@ export function MCPPanel() {
 
       {/* Error */}
       {error && (
-        <div className="mx-4 mt-4 flex items-center justify-between rounded-xl bg-red-50 p-3 text-sm text-red-700 dark:bg-red-900/30 dark:text-red-400">
+        <div className="mx-4 mt-4 flex items-center justify-between rounded-xl bg-red-50 p-3 text-14 text-red-700 dark:bg-red-900/30 dark:text-red-400">
           <span>{error}</span>
           <IconButton
             aria-label={t("common.close")}
@@ -452,14 +452,14 @@ export function MCPPanel() {
                 className="text-stone-400 dark:text-stone-500"
               />
             </div>
-            <p className="text-center text-sm">
+            <p className="text-center text-14">
               {searchQuery ? t("mcp.noMatchingServers") : t("mcp.noServers")}
             </p>
             {!searchQuery && canWrite && (
               <Button
                 variant="ghost"
                 onClick={handleCreate}
-                className="mt-3 text-sm font-medium text-[var(--theme-text-secondary)] hover:text-[var(--theme-text)] transition-colors"
+                className="mt-3 text-14 font-medium text-[var(--theme-text-secondary)] hover:text-[var(--theme-text)] transition-colors"
               >
                 {t("mcp.addFirst")}
               </Button>
@@ -514,7 +514,7 @@ export function MCPPanel() {
                 checked={createAsSystem}
                 onChange={() => setCreateAsSystem(!createAsSystem)}
               />
-              <span className="text-sm font-medium text-[var(--theme-text)]">
+              <span className="text-14 font-medium text-[var(--theme-text)]">
                 {t("mcp.createAsSystem")}
               </span>
             </label>
@@ -527,7 +527,7 @@ export function MCPPanel() {
                 checked={changeToSystem}
                 onChange={() => setChangeToSystem(!changeToSystem)}
               />
-              <span className="text-sm font-medium text-[var(--theme-text)]">
+              <span className="text-14 font-medium text-[var(--theme-text)]">
                 {changeToSystem
                   ? t("mcp.systemServerVisible")
                   : t("mcp.userServerVisible")}
@@ -614,7 +614,7 @@ export function MCPPanel() {
               ) : (
                 <X size={20} className="flex-shrink-0" />
               )}
-              <span className="whitespace-pre-wrap text-sm">
+              <span className="whitespace-pre-wrap text-14">
                 {importResult.message}
               </span>
             </div>

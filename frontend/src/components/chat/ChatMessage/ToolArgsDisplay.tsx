@@ -71,7 +71,7 @@ function ArgRow({
         className={`group/arg flex items-center gap-2 rounded-[var(--radius-sm)] px-2 transition-colors duration-[var(--duration-fast)] ${
           compact
             ? "bg-[var(--theme-bg-subtle)] hover:bg-[var(--theme-bg-elevated)] py-1 text-11"
-            : "bg-[var(--theme-bg-subtle)] hover:bg-[var(--theme-bg-elevated)] py-1.5 text-xs"
+            : "bg-[var(--theme-bg-subtle)] hover:bg-[var(--theme-bg-elevated)] py-1.5 text-12"
         }`}
       >
         <ArgKey name={name} compact={compact} />
@@ -136,7 +136,7 @@ function ComplexArgRow({
           expanded
             ? "bg-[var(--theme-bg-elevated)]"
             : "bg-[var(--theme-bg-subtle)] hover:bg-[var(--theme-bg-elevated)]"
-        } ${compact ? "py-1 text-11" : "py-1.5 text-xs"}`}
+        } ${compact ? "py-1 text-11" : "py-1.5 text-12"}`}
         onClick={() => setExpanded((v) => !v)}
         onKeyDown={(event) => {
           if (event.key !== "Enter" && event.key !== " ") return;

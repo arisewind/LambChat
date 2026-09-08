@@ -114,7 +114,7 @@ export function UserMenu({ onShowProfile }: UserMenuProps) {
   }, [location.pathname]);
 
   const menuItemClass =
-    "flex w-full items-center gap-3 px-4 py-2.5 text-left text-sm transition-all duration-150 rounded-lg text-[var(--theme-text-secondary)] hover:text-[var(--theme-text)] active:scale-[0.98]";
+    "flex w-full items-center gap-3 px-4 py-2.5 text-left text-14 transition-all duration-150 rounded-lg text-[var(--theme-text-secondary)] hover:text-[var(--theme-text)] active:scale-[0.98]";
 
   const navigateTo = (path: string) => {
     setShowMenu(false);
@@ -273,7 +273,7 @@ export function UserMenu({ onShowProfile }: UserMenuProps) {
               className="size-5 rounded-full"
               errorFallback={
                 <div className="flex size-5 items-center justify-center bg-gradient-to-br from-amber-400 to-orange-500 rounded-full">
-                  <span className="text-xs font-semibold text-white font-serif">
+                  <span className="text-12 font-semibold text-white font-serif">
                     {user?.username?.charAt(0).toUpperCase() || "U"}
                   </span>
                 </div>
@@ -281,7 +281,7 @@ export function UserMenu({ onShowProfile }: UserMenuProps) {
             />
           ) : (
             <div className="flex size-5 items-center justify-center bg-gradient-to-br from-amber-400 to-orange-500 rounded-full">
-              <span className="text-xs font-semibold text-white font-serif">
+              <span className="text-12 font-semibold text-white font-serif">
                 {user?.username?.charAt(0).toUpperCase() || "U"}
               </span>
             </div>
@@ -293,7 +293,7 @@ export function UserMenu({ onShowProfile }: UserMenuProps) {
             isMobile ? (
               // Mobile: bottom sheet with backdrop
               <div
-                className="safe-area-viewport-padding fixed inset-0 z-[100] sm:hidden"
+                className="fixed inset-0 z-[100] sm:hidden"
                 onClick={() => setShowMenu(false)}
               >
                 <div className="fixed inset-0 bg-black/40 animate-fade-in" />
@@ -302,7 +302,7 @@ export function UserMenu({ onShowProfile }: UserMenuProps) {
                     menuRef.current = el;
                     swipeRef.current = el;
                   }}
-                  className="safe-area-viewport-padding fixed inset-x-0 bottom-0 z-[101] rounded-t-2xl shadow-2xl max-h-[85dvh] overflow-y-auto animate-slide-up-sheet"
+                  className="safe-area-bottom fixed inset-x-0 bottom-0 z-[101] rounded-t-2xl shadow-2xl max-h-[85dvh] overflow-y-auto animate-slide-up-sheet"
                   style={{ backgroundColor: "var(--theme-bg-card)" }}
                   onClick={(e) => e.stopPropagation()}
                 >

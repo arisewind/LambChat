@@ -7,6 +7,7 @@ from src.agents.core.prompt_policy import (
     SAFETY_POLICY,
     SUBAGENT_DISPATCH_POLICY,
     WORKFLOW_POLICY,
+    WORKFLOW_READ_ONLY_POLICY,
     WORKSPACE_POLICY,
 )
 from src.kernel.config.base import settings
@@ -67,10 +68,19 @@ def get_memory_guide() -> str:
     if getattr(settings, "ENABLE_MEMORY_VFS", False):
         from src.infra.memory.client.types import NATIVE_MEMORY_GUIDE_VFS
 
-        return NATIVE_MEMORY_GUIDE_VFS
-    from src.infra.memory.client.types import NATIVE_MEMORY_GUIDE
+        guide = NATIVE_MEMORY_GUIDE_VFS
+    else:
+        from src.infra.memory.client.types import NATIVE_MEMORY_GUIDE
 
-    return NATIVE_MEMORY_GUIDE
+        guide = NATIVE_MEMORY_GUIDE
+    if not settings.ENABLE_DEFERRED_TOOL_LOADING:
+        from src.infra.memory.client.types import (
+            MEMORY_DELETE_DEFERRED_SEGMENT,
+            MEMORY_DELETE_INLINE_SEGMENT,
+        )
+
+        return guide.replace(MEMORY_DELETE_DEFERRED_SEGMENT, MEMORY_DELETE_INLINE_SEGMENT)
+    return guide
 
 
 _SUBAGENT_BASE = """You are a subagent completing a scoped objective. Stay within scope, prefer evidence, name uncertainty, verify checkable claims, and hand results to the main agent rather than promising the user a final outcome."""
@@ -86,6 +96,17 @@ DETAILED_SUBAGENT_PROMPT = "\n\n".join(
 )
 SUBAGENT_PROMPT = DETAILED_SUBAGENT_PROMPT
 
+# 只读角色（不写用户可见文件、不负责交付）用裁掉 Artifact 段的工作流变体，
+# 每次 spawn 省约 500 字符；交付纪律由主 agent 承担（Handoff Notes 保留）。
+DETAILED_SUBAGENT_READ_ONLY_PROMPT = "\n\n".join(
+    (
+        _SUBAGENT_BASE,
+        "Your activity is recorded. Investigate thoroughly enough for a reliable handoff.",
+        WORKFLOW_READ_ONLY_POLICY,
+        HANDOFF_POLICY,
+    )
+)
+
 
 def build_subagent_system_prompt(base_prompt: str, *sections: str | None) -> str:
     parts = [base_prompt.strip()]
@@ -98,6 +119,7 @@ SPECIALIZED_SUBAGENT_NAMES: tuple[str, ...] = (
     "implementation-worker",
     "verification-runner",
     "researcher",
+    "context-worker",
 )
 
 SPECIALIZED_SUBAGENT_DESCRIPTIONS: dict[str, str] = {
@@ -105,10 +127,15 @@ SPECIALIZED_SUBAGENT_DESCRIPTIONS: dict[str, str] = {
     "implementation-worker": "Make a small scoped change from a clear work order and verify it.",
     "verification-runner": "Run focused checks, diagnose failures, and do not change production files.",
     "researcher": "Research current external facts from primary sources with date/version caveats.",
+    "context-worker": (
+        "Continue or analyze work that depends on the full current conversation "
+        "(earlier decisions, partial results, established identifiers) instead of a fresh "
+        "isolated investigation."
+    ),
 }
 
 CODEBASE_INVESTIGATOR_PROMPT = build_subagent_system_prompt(
-    DETAILED_SUBAGENT_PROMPT,
+    DETAILED_SUBAGENT_READ_ONLY_PROMPT,
     "## Codebase Investigator\nDo not edit. Report relevant files, current behavior, patterns, risks, and investigation gaps.",
 )
 IMPLEMENTATION_WORKER_PROMPT = build_subagent_system_prompt(
@@ -116,12 +143,22 @@ IMPLEMENTATION_WORKER_PROMPT = build_subagent_system_prompt(
     "## Implementation Worker\nMake only the scoped change. Preserve architecture and report files changed, verification, and risks.",
 )
 VERIFICATION_RUNNER_PROMPT = build_subagent_system_prompt(
-    DETAILED_SUBAGENT_PROMPT,
+    DETAILED_SUBAGENT_READ_ONLY_PROMPT,
     "## Verification Runner\nDo not change production files. Report commands, pass/fail status, failure analysis, blockers, and next diagnostic.",
 )
 RESEARCH_SUBAGENT_PROMPT = build_subagent_system_prompt(
-    DETAILED_SUBAGENT_PROMPT,
+    DETAILED_SUBAGENT_READ_ONLY_PROMPT,
     "## Researcher\nUse primary sources where possible. Report source-backed findings, date/version caveats, confidence, and implications.",
+)
+
+# deepagents 0.7.12+ 的 fork 模式子代理：spec 的 system_prompt 会追加在继承的
+# 父 prompt 之后（父 prompt 已含工作流/交接纪律），因此这里只写角色段，
+# 不再叠加 SUBAGENT_PROMPT 基座——重复注入会稀释继承来的主 agent 指令。
+CONTEXT_WORKER_PROMPT = (
+    "## Context Worker\n"
+    "You inherit this conversation's full context. Complete the delegated task "
+    "directly without delegating further, ground it in the decisions, identifiers, "
+    "and partial results already established above, and report in Handoff Notes."
 )
 
 

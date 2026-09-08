@@ -69,7 +69,7 @@ export function SkillPreviewModal({
         title={previewSkill.skill_name}
         subtitle={
           <span className="inline-flex items-center gap-1.5">
-            <span className="skill-meta-pill text-10 sm:text-xs">
+            <span className="skill-meta-pill text-10 sm:text-12">
               v{previewSkill.version}
             </span>
             <button
@@ -116,13 +116,13 @@ export function SkillPreviewModal({
 
           {/* Files */}
           {previewLoading ? (
-            <div className="flex items-center gap-2 text-sm text-[var(--theme-text-secondary)]">
+            <div className="flex items-center gap-2 text-14 text-[var(--theme-text-secondary)]">
               <LoadingSpinner size="sm" />
               <span>{t("marketplace.loadingFiles")}</span>
             </div>
           ) : previewFiles ? (
             <div>
-              <h3 className="mb-3 flex items-center gap-2 text-sm font-semibold font-serif text-[var(--theme-text)]">
+              <h3 className="mb-3 flex items-center gap-2 text-14 font-semibold font-serif text-[var(--theme-text)]">
                 <FileText size={16} className="text-[var(--theme-primary)]" />
                 {t("marketplace.skillFiles")} ({previewFiles.files.length})
               </h3>
@@ -153,7 +153,7 @@ export function SkillPreviewModal({
                           <FileText size={12} />
                         </div>
                         <div className="min-w-0 flex-1">
-                          <div className="truncate text-xs font-medium text-[var(--theme-text)]">
+                          <div className="truncate text-12 font-medium text-[var(--theme-text)]">
                             {filePath}
                           </div>
                         </div>
@@ -175,7 +175,7 @@ export function SkillPreviewModal({
               </div>
             </div>
           ) : (
-            <p className="text-sm text-[var(--theme-text-secondary)]">
+            <p className="text-14 text-[var(--theme-text-secondary)]">
               {t("marketplace.noFiles")}
             </p>
           )}
@@ -187,7 +187,7 @@ export function SkillPreviewModal({
           <div
             role="dialog"
             aria-modal="true"
-            className="fixed inset-0 z-[1200] flex items-center justify-center bg-black/45 p-3 sm:p-6"
+            className="safe-area-viewport-padding fixed inset-0 z-[1200] flex items-center justify-center bg-black/45 p-3 sm:p-6"
             onClick={() => setPreviewFilePath(null)}
           >
             <div
@@ -199,7 +199,7 @@ export function SkillPreviewModal({
                   <FileText size={13} />
                 </div>
                 <div className="min-w-0 flex-1">
-                  <div className="truncate text-sm font-medium text-[var(--theme-text)]">
+                  <div className="truncate text-14 font-medium text-[var(--theme-text)]">
                     {previewFilePath}
                   </div>
                 </div>
@@ -216,7 +216,7 @@ export function SkillPreviewModal({
 
               <div className="min-h-0 flex-1 overflow-hidden bg-[var(--theme-bg)]">
                 {isPreviewLoading ? (
-                  <div className="flex h-full items-center justify-center gap-2 text-sm text-[var(--theme-text-secondary)]">
+                  <div className="flex h-full items-center justify-center gap-2 text-14 text-[var(--theme-text-secondary)]">
                     <LoadingSpinner size="sm" />
                     <span>{t("marketplace.loadingFiles")}</span>
                   </div>

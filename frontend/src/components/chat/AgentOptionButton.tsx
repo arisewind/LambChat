@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, memo } from "react";
+import { useState, useRef, useEffect, memo, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import { Brain, Settings } from "lucide-react";
 import { useTranslation } from "react-i18next";
@@ -11,6 +11,10 @@ interface AgentOptionButtonProps {
   option: AgentOption;
   value: boolean | string | number;
   onChange: (value: boolean | string | number) => void;
+  /** 面板内提示行（如沙箱本地档离线说明），渲染在描述下方。 */
+  note?: string;
+  /** 面板底部操作区（如沙箱离线时的下载引导），渲染在档位列表下方。 */
+  footer?: ReactNode;
   isOpen?: boolean;
   onOpenChange?: (open: boolean) => void;
 }
@@ -29,7 +33,9 @@ function AgentOptionRow({
     <button
       type="button"
       onClick={onSelect}
-      className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm transition-colors text-left cursor-pointer active:scale-[0.98]"
+      className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-14 transition-colors text-left cursor-pointer active:scale-[0.98]${
+        option.disabled ? " opacity-50" : ""
+      }`}
       style={{
         background: isActive
           ? "color-mix(in srgb, var(--theme-primary) 12%, transparent)"
@@ -40,15 +46,15 @@ function AgentOptionRow({
       <span
         className="w-2.5 h-2.5 rounded-full shrink-0"
         style={{
-          background: isActive
-            ? "var(--theme-primary)"
-            : "var(--theme-border)",
+          background: isActive ? "var(--theme-primary)" : "var(--theme-border)",
         }}
       />
-      {option.label_key ? t(option.label_key) : option.label || String(option.value)}
+      {option.label_key
+        ? t(option.label_key)
+        : option.label || String(option.value)}
       {isActive && (
         <span
-          className="ml-auto text-xs"
+          className="ml-auto text-12"
           style={{ color: "var(--theme-primary)" }}
         >
           ✓
@@ -63,6 +69,8 @@ export const AgentOptionButton = memo(function AgentOptionButton({
   option,
   value,
   onChange,
+  note,
+  footer,
   isOpen: externalIsOpen,
   onOpenChange: externalOnOpenChange,
 }: AgentOptionButtonProps) {
@@ -132,11 +140,11 @@ export const AgentOptionButton = memo(function AgentOptionButton({
                 onClick={() => setShowDropdown(false)}
               />
               <div
-                className="safe-area-viewport-padding fixed z-[301] sm:inset-0 sm:flex sm:items-center sm:justify-center sm:p-4 inset-x-0 bottom-0 animate-slide-up sm:animate-scale-in"
+                className="fixed z-[301] sm:inset-0 sm:flex sm:items-center sm:justify-center sm:p-4 inset-x-0 bottom-0 animate-slide-up sm:animate-scale-in"
                 onClick={() => setShowDropdown(false)}
               >
                 <div
-                  className="sm:rounded-2xl rounded-t-2xl shadow-2xl px-4 pt-3 pb-6 sm:pb-4 animate-in fade-in slide-in-from-bottom-4 sm:scale-in-95 sm:slide-in-from-bottom-0 duration-200 sm:w-[28rem] sm:max-w-[90vw]"
+                  className="sm:rounded-2xl rounded-t-2xl shadow-2xl px-4 pt-3 safe-area-bottom [--safe-area-bottom-extra:1.5rem] sm:[--safe-area-bottom-extra:1rem] animate-in fade-in slide-in-from-bottom-4 sm:scale-in-95 sm:slide-in-from-bottom-0 duration-200 sm:w-[28rem] sm:max-w-[90vw]"
                   style={{
                     background: "var(--theme-bg-card)",
                     maxHeight: "60dvh",
@@ -148,11 +156,23 @@ export const AgentOptionButton = memo(function AgentOptionButton({
                     style={{ background: "var(--theme-border)" }}
                   />
                   <div
-                    className="text-sm font-medium mb-3"
+                    className="text-14 font-medium mb-3"
                     style={{ color: "var(--theme-text)" }}
                   >
                     {description}
                   </div>
+                  {note && (
+                    <div
+                      className="text-12 mb-3 px-2.5 py-1.5 rounded-lg"
+                      style={{
+                        color: "var(--theme-text-secondary)",
+                        background:
+                          "color-mix(in srgb, var(--theme-border) 30%, transparent)",
+                      }}
+                    >
+                      {note}
+                    </div>
+                  )}
                   <div className="flex flex-col gap-1">
                     {options.map((opt) => (
                       <AgentOptionRow
@@ -166,6 +186,14 @@ export const AgentOptionButton = memo(function AgentOptionButton({
                       />
                     ))}
                   </div>
+                  {footer && (
+                    <div
+                      className="mt-2 pt-1 border-t"
+                      style={{ borderColor: "var(--theme-border)" }}
+                    >
+                      {footer}
+                    </div>
+                  )}
                 </div>
               </div>
             </>,
@@ -218,12 +246,12 @@ export const AgentOptionButton = memo(function AgentOptionButton({
               {/* Mobile: bottom sheet modal */}
               <div
                 ref={mobileSheetRef}
-                className="safe-area-viewport-padding sm:hidden fixed inset-0 z-[9999] flex flex-col justify-end"
+                className="safe-area-viewport-padding-top sm:hidden fixed inset-0 z-[9999] flex flex-col justify-end"
                 onClick={() => setShowDropdown(false)}
               >
                 <div className="absolute inset-0 bg-black/40" />
                 <div
-                  className="relative rounded-t-2xl px-4 pt-3 pb-6 animate-in fade-in slide-in-from-bottom-4 duration-200"
+                  className="relative rounded-t-2xl px-4 pt-3 safe-area-bottom [--safe-area-bottom-extra:1.5rem] animate-in fade-in slide-in-from-bottom-4 duration-200"
                   style={{
                     background: "var(--theme-bg-card)",
                     maxHeight: "60dvh",
@@ -235,11 +263,23 @@ export const AgentOptionButton = memo(function AgentOptionButton({
                     style={{ background: "var(--theme-border)" }}
                   />
                   <div
-                    className="text-sm font-medium mb-3"
+                    className="text-14 font-medium mb-3"
                     style={{ color: "var(--theme-text)" }}
                   >
                     {description}
                   </div>
+                  {note && (
+                    <div
+                      className="text-12 mb-3 px-2.5 py-1.5 rounded-lg"
+                      style={{
+                        color: "var(--theme-text-secondary)",
+                        background:
+                          "color-mix(in srgb, var(--theme-border) 30%, transparent)",
+                      }}
+                    >
+                      {note}
+                    </div>
+                  )}
                   <div className="flex flex-col gap-1">
                     {options.map((opt) => (
                       <AgentOptionRow
@@ -253,6 +293,14 @@ export const AgentOptionButton = memo(function AgentOptionButton({
                       />
                     ))}
                   </div>
+                  {footer && (
+                    <div
+                      className="mt-2 pt-1.5 border-t"
+                      style={{ borderColor: "var(--theme-border)" }}
+                    >
+                      {footer}
+                    </div>
+                  )}
                 </div>
               </div>
 
@@ -267,11 +315,19 @@ export const AgentOptionButton = memo(function AgentOptionButton({
                 }}
               >
                 <div
-                  className="px-2.5 py-1.5 text-xs font-medium"
+                  className="px-2.5 py-1.5 text-12 font-medium"
                   style={{ color: "var(--theme-text-secondary)" }}
                 >
                   {description}
                 </div>
+                {note && (
+                  <div
+                    className="px-2.5 pb-1.5 text-12"
+                    style={{ color: "var(--theme-text-secondary)" }}
+                  >
+                    {note}
+                  </div>
+                )}
                 <div className="flex flex-col gap-1">
                   {options.map((opt) => (
                     <AgentOptionRow
@@ -285,6 +341,14 @@ export const AgentOptionButton = memo(function AgentOptionButton({
                     />
                   ))}
                 </div>
+                {footer && (
+                  <div
+                    className="mt-2 pt-1.5 border-t"
+                    style={{ borderColor: "var(--theme-border)" }}
+                  >
+                    {footer}
+                  </div>
+                )}
               </div>
             </>,
             document.body,

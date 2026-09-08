@@ -11,7 +11,7 @@ export function NotFoundPage() {
     <div className="safe-area-viewport-padding flex h-screen w-full flex-col items-center justify-center bg-theme-bg dark:bg-stone-900 px-4">
       <div className="flex flex-col items-center max-w-md text-center">
         {/* Title */}
-        <h1 className="text-2xl font-semibold font-serif text-stone-900 dark:text-stone-100 mb-2">
+        <h1 className="text-24 font-semibold font-serif text-stone-900 dark:text-stone-100 mb-2">
           {t("errors.pageNotFound")}
         </h1>
 
@@ -23,7 +23,7 @@ export function NotFoundPage() {
         {/* Button */}
         <button
           onClick={() => navigate("/chat")}
-          className="inline-flex items-center gap-2 px-6 py-4 bg-stone-900 dark:bg-stone-100 hover:bg-stone-800 dark:hover:bg-stone-200 text-white dark:text-stone-900 text-sm font-medium rounded-full transition-colors"
+          className="inline-flex items-center gap-2 px-6 py-4 bg-stone-900 dark:bg-stone-100 hover:bg-stone-800 dark:hover:bg-stone-200 text-white dark:text-stone-900 text-14 font-medium rounded-full transition-colors"
         >
           <svg
             xmlns="http://www.w3.org/2000/svg"

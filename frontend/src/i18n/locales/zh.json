@@ -244,6 +244,23 @@
         "max": "超强",
         "medium": "中"
       }
+    },
+    "sandbox": {
+      "label": "沙箱",
+      "description": "选择代码沙箱的运行位置",
+      "options": {
+        "cloud": "云端电脑",
+        "local": "本地电脑"
+      },
+      "offlineHint": "本地沙箱离线：下载并启动后即可使用本地电脑",
+      "downloadEntry": "下载本地沙箱"
+    },
+    "sandboxMachine": {
+      "label": "机器",
+      "description": "选择本地沙箱命令的执行机器",
+      "auto": "自动（默认机）",
+      "offline": "离线",
+      "offlineHint": "该电脑当前离线，暂不能选为执行机器"
     }
   },
   "agents": {
@@ -267,7 +284,6 @@
     "continue": "继续",
     "enterResponse": "请输入回复...",
     "ignore": "忽略",
-    "mainGoal": "主要目标",
     "multiSelectHint": "可多选 · 点击选项进行选择或取消",
     "needsConfirmation": "需要确认",
     "next": "下一项",
@@ -289,7 +305,7 @@
     },
     "selectOption": "选择一个选项",
     "send": "发送",
-    "shortcutHint": "↑↓ 切换 · Enter 确认 · 数字键选择",
+    "shortcutHint": "Enter 提交",
     "submit": "提交"
   },
   "auth": {
@@ -460,6 +476,8 @@
     "publishSkillFailed": "发布技能失败",
     "refreshTokenInvalid": "无效的刷新令牌",
     "refreshTokenMissing": "缺少刷新令牌",
+    "releaseAssetFetchFailed": "发布资产上游下载失败（HTTP {{status}}）",
+    "releaseAssetNotFound": "未找到发布资产 {{name}}",
     "registrationClosed": "注册已关闭",
     "repositoryOrBranchNotFound": "仓库或分支不存在",
     "resetTokenExpired": "重置令牌已过期",
@@ -628,7 +646,19 @@
     "roleNameExists": "角色名 {{name}} 已存在",
     "systemRoleProtected": "系统角色不可修改或删除",
     "agentNotRegistered": "Agent '{{agent}}' 未注册",
-    "bookmarkUpdateFailed": "书签状态更新失败"
+    "bookmarkUpdateFailed": "书签状态更新失败",
+    "modelEmptyResponse": "模型在多次重试后仍返回了空回复，请重试或更换模型",
+    "patNotFound": "个人访问令牌不存在或已撤销",
+    "patExpired": "个人访问令牌已过期",
+    "patScopeDenied": "令牌缺少所需权限 {{scope}}",
+    "daemonOffline": "本地沙箱守护进程离线",
+    "sandboxTimeout": "本地沙箱调用超时（{{seconds}} 秒）",
+    "sandboxResultMismatch": "机器「{{machine}}」回传的结果与该调用实际下发的机器不符",
+    "sandboxPayloadTooLarge": "本地沙箱载荷超限",
+    "sandboxExecFailed": "本地沙箱执行失败：{{detail}}",
+    "daemonVersionUnsupported": "本地沙箱守护进程版本 {{version}} 低于最低要求 {{min}}，请升级",
+    "sandboxMachineOffline": "所选沙箱机器「{{machine}}」当前离线",
+    "sandboxMachineNotFound": "沙箱机器「{{machine}}」不存在或已移除"
   },
   "categories": {
     "agent": "代理",
@@ -763,6 +793,7 @@
     "mermaid": "Mermaid",
     "mermaidDiagram": "Mermaid 图表",
     "message": {
+      "addBookmark": "添加书签",
       "allFiles": "全部文件",
       "args": "参数",
       "artifactsSubtitleFiles": "{{count}} 个文件",
@@ -777,6 +808,9 @@
       "askHumanWaiting": "等待您的输入…",
       "askHumanYourAnswer": "你的回答",
       "assistant": "Assistant",
+      "bookmarkAdded": "已加入书签",
+      "bookmarkRemoved": "已移除书签",
+      "bookmarkToggleFailed": "书签操作失败",
       "cancelled": "生成已取消",
       "codePreview": "代码预览",
       "collapse": "收起",
@@ -814,10 +848,12 @@
       "processing": "过程",
       "projects": "项目",
       "rejected": "操作已被用户拒绝",
+      "removeBookmark": "移除书签",
       "result": "结果",
       "retryAnswer": "重新回答",
       "runStepsCount": "{{count}} 个步骤",
       "runStepsDetail": "查看完整详情",
+      "runStepsStopped": "已停止",
       "runStepsSummary": "已工作 {{duration}}",
       "runStepsToggle": "展开或收起运行步骤",
       "runStepsWorking": "工作中 {{duration}}",
@@ -828,6 +864,7 @@
       "subagentProgress": "子代理进度",
       "summary": "总结",
       "summaryDescription": "本轮要点",
+      "summaryFreedTokens": "已释放 {{tokens}} tokens",
       "synthesizing": "正在综合 {{count}} 个子代理的结果...",
       "systemPrompt": "系统提示词",
       "table": "表格",
@@ -863,7 +900,7 @@
       "toolFileCount": "{{count}} 个文件",
       "toolFileCount_one": "{{count}} 个文件",
       "toolFileCount_other": "{{count}} 个文件",
-      "toolGlob": "匹配",
+      "toolGlob": "查找文件",
       "toolHistoryAssistant": "助手",
       "toolHistoryDetail": "历史详情",
       "toolHistoryMatchAssistant": "助手",
@@ -876,6 +913,8 @@
       "toolHistoryMoreTurns_one": "+{{count}} 轮对话",
       "toolHistoryMoreTurns_other": "+{{count}} 轮对话",
       "toolHistorySearch": "历史搜索",
+      "toolHistorySessionCount": "找到 {{count}} 个会话",
+      "toolHistoryTurnCount": "{{count}} 轮对话",
       "toolHistoryUser": "用户",
       "toolImageAnalyze": "图片分析",
       "toolImageAnalyzeCount": "{{count}} 张图片",
@@ -891,7 +930,7 @@
       "toolImageTag": "图像生成",
       "toolInPath": "在 {{path}}",
       "toolItemCount": "({{count}} 项)",
-      "toolLs": "列表",
+      "toolLs": "浏览目录",
       "toolMemberCount": "{{count}} 个成员",
       "toolMemoryContent": "记忆内容",
       "toolMemoryDaysAgo": "{{count}}天前",
@@ -910,8 +949,12 @@
       "toolMemoryToday": "今天",
       "toolMemoryYearsAgo": "{{count}}年前",
       "toolMemoryYesterday": "昨天",
-      "toolMoreFiles": "+{{count}} 更多",
-      "toolMoreLines": "... +{{count}} 更多行",
+      "toolMoreFiles": "+{{count}} 个文件",
+      "toolMoreImages": "+{{count}} 张图片",
+      "toolMoreLines": "+{{count}} 行",
+      "toolMoreMemories": "+{{count}} 条记忆",
+      "toolMoreTasks": "+{{count}} 个任务",
+      "toolMoreTools": "+{{count}} 个工具",
       "toolOpenFile": "打开文件",
       "toolOutput": "工具输出",
       "toolParseError": "解析项目数据失败",
@@ -930,9 +973,9 @@
       "toolScheduledTaskRun": "运行任务",
       "toolScheduledTaskUpdate": "更新任务",
       "toolSearch": "搜索",
-      "toolSearchAlreadyAvailable": "已可用",
+      "toolSearchAlreadyAvailable": "已可用 {{count}}",
       "toolSearchMoreParams": "更多参数",
-      "toolSearchNewlyLoaded": "新加载",
+      "toolSearchNewlyLoaded": "新加载 {{count}}",
       "toolSearchPersonas": "搜索",
       "toolSearchToolCount": "找到 {{count}} 个工具",
       "toolSearchTools": "搜索工具",
@@ -951,11 +994,7 @@
       "toolUploadUrlToSandbox": "上传 URL 到沙箱",
       "toolVarCount": "{{count}} 个变量",
       "toolWrite": "写入",
-      "addBookmark": "添加书签",
-      "bookmarkAdded": "已加入书签",
-      "bookmarkRemoved": "已移除书签",
-      "bookmarkToggleFailed": "书签操作失败",
-      "removeBookmark": "移除书签"
+      "waitingConfirm": "等待确认"
     },
     "messageInput": "消息输入框",
     "noPermission": "没有发送消息的权限",
@@ -970,6 +1009,10 @@
     "rateLimited": "请求过于频繁，请稍后再试",
     "requestFailed": "加载会话失败",
     "runningPlaceholder": "继续输入以排队有序修改…",
+    "memory": {
+      "initializing": "正在检索相关记忆",
+      "ready": "记忆检索完成"
+    },
     "sandbox": {
       "elapsed": "用时 {{duration}}",
       "error": "初始化失败",
@@ -985,6 +1028,9 @@
     "sendLongTextAsText": "仍以文本发送",
     "sessionUnavailable": "会话不存在或已被删除",
     "shiftEnterNewLine": "换行",
+    "runMode": {
+      "sandbox": "沙箱"
+    },
     "skillCreated": "技能已创建",
     "skillUpdated": "技能已更新",
     "slashCommands": {
@@ -1548,6 +1594,7 @@
     "agents": "助手",
     "architecture": "自托管架构",
     "architectureDesc": "部署 FastAPI + React 工作台，结合 LangGraph/deepagents 执行、Redis/MongoDB 持久化、沙箱隔离，以及 MCP、Skills、记忆和模型供应商扩展层。",
+    "autoLoginPending": "正在进入 LambChat…",
     "badge": "自托管 AI Agent 工作台",
     "channels": "渠道",
     "channelsIntegrations": "企业渠道",
@@ -1923,7 +1970,6 @@
     "users": "管理用户账户和访问权限"
   },
   "notification": {
-    "active": "已激活",
     "cancel": "取消",
     "collapse": "收起详情",
     "contentLabel": "内容",
@@ -1938,7 +1984,6 @@
     "endTime": "结束时间",
     "expand": "展开详情",
     "expired": "已过期",
-    "inactive": "未激活",
     "isActive": "启用",
     "noNotifications": "暂无通知",
     "save": "保存",
@@ -2085,6 +2130,8 @@
     "changeAvatar": "更换头像",
     "changePassword": "修改密码",
     "confirmPassword": "确认密码",
+    "cloudSandbox": "云端沙箱",
+    "cloudSandboxDesc": "Agent 在云端沙箱运行代码前，按此策略向你确认",
     "darkTheme": "深色",
     "defaultModel": "默认模型",
     "defaultModelDesc": "选择新对话的默认模型",
@@ -2106,6 +2153,67 @@
     "lightTheme": "浅色",
     "limitedSupport": "部分支持",
     "loading": "加载中...",
+    "serverUrl": {
+      "title": "服务器",
+      "desc": "应用连接的 LambChat 服务端地址；修改后将刷新应用并需要重新登录。",
+      "change": "修改",
+      "cancel": "取消",
+      "reset": "恢复默认",
+      "resetTitle": "清除运行时配置，恢复安装包内置的默认服务器"
+    },
+    "localSandbox": {
+      "title": "本地沙箱",
+      "desc": "Agent 通过桌面端在你自己的电脑上执行命令与文件读写",
+      "statusOnline": "在线",
+      "statusOffline": "离线",
+      "version": "daemon {{version}}",
+      "processRunning": "运行中",
+      "processStopped": "已停止",
+      "pairTitle": "用 LambChat 账号配对本地沙箱，即可在本机运行代码。",
+      "pairWithCurrent": "用当前登录账号配对",
+      "pairOtherAccount": "或改用其他账号配对：",
+      "pairNeedLogin": "当前未登录，请先登录后再配对",
+      "pairButton": "配对并启动",
+      "paired": "配对完成",
+      "policy": "执行确认策略",
+      "policyOptions": {
+        "all": "全部操作需确认",
+        "commands": "仅命令需确认",
+        "none": "无需确认"
+      },
+      "openWorkspaces": "打开工作区目录",
+      "openAudit": "打开审计目录",
+      "restartDaemon": "重启 daemon",
+      "needDesktop": "本地沙箱当前离线：用 LambChat 桌面端配对连接后，即可在网页端选用本地沙箱。",
+      "webManaged": "由已配对的桌面端管理",
+      "pairFailed": "配对失败，请检查账号密码后重试",
+      "unpair": "取消配对",
+      "unpaired": "已取消配对",
+      "machines": "我的机器",
+      "machinesDesc": "已连接的本地沙箱机器；会话中可选择执行目标，默认机用于未选择时。",
+      "machinesEmpty": "暂无在线机器",
+      "currentServer": "当前服务器",
+      "setDefault": "设为默认",
+      "defaultBadge": "默认",
+      "rename": "重命名",
+      "renameSave": "保存",
+      "renameCancel": "取消",
+      "platform": {
+        "windows": "Windows",
+        "macos": "macOS",
+        "linux": "Linux",
+        "unknown": "未知平台"
+      },
+      "downloadCta": "下载本地沙箱",
+      "offlineBadge": "离线",
+      "lastSeen": {
+        "minutes": "{{minutes}} 分钟前在线",
+        "hours": "{{hours}} 小时前在线",
+        "days": "{{days}} 天前在线"
+      },
+      "forgetMachine": "忘记这台机器",
+      "forgetMachineConfirm": "确定忘记「{{name}}」？将清除它的名称与默认机设置。"
+    },
     "maxPinnedModels": "最多置顶 {{max}} 个模型",
     "memoryToggle": "跨会话记忆",
     "mobileNotification": "手机通知",
@@ -2134,6 +2242,7 @@
     "realtimeNotificationDesc": "通过 WebSocket 接收任务完成通知",
     "retry": "重试",
     "roles": "角色",
+    "sandbox": "沙箱",
     "searchModels": "搜索模型",
     "sendBehavior": "发送行为",
     "sendOnEnter": "发送消息",
@@ -2429,7 +2538,20 @@
     "bookmarks": {
       "description": "收藏会话中的重要消息（大纲、总结、方案），随时一键跳转回顾。",
       "title": "消息书签"
+    },
+    "download": {
+      "title": "下载本地沙箱"
     }
+  },
+  "serverSetup": {
+    "title": "连接你的 LambChat 服务器",
+    "desc": "输入服务端地址，连接后即可开始使用",
+    "label": "服务器地址",
+    "connect": "连接",
+    "testing": "正在连接…",
+    "fail": "服务器响应异常（HTTP {{status}}），请检查地址",
+    "unreachable": "无法连接到该地址，请确认服务已启动且可访问",
+    "invalid": "地址格式不正确"
   },
   "session": {
     "deleteFailed": "删除会话失败",
@@ -2540,7 +2662,7 @@
     "LANGFUSE_SECRET_KEY": "Langfuse Secret Key",
     "LANGFUSE_HOST": "Langfuse 服务地址",
     "LLM_FALLBACK_MODEL": "主模型重试后仍失败且未配置模型级 fallback 时切换到的兜底模型（留空则禁用）",
-    "LLM_FIRST_EVENT_TIMEOUT": "等待流式响应首个 provider 事件的秒数（0 或负数禁用；首事件后无总时限或 chunk 空闲超时）",
+    "LLM_FIRST_EVENT_TIMEOUT": "等待流式响应首个 provider 事件的秒数（0 或负数禁用；首事件后无总时限）",
     "LLM_MAX_RETRIES": "首次 LLM 调用失败后的重试次数（超时、网络、限流和 5xx）",
     "LLM_MODEL_CACHE_SIZE": "LLM 模型实例缓存大小（每个实例约 10-30MB）。默认 50，支持多用户/多参数场景。设置过小会频繁创建/销毁实例，设置过大会占用更多内存。",
     "LLM_KV_CACHE": "在 OpenAI 协议请求上启用 Codex 同款 KV 缓存路由：/v1/responses 与 /v1/chat/completions 均携带会话级 prompt_cache_key（responses 另含加密推理回传与无状态 store）。仅当提供商拒绝这些标准字段时才需关闭。",
@@ -2562,6 +2684,13 @@
     "MCP_SERVER_LOAD_CONCURRENCY": "加载 MCP 服务器的并发数",
     "MCP_USER_CACHE_MAX_ENTRIES": "每用户 MCP 缓存最大条目数",
     "MCP_USER_CACHE_TTL_SECONDS": "每用户 MCP 缓存 TTL（秒）",
+    "MEMORY_EXTRACTION_ENABLED": "启用 Codex 式空闲会话记忆提取。完整会话会被提炼为带来源引用的持久记忆。",
+    "MEMORY_EXTRACTION_IDLE_SECONDS": "会话结束后等待多少秒再参与记忆提取。",
+    "MEMORY_EXTRACTION_INTERVAL_SECONDS": "后台记忆提取器扫描待处理会话的间隔秒数。",
+    "MEMORY_EXTRACTION_MAX_AGE_DAYS": "只提取最近多少天内结束的会话。",
+    "MEMORY_EXTRACTION_MAX_ATTEMPTS": "单个会话记忆提取失败后的最大尝试次数。",
+    "MEMORY_EXTRACTION_MAX_SESSIONS_PER_PASS": "每轮最多认领并处理的会话数。",
+    "MEMORY_EXTRACTION_TRANSCRIPT_MAX_CHARS": "每个会话提供给记忆提取模型的转录文本字符上限。",
     "MEMORY_PERFORM": "使用的记忆提供商",
     "MONGODB_AUTH_SOURCE": "MongoDB 认证数据库",
     "MONGODB_DB": "MongoDB 数据库名称",
@@ -2590,17 +2719,18 @@
     "NATIVE_MEMORY_HYDRATE_CONCURRENCY": "记忆注水（从存储后端恢复完整内容）的并发数",
     "NATIVE_MEMORY_IMPORT_TOTAL_CONTENT_MAX_CHARS": "记忆导入时所有条目的最大总内容字符数",
     "NATIVE_MEMORY_INDEX_CACHE_TTL": "记忆索引缓存 TTL（秒，每用户）",
-    "NATIVE_MEMORY_INDEX_ENABLED": "将记忆索引注入系统提示以增强上下文感知",
+    "NATIVE_MEMORY_INDEX_ENABLED": "将紧凑记忆索引附加到 memory_recall 工具描述，帮助模型决定何时及如何召回；索引本身不作为回答依据。",
     "NATIVE_MEMORY_INLINE_CONTENT_MAX_CHARS": "在将完整记忆体卸载到存储后端之前，MongoDB 中保留的内联字符数上限。",
     "NATIVE_MEMORY_MAX_AUTO_RETAIN_PER_DAY": "每用户每日自动记忆评估上限（0=不限，默认 20）",
-    "NATIVE_MEMORY_MAX_TOKENS": "记忆 LLM 响应的最大 token 数（提取、合并、重排序）。值越高摘要越长但成本越高。",
+    "NATIVE_MEMORY_MAX_TOKENS": "记忆 LLM 的输出 token 上限（提取、合并、重排序）。0 = 不限制（默认，使用模型默认上限）；思考型模型建议保持不限制，否则思考块会挤占预算导致输出截断。",
     "NATIVE_MEMORY_MODEL": "用于记忆提取、合并和重排序的模型配置。留空使用默认模型。旧的模型值仍兼容。",
     "NATIVE_MEMORY_PRUNE_THRESHOLD": "从未访问的记忆在合并期间被清理的天数",
     "NATIVE_MEMORY_QDRANT_API_KEY": "Qdrant API Key（无鉴权可留空）",
     "NATIVE_MEMORY_QDRANT_URL": "Qdrant 服务地址（如 http://127.0.0.1:6333）",
-    "NATIVE_MEMORY_QUERY_CONTEXT_ENABLED": "开启后每轮消息自动附加相关记忆（写时注入，默认关闭灰度）",
-    "NATIVE_MEMORY_QUERY_CONTEXT_MAX_CHARS": "注入块字符预算（默认 1200）",
-    "NATIVE_MEMORY_QUERY_CONTEXT_TOP_K": "每轮注入的相关记忆条数上限（默认 3）",
+    "NATIVE_MEMORY_QUERY_CONTEXT_ENABLED": "兼容旧版自动查询上下文注入的保留开关。当前读路径不会向用户消息注入记忆，而由模型按需调用 memory_recall。",
+    "NATIVE_MEMORY_QUERY_CONTEXT_MAX_CHARS": "兼容旧版自动查询上下文注入的字符预算；当前 recall 工具索引不使用此设置。",
+    "NATIVE_MEMORY_QUERY_CONTEXT_TIMEOUT_SECONDS": "兼容旧版自动查询上下文注入的召回超时；当前 recall 工具索引不使用此设置。",
+    "NATIVE_MEMORY_QUERY_CONTEXT_TOP_K": "兼容旧版自动查询上下文注入的结果上限；当前 recall 工具索引不使用此设置。",
     "NATIVE_MEMORY_RECALL_MIN_SCORE": "记忆召回结果的最低相关度分数",
     "NATIVE_MEMORY_RERANK_API_BASE": "原生记忆重排序模型端点的 API 基础 URL。",
     "NATIVE_MEMORY_RERANK_API_KEY": "原生记忆重排序模型端点的 API 密钥。",
@@ -2645,7 +2775,7 @@
     "S3_CUSTOM_DOMAIN": "S3 文件的自定义 CDN 域名",
     "S3_ENABLED": "启用 S3 兼容存储用于文件上传",
     "S3_ENDPOINT_URL": "S3 端点 URL（MinIO 和自定义提供商需要）",
-    "S3_INTERNAL_UPLOAD_MAX_SIZE": "最大内部上传大小（字节，默认：50MB）",
+    "S3_INTERNAL_UPLOAD_MAX_SIZE": "统一文件大小上限（字节，默认 1GB）：reveal 文件展示、本地沙箱下载、S3 内部上传共用；修改即时生效，超限报 file_too_large",
     "S3_MAX_FILE_SIZE": "最大文件大小（字节，默认：10MB）",
     "S3_PATH_STYLE": "使用路径风格 URL（MinIO 需要）",
     "S3_PRESIGNED_URL_EXPIRES": "预签名 URL 过期时间（秒，默认：7天）",
@@ -2654,6 +2784,7 @@
     "S3_REGION": "S3 区域",
     "S3_SECRET_KEY": "S3 秘密密钥",
     "SANDBOX_GREP_TIMEOUT": "沙箱 grep 命令超时时间（秒）",
+    "SANDBOX_LOCAL_EXEC_TIMEOUT": "本地沙箱命令执行超时（秒）：卡死命令到点自动击杀，改动即时生效于后续命令。",
     "SANDBOX_PLATFORM": "使用的沙箱平台",
     "SESSION_EVENT_CHUNK_DUAL_WRITE_LEGACY": "将分片 trace 事件同时写入旧 events 数组",
     "SESSION_EVENT_CHUNK_SIZE": "每个 trace event chunk 文档保存的最大事件数",
@@ -2685,7 +2816,8 @@
     "WELCOME_SUGGESTION_ICON": "图标",
     "WELCOME_SUGGESTION_ITEM": "建议项",
     "WELCOME_SUGGESTION_LANG": "语言",
-    "WELCOME_SUGGESTION_TEXT": "文本"
+    "WELCOME_SUGGESTION_TEXT": "文本",
+    "LLM_STREAM_IDLE_TIMEOUT": "流式响应相邻 chunk 之间的最长空闲秒数，防止上游停滞导致运行挂死（0 或负数禁用）"
   },
   "settings": {
     "defaultModel": "默认模型",
@@ -2866,6 +2998,7 @@
     "noSessions": "暂无对话记录",
     "older": "更早",
     "open": "打开",
+    "pendingStatus": "等待中",
     "pinToTop": "置顶",
     "pinToggleFailed": "置顶状态更新失败",
     "pinned": "已置顶",
@@ -2886,6 +3019,7 @@
     "renameFailed": "重命名会话失败",
     "renamed": "会话已重命名",
     "retry": "重试",
+    "runningStatus": "运行中",
     "scrollToTop": "回到顶部",
     "searchResultCount": "{{count}} 个结果",
     "searchSessions": "搜索会话",
@@ -3273,6 +3407,7 @@
   },
   "updateDownload": "立即更新",
   "updateDownloading": "正在下载...",
+  "updateDownloadNetworkError": "下载失败，请检查网络后重试",
   "updateError": "更新失败",
   "updateGoToDownload": "前往下载",
   "updateNewVersion": "新版本 {{version}} 可用",
@@ -3467,5 +3602,56 @@
     "sessionTitle": "本会话书签",
     "locating": "正在定位书签…",
     "messageMissing": "书签指向的消息不在历史中，可能已被删除"
+  },
+  "update": {
+    "aboutTitle": "关于",
+    "checkNow": "检查更新",
+    "notificationBody": "新版本 {{version}} 已发布，可在设置中检查更新",
+    "notificationTitle": "发现新版本",
+    "upToDate": "已是最新版本",
+    "installPermissionHint": "请先允许 LambChat 安装未知应用，授权后重新点击升级",
+    "updateRelaunchInstall": "重启并安装"
+  },
+  "download": {
+    "title": "下载本地沙箱",
+    "description": "让 Agent 在你自己的电脑上执行命令与文件读写——数据不出本机。",
+    "latestVersion": "最新版本：{{version}}",
+    "detectedPlatform": "当前平台",
+    "back": "返回聊天",
+    "viewAllReleases": "在 GitHub 查看全部版本",
+    "loadFailed": "暂时拿不到下载地址，可前往 GitHub Releases 获取最新安装包：",
+    "noAssets": "该版本暂无可用安装包。",
+    "desktop": {
+      "title": "桌面端（推荐）",
+      "desc": "安装后登录 LambChat 账号即自动配对，网页端可直接选用本地沙箱。"
+    },
+    "daemon": {
+      "title": "独立 daemon（服务器 / 无桌面）",
+      "desc": "在你的服务器或开发机上运行守护进程，无需安装桌面应用。",
+      "usage": "用法：下载对应平台的二进制，赋予执行权限，登录你的 LambChat 服务后保持运行。",
+      "binaries": "下载二进制"
+    },
+    "tutorial": {
+      "title": "配对教程",
+      "step1": "安装桌面端并登录 LambChat 账号（自动配对）；服务器用户在目标机器执行上方 daemon 命令。",
+      "step2": "打开 LambChat 网页端 → 设置 → 偏好 → 沙箱，确认「本地沙箱」显示在线。",
+      "step3": "在聊天输入框打开「沙箱」选择器，切换为「本地」，Agent 即在本机执行。"
+    },
+    "macInstall": {
+      "title": "终端一键安装（推荐）",
+      "body": "在「终端」粘贴执行以下命令，自动下载并安装最新版——终端下载不触发「已损坏」提示。"
+    },
+    "macGatekeeper": {
+      "title": "macOS 首次打开",
+      "body": "从浏览器下载的未公证应用，首次打开时 macOS 可能提示「已损坏」。把 LambChat 拖入「应用程序」文件夹后，打开「终端」执行以下命令移除隔离标记，即可正常启动："
+    },
+    "tag": "LambChat · 本地沙箱",
+    "heroCta": "下载桌面端",
+    "heroCtaTutorial": "查看配对教程",
+    "downloadFor": "下载 {{platform}} 版",
+    "mobile": {
+      "title": "手机端 App",
+      "desc": "LambChat Android 客户端（APK 直装），与网页端同一账号登录。"
+    }
   }
 }

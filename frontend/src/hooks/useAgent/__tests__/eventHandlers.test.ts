@@ -221,9 +221,7 @@ test("uses the steer created_at send time for the delivered message timestamp", 
     ctx,
   );
 
-  const delivered = ctx
-    .messages()
-    .find((message) => message.id === "steer-ts");
+  const delivered = ctx.messages().find((message) => message.id === "steer-ts");
   expect(delivered?.timestamp?.toISOString()).toBe("2026-08-22T15:14:55.000Z");
 });
 
@@ -514,6 +512,40 @@ test("user cancel marks message cancelled without closing the SSE connection", (
     "text",
     "cancelled",
   ]);
+  expect(ctx.connectionStatuses).toEqual([]);
+});
+
+test("steer interrupt (user:cancel reason=steer) seals the message without the cancelled pill", () => {
+  const ctx = createContext(
+    [
+      {
+        id: "assistant-1",
+        role: "assistant",
+        content: "",
+        timestamp: new Date("2026-04-19T01:02:03.456Z"),
+        parts: [{ type: "text", content: "partial" }],
+        isStreaming: true,
+      },
+    ],
+    null,
+  );
+
+  handleStreamEvent(
+    {
+      event: "user:cancel",
+      data: JSON.stringify({ run_id: "run-1", reason: "steer" }),
+    },
+    "assistant-1",
+    "redis-event-steer-interrupt",
+    "2026-04-19T01:02:04.000Z",
+    ctx,
+  );
+
+  // 已停止是状态行文字切换（RunStepsCollapse 读 cancelled 标志），
+  // 不追加 cancelled part 胶囊组件
+  expect(ctx.messages()[0]?.cancelled).toBe(true);
+  expect(ctx.messages()[0]?.isStreaming).toBe(false);
+  expect(ctx.messages()[0]?.parts?.map((part) => part.type)).toEqual(["text"]);
   expect(ctx.connectionStatuses).toEqual([]);
 });
 

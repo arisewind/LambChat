@@ -174,7 +174,7 @@ const ModelItem = memo(function ModelItem({
                 />
                 {showTip && (
                   <span
-                    className="fixed z-[60] max-w-[240px] w-max rounded-lg bg-stone-700 dark:bg-stone-900 px-2.5 py-1.5 text-xs leading-relaxed text-white shadow-lg whitespace-normal"
+                    className="fixed z-[60] max-w-[240px] w-max rounded-lg bg-stone-700 dark:bg-stone-900 px-2.5 py-1.5 text-12 leading-relaxed text-white shadow-lg whitespace-normal"
                     style={tipStyle}
                     onTouchStart={(e) => e.stopPropagation()}
                   >
@@ -453,7 +453,7 @@ const ModelSelector = memo(function ModelSelector({
         onClick={toggleSelector}
         className="flex items-center gap-1.5 text-stone-600 hover:opacity-70 dark:text-stone-300 transition-opacity"
       >
-        <span className="text-base font-semibold font-serif max-w-[200px] truncate">
+        <span className="text-16 font-semibold font-serif max-w-[200px] truncate">
           {currentModelInfo?.label || currentModelId}
         </span>
         <ChevronDown

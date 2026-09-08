@@ -51,7 +51,7 @@ function SectionHeader({
         <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-[var(--usage-icon-bg)] text-[var(--theme-primary)] sm:h-9 sm:w-9">
           <FileText size={15} strokeWidth={2} />
         </div>
-        <h2 className="truncate text-13 font-bold tracking-tight text-theme-text sm:text-sm">
+        <h2 className="truncate text-13 font-bold tracking-tight text-theme-text sm:text-14">
           {title}
         </h2>
       </div>
@@ -198,8 +198,14 @@ function DesktopTable({
                   <div className="min-w-0 whitespace-nowrap px-4 py-3 text-right text-12 font-semibold tabular-nums text-[var(--theme-primary)]">
                     {fmt(log.total_tokens)}
                   </div>
-                  <div className={`${numericCellClass} text-theme-text-tertiary`}>
-                    {fmtCostUsd(log.cost_usd, Boolean(log.cost_available), costOpts)}
+                  <div
+                    className={`${numericCellClass} text-theme-text-tertiary`}
+                  >
+                    {fmtCostUsd(
+                      log.cost_usd,
+                      Boolean(log.cost_available),
+                      costOpts,
+                    )}
                   </div>
                   <div className="min-w-0 whitespace-nowrap px-4 py-3 text-right text-12 tabular-nums text-theme-text-tertiary">
                     {fmtDur(log.duration)}
@@ -447,6 +453,8 @@ export function UsageLogsTable({
   const { t, i18n } = useTranslation();
   const fxRates = useFxRates();
   const costOpts: CostFormatOpts = { language: i18n.language, rates: fxRates };
+  // 手机端费用格空间窄，只保留 3 位小数
+  const mobileCostOpts: CostFormatOpts = { ...costOpts, maxDecimals: 3 };
 
   if (logs.length === 0) {
     return (
@@ -454,10 +462,10 @@ export function UsageLogsTable({
         <div className="mb-4 rounded-2xl bg-[var(--glass-bg-subtle)] p-5 ring-1 ring-inset ring-[var(--theme-border-faint)]">
           <Activity size={28} className="text-theme-text-tertiary/25" />
         </div>
-        <p className="text-sm font-medium text-theme-text-secondary/60">
+        <p className="text-14 font-medium text-theme-text-secondary/60">
           {t("usage.noUsage")}
         </p>
-        <p className="mt-1.5 text-xs text-theme-text-tertiary/50">
+        <p className="mt-1.5 text-12 text-theme-text-tertiary/50">
           {t("usage.noUsageHint")}
         </p>
       </div>
@@ -503,7 +511,7 @@ export function UsageLogsTable({
             key={log.trace_id}
             log={log}
             isAdmin={isAdmin}
-            costOpts={costOpts}
+            costOpts={mobileCostOpts}
           />
         ))}
       </div>

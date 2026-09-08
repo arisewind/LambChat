@@ -37,19 +37,19 @@ interface ToolbarProps {
 /* ── Shared style tokens ──────────────────────────────── */
 
 const btnBase =
-  "flex items-center h-9 gap-1.5 rounded-lg border transition-all duration-150 text-sm";
+  "flex items-center h-9 gap-1.5 rounded-lg border transition-all duration-150 text-14";
 const btnDefault =
   "border-theme-border text-theme-text-secondary hover:bg-theme-bg-subtle hover:border-theme-border-hover";
 const btnActive =
   "border-theme-border-hover bg-theme-bg-subtle text-theme-text";
 
 const ddItemBase =
-  "w-full text-left px-3 py-2 text-sm transition-colors rounded-lg flex items-center gap-2";
+  "w-full text-left px-3 py-2 text-14 transition-colors rounded-lg flex items-center gap-2";
 const ddItemActive = "text-theme-text bg-theme-bg-subtle font-medium";
 const ddItemDef = "text-theme-text-secondary hover:bg-theme-bg-subtle";
 
 const smItemBase =
-  "w-full text-left px-3 py-2 text-xs rounded-lg flex items-center gap-2";
+  "w-full text-left px-3 py-2 text-12 rounded-lg flex items-center gap-2";
 
 /* ═══════════════════════════════════════════════════════ */
 
@@ -326,7 +326,7 @@ export function Toolbar({
                 value={search}
                 onValueChange={onSearchChange}
                 placeholder={t("fileLibrary.searchPlaceholder")}
-                className="h-full min-w-0 flex-1 bg-transparent text-sm text-theme-text placeholder:text-theme-text-tertiary focus:outline-none"
+                className="h-full min-w-0 flex-1 bg-transparent text-14 text-theme-text placeholder:text-theme-text-tertiary focus:outline-none"
               />
               {search && (
                 <button

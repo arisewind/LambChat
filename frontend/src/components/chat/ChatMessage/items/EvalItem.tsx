@@ -8,6 +8,7 @@ import {
   toolDetailPropsFromPanelData,
   type ToolDetailProps,
 } from "./ToolLivePanelContent";
+import { useToolStreamingLabel } from "./useToolStreamingLabel";
 import { ToolDurationFooter } from "./ToolDurationFooter";
 import { ToolInlineDetails } from "./ToolInlineDetails";
 import { ToolHoverCopyButton } from "./ToolHoverCopyButton";
@@ -96,16 +97,16 @@ function deriveStatus({
 }
 
 const evalCodePreviewClassName =
-  "eval-code-preview rounded-xl border border-theme-border bg-[color-mix(in_srgb,var(--theme-bg)_78%,var(--theme-bg-card)_22%)] px-3.5 py-3 text-sm text-theme-text-secondary shadow-inner overflow-x-auto overflow-y-auto min-w-0 font-mono";
+  "eval-code-preview rounded-xl border border-theme-border bg-[color-mix(in_srgb,var(--theme-bg)_78%,var(--theme-bg-card)_22%)] px-3.5 py-3 text-14 text-theme-text-secondary shadow-inner overflow-x-auto overflow-y-auto min-w-0 font-mono";
 
 const evalInlineCodePreviewClassName =
-  "eval-code-preview rounded-md border border-theme-border bg-[color-mix(in_srgb,var(--theme-bg)_78%,var(--theme-bg-card)_22%)] px-2.5 py-2 text-xs text-theme-text-secondary shadow-inner overflow-x-auto max-h-48 overflow-y-auto min-w-0 font-mono";
+  "eval-code-preview rounded-md border border-theme-border bg-[color-mix(in_srgb,var(--theme-bg)_78%,var(--theme-bg-card)_22%)] px-2.5 py-2 text-12 text-theme-text-secondary shadow-inner overflow-x-auto max-h-48 overflow-y-auto min-w-0 font-mono";
 
 const evalKindBadgeClassName =
   "rounded-md bg-[color-mix(in_srgb,var(--theme-bg)_60%,var(--theme-bg-card)_40%)] px-1.5 py-0.5 text-9 font-medium uppercase tracking-wide text-theme-text-tertiary";
 
 const evalStdoutPreviewClassName =
-  "eval-code-preview rounded-lg border border-dashed border-theme-border bg-theme-bg px-3 py-2.5 text-xs text-theme-text-secondary overflow-x-auto max-h-40 overflow-y-auto min-w-0 font-mono whitespace-pre";
+  "eval-code-preview rounded-lg border border-dashed border-theme-border bg-theme-bg px-3 py-2.5 text-12 text-theme-text-secondary overflow-x-auto max-h-40 overflow-y-auto min-w-0 font-mono whitespace-pre";
 
 /** 结果视图：剥掉 wire 标签，直接呈现返回值/错误/控制台输出 */
 function EvalResultContent({
@@ -131,9 +132,7 @@ function EvalResultContent({
     return (
       <pre
         className={
-          compact
-            ? evalInlineCodePreviewClassName
-            : evalCodePreviewClassName
+          compact ? evalInlineCodePreviewClassName : evalCodePreviewClassName
         }
       >
         <code>{rawText}</code>
@@ -154,18 +153,20 @@ function EvalResultContent({
           }
         >
           {error.type && (
-            <span className={`${evalKindBadgeClassName} mb-1.5 inline-block bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300`}>
+            <span
+              className={`${evalKindBadgeClassName} mb-1.5 inline-block bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300`}
+            >
               {error.type}
             </span>
           )}
-          <pre className="overflow-x-auto text-xs font-mono leading-relaxed text-red-700 dark:text-red-300">
+          <pre className="overflow-x-auto text-12 font-mono leading-relaxed text-red-700 dark:text-red-300">
             <code>{error.message}</code>
           </pre>
         </div>
       ) : (
         value !== undefined &&
         (value === "undefined" ? (
-          <p className="text-xs font-mono italic text-theme-text-tertiary">
+          <p className="text-12 font-mono italic text-theme-text-tertiary">
             undefined
           </p>
         ) : (
@@ -183,7 +184,7 @@ function EvalResultContent({
 
       {stdout && (
         <div className="min-w-0">
-          <div className="mb-1 text-xs font-medium text-theme-text-tertiary">
+          <div className="mb-1 text-12 font-medium text-theme-text-tertiary">
             {t("chat.message.consoleOutput")}
           </div>
           <pre className={evalStdoutPreviewClassName}>
@@ -207,7 +208,7 @@ function EvalDetail({ args, result }: ToolDetailProps) {
     <div className="p-4 sm:p-5 space-y-4 tool-panel-content">
       {codePreview && (
         <section className="space-y-2">
-          <div className="flex items-center justify-between gap-2 text-xs font-medium text-theme-text-tertiary">
+          <div className="flex items-center justify-between gap-2 text-12 font-medium text-theme-text-tertiary">
             <span>{t("chat.message.codePreview")}</span>
             <CopyButton text={codePreview.code} size={12} />
           </div>
@@ -219,10 +220,10 @@ function EvalDetail({ args, result }: ToolDetailProps) {
 
       {hasArgs && (
         <section className="space-y-2">
-          <div className="text-xs font-medium text-theme-text-tertiary">
+          <div className="text-12 font-medium text-theme-text-tertiary">
             {t("chat.message.args")}
           </div>
-          <pre className="rounded-xl border border-theme-border bg-theme-bg px-3.5 py-3 text-sm text-theme-text-secondary overflow-x-auto overflow-y-auto min-w-0 font-mono">
+          <pre className="rounded-xl border border-theme-border bg-theme-bg px-3.5 py-3 text-14 text-theme-text-secondary overflow-x-auto overflow-y-auto min-w-0 font-mono">
             {argsJson}
           </pre>
         </section>
@@ -230,7 +231,7 @@ function EvalDetail({ args, result }: ToolDetailProps) {
 
       {hasResult && (
         <section className="space-y-2">
-          <div className="flex items-center justify-between gap-2 text-xs font-medium text-theme-text-tertiary">
+          <div className="flex items-center justify-between gap-2 text-12 font-medium text-theme-text-tertiary">
             <span>{t("chat.message.result")}</span>
             <CopyButton
               text={
@@ -283,7 +284,13 @@ const EvalItem = memo(function EvalItem({
   const evalLabel = t("chat.message.toolEval");
   const title = isEvalToolName(toolName) ? evalLabel : toolName;
   const pillSummary = getEvalPillSummary(args, codePreview);
-  const pillLabel = pillSummary ? `${evalLabel} ${pillSummary}` : evalLabel;
+
+  // 进行中：标签学「思考中」，平滑流出正在生成的参数尾部
+  const { label, isStreamingLabel } = useToolStreamingLabel(
+    pillSummary ? `${evalLabel} ${pillSummary}` : evalLabel,
+    args,
+    { isPending, result },
+  );
 
   const detailContent = canExpand && (
     <EvalDetail
@@ -301,7 +308,8 @@ const EvalItem = memo(function EvalItem({
     <CollapsiblePill
       status={status}
       icon={<Code2 size={12} className="shrink-0 opacity-60" />}
-      label={pillLabel}
+      label={label}
+      animatedDots={isStreamingLabel}
       suffix={
         codePreview?.language ? (
           <span className="text-9 px-1.5 py-0.5 rounded-md bg-white/35 dark:bg-black/25 opacity-75 font-medium truncate max-w-[120px] uppercase tracking-normal">
@@ -344,7 +352,7 @@ const EvalItem = memo(function EvalItem({
           )}
 
           {hasArgs && (
-            <pre className="rounded-md border border-theme-border bg-theme-bg px-2.5 py-2 text-xs text-theme-text-secondary overflow-x-auto max-h-40 overflow-y-auto min-w-0 font-mono">
+            <pre className="rounded-md border border-theme-border bg-theme-bg px-2.5 py-2 text-12 text-theme-text-secondary overflow-x-auto max-h-40 overflow-y-auto min-w-0 font-mono">
               {argsJson}
             </pre>
           )}

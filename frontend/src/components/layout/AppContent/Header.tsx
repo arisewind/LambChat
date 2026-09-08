@@ -185,7 +185,7 @@ export function Header({
                       >
                         <path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 16H5V5h14v14z" />
                       </svg>
-                      <span className="text-xs text-[var(--color-text-secondary)] truncate max-w-[120px]">
+                      <span className="text-12 text-[var(--color-text-secondary)] truncate max-w-[120px]">
                         {project.name}
                       </span>
                     </div>
@@ -202,7 +202,7 @@ export function Header({
                 <ChevronLeft size={20} />
               </button>
               <div className="flex flex-col justify-center">
-                <span className="text-base font-bold text-[var(--color-text-primary)] font-serif leading-tight">
+                <span className="text-16 font-bold text-[var(--color-text-primary)] font-serif leading-tight">
                   {t(`nav.${activeTab}`, { defaultValue: activeTab })}
                 </span>
               </div>
@@ -341,7 +341,7 @@ export function Header({
               >
                 <button
                   onClick={() => setLangMenuOpen(false)}
-                  className="flex w-full items-center gap-2 px-3 py-2.5 text-sm text-[var(--theme-text-secondary)] hover:text-[var(--theme-text)] hover:bg-[var(--theme-bg-subtle)] transition-colors"
+                  className="flex w-full items-center gap-2 px-3 py-2.5 text-14 text-[var(--theme-text-secondary)] hover:text-[var(--theme-text)] hover:bg-[var(--theme-bg-subtle)] transition-colors"
                 >
                   <ChevronLeft size={16} className="shrink-0" />
                   <span>{t("common.language")}</span>
@@ -371,7 +371,7 @@ export function Header({
                           setLangMenuOpen(false);
                           setMobileMenuOpen(false);
                         }}
-                        className={`flex w-full items-center gap-3 px-3 py-2.5 text-left text-sm transition-colors ${
+                        className={`flex w-full items-center gap-3 px-3 py-2.5 text-left text-14 transition-colors ${
                           isActive
                             ? "text-[var(--theme-text)] bg-[var(--theme-bg-subtle)]"
                             : "text-[var(--theme-text-secondary)] hover:text-[var(--theme-text)] hover:bg-[var(--theme-bg-subtle)]"
@@ -421,7 +421,7 @@ function HeaderMenuItem({
   return (
     <button
       onClick={onClick}
-      className="flex w-full items-center gap-3 px-3 py-2.5 text-left text-sm transition-colors text-[var(--theme-text-secondary)] hover:text-[var(--theme-text)] hover:bg-[var(--theme-bg-subtle)]"
+      className="flex w-full items-center gap-3 px-3 py-2.5 text-left text-14 transition-colors text-[var(--theme-text-secondary)] hover:text-[var(--theme-text)] hover:bg-[var(--theme-bg-subtle)]"
     >
       {children}
     </button>

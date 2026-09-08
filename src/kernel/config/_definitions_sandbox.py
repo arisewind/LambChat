@@ -16,6 +16,16 @@ SANDBOX_SETTING_DEFINITIONS: dict[str, dict] = {
         "default": False,
         "frontend_visible": True,
     },
+    "SANDBOX_LOCAL_EXEC_TIMEOUT": {
+        "type": SettingType.NUMBER,
+        "category": SettingCategory.SANDBOX,
+        "subcategory": "general",
+        "description": "settingDesc.SANDBOX_LOCAL_EXEC_TIMEOUT",
+        "default": 120,
+        "min_value": 1,
+        "max_value": 86400,
+        "depends_on": "ENABLE_SANDBOX",
+    },
     "SANDBOX_PLATFORM": {
         "type": SettingType.SELECT,
         "category": SettingCategory.SANDBOX,

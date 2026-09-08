@@ -250,10 +250,14 @@ async def test_image_analyze_uses_configured_vlm_model_and_prompt(monkeypatch):
     }
     assert len(captured["messages"]) == 1
     assert isinstance(captured["messages"][0], HumanMessage)
-    assert captured["messages"][0].content == [
-        {"type": "text", "text": "Describe the animal."},
-        {"type": "image_url", "image_url": {"url": "/api/upload/file/uploads/lamb.png"}},
-    ]
+    # 文本摘要保留附件链接（URL 模式），图片块仍为原图 URL
+    assert captured["messages"][0].content[0]["type"] == "text"
+    assert "Describe the animal." in captured["messages"][0].content[0]["text"]
+    assert "/api/upload/file/uploads/lamb.png" in captured["messages"][0].content[0]["text"]
+    assert captured["messages"][0].content[1] == {
+        "type": "image_url",
+        "image_url": {"url": "/api/upload/file/uploads/lamb.png"},
+    }
 
 
 @pytest.mark.asyncio

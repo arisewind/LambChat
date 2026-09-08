@@ -56,7 +56,7 @@ export function SessionBookmarksPanelBody({
           <div className="scheduled-task-mini-card__header">
             <div className="min-w-0 flex-1">
               <p
-                className="truncate text-sm font-semibold font-serif text-[var(--theme-text)]"
+                className="truncate text-14 font-semibold font-serif text-[var(--theme-text)]"
                 title={bookmark.label ?? undefined}
               >
                 {bookmark.label?.trim() || t("bookmarks.untitled")}

@@ -58,10 +58,10 @@ export function ArchitectureSection({
                   : ""
               }`}
             >
-              <div className="text-3xl sm:text-4xl font-extrabold font-serif tracking-tight text-transparent bg-clip-text bg-gradient-to-b from-stone-900 via-stone-800 to-stone-500 dark:from-stone-50 dark:via-stone-200 dark:to-stone-400 leading-none mb-2.5">
+              <div className="text-30 sm:text-36 font-extrabold font-serif tracking-tight text-transparent bg-clip-text bg-gradient-to-b from-stone-900 via-stone-800 to-stone-500 dark:from-stone-50 dark:via-stone-200 dark:to-stone-400 leading-none mb-2.5">
                 <AnimatedNumber value={s.num} />
               </div>
-              <div className="text-11 sm:text-xs font-medium text-stone-400 dark:text-stone-500 leading-snug">
+              <div className="text-11 sm:text-12 font-medium text-stone-400 dark:text-stone-500 leading-snug">
                 {t(`landing.${s.key}`, s.key)}
               </div>
             </div>

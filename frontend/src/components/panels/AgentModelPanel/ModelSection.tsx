@@ -152,7 +152,7 @@ export function ModelSection() {
       <div className="inline-grid grid-cols-2 rounded-lg border border-[var(--glass-border)] bg-[var(--glass-bg-subtle)] p-1 my-3 font-serif">
         <button
           onClick={() => setActiveTab("roles")}
-          className={`flex items-center justify-center gap-2 rounded-md px-3 py-2 text-sm font-medium transition-all duration-150 ${
+          className={`flex items-center justify-center gap-2 rounded-md px-3 py-2 text-14 font-medium transition-all duration-150 ${
             activeTab === "roles"
               ? "bg-white text-stone-950 shadow-sm ring-1 ring-[var(--glass-border)] dark:bg-stone-800 dark:text-stone-50"
               : "text-stone-500 hover:bg-white/60 hover:text-stone-800 dark:text-stone-400 dark:hover:bg-stone-800/60 dark:hover:text-stone-100"
@@ -162,7 +162,7 @@ export function ModelSection() {
         </button>
         <button
           onClick={() => setActiveTab("model-config")}
-          className={`flex items-center justify-center gap-2 rounded-md px-3 py-2 text-sm font-medium transition-all duration-150 ${
+          className={`flex items-center justify-center gap-2 rounded-md px-3 py-2 text-14 font-medium transition-all duration-150 ${
             activeTab === "model-config"
               ? "bg-white text-stone-950 shadow-sm ring-1 ring-[var(--glass-border)] dark:bg-stone-800 dark:text-stone-50"
               : "text-stone-500 hover:bg-white/60 hover:text-stone-800 dark:text-stone-400 dark:hover:bg-stone-800/60 dark:hover:text-stone-100"

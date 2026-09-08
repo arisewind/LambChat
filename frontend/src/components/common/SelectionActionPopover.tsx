@@ -150,7 +150,7 @@ export function SelectionActionPopover() {
     <div
       ref={popoverRef}
       data-selection-action-popover="true"
-      className="fixed rounded-lg text-xs z-[9999]"
+      className="fixed rounded-lg text-12 z-[9999]"
       style={{ left: popover.left, top: popover.top }}
     >
       <div className="flex flex-row gap-0.5 shrink-0 p-1 bg-white text-stone-700 dark:bg-stone-800 dark:text-stone-100 text-medium rounded-lg shadow-xl border border-stone-100 dark:border-stone-700">

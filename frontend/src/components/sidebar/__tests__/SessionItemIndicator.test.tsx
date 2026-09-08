@@ -1,8 +1,20 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi } from "vitest";
-import { fireEvent, render } from "@testing-library/react";
+import { act, fireEvent, render, within } from "@testing-library/react";
 import { SessionItem } from "../SessionItem";
 import type { BackendSession } from "../../../services/api/session";
+
+// Keep label assertions locale-independent: return the in-code fallback text
+vi.mock("react-i18next", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("react-i18next")>();
+  return {
+    ...actual,
+    useTranslation: () => ({
+      t: (key: string, defaultValue?: string) => defaultValue ?? key,
+      i18n: { language: "zh" },
+    }),
+  };
+});
 
 const baseSession = {
   id: "sess_1",
@@ -13,55 +25,71 @@ const baseSession = {
   metadata: {},
 } satisfies BackendSession;
 
+function renderSessionItem(metadata: Record<string, unknown>) {
+  const view = render(
+    <SessionItem
+      session={{ ...baseSession, metadata }}
+      isActive={false}
+      projects={[]}
+      onSelect={vi.fn()}
+      onDelete={vi.fn()}
+      onMoveToProject={vi.fn()}
+      onSessionUpdate={vi.fn()}
+    />,
+  );
+  return { ...view, row: view.container.firstElementChild as HTMLElement };
+}
+
+const touchRow = (row: HTMLElement) =>
+  fireEvent.touchStart(row, { touches: [{ clientX: 10, clientY: 10 }] });
+
 describe("SessionItem task running indicator", () => {
-  it("shows spinner when task_status is running", () => {
-    const view = render(
-      <SessionItem
-        session={{ ...baseSession, metadata: { task_status: "running" } }}
-        isActive={false}
-        projects={[]}
-        onSelect={vi.fn()}
-        onDelete={vi.fn()}
-        onMoveToProject={vi.fn()}
-        onSessionUpdate={vi.fn()}
-      />,
-    );
+  it("labels the running spinner via aria-label without a native title", () => {
+    renderSessionItem({ task_status: "running" });
     const indicator = document.querySelector(".animate-spin")?.parentElement;
-    expect(indicator).toHaveAttribute("title", "运行中");
     expect(indicator).toHaveAttribute("aria-label", "运行中");
-    fireEvent.touchStart(view.container.firstElementChild!, {
-      touches: [{ clientX: 10, clientY: 10 }],
-    });
-    expect(view.getByText("运行中")).toBeInTheDocument();
+    expect(indicator).not.toHaveAttribute("title");
   });
-  it("shows spinner when task_status is pending", () => {
-    render(
-      <SessionItem
-        session={{ ...baseSession, metadata: { task_status: "pending" } }}
-        isActive={false}
-        projects={[]}
-        onSelect={vi.fn()}
-        onDelete={vi.fn()}
-        onMoveToProject={vi.fn()}
-        onSessionUpdate={vi.fn()}
-      />,
-    );
+  it("labels the pending spinner via aria-label", () => {
+    renderSessionItem({ task_status: "pending" });
     const indicator = document.querySelector(".animate-spin")?.parentElement;
-    expect(indicator).toHaveAttribute("title", "等待中");
     expect(indicator).toHaveAttribute("aria-label", "等待中");
   });
+  it("does not pop the running label bubble when the row is touched", () => {
+    const { row } = renderSessionItem({ task_status: "running" });
+    expect(within(row).queryByText("运行中")).not.toBeInTheDocument();
+    touchRow(row);
+    expect(within(document.body).queryByText("运行中")).not.toBeInTheDocument();
+    expect(
+      document.querySelector(".animate-spin")?.parentElement?.textContent,
+    ).toBe("");
+  });
+  it("does not pop the waiting-for-reply bubble when the row is touched", () => {
+    const { row } = renderSessionItem({ task_status: "waiting_human" });
+    expect(within(row).queryByText("等待回复")).not.toBeInTheDocument();
+    touchRow(row);
+    expect(
+      within(document.body).queryByText("等待回复"),
+    ).not.toBeInTheDocument();
+  });
+  it("still shows the running label after a deliberate long press on the spinner", () => {
+    const { row } = renderSessionItem({ task_status: "running" });
+    const spinner = document.querySelector(".animate-spin")?.parentElement;
+    expect(spinner).toBeTruthy();
+    vi.useFakeTimers();
+    try {
+      fireEvent.touchStart(spinner!, { touches: [{ clientX: 0, clientY: 0 }] });
+      act(() => {
+        vi.advanceTimersByTime(500);
+      });
+      expect(within(document.body).queryByText("运行中")).toBeInTheDocument();
+      expect(within(row).queryByText("运行中")).not.toBeInTheDocument();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
   it("shows only a running-indicator-sized icon while waiting for a reply", () => {
-    render(
-      <SessionItem
-        session={{ ...baseSession, metadata: { task_status: "waiting_human" } }}
-        isActive={false}
-        projects={[]}
-        onSelect={vi.fn()}
-        onDelete={vi.fn()}
-        onMoveToProject={vi.fn()}
-        onSessionUpdate={vi.fn()}
-      />,
-    );
+    renderSessionItem({ task_status: "waiting_human" });
     const indicator = document.querySelector("[data-session-status=ask-human]");
     expect(indicator).toBeInTheDocument();
     expect(indicator).toHaveClass("w-4", "h-4");
@@ -71,31 +99,30 @@ describe("SessionItem task running indicator", () => {
     expect(indicator?.querySelector("svg")).toHaveAttribute("height", "16");
   });
   it("hides spinner when task_status is completed", () => {
-    render(
-      <SessionItem
-        session={{ ...baseSession, metadata: { task_status: "completed" } }}
-        isActive={false}
-        projects={[]}
-        onSelect={vi.fn()}
-        onDelete={vi.fn()}
-        onMoveToProject={vi.fn()}
-        onSessionUpdate={vi.fn()}
-      />,
-    );
+    renderSessionItem({ task_status: "completed" });
     expect(document.querySelector(".animate-spin")).not.toBeInTheDocument();
   });
   it("hides spinner when task_status is absent", () => {
-    render(
-      <SessionItem
-        session={baseSession}
-        isActive={false}
-        projects={[]}
-        onSelect={vi.fn()}
-        onDelete={vi.fn()}
-        onMoveToProject={vi.fn()}
-        onSessionUpdate={vi.fn()}
-      />,
-    );
+    renderSessionItem({});
     expect(document.querySelector(".animate-spin")).not.toBeInTheDocument();
+  });
+});
+
+describe("SessionItem more-options button tooltip", () => {
+  it("reveals the more-options button itself on touch, without popping its bubble", () => {
+    // The i18n mock returns the key itself when no in-code fallback exists
+    const { row } = renderSessionItem({});
+    const moreButton = row.querySelector("button");
+    expect(moreButton).not.toHaveAttribute("title");
+    expect(moreButton).toHaveAttribute("aria-label", "sidebar.moreOptions");
+    touchRow(row);
+    // 触摸后按钮亮出（opacity 1），但不再强制弹出气泡
+    expect(moreButton).toHaveStyle({ opacity: "1" });
+    expect(
+      within(document.body).queryByText("sidebar.moreOptions"),
+    ).not.toBeInTheDocument();
+    expect(
+      within(row).queryByText("sidebar.moreOptions"),
+    ).not.toBeInTheDocument();
   });
 });

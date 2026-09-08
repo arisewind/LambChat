@@ -13,6 +13,10 @@ const consumers = [
   "../AgentModeSelector.tsx",
   "../SkillSelector.tsx",
   "../ToolSelector.tsx",
+  // 通知弹窗与 ChatInput 的 skill 弹窗共用同一父组件，不允许另写居中布局
+  "../../notification/NotificationDialog.tsx",
+  // 欢迎页 banner 的详情弹窗同样复用选择器父组件，不再手写居中遮罩
+  "../../notification/NotificationBanner.tsx",
 ];
 
 test("selector modals share the portal overlay and viewport wrapper", () => {
@@ -20,8 +24,10 @@ test("selector modals share the portal overlay and viewport wrapper", () => {
   expect(modalSource).toMatch(
     /className="fixed inset-0 z-\[300\] bg-black\/50 animate-fade-in"/,
   );
+  // 容器不再用 viewport padding 把 sheet 顶离屏幕底边，
+  // 底部 inset 由 SelectorModalShell 表面自己承担
   expect(modalSource).toMatch(
-    /className="safe-area-viewport-padding fixed z-\[301\] sm:inset-0 sm:flex sm:items-center sm:justify-center sm:p-4 inset-x-0 bottom-0 animate-slide-up sm:animate-scale-in"/,
+    /className="safe-area-x fixed z-\[301\] sm:inset-0 sm:flex sm:items-center sm:justify-center sm:p-4 inset-x-0 bottom-0 animate-slide-up sm:animate-scale-in"/,
   );
 
   for (const relativePath of consumers) {
@@ -33,7 +39,7 @@ test("selector modals share the portal overlay and viewport wrapper", () => {
       /fixed inset-0 z-\[300\] bg-black\/50 animate-fade-in/,
     );
     expect(source).not.toMatch(
-      /safe-area-viewport-padding fixed z-\[301\] sm:inset-0 sm:flex sm:items-center sm:justify-center sm:p-4 inset-x-0 bottom-0 animate-slide-up sm:animate-scale-in/,
+      /safe-area-x safe-area-viewport-padding fixed z-\[301\] sm:inset-0 sm:flex sm:items-center sm:justify-center sm:p-4 inset-x-0 bottom-0 animate-slide-up sm:animate-scale-in/,
     );
   }
 });
@@ -47,6 +53,8 @@ test("selector modals share the content shell without changing its classes", () 
     /border border-white\/70 dark:border-stone-700\/80/,
   );
   expect(shellSource).toMatch(/background: "var\(--theme-bg-card\)"/);
+  // sheet 表面自带底部 inset，背景铺满到屏幕物理底边
+  expect(shellSource).toMatch(/safe-area-bottom/);
   expect(shellSource).toMatch(
     /onClick=\{\(event\) => event\.stopPropagation\(\)\}/,
   );
@@ -75,7 +83,7 @@ test("selector modals share the header and action bar styles", () => {
     /sticky top-0 z-10 flex items-center gap-2 px-4 sm:px-6 py-2\.5 border-b/,
   );
   expect(actionBarSource).toMatch(
-    /rounded-full border border-transparent px-3 py-2 sm:py-1\.5 text-xs font-semibold/,
+    /rounded-full border border-transparent px-3 py-2 sm:py-1\.5 text-12 font-semibold/,
   );
 });
 

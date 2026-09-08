@@ -4,6 +4,7 @@ import { Users, Tag, Zap } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { CollapsiblePill, CopyButton } from "../../../common";
 import { ImageWithSkeleton } from "../ImageWithSkeleton";
+import { useToolStreamingLabel } from "./useToolStreamingLabel";
 import { extractText } from "./toolUtils";
 import {
   openToolLivePanel,
@@ -176,7 +177,7 @@ function TeamDetail({
                     {/* Avatar + Name + Status */}
                     <div className="flex items-start gap-3">
                       <div
-                        className="w-10 h-10 rounded-xl flex items-center justify-center text-lg leading-none shrink-0 overflow-hidden relative"
+                        className="w-10 h-10 rounded-xl flex items-center justify-center text-18 leading-none shrink-0 overflow-hidden relative"
                         style={{
                           boxShadow: `0 3px 10px -2px ${pGradient[0]}35`,
                         }}
@@ -204,7 +205,7 @@ function TeamDetail({
                       </div>
                       <div className="min-w-0 flex-1 pt-0.5">
                         <div className="flex items-center gap-1.5">
-                          <div className="text-sm text-theme-text font-semibold truncate">
+                          <div className="text-14 text-theme-text font-semibold truncate">
                             {name}
                           </div>
                           {pStatus && pStatus !== "published" && (
@@ -353,7 +354,7 @@ function TeamDetail({
                     )}
                   >
                     <div
-                      className="w-11 h-11 sm:w-14 sm:h-14 rounded-2xl flex items-center justify-center text-xl sm:text-2xl leading-none shrink-0 overflow-hidden relative"
+                      className="w-11 h-11 sm:w-14 sm:h-14 rounded-2xl flex items-center justify-center text-20 sm:text-24 leading-none shrink-0 overflow-hidden relative"
                       style={
                         teamGradient
                           ? {
@@ -392,11 +393,11 @@ function TeamDetail({
                       </div>
                     </div>
                     <div className="min-w-0 flex-1 pb-0.5">
-                      <h3 className="text-sm sm:text-base font-bold text-theme-text truncate tracking-tight">
+                      <h3 className="text-14 sm:text-16 font-bold text-theme-text truncate tracking-tight">
                         {resultTeamName}
                       </h3>
                       {resultId && (
-                        <div className="text-10 sm:text-xs text-theme-text-tertiary/70 font-mono truncate mt-0.5 flex items-center gap-1">
+                        <div className="text-10 sm:text-12 text-theme-text-tertiary/70 font-mono truncate mt-0.5 flex items-center gap-1">
                           <span className="min-w-0 truncate block">
                             {resultId.slice(0, 12)}…
                           </span>
@@ -406,7 +407,7 @@ function TeamDetail({
                   </div>
 
                   {resultDescription && (
-                    <p className="text-xs sm:text-13 text-theme-text-secondary/80 mt-3 line-clamp-2 leading-relaxed">
+                    <p className="text-12 sm:text-13 text-theme-text-secondary/80 mt-3 line-clamp-2 leading-relaxed">
                       {resultDescription}
                     </p>
                   )}
@@ -482,7 +483,7 @@ function TeamDetail({
                       />
                       <div className="flex items-center gap-3 px-3.5 py-2.5">
                         <div
-                          className="w-8 h-8 rounded-lg flex items-center justify-center text-sm leading-none shrink-0 overflow-hidden relative"
+                          className="w-8 h-8 rounded-lg flex items-center justify-center text-14 leading-none shrink-0 overflow-hidden relative"
                           style={{
                             boxShadow: `0 1px 4px -1px ${accentColor}30`,
                           }}
@@ -500,7 +501,7 @@ function TeamDetail({
                               avatar={roleAvatar}
                               sizeClass="w-full h-full"
                               fallback={
-                                <span className="text-xs text-theme-text-tertiary">
+                                <span className="text-12 text-theme-text-tertiary">
                                   ?
                                 </span>
                               }
@@ -508,7 +509,7 @@ function TeamDetail({
                           </div>
                         </div>
                         <div className="min-w-0 flex-1">
-                          <div className="text-xs text-theme-text font-semibold truncate">
+                          <div className="text-12 text-theme-text font-semibold font-serif truncate">
                             {roleName}
                           </div>
                           {mTags.length > 0 && (
@@ -553,7 +554,7 @@ function TeamDetail({
         personas.length === 0 &&
         !resultTeamName &&
         !resultMembers.length && (
-          <pre className="group/result relative text-xs text-theme-text-tertiary whitespace-pre-wrap break-words p-3 rounded-lg bg-theme-bg border border-theme-border">
+          <pre className="group/result relative text-12 text-theme-text-tertiary whitespace-pre-wrap break-words p-3 rounded-lg bg-theme-bg border border-theme-border">
             {(() => {
               const text = extractText(result);
               return text.length > 600 ? text.slice(0, 597) + "…" : text;
@@ -668,20 +669,28 @@ const TeamItem = memo(function TeamItem({
 
   // ── Inline (compact) view ──
 
+  // 进行中：标签学「思考中」，平滑流出正在生成的参数尾部
+  const { label, isStreamingLabel } = useToolStreamingLabel(
+    `${actionLabel}${
+      labelSuffix
+        ? ` ${
+            labelSuffix.length > 40
+              ? labelSuffix.slice(0, 37) + "…"
+              : labelSuffix
+          }`
+        : ""
+    }`,
+    args,
+    { isPending, result },
+  );
+
   return (
     <>
       <CollapsiblePill
         status={pillStatus}
         icon={<Users size={12} className="shrink-0 opacity-50" />}
-        label={`${actionLabel}${
-          labelSuffix
-            ? ` ${
-                labelSuffix.length > 40
-                  ? labelSuffix.slice(0, 37) + "…"
-                  : labelSuffix
-              }`
-            : ""
-        }`}
+        label={label}
+        animatedDots={isStreamingLabel}
         variant="tool"
         expandable={canExpand}
         onPanelOpen={() => {
@@ -698,7 +707,10 @@ const TeamItem = memo(function TeamItem({
               : undefined,
             fallback: detailContent || undefined,
             buildDetail: (data) => (
-              <TeamDetail {...toolDetailPropsFromPanelData(data)} toolName={toolName} />
+              <TeamDetail
+                {...toolDetailPropsFromPanelData(data)}
+                toolName={toolName}
+              />
             ),
             footer: durationFooter,
           });
@@ -708,7 +720,7 @@ const TeamItem = memo(function TeamItem({
           <ToolInlineDetails>
             {isSearch && personas.length > 0 && (
               <div>
-                <div className="text-xs text-theme-text-tertiary mb-1">
+                <div className="text-12 text-theme-text-tertiary mb-1">
                   {t("chat.message.toolPersonaCount", {
                     count: personas.length,
                   })}
@@ -749,7 +761,7 @@ const TeamItem = memo(function TeamItem({
 
             {!isSearch && resultTeamName && (
               <div className="flex items-center gap-2 rounded-lg px-2.5 py-2 bg-theme-bg border border-theme-border hover:border-[color-mix(in_srgb,var(--theme-text-secondary)_12%,var(--theme-border))] transition-colors">
-                <div className="w-5 h-5 rounded flex items-center justify-center text-xs leading-none shrink-0 bg-[color-mix(in_srgb,var(--theme-primary)_8%,var(--theme-bg-card))] overflow-hidden">
+                <div className="w-5 h-5 rounded flex items-center justify-center text-12 leading-none shrink-0 bg-[color-mix(in_srgb,var(--theme-primary)_8%,var(--theme-bg-card))] overflow-hidden">
                   <RenderAvatar
                     avatar={resultAvatar}
                     sizeClass="w-full h-full"
@@ -762,7 +774,7 @@ const TeamItem = memo(function TeamItem({
                   />
                 </div>
                 <div className="min-w-0 flex-1">
-                  <div className="text-xs text-theme-text font-medium truncate">
+                  <div className="text-12 text-theme-text font-medium truncate">
                     {resultTeamName}
                   </div>
                 </div>
@@ -777,7 +789,7 @@ const TeamItem = memo(function TeamItem({
             )}
 
             {result && personas.length === 0 && !resultTeamName && (
-              <pre className="group/result relative text-xs text-theme-text-tertiary whitespace-pre-wrap break-words overflow-y-auto min-w-0">
+              <pre className="group/result relative text-12 text-theme-text-tertiary whitespace-pre-wrap break-words overflow-y-auto min-w-0">
                 {(() => {
                   const text = extractText(result);
                   return text.length > 300 ? text.slice(0, 297) + "…" : text;

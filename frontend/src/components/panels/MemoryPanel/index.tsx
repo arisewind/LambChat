@@ -337,7 +337,7 @@ export function MemoryPanel() {
             <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-[var(--glass-bg)]">
               <Brain size={32} className="text-[var(--theme-text-secondary)]" />
             </div>
-            <p className="text-lg font-medium font-serif text-[var(--theme-text)]">
+            <p className="text-18 font-medium font-serif text-[var(--theme-text)]">
               {searchQuery || filterType
                 ? t("memory.noResults")
                 : t("memory.empty")}
@@ -366,7 +366,7 @@ export function MemoryPanel() {
                       size="lg"
                       checked={checked}
                       onChange={() => toggleCheck(memory.memory_id)}
-                      className="shadow-sm opacity-0 group-hover:opacity-100"
+                      className="shadow-sm opacity-0 group-hover:opacity-100 max-sm:opacity-100"
                     />
                   </div>
 
@@ -397,11 +397,11 @@ export function MemoryPanel() {
                       </span>
                     </div>
 
-                    <h4 className="truncate text-base font-semibold font-serif  text-[var(--theme-text)] pr-8">
+                    <h4 className="truncate text-16 font-semibold font-serif  text-[var(--theme-text)] pr-8">
                       {memory.title}
                     </h4>
 
-                    <p className="mt-1 text-sm leading-relaxed text-[var(--theme-text-secondary)] line-clamp-2">
+                    <p className="mt-1 text-14 leading-relaxed text-[var(--theme-text-secondary)] line-clamp-2">
                       {memory.summary}
                     </p>
                   </div>

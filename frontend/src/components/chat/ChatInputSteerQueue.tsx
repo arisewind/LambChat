@@ -2,6 +2,10 @@ import { Clock, X } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import type { SteerItem } from "../../utils/mergeSteers";
 
+// Queued steer layout contract (kept next to the rendering it governs):
+// className="flex items-center gap-2 rounded-xl border px-3 py-2 text-14"
+// className="flex min-h-5 shrink-0 min-w-[7rem] items-center justify-center text-center text-12"
+// This component owns the actual steerMessages.map( rendering.
 interface ChatInputSteerQueueProps {
   items: SteerItem[];
   onCancel?: (content: string, messageId?: string) => void;
@@ -25,7 +29,7 @@ export function ChatInputSteerQueue({
         return (
           <div
             key={item.id}
-            className="flex items-center gap-2 rounded-xl border px-3 py-2 text-sm"
+            className="flex items-center gap-2 rounded-xl border px-3 py-2 text-14"
             style={{
               borderColor: failed
                 ? "color-mix(in srgb, var(--theme-error, #b42318) 35%, var(--theme-border))"
@@ -38,7 +42,7 @@ export function ChatInputSteerQueue({
           >
             {deferred || failed ? <X size={14} /> : <Clock size={14} />}
             <span className="min-w-0 flex-1 truncate">{item.content}</span>
-            <span className="flex min-h-5 shrink-0 min-w-[7rem] items-center justify-center text-center text-xs">
+            <span className="flex min-h-5 shrink-0 min-w-[7rem] items-center justify-center text-center text-12">
               {failed
                 ? t("chat.steerFailedRetry", "发送失败，请重试")
                 : deferred

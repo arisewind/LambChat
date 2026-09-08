@@ -4,6 +4,7 @@ import { Sparkles, ImageIcon, Tag, Layers, ImagePlus } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { CollapsiblePill, CopyButton, ImageViewer } from "../../../common";
 import { ImageWithSkeleton } from "../ImageWithSkeleton";
+import { useToolStreamingLabel } from "./useToolStreamingLabel";
 import { extractText } from "./toolUtils";
 import { extractGeneratedImageResults } from "./toolImageResults";
 import {
@@ -104,10 +105,10 @@ function ImageGenerateDetail({
             <ImageIcon size={20} aria-hidden="true" />
           </div>
           <div className="min-w-0 flex-1">
-            <div className="text-sm text-theme-text font-semibold truncate">
+            <div className="text-14 text-theme-text font-semibold truncate">
               {t("chat.message.toolImageGenerate")}
             </div>
-            <div className="text-xs text-theme-text-tertiary truncate mt-0.5">
+            <div className="text-12 text-theme-text-tertiary truncate mt-0.5">
               {t(
                 "chat.message.toolImageGenerateDesc",
                 "AI-powered image generation",
@@ -115,7 +116,7 @@ function ImageGenerateDetail({
             </div>
           </div>
           {images.length > 0 && (
-            <span className="shrink-0 inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-theme-bg-subtle text-theme-text-secondary text-xs font-medium shadow-sm">
+            <span className="shrink-0 inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-theme-bg-subtle text-theme-text-secondary text-12 font-medium shadow-sm">
               <ImageIcon size={10} />
               {images.length}
             </span>
@@ -149,41 +150,43 @@ function ImageGenerateDetail({
 
         {/* ── Tags ── */}
         <div className="flex flex-wrap gap-1.5">
-          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-theme-bg-subtle text-theme-text-secondary text-xs">
+          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-theme-bg-subtle text-theme-text-secondary text-12">
             <Tag size={9} className="opacity-50" />
             {t("chat.message.toolImageTag")}
           </span>
           {model && (
-            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-theme-bg-subtle text-theme-text-secondary text-xs">
+            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-theme-bg-subtle text-theme-text-secondary text-12">
               <Layers size={9} className="opacity-50" />
               {model}
             </span>
           )}
           {size && (
-            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-theme-bg-subtle text-theme-text-secondary text-xs">
+            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-theme-bg-subtle text-theme-text-secondary text-12">
               <ImageIcon size={10} className="opacity-50" />
               {size}
             </span>
           )}
           {quality && (
-            <span className="px-2 py-0.5 rounded-md bg-theme-bg-subtle text-theme-text-secondary text-xs capitalize">
+            <span className="px-2 py-0.5 rounded-md bg-theme-bg-subtle text-theme-text-secondary text-12 capitalize">
               {quality}
             </span>
           )}
           {style && (
-            <span className="px-2 py-0.5 rounded-md bg-theme-bg-subtle text-theme-text-secondary text-xs capitalize">
+            <span className="px-2 py-0.5 rounded-md bg-theme-bg-subtle text-theme-text-secondary text-12 capitalize">
               {style}
             </span>
           )}
           {outputFormat && (
-            <span className="px-2 py-0.5 rounded-md bg-theme-bg-subtle text-theme-text-secondary text-xs font-mono uppercase">
+            <span className="px-2 py-0.5 rounded-md bg-theme-bg-subtle text-theme-text-secondary text-12 font-mono uppercase">
               {outputFormat}
             </span>
           )}
           {inputImages.length > 0 && (
-            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-theme-bg-subtle text-theme-text-secondary text-xs">
+            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-theme-bg-subtle text-theme-text-secondary text-12">
               <ImagePlus size={10} className="opacity-50" />
-              {t("chat.message.toolImageRefCount", { count: inputImages.length })}
+              {t("chat.message.toolImageRefCount", {
+                count: inputImages.length,
+              })}
             </span>
           )}
         </div>
@@ -191,7 +194,7 @@ function ImageGenerateDetail({
         {/* ── Prompt ── */}
         {prompt && (
           <div className="relative rounded-lg tool-code-block">
-            <div className="flex items-center gap-1.5 px-3 py-1.5 bg-theme-bg-subtle text-theme-text-tertiary text-xs transition-colors duration-200">
+            <div className="flex items-center gap-1.5 px-3 py-1.5 bg-theme-bg-subtle text-theme-text-tertiary text-12 transition-colors duration-200">
               <Sparkles size={12} className="text-theme-text-secondary" />
               <span className="min-w-0 flex-1 truncate">
                 {t("chat.message.toolImagePrompt")}
@@ -202,7 +205,7 @@ function ImageGenerateDetail({
                 className="!h-6 !w-6 !rounded-md !bg-theme-bg-card/80 !border !border-theme-border"
               />
             </div>
-            <div className="px-3 py-2 text-sm text-theme-text-secondary whitespace-pre-wrap break-words leading-relaxed">
+            <div className="px-3 py-2 text-14 text-theme-text-secondary whitespace-pre-wrap break-words leading-relaxed">
               {prompt}
             </div>
           </div>
@@ -211,7 +214,7 @@ function ImageGenerateDetail({
         {/* ── Reference Images ── */}
         {inputImages.length > 0 && (
           <div className="rounded-lg border border-theme-border overflow-hidden">
-            <div className="flex items-center gap-1.5 px-3 py-1.5 bg-theme-bg-subtle text-theme-text-tertiary text-xs">
+            <div className="flex items-center gap-1.5 px-3 py-1.5 bg-theme-bg-subtle text-theme-text-tertiary text-12">
               <ImagePlus size={12} className="text-theme-text-secondary" />
               <span className="min-w-0 flex-1 truncate">
                 {t("chat.message.toolImageRefImages", "Reference Images")}
@@ -302,7 +305,7 @@ function ImageGenerateDetail({
 
         {/* ── Fallback Text ── */}
         {fallbackText && (
-          <pre className="group/result relative text-xs text-theme-text-tertiary whitespace-pre-wrap break-words p-3 rounded-lg bg-theme-bg border border-theme-border">
+          <pre className="group/result relative text-12 text-theme-text-tertiary whitespace-pre-wrap break-words p-3 rounded-lg bg-theme-bg border border-theme-border">
             {fallbackText}
             <ToolHoverCopyButton
               text={fallbackText}
@@ -413,6 +416,15 @@ const ImageGenerateItem = memo(function ImageGenerateItem({
         ? "success"
         : "error";
 
+  // 进行中：标签学「思考中」，平滑流出正在生成的参数尾部
+  const { label, isStreamingLabel } = useToolStreamingLabel(
+    `${t("chat.message.toolImageGenerate")} ${
+      prompt.length > 40 ? prompt.slice(0, 37) + "…" : prompt
+    }`,
+    args,
+    { isPending, result },
+  );
+
   // ── detail (panel) content ─────────────────────────────────────────
 
   const detailContent = canExpand && (
@@ -438,7 +450,7 @@ const ImageGenerateItem = memo(function ImageGenerateItem({
           className="shrink-0 text-theme-text-secondary"
           aria-hidden="true"
         />
-        <span className="text-xs text-theme-text font-medium truncate min-w-0 flex-1 overflow-hidden">
+        <span className="text-12 text-theme-text font-medium truncate min-w-0 flex-1 overflow-hidden">
           {t("chat.message.toolImageGenerate")}
         </span>
         {images.length > 0 && (
@@ -569,7 +581,7 @@ const ImageGenerateItem = memo(function ImageGenerateItem({
 
       {/* Compact fallback */}
       {fallbackText && (
-        <pre className="group/result relative text-xs text-theme-text-tertiary whitespace-pre-wrap break-words overflow-y-auto min-w-0">
+        <pre className="group/result relative text-12 text-theme-text-tertiary whitespace-pre-wrap break-words overflow-y-auto min-w-0">
           {fallbackText.length > 300
             ? fallbackText.slice(0, 297) + "…"
             : fallbackText}
@@ -584,9 +596,8 @@ const ImageGenerateItem = memo(function ImageGenerateItem({
       <CollapsiblePill
         status={status}
         icon={<Sparkles size={12} className="shrink-0 opacity-50" />}
-        label={`${t("chat.message.toolImageGenerate")} ${
-          prompt.length > 40 ? prompt.slice(0, 37) + "…" : prompt
-        }`}
+        label={label}
+        animatedDots={isStreamingLabel}
         variant="tool"
         expandable={canExpand}
         onPanelOpen={() => {

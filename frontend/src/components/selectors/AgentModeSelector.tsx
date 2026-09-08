@@ -75,7 +75,7 @@ export function AgentModeSelector({
         }
         title={t("agent.selectMode", "选择模式")}
         subtitle={t("agent.selectModeDesc", "切换智能体模式")}
-        subtitleClassName="text-xs text-stone-500 dark:text-stone-400"
+        subtitleClassName="text-12 text-stone-500 dark:text-stone-400"
         onClose={handleClose}
       />
 
@@ -116,7 +116,7 @@ export function AgentModeSelector({
               </div>
               <div className="flex-1 min-w-0">
                 <span
-                  className={`text-13 sm:text-sm font-medium font-serif truncate block ${
+                  className={`text-13 sm:text-14 font-medium font-serif truncate block ${
                     isActive
                       ? "text-amber-700 dark:text-amber-400"
                       : "text-stone-700 dark:text-stone-200"
@@ -125,7 +125,7 @@ export function AgentModeSelector({
                   {displayName}
                 </span>
                 {agent.description && (
-                  <p className="text-xs text-stone-400 dark:text-stone-500 truncate mt-0.5 leading-relaxed text-left">
+                  <p className="text-12 text-stone-400 dark:text-stone-500 truncate mt-0.5 leading-relaxed text-left">
                     {displayDescription}
                   </p>
                 )}

@@ -151,7 +151,7 @@ export default function ProjectPreview({
     return (
       <div className="flex h-full flex-col items-center justify-center gap-4">
         <AlertCircle size={32} className="text-amber-500" />
-        <p className="text-sm text-stone-500 dark:text-stone-400">
+        <p className="text-14 text-stone-500 dark:text-stone-400">
           {t("project.noFiles", "没有可预览的文件")}
         </p>
       </div>
@@ -176,10 +176,10 @@ export default function ProjectPreview({
               <Code2 size={14} className="sm:w-4 sm:h-4" />
             </div>
             <div className="min-w-0">
-              <h3 className="text-xs sm:text-sm font-semibold text-stone-900 dark:text-stone-100 truncate">
+              <h3 className="text-12 sm:text-14 font-semibold text-stone-900 dark:text-stone-100 truncate">
                 {name || t("project.untitled", "未命名项目")}
               </h3>
-              <p className="text-xs text-stone-500 dark:text-stone-400 hidden sm:block">
+              <p className="text-12 text-stone-500 dark:text-stone-400 hidden sm:block">
                 {t("project.fileCount", "{{count}} 个文件", {
                   count: Object.keys(config.files).length,
                 })}
@@ -216,7 +216,7 @@ export default function ProjectPreview({
                   <button
                     onClick={() => setActiveTab("preview")}
                     className={clsx(
-                      "flex items-center gap-1 px-3 py-1 rounded-lg text-xs font-medium transition-colors",
+                      "flex items-center gap-1 px-3 py-1 rounded-lg text-12 font-medium transition-colors",
                       activeTab === "preview"
                         ? "bg-white dark:bg-stone-700 text-stone-900 dark:text-stone-100 shadow-sm"
                         : "text-stone-500 dark:text-stone-400 hover:text-stone-700 dark:hover:text-stone-300",
@@ -228,7 +228,7 @@ export default function ProjectPreview({
                   <button
                     onClick={() => setActiveTab("code")}
                     className={clsx(
-                      "flex items-center gap-1 px-3 py-1 rounded-lg text-xs font-medium transition-colors",
+                      "flex items-center gap-1 px-3 py-1 rounded-lg text-12 font-medium transition-colors",
                       activeTab === "code"
                         ? "bg-white dark:bg-stone-700 text-stone-900 dark:text-stone-100 shadow-sm"
                         : "text-stone-500 dark:text-stone-400 hover:text-stone-700 dark:hover:text-stone-300",
@@ -259,7 +259,7 @@ export default function ProjectPreview({
             {isFullscreen && (
               <button
                 onClick={() => exportProjectZip(files, name)}
-                className="flex items-center justify-center size-7 sm:size-8 rounded-lg sm:rounded-xl bg-stone-100 dark:bg-stone-800 hover:bg-stone-200 dark:hover:bg-stone-700 text-stone-600 dark:text-stone-300 text-xs font-medium transition-all duration-200 active:scale-95"
+                className="flex items-center justify-center size-7 sm:size-8 rounded-lg sm:rounded-xl bg-stone-100 dark:bg-stone-800 hover:bg-stone-200 dark:hover:bg-stone-700 text-stone-600 dark:text-stone-300 text-12 font-medium transition-all duration-200 active:scale-95"
               >
                 <Download size={14} />
                 <span className="hidden sm:inline">
@@ -374,10 +374,10 @@ export function ProjectPreviewCompact({
               <Code2 size={16} />
             </div>
             <div className="min-w-0">
-              <h4 className="text-sm font-medium text-stone-900 dark:text-stone-100 truncate max-w-[100px] sm:max-w-none">
+              <h4 className="text-14 font-medium text-stone-900 dark:text-stone-100 truncate max-w-[100px] sm:max-w-none">
                 {name || t("project.untitled", "未命名项目")}
               </h4>
-              <p className="text-xs text-stone-500 dark:text-stone-400 hidden sm:block">
+              <p className="text-12 text-stone-500 dark:text-stone-400 hidden sm:block">
                 {t("project.fileCount", "{{count}} 个文件", {
                   count: Object.keys(config.files).length,
                 })}
@@ -391,7 +391,7 @@ export function ProjectPreviewCompact({
           {onExpand && (
             <button
               onClick={onExpand}
-              className="flex items-center gap-1 px-2 sm:px-3 py-1 sm:py-1.5 rounded-lg bg-blue-500 hover:bg-blue-600 text-white text-xs font-medium transition-colors shrink-0"
+              className="flex items-center gap-1 px-2 sm:px-3 py-1 sm:py-1.5 rounded-lg bg-blue-500 hover:bg-blue-600 text-white text-12 font-medium transition-colors shrink-0"
             >
               <ExternalLink size={14} />
               <span className="hidden sm:inline">

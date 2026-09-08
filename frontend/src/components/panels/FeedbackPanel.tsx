@@ -72,9 +72,9 @@ function RatingSummary({ stats }: { stats: FeedbackStats }) {
               />
             </svg>
             <div className="absolute inset-0 flex flex-col items-center justify-center">
-              <span className="text-xl font-bold font-serif tabular-nums text-stone-900 dark:text-stone-100 leading-none">
+              <span className="text-20 font-bold font-serif tabular-nums text-stone-900 dark:text-stone-100 leading-none">
                 {upPct.toFixed(0)}
-                <span className="text-xs font-semibold">%</span>
+                <span className="text-12 font-semibold">%</span>
               </span>
             </div>
           </div>
@@ -232,7 +232,7 @@ function ReviewImageGrid({
             flex items-center justify-center flex-shrink-0
             hover:bg-stone-200 dark:hover:bg-stone-700 transition-colors"
         >
-          <span className="text-xs font-semibold text-stone-500 dark:text-stone-400">
+          <span className="text-12 font-semibold text-stone-500 dark:text-stone-400">
             +{remaining}
           </span>
         </button>
@@ -364,9 +364,9 @@ function FeedbackDetailModal({
   return (
     <>
       <div className="fixed inset-0 z-50 bg-black/40" onClick={onClose} />
-      <div className="safe-area-viewport-padding fixed inset-0 z-50 flex items-end sm:items-center sm:justify-center">
+      <div className="safe-area-viewport-padding-top fixed inset-0 z-50 flex items-end sm:items-center sm:justify-center">
         <div
-          className="w-full sm:max-w-lg bg-white dark:bg-stone-800 sm:rounded-2xl rounded-t-2xl shadow-2xl border-t sm:border border-stone-200/50 dark:border-stone-700/50 max-h-[85vh] flex flex-col animate-slide-up-sheet sm:animate-in sm:fade-in sm:zoom-in-95 sm:duration-200"
+          className="w-full sm:max-w-lg bg-white dark:bg-stone-800 sm:rounded-2xl rounded-t-2xl shadow-2xl border-t sm:border border-stone-200/50 dark:border-stone-700/50 max-h-[85vh] flex flex-col animate-slide-up-sheet sm:animate-in sm:fade-in sm:zoom-in-95 sm:duration-200 safe-area-bottom"
           onClick={(e) => e.stopPropagation()}
         >
           {/* Handle (mobile) */}
@@ -380,12 +380,12 @@ function FeedbackDetailModal({
               <div
                 className="flex h-9 w-9 items-center justify-center rounded-full
                 bg-gradient-to-br from-stone-200 to-stone-300 dark:from-stone-600 dark:to-stone-700
-                text-stone-600 dark:text-stone-200 font-bold text-xs"
+                text-stone-600 dark:text-stone-200 font-bold text-12"
               >
                 {feedback.username.charAt(0).toUpperCase()}
               </div>
               <div>
-                <p className="text-sm font-medium text-stone-900 dark:text-stone-100">
+                <p className="text-14 font-medium text-stone-900 dark:text-stone-100">
                   {feedback.username}
                 </p>
                 <p className="text-11 text-stone-400 dark:text-stone-500">
@@ -417,7 +417,7 @@ function FeedbackDetailModal({
           <div className="flex-1 overflow-y-auto px-5 py-4 space-y-4">
             {/* Rating */}
             <span
-              className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-medium ${
+              className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-12 font-medium ${
                 isUp
                   ? "bg-amber-50 text-amber-700 dark:bg-amber-900/20 dark:text-amber-400"
                   : "bg-stone-100 text-stone-500 dark:bg-stone-700 dark:text-stone-400"
@@ -450,7 +450,7 @@ function FeedbackDetailModal({
 
             {/* Comment */}
             {feedback.comment && (
-              <p className="text-sm text-stone-700 dark:text-stone-300 leading-[1.7] whitespace-pre-wrap">
+              <p className="text-14 text-stone-700 dark:text-stone-300 leading-[1.7] whitespace-pre-wrap">
                 {feedback.comment}
               </p>
             )}
@@ -627,10 +627,10 @@ export function FeedbackPanel() {
                 className="text-stone-300 dark:text-stone-600"
               />
             </div>
-            <p className="text-sm font-medium text-stone-500 dark:text-stone-400">
+            <p className="text-14 font-medium text-stone-500 dark:text-stone-400">
               {t("feedback.noFeedback")}
             </p>
-            <p className="mt-1 text-xs text-stone-400 dark:text-stone-600">
+            <p className="mt-1 text-12 text-stone-400 dark:text-stone-600">
               {t("feedback.noFeedbackHint")}
             </p>
           </div>

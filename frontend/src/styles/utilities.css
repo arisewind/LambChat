@@ -33,12 +33,26 @@
   );
 }
 
+/* 横屏刘海/摄像头开孔：给 fixed inset-0 浮层加左右 inset（本文件在 Tailwind utilities 之后加载，会覆盖 px-*） */
+.safe-area-x {
+  padding-left: var(--app-safe-area-left, 0px);
+  padding-right: var(--app-safe-area-right, 0px);
+}
+
 .safe-area-viewport-padding {
   padding-top: var(--app-safe-area-top-active, var(--app-safe-area-top, 0px));
   padding-bottom: var(
     --app-safe-area-bottom-active,
     var(--app-safe-area-bottom, 0px)
   );
+  box-sizing: border-box;
+}
+
+/* 底部弹层外层容器专用：只避让顶部系统栏。
+   底部 inset 不能垫在外层（会把 sheet 顶离屏幕底边，遮罩在 home indicator
+   区域露缝），必须由 sheet 表面自己用 safe-area-bottom 承担。 */
+.safe-area-viewport-padding-top {
+  padding-top: var(--app-safe-area-top-active, var(--app-safe-area-top, 0px));
   box-sizing: border-box;
 }
 

@@ -52,7 +52,7 @@ function NoPermission() {
             />
           </svg>
         </div>
-        <h2 className="mb-2 text-xl font-semibold text-stone-900 dark:text-stone-100">
+        <h2 className="mb-2 text-20 font-semibold text-stone-900 dark:text-stone-100">
           {t("errors.noPermissionTitle")}
         </h2>
         <p className="text-stone-500 dark:text-stone-400">

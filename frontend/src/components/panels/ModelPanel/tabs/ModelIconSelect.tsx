@@ -92,7 +92,7 @@ export const ModelIconSelect = React.memo(function ModelIconSelect({
               onValueChange={setSearch}
               placeholder={t("common.search", "搜索...")}
               leadingIcon={<Search size={14} />}
-              className="py-1.5 text-sm"
+              className="py-1.5 text-14"
             />
           </div>
 
@@ -100,7 +100,7 @@ export const ModelIconSelect = React.memo(function ModelIconSelect({
             <button
               type="button"
               onClick={() => handleSelect("")}
-              className={`w-full flex items-center gap-2.5 px-3.5 py-2 text-sm text-left hover:bg-stone-100/80 dark:hover:bg-stone-700/50 transition-colors ${
+              className={`w-full flex items-center gap-2.5 px-3.5 py-2 text-14 text-left hover:bg-stone-100/80 dark:hover:bg-stone-700/50 transition-colors ${
                 !value ? "bg-stone-50 dark:bg-stone-700/30" : ""
               }`}
             >
@@ -119,7 +119,7 @@ export const ModelIconSelect = React.memo(function ModelIconSelect({
                 key={slug}
                 type="button"
                 onClick={() => handleSelect(slug)}
-                className={`w-full flex items-center gap-2.5 px-3.5 py-2 text-sm text-left hover:bg-stone-100/80 dark:hover:bg-stone-700/50 transition-colors ${
+                className={`w-full flex items-center gap-2.5 px-3.5 py-2 text-14 text-left hover:bg-stone-100/80 dark:hover:bg-stone-700/50 transition-colors ${
                   value === slug ? "bg-stone-50 dark:bg-stone-700/30" : ""
                 }`}
               >
@@ -127,14 +127,14 @@ export const ModelIconSelect = React.memo(function ModelIconSelect({
                 <span className="text-stone-700 dark:text-stone-200">
                   {label(slug)}
                 </span>
-                <span className="text-xs text-stone-400 dark:text-stone-500 ml-auto font-mono">
+                <span className="text-12 text-stone-400 dark:text-stone-500 ml-auto font-mono">
                   {slug}
                 </span>
               </button>
             ))}
 
             {filtered.length === 0 && (
-              <div className="px-3.5 py-4 text-sm text-stone-400 dark:text-stone-500 text-center">
+              <div className="px-3.5 py-4 text-14 text-stone-400 dark:text-stone-500 text-center">
                 {t("agentConfig.noModelIcons")}
               </div>
             )}

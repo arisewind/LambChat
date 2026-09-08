@@ -39,7 +39,7 @@ function renderModelTags(model: ModelConfig, compact: boolean) {
       <span
         key="provider"
         className={`glass-tag glass-tag--provider ${
-          compact ? "text-10" : "text-xs"
+          compact ? "text-10" : "text-12"
         }`}
       >
         {model.provider}
@@ -51,7 +51,7 @@ function renderModelTags(model: ModelConfig, compact: boolean) {
       <span
         key="key"
         className={`glass-tag glass-tag--key ${
-          compact ? "text-10" : "text-xs"
+          compact ? "text-10" : "text-12"
         }`}
       >
         Key
@@ -63,7 +63,7 @@ function renderModelTags(model: ModelConfig, compact: boolean) {
       <span
         key="api"
         className={`glass-tag glass-tag--api ${
-          compact ? "text-10" : "text-xs"
+          compact ? "text-10" : "text-12"
         }`}
       >
         API
@@ -75,7 +75,7 @@ function renderModelTags(model: ModelConfig, compact: boolean) {
       <span
         key="temp"
         className={`glass-tag glass-tag--accent ${
-          compact ? "text-10" : "text-xs"
+          compact ? "text-10" : "text-12"
         }`}
       >
         temp:{model.temperature}
@@ -87,7 +87,7 @@ function renderModelTags(model: ModelConfig, compact: boolean) {
       <span
         key="max"
         className={`glass-tag glass-tag--accent ${
-          compact ? "text-10" : "text-xs"
+          compact ? "text-10" : "text-12"
         }`}
       >
         max:{model.max_tokens}
@@ -99,7 +99,7 @@ function renderModelTags(model: ModelConfig, compact: boolean) {
       <span
         key="ctx"
         className={`glass-tag glass-tag--accent ${
-          compact ? "text-10" : "text-xs"
+          compact ? "text-10" : "text-12"
         }`}
       >
         ctx:{model.profile.max_input_tokens}
@@ -111,7 +111,7 @@ function renderModelTags(model: ModelConfig, compact: boolean) {
       <span
         key="image-url-base64"
         className={`glass-tag glass-tag--accent ${
-          compact ? "text-10" : "text-xs"
+          compact ? "text-10" : "text-12"
         }`}
       >
         img:b64
@@ -225,7 +225,7 @@ const ModelCard = React.memo(function ModelCard({
               icon={model.icon}
               size={22}
             />
-            <h4 className="text-sm font-semibold font-serif text-stone-900 dark:text-stone-100 truncate">
+            <h4 className="text-14 font-semibold font-serif text-stone-900 dark:text-stone-100 truncate">
               {model.label}
             </h4>
             {!model.enabled && (
@@ -242,13 +242,13 @@ const ModelCard = React.memo(function ModelCard({
             }
           />
         </div>
-        <div className="text-xs font-mono text-stone-400 dark:text-stone-500 truncate mb-2">
+        <div className="text-12 font-mono text-stone-400 dark:text-stone-500 truncate mb-2">
           {model.value}
         </div>
         {isExpanded && hasDetails && (
           <div className="glass-card-subtle rounded-lg px-3 py-2.5 mb-2.5">
             {model.description && (
-              <p className="text-xs text-stone-500 dark:text-stone-400 mb-2">
+              <p className="text-12 text-stone-500 dark:text-stone-400 mb-2">
                 {model.description}
               </p>
             )}
@@ -307,7 +307,7 @@ const ModelCard = React.memo(function ModelCard({
             />
             <div className="min-w-0 flex-1">
               <div className="flex items-center gap-2.5">
-                <h4 className="text-sm font-semibold font-serif text-stone-900 dark:text-stone-100 truncate tracking-tight">
+                <h4 className="text-14 font-semibold font-serif text-stone-900 dark:text-stone-100 truncate tracking-tight">
                   {model.label}
                 </h4>
                 {!model.enabled && (
@@ -317,7 +317,7 @@ const ModelCard = React.memo(function ModelCard({
                 )}
               </div>
               <div className="flex items-center gap-2 mt-1">
-                <span className="text-xs font-mono text-stone-400 dark:text-stone-500 truncate">
+                <span className="text-12 font-mono text-stone-400 dark:text-stone-500 truncate">
                   {model.value}
                 </span>
               </div>
@@ -370,7 +370,7 @@ const ModelCard = React.memo(function ModelCard({
           <div className="px-4 pb-4 pt-0">
             <div className="glass-card-subtle rounded-lg px-3 py-2.5">
               {model.description && (
-                <p className="text-xs text-stone-500 dark:text-stone-400 mb-2">
+                <p className="text-12 text-stone-500 dark:text-stone-400 mb-2">
                   {model.description}
                 </p>
               )}
@@ -541,14 +541,14 @@ export function ModelConfigTab({ models, onReload }: ModelConfigTabProps) {
     <>
       <div className="flex flex-col gap-4 h-full">
         <div className="flex items-center justify-between gap-3 font-serif">
-          <p className="text-sm text-stone-500 dark:text-stone-400 hidden sm:block">
+          <p className="text-14 text-stone-500 dark:text-stone-400 hidden sm:block">
             {t("agentConfig.modelConfigDescription")}
           </p>
           <div className="flex items-center gap-2 flex-shrink-0">
             <button
               onClick={handleExportModels}
               disabled={models.length === 0}
-              className="flex items-center gap-1.5 px-3 py-2 text-sm rounded-lg border border-[var(--glass-border)] text-stone-700 dark:text-stone-300 hover:bg-[var(--glass-bg-subtle)] transition-colors disabled:opacity-40"
+              className="flex items-center gap-1.5 px-3 py-2 text-14 rounded-lg border border-[var(--glass-border)] text-stone-700 dark:text-stone-300 hover:bg-[var(--glass-bg-subtle)] transition-colors disabled:opacity-40"
             >
               <Download size={16} />
               <span className="hidden sm:inline">
@@ -560,7 +560,7 @@ export function ModelConfigTab({ models, onReload }: ModelConfigTabProps) {
                 setBatchInitialTab("jsonImport");
                 setShowBatchModal(true);
               }}
-              className="flex items-center gap-1.5 px-3 py-2 text-sm rounded-lg border border-[var(--glass-border)] text-stone-700 dark:text-stone-300 hover:bg-[var(--glass-bg-subtle)] transition-colors"
+              className="flex items-center gap-1.5 px-3 py-2 text-14 rounded-lg border border-[var(--glass-border)] text-stone-700 dark:text-stone-300 hover:bg-[var(--glass-bg-subtle)] transition-colors"
             >
               <FileJson size={16} />
               <span className="hidden sm:inline">
@@ -572,7 +572,7 @@ export function ModelConfigTab({ models, onReload }: ModelConfigTabProps) {
                 setBatchInitialTab("addOneByOne");
                 setShowBatchModal(true);
               }}
-              className="flex items-center gap-1.5 px-3 py-2 text-sm rounded-lg border border-[var(--glass-border)] text-stone-700 dark:text-stone-300 hover:bg-[var(--glass-bg-subtle)] transition-colors"
+              className="flex items-center gap-1.5 px-3 py-2 text-14 rounded-lg border border-[var(--glass-border)] text-stone-700 dark:text-stone-300 hover:bg-[var(--glass-bg-subtle)] transition-colors"
             >
               <Layers size={16} />
               <span className="hidden sm:inline">
@@ -609,7 +609,7 @@ export function ModelConfigTab({ models, onReload }: ModelConfigTabProps) {
                 }
               }}
               disabled={isSyncingPrices}
-              className="flex items-center gap-1.5 px-3 py-2 text-sm rounded-lg border border-[var(--glass-border)] text-stone-700 dark:text-stone-300 hover:bg-[var(--glass-bg-subtle)] transition-colors disabled:opacity-50"
+              className="flex items-center gap-1.5 px-3 py-2 text-14 rounded-lg border border-[var(--glass-border)] text-stone-700 dark:text-stone-300 hover:bg-[var(--glass-bg-subtle)] transition-colors disabled:opacity-50"
             >
               <RefreshCw
                 size={16}
@@ -640,16 +640,22 @@ export function ModelConfigTab({ models, onReload }: ModelConfigTabProps) {
                 } catch (err) {
                   toast.error(
                     (err as Error).message ||
-                      t("agentConfig.pricingBackfillFailed", "补算历史费用失败"),
+                      t(
+                        "agentConfig.pricingBackfillFailed",
+                        "补算历史费用失败",
+                      ),
                   );
                 } finally {
                   setIsBackfillingCosts(false);
                 }
               }}
               disabled={isBackfillingCosts}
-              className="flex items-center gap-1.5 px-3 py-2 text-sm rounded-lg border border-[var(--glass-border)] text-stone-700 dark:text-stone-300 hover:bg-[var(--glass-bg-subtle)] transition-colors disabled:opacity-50"
+              className="flex items-center gap-1.5 px-3 py-2 text-14 rounded-lg border border-[var(--glass-border)] text-stone-700 dark:text-stone-300 hover:bg-[var(--glass-bg-subtle)] transition-colors disabled:opacity-50"
             >
-              <History size={16} className={isBackfillingCosts ? "animate-spin" : ""} />
+              <History
+                size={16}
+                className={isBackfillingCosts ? "animate-spin" : ""}
+              />
               <span className="hidden sm:inline">
                 {t("agentConfig.pricingBackfill", "补算历史费用")}
               </span>
@@ -658,7 +664,7 @@ export function ModelConfigTab({ models, onReload }: ModelConfigTabProps) {
               variant="primary"
               onClick={() => setIsCreating(true)}
               leftIcon={<Plus size={16} />}
-              className="px-3 py-2 text-sm hover:shadow-lg hover:shadow-stone-500/10 sm:px-4"
+              className="px-3 py-2 text-14 hover:shadow-lg hover:shadow-stone-500/10 sm:px-4"
             >
               <span className="hidden sm:inline">
                 {t("agentConfig.addModel")}

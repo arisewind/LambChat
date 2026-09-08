@@ -263,7 +263,7 @@ function RoleFormModal({
             <AlertCircle size={14} />
           </div>
           <span
-            className="text-sm"
+            className="text-14"
             style={{ color: "var(--theme-text-secondary)" }}
           >
             {t("roles.systemRoleHint")}
@@ -447,7 +447,7 @@ function RoleFormModal({
                       )
                     }
                   />
-                  <span className="text-sm font-medium text-theme-text">
+                  <span className="text-14 font-medium text-theme-text">
                     {group.name}
                   </span>
                 </label>
@@ -463,7 +463,7 @@ function RoleFormModal({
                         checked={selectedPermissions.includes(permission.value)}
                         onChange={() => togglePermission(permission.value)}
                       />
-                      <span className="text-sm text-theme-text-secondary">
+                      <span className="text-14 text-theme-text-secondary">
                         {permissionLabels[permission.value] || permission.label}
                       </span>
                       <code className="es-chip ml-auto">
@@ -660,7 +660,7 @@ export function RolesPanel() {
 
       {/* 错误提示 */}
       {error && (
-        <div className="mx-4 mt-4 flex items-center gap-2 rounded-xl bg-red-50 p-3 text-sm text-red-600 dark:bg-red-900/30 dark:text-red-400 sm:mx-6">
+        <div className="mx-4 mt-4 flex items-center gap-2 rounded-xl bg-red-50 p-3 text-14 text-red-600 dark:bg-red-900/30 dark:text-red-400 sm:mx-6">
           <AlertCircle size={18} />
           <span>{error}</span>
         </div>
@@ -708,11 +708,11 @@ export function RolesPanel() {
                 </div>
 
                 {/* Title & description */}
-                <h4 className="truncate text-base font-semibold font-serif  text-[var(--theme-text)]">
+                <h4 className="truncate text-16 font-semibold font-serif  text-[var(--theme-text)]">
                   {role.name}
                 </h4>
                 {role.description && (
-                  <p className="mt-1 text-sm leading-relaxed text-[var(--theme-text-secondary)] line-clamp-2">
+                  <p className="mt-1 text-14 leading-relaxed text-[var(--theme-text-secondary)] line-clamp-2">
                     {role.description}
                   </p>
                 )}

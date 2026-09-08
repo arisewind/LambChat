@@ -3,6 +3,7 @@ import { clsx } from "clsx";
 import { Terminal, CheckCircle2, XCircle, AlertTriangle } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { CollapsiblePill } from "../../../common";
+import { useToolStreamingLabel } from "./useToolStreamingLabel";
 import { extractText } from "./toolUtils";
 import {
   openToolLivePanel,
@@ -59,14 +60,14 @@ function ExecuteDetail({
 
   return (
     <div className="p-4 sm:p-5 space-y-4 tool-panel-content">
-      <div className="group/args relative px-3.5 py-3 rounded-xl bg-theme-bg-elevated text-sm font-mono flex items-center gap-2.5 flex-wrap shadow-[var(--shadow-card)] ring-1 ring-theme-border transition-colors duration-200">
+      <div className="group/args relative px-3.5 py-3 rounded-xl bg-theme-bg-elevated text-14 font-mono flex items-center gap-2.5 flex-wrap shadow-[var(--shadow-card)] ring-1 ring-theme-border transition-colors duration-200">
         <Terminal size={13} className="shrink-0 text-theme-text-tertiary" />
         <span className="text-emerald-500 dark:text-emerald-400 font-semibold">
           $
         </span>
         <span className="text-theme-text break-all min-w-0">{command}</span>
         {timeout && (
-          <span className="shrink-0 px-2 py-0.5 rounded-md bg-theme-bg-subtle text-theme-text-secondary text-xs ring-1 ring-theme-border/50">
+          <span className="shrink-0 px-2 py-0.5 rounded-md bg-theme-bg-subtle text-theme-text-secondary text-12 ring-1 ring-theme-border/50">
             {t("chat.message.toolTimeSeconds", { count: timeout })}
           </span>
         )}
@@ -76,7 +77,7 @@ function ExecuteDetail({
         <div className="relative group">
           <pre
             className={clsx(
-              "text-sm rounded-xl p-4 min-w-0 tool-code-block",
+              "text-14 rounded-xl p-4 min-w-0 tool-code-block",
               "bg-theme-bg border border-theme-border",
               "text-theme-text-secondary whitespace-pre-wrap break-words font-mono",
             )}
@@ -95,7 +96,7 @@ function ExecuteDetail({
       {!isPending && result && (
         <div
           className={clsx(
-            "flex items-center gap-2 text-sm px-3.5 py-2.5 rounded-xl ring-1",
+            "flex items-center gap-2 text-14 px-3.5 py-2.5 rounded-xl ring-1",
             parsed.exitCode === 0
               ? "text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/30 ring-emerald-200/40 dark:ring-emerald-800/30"
               : "text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-950/30 ring-red-200/40 dark:ring-red-800/30",
@@ -159,6 +160,17 @@ const ExecuteItem = memo(function ExecuteItem({
         ? "success"
         : "error";
 
+  // 进行中：标签学「思考中」，平滑流出正在生成的参数尾部
+  const { label, isStreamingLabel } = useToolStreamingLabel(
+    command
+      ? `${t("chat.message.toolExecute")} ${
+          command.length > 80 ? command.slice(0, 77) + "…" : command
+        }`
+      : t("chat.message.toolExecute"),
+    args,
+    { isPending, result },
+  );
+
   const detailContent = canExpand && (
     <ExecuteDetail
       args={args}
@@ -176,13 +188,8 @@ const ExecuteItem = memo(function ExecuteItem({
       <CollapsiblePill
         status={status}
         icon={<Terminal size={12} className="shrink-0 opacity-50" />}
-        label={
-          command
-            ? `${t("chat.message.toolExecute")} ${
-                command.length > 80 ? command.slice(0, 77) + "…" : command
-              }`
-            : t("chat.message.toolExecute")
-        }
+        label={label}
+        animatedDots={isStreamingLabel}
         variant="tool"
         expandable={canExpand}
         onPanelOpen={() => {
@@ -204,7 +211,7 @@ const ExecuteItem = memo(function ExecuteItem({
       >
         {canExpand && (
           <ToolInlineDetails>
-            <div className="group/args relative px-2 py-1.5 rounded-md bg-theme-bg-subtle text-xs text-theme-text-tertiary font-mono flex items-center gap-2 flex-wrap">
+            <div className="group/args relative px-2 py-1.5 rounded-md bg-theme-bg-subtle text-12 text-theme-text-tertiary font-mono flex items-center gap-2 flex-wrap">
               <span className="text-theme-text">$</span>
               <span className="text-emerald-600 dark:text-emerald-400 break-all min-w-0">
                 {command}
@@ -220,7 +227,7 @@ const ExecuteItem = memo(function ExecuteItem({
               <div className="relative group">
                 <pre
                   className={clsx(
-                    "text-xs rounded-md p-2.5 min-w-0",
+                    "text-12 rounded-md p-2.5 min-w-0",
                     "bg-theme-bg border border-theme-border",
                     "text-theme-text-secondary whitespace-pre-wrap break-words font-mono",
                   )}
@@ -238,7 +245,7 @@ const ExecuteItem = memo(function ExecuteItem({
             {!isPending && result && (
               <div
                 className={clsx(
-                  "flex items-center gap-1.5 text-xs px-2 py-1 rounded-md",
+                  "flex items-center gap-1.5 text-12 px-2 py-1 rounded-md",
                   parsed.exitCode === 0
                     ? "text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/30"
                     : "text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-950/30",

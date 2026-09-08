@@ -3,7 +3,7 @@ import { SkeletonLine } from "./primitives";
 /**
  * Matches PanelHeader layout:
  *   - Icon box: size-10/lg:size-11 rounded-lg subtle-bg + ring
- *   - Title (text-base/lg:text-lg font-serif) + optional subtitle
+ *   - Title (text-16/lg:text-18 font-serif) + optional subtitle
  *   - Desktop action buttons
  *   - Mobile menu button (when !hasSearch)
  *   - Optional search row with searchAccessory + searchActions

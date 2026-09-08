@@ -114,12 +114,12 @@ const PptPreview = memo(function PptPreview({
               key={slide.index}
               className="rounded-lg bg-white p-5 shadow-sm ring-1 ring-black/5 dark:bg-stone-900 dark:ring-white/10"
             >
-              <div className="mb-3 text-xs font-medium uppercase tracking-wide text-stone-400 dark:text-stone-500">
+              <div className="mb-3 text-12 font-medium uppercase tracking-wide text-stone-400 dark:text-stone-500">
                 {t("documents.pptSlideLabel", "幻灯片 {{count}}", {
                   count: slide.index,
                 })}
               </div>
-              <p className="whitespace-pre-wrap text-sm leading-6 text-stone-700 dark:text-stone-200">
+              <p className="whitespace-pre-wrap text-14 leading-6 text-stone-700 dark:text-stone-200">
                 {slide.text}
               </p>
             </section>

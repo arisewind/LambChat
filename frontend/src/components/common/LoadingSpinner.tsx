@@ -66,7 +66,7 @@ export function Loading({ text, size = "md", className = "" }: LoadingProps) {
       <LoadingSpinner size={size} />
       {text && (
         <span
-          className="text-sm"
+          className="text-14"
           style={{ color: "var(--theme-text-secondary)" }}
         >
           {text}

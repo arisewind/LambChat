@@ -39,10 +39,12 @@ def _parse_stream_read_result_sync(
     return [(stream_key, _parse_stream_entries_sync(entries)) for stream_key, entries in result]
 
 
-def _redis_pool_kwargs(*, socket_timeout: Any = _UNSET) -> dict[str, Any]:
+def _redis_pool_kwargs(
+    *, decode_responses: bool = True, socket_timeout: Any = _UNSET
+) -> dict[str, Any]:
     kwargs = {
         "encoding": "utf-8",
-        "decode_responses": True,
+        "decode_responses": decode_responses,
         "max_connections": 50,
         "socket_timeout": 10,
         "socket_connect_timeout": 5,
@@ -59,6 +61,20 @@ def _redis_pool_kwargs(*, socket_timeout: Any = _UNSET) -> dict[str, Any]:
 def get_redis_connection_pool():
     """Get the shared Redis connection pool for this process."""
     return redis.ConnectionPool.from_url(settings.REDIS_URL, **_redis_pool_kwargs())
+
+
+@lru_cache
+def get_binary_redis_connection_pool():
+    """二进制安全连接池（decode_responses=False）：沙箱帧通道专用。
+
+    共享池 decode_responses=True 在读取时把任意 bytes 按 UTF-8 解码，而
+    帧通道（sandbox:stream / sandbox:upblob list）存的是裸二进制帧——任何
+    非 UTF-8 的真实文件内容都会在 lpop 时抛 UnicodeDecodeError（2026-09-07
+    生产事故：本地沙箱 reveal_file/artifact 全线误报 file_not_found_or_empty）。
+    """
+    return redis.ConnectionPool.from_url(
+        settings.REDIS_URL, **_redis_pool_kwargs(decode_responses=False)
+    )
 
 
 def create_redis_client(*, isolated_pool: bool = False, socket_timeout: Any = _UNSET) -> Redis:
@@ -79,14 +95,25 @@ def get_redis_client() -> Redis:
     return create_redis_client()
 
 
+def get_binary_redis_client() -> Redis:
+    """Get a binary-safe Redis client (decode_responses=False) for frame channels."""
+    return Redis(connection_pool=get_binary_redis_connection_pool())
+
+
 async def close_redis_client() -> None:
     """关闭 Redis 连接池"""
     try:
-        if get_redis_connection_pool.cache_info().currsize == 0:
+        pools: list = []
+        if get_redis_connection_pool.cache_info().currsize > 0:
+            pools.append(get_redis_connection_pool())
+        if get_binary_redis_connection_pool.cache_info().currsize > 0:
+            pools.append(get_binary_redis_connection_pool())
+        if not pools:
             return
-        pool = get_redis_connection_pool()
-        await pool.aclose()
+        for pool in pools:
+            await pool.aclose()
         get_redis_connection_pool.cache_clear()
+        get_binary_redis_connection_pool.cache_clear()
         logger.info("Redis connection pool closed")
     except Exception as e:
         logger.warning(f"Error closing Redis client: {e}")

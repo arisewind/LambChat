@@ -89,7 +89,7 @@ export function RolesAgentTab({
 
   return (
     <div className="space-y-4">
-      <p className="hidden px-1 text-sm leading-relaxed text-theme-text-secondary sm:block">
+      <p className="hidden px-1 text-14 leading-relaxed text-theme-text-secondary sm:block">
         {t("agentConfig.rolesDescription")}
       </p>
 
@@ -103,7 +103,7 @@ export function RolesAgentTab({
         <>
           <div className="glass-card divide-y divide-[var(--glass-border)] overflow-hidden rounded-xl">
             <div className="bg-[var(--glass-bg-subtle)] px-4 py-2.5 font-serif">
-              <h4 className="truncate text-xs font-medium uppercase tracking-wider text-theme-text-secondary">
+              <h4 className="truncate text-12 font-medium uppercase tracking-wider text-theme-text-secondary">
                 {t("agentConfig.selectAgentsForRole", {
                   roleName: selectedRoleData?.name,
                 })}
@@ -140,10 +140,10 @@ export function RolesAgentTab({
                     <AgentIcon icon={agent.icon || "Bot"} size={16} />
                   </div>
                   <div className="min-w-0 flex-1">
-                    <div className="truncate text-sm font-medium font-serif text-theme-text">
+                    <div className="truncate text-14 font-medium font-serif text-theme-text">
                       {displayName}
                     </div>
-                    <div className="mt-0.5 hidden truncate text-xs text-theme-text-secondary sm:block">
+                    <div className="mt-0.5 hidden truncate text-12 text-theme-text-secondary sm:block">
                       {displayDescription}
                     </div>
                   </div>
@@ -154,7 +154,7 @@ export function RolesAgentTab({
 
           {hasChanges && (
             <div className="glass-divider mt-4 flex items-center justify-between pt-4">
-              <span className="flex items-center gap-1.5 text-xs text-theme-text-tertiary">
+              <span className="flex items-center gap-1.5 text-12 text-theme-text-tertiary">
                 <span className="inline-block h-1.5 w-1.5 rounded-full bg-amber-400 animate-pulse" />
                 {currentRoleAgents.length} / {availableAgents.length}
               </span>
@@ -163,7 +163,7 @@ export function RolesAgentTab({
                 onClick={handleSave}
                 loading={isSaving}
                 leftIcon={<Save size={16} />}
-                className="px-5 py-2.5 text-sm"
+                className="px-5 py-2.5 text-14"
               >
                 {t("common.save")}
               </Button>

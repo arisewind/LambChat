@@ -20,6 +20,7 @@ import { useFilteredSessionList } from "../../hooks/useSession";
 import { SessionItem } from "./SessionItem";
 import { ProjectMenu } from "./ProjectMenu";
 import { LoadingSpinner } from "../common/LoadingSpinner";
+import { Tooltip } from "../common/Tooltip";
 import { DynamicIcon } from "../common/DynamicIcon";
 import { isSessionFavorite } from "./sessionFavorites";
 import { isSessionPinned } from "./sessionPin";
@@ -334,21 +335,23 @@ export const ProjectItem = forwardRef<ProjectItemHandle, ProjectItemProps>(
                 if (e.key === "Enter") handleSaveIcon();
                 if (e.key === "Escape") setIsEditingIcon(false);
               }}
-              className="w-16 text-xs bg-white dark:bg-stone-700 border border-stone-300 dark:border-stone-500 rounded px-1 py-0.5 focus:outline-none focus:ring-1 focus:ring-stone-400"
+              className="w-16 text-12 bg-white dark:bg-stone-700 border border-stone-300 dark:border-stone-500 rounded px-1 py-0.5 focus:outline-none focus:ring-1 focus:ring-stone-400"
               autoFocus
             />
           ) : (
-            <button
-              onClick={handleStartIconEdit}
-              className="flex-shrink-0 hover:opacity-70 transition-opacity"
-              title={t("sidebar.clickToEditIcon")}
-            >
-              <DynamicIcon
-                name={project.icon}
-                size={20}
-                className="text-primary text-20"
-              />
-            </button>
+            <Tooltip content={t("sidebar.clickToEditIcon")}>
+              <button
+                onClick={handleStartIconEdit}
+                aria-label={t("sidebar.clickToEditIcon")}
+                className="flex-shrink-0 hover:opacity-70 transition-opacity"
+              >
+                <DynamicIcon
+                  name={project.icon}
+                  size={20}
+                  className="text-primary text-20"
+                />
+              </button>
+            </Tooltip>
           )}
 
           {/* Project name - editable or display */}
@@ -362,11 +365,11 @@ export const ProjectItem = forwardRef<ProjectItemHandle, ProjectItemProps>(
                 onKeyDown={handleKeyDown}
                 onBlur={handleSaveName}
                 disabled={isSaving}
-                className="w-full text-sm bg-transparent text-stone-700 dark:text-stone-200 border border-stone-300 dark:border-stone-500 rounded px-1.5 py-0.5 focus:outline-none focus:ring-1 focus:ring-stone-400"
+                className="w-full text-14 bg-transparent text-stone-700 dark:text-stone-200 border border-stone-300 dark:border-stone-500 rounded px-1.5 py-0.5 focus:outline-none focus:ring-1 focus:ring-stone-400"
                 onClick={(e) => e.stopPropagation()}
               />
             ) : (
-              <div className="truncate text-13 text-stone-600 dark:text-stone-400 group-hover:text-stone-700 dark:group-hover:text-stone-300 transition-colors">
+              <div className="truncate text-13 font-serif text-stone-600 dark:text-stone-400 group-hover:text-stone-700 dark:group-hover:text-stone-300 transition-colors">
                 {isFavorites ? t("sidebar.favorites") : project.name}
               </div>
             )}
@@ -378,24 +381,26 @@ export const ProjectItem = forwardRef<ProjectItemHandle, ProjectItemProps>(
               badgeId={`project-${project.id}`}
               markingReadId={markingReadId ?? null}
               onMarkAllRead={() => onMarkAllRead?.({ projectId: project.id })}
-              title={t("sidebar.markAllRead")}
+              tooltip={t("sidebar.markAllRead")}
             />
           )}
 
           {/* Menu button - only for custom projects */}
           {!isFavorites && !isEditing && (
-            <button
-              ref={menuButtonRef}
-              onClick={handleMenuClick}
-              className="flex-shrink-0 rounded p-0.5 hover:bg-stone-200/60 dark:hover:bg-stone-700/60 transition-all opacity-0 group-hover:opacity-100 [&:not(:placeholder-shown)]:opacity-100"
-              style={isTouched ? { opacity: 1 } : undefined}
-              title={t("sidebar.moreOptions")}
-            >
-              <MoreHorizontal
-                size={14}
-                className="text-stone-400 hover:text-stone-600 dark:text-stone-500 dark:hover:text-stone-300"
-              />
-            </button>
+            <Tooltip content={t("sidebar.moreOptions")}>
+              <button
+                ref={menuButtonRef}
+                onClick={handleMenuClick}
+                aria-label={t("sidebar.moreOptions")}
+                className="flex-shrink-0 rounded p-0.5 hover:bg-stone-200/60 dark:hover:bg-stone-700/60 transition-all opacity-0 group-hover:opacity-100 [&:not(:placeholder-shown)]:opacity-100 max-sm:opacity-100"
+                style={isTouched ? { opacity: 1 } : undefined}
+              >
+                <MoreHorizontal
+                  size={14}
+                  className="text-stone-400 hover:text-stone-600 dark:text-stone-500 dark:hover:text-stone-300"
+                />
+              </button>
+            </Tooltip>
           )}
         </div>
 

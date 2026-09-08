@@ -29,7 +29,8 @@ import { Turnstile } from "react-turnstile";
 import { useAuth } from "../../hooks/useAuth";
 import { useMobileKeyboardAware } from "../../hooks/useMobileKeyboardAware";
 import { useTheme } from "../../contexts/ThemeContext";
-import { Loading, LoadingSpinner } from "../common/LoadingSpinner";
+import { LoadingSpinner } from "../common/LoadingSpinner";
+import { AutoLoginSplash } from "../landing/AutoLoginSplash";
 import { ContactAdminDialog } from "../common/ContactAdminDialog";
 import { ThemeToggle } from "../common/ThemeToggle";
 import { LanguageToggle } from "../common/LanguageToggle";
@@ -439,16 +440,7 @@ export function AuthPage({ onSuccess, initialMode }: AuthPageProps) {
   }, [handleGlobalCharacterPointerMove, resetCharacterGaze]);
 
   if (isRedirecting) {
-    return (
-      <div className="auth-shell safe-area-top safe-area-bottom flex min-h-screen items-center justify-center">
-        <div className="text-center">
-          <Loading size="lg" className="justify-center" />
-          <p className="mt-4 text-stone-600 dark:text-stone-400">
-            {t("auth.completingLogin")}
-          </p>
-        </div>
-      </div>
-    );
+    return <AutoLoginSplash text={t("auth.completingLogin")} />;
   }
 
   return (
@@ -594,12 +586,12 @@ export function AuthPage({ onSuccess, initialMode }: AuthPageProps) {
               {/* Form surface */}
               <div className="auth-form-surface">
                 <div className="auth-form-heading mb-7 text-center sm:mb-9">
-                  <h1 className="mb-1.5 text-[1.75rem] font-bold tracking-tight text-slate-950 sm:text-3xl dark:text-stone-50 font-serif">
+                  <h1 className="mb-1.5 text-[1.75rem] font-bold tracking-tight text-slate-950 sm:text-30 dark:text-stone-50 font-serif">
                     {mode === "login"
                       ? t("auth.welcomeBack")
                       : t("auth.register")}
                   </h1>
-                  <p className="text-sm leading-relaxed text-slate-500 dark:text-stone-400 font-serif">
+                  <p className="text-14 leading-relaxed text-slate-500 dark:text-stone-400 font-serif">
                     {mode === "login"
                       ? t("auth.loginHint")
                       : t("auth.registerHint")}
@@ -614,7 +606,7 @@ export function AuthPage({ onSuccess, initialMode }: AuthPageProps) {
                   {/* Error */}
                   {error && (
                     <div>
-                      <div className="flex items-center gap-2 rounded-full border border-red-200/60 bg-red-50/80 px-4 py-2 text-xs text-red-600 dark:border-red-900/40 dark:bg-red-950/40 dark:text-red-400">
+                      <div className="flex items-center gap-2 rounded-full border border-red-200/60 bg-red-50/80 px-4 py-2 text-12 text-red-600 dark:border-red-900/40 dark:bg-red-950/40 dark:text-red-400">
                         <AlertCircle size={14} className="flex-shrink-0" />
                         <span>{error}</span>
                       </div>
@@ -624,7 +616,7 @@ export function AuthPage({ onSuccess, initialMode }: AuthPageProps) {
                         error.includes("activate")) && (
                         <button
                           onClick={() => setContactAdminOpen(true)}
-                          className="mt-1.5 text-xs text-stone-400 transition-colors hover:text-stone-600 dark:text-stone-500 dark:hover:text-stone-300"
+                          className="mt-1.5 text-12 text-stone-400 transition-colors hover:text-stone-600 dark:text-stone-500 dark:hover:text-stone-300"
                         >
                           {t("contactAdmin.supportLink")}
                         </button>
@@ -636,7 +628,7 @@ export function AuthPage({ onSuccess, initialMode }: AuthPageProps) {
                   <div className="auth-field-group">
                     <label
                       htmlFor={accountInputId}
-                      className="mb-1.5 block text-sm font-medium text-slate-700 dark:text-stone-300 font-serif"
+                      className="mb-1.5 block text-14 font-medium text-slate-700 dark:text-stone-300 font-serif"
                     >
                       {mode === "login"
                         ? t("auth.emailOrUsername")
@@ -655,7 +647,7 @@ export function AuthPage({ onSuccess, initialMode }: AuthPageProps) {
                         type="text"
                         value={username}
                         onChange={(e) => setUsername(e.target.value)}
-                        className="auth-input w-full rounded-full py-3 pl-11 pr-4 text-sm transition-all"
+                        className="auth-input w-full rounded-full py-3 pl-11 pr-4 text-14 transition-all"
                         placeholder={
                           mode === "login"
                             ? t("auth.usernameOrEmailPlaceholder")
@@ -671,7 +663,7 @@ export function AuthPage({ onSuccess, initialMode }: AuthPageProps) {
                     <div className="auth-field-group">
                       <label
                         htmlFor={emailInputId}
-                        className="mb-1.5 block text-sm font-medium text-slate-700 dark:text-stone-300 font-serif"
+                        className="mb-1.5 block text-14 font-medium text-slate-700 dark:text-stone-300 font-serif"
                       >
                         {t("auth.email")}
                       </label>
@@ -684,7 +676,7 @@ export function AuthPage({ onSuccess, initialMode }: AuthPageProps) {
                           type="email"
                           value={email}
                           onChange={(e) => setEmail(e.target.value)}
-                          className="auth-input w-full rounded-full py-3 pl-11 pr-4 text-sm transition-all"
+                          className="auth-input w-full rounded-full py-3 pl-11 pr-4 text-14 transition-all"
                           placeholder={t("auth.emailPlaceholder")}
                           autoComplete="email"
                         />
@@ -696,7 +688,7 @@ export function AuthPage({ onSuccess, initialMode }: AuthPageProps) {
                   <div className="auth-field-group">
                     <label
                       htmlFor={passwordInputId}
-                      className="mb-1.5 block text-sm font-medium text-slate-700 dark:text-stone-300 font-serif"
+                      className="mb-1.5 block text-14 font-medium text-slate-700 dark:text-stone-300 font-serif"
                     >
                       {t("auth.password")}
                     </label>
@@ -719,7 +711,7 @@ export function AuthPage({ onSuccess, initialMode }: AuthPageProps) {
                     <div className="auth-field-group">
                       <label
                         htmlFor={confirmPasswordInputId}
-                        className="mb-1.5 block text-sm font-medium text-slate-700 dark:text-stone-300 font-serif"
+                        className="mb-1.5 block text-14 font-medium text-slate-700 dark:text-stone-300 font-serif"
                       >
                         {t("auth.confirmPassword")}
                       </label>
@@ -737,7 +729,7 @@ export function AuthPage({ onSuccess, initialMode }: AuthPageProps) {
                   )}
 
                   {mode === "login" && (
-                    <div className="auth-forgot-row flex justify-end text-sm">
+                    <div className="auth-forgot-row flex justify-end text-14">
                       <Link
                         to="/auth/reset-request"
                         className="shrink-0 font-medium text-slate-500 transition-colors duration-200 hover:text-slate-700 hover:underline underline-offset-4 dark:text-stone-400 dark:hover:text-stone-200 font-serif"
@@ -770,7 +762,7 @@ export function AuthPage({ onSuccess, initialMode }: AuthPageProps) {
                   <button
                     type="submit"
                     disabled={isSubmitting || isRedirecting}
-                    className="auth-primary-button mt-1 min-h-12 w-full rounded-full py-3 text-base font-medium transition-all duration-200 disabled:cursor-not-allowed disabled:opacity-50 font-serif"
+                    className="auth-primary-button mt-1 min-h-12 w-full rounded-full py-3 text-16 font-medium transition-all duration-200 disabled:cursor-not-allowed disabled:opacity-50 font-serif"
                   >
                     <span className="inline-flex items-center justify-center gap-2">
                       {isSubmitting && (
@@ -788,7 +780,7 @@ export function AuthPage({ onSuccess, initialMode }: AuthPageProps) {
                 {oauthProviders.length > 0 && (
                   <div className="mt-5">
                     <div className="auth-divider-ornament mb-4">
-                      <span className="flex-shrink-0 text-xs font-medium text-slate-400 dark:text-stone-500">
+                      <span className="flex-shrink-0 text-12 font-medium text-slate-400 dark:text-stone-500">
                         {t("auth.or")}
                       </span>
                     </div>
@@ -798,7 +790,7 @@ export function AuthPage({ onSuccess, initialMode }: AuthPageProps) {
                           <button
                             type="button"
                             onClick={() => handleOAuthLogin(provider.id)}
-                            className="auth-oauth-btn auth-social-provider flex h-12 items-center justify-center gap-2 rounded-full px-6 text-base font-semibold text-slate-900 transition-all active:translate-y-0 dark:text-stone-100 font-serif"
+                            className="auth-oauth-btn auth-social-provider flex h-12 items-center justify-center gap-2 rounded-full px-6 text-16 font-semibold text-slate-900 transition-all active:translate-y-0 dark:text-stone-100 font-serif"
                           >
                             {provider.id === "google" && (
                               <svg
@@ -857,7 +849,7 @@ export function AuthPage({ onSuccess, initialMode }: AuthPageProps) {
                 )}
 
                 {/* Switch mode */}
-                <div className="auth-mode-switch mt-6 flex flex-wrap items-center justify-center gap-1.5 text-sm text-slate-500 dark:text-stone-400 font-serif">
+                <div className="auth-mode-switch mt-6 flex flex-wrap items-center justify-center gap-1.5 text-14 text-slate-500 dark:text-stone-400 font-serif">
                   {registrationEnabled ? (
                     <>
                       <span>
@@ -897,7 +889,7 @@ export function AuthPage({ onSuccess, initialMode }: AuthPageProps) {
                   className="auth-footer-divider w-32 sm:w-40"
                   aria-hidden="true"
                 />
-                <div className="flex flex-wrap items-center justify-center gap-x-2 text-10 text-stone-400 dark:text-stone-500 sm:gap-x-3 sm:text-xs font-serif">
+                <div className="flex flex-wrap items-center justify-center gap-x-2 text-10 text-stone-400 dark:text-stone-500 sm:gap-x-3 sm:text-12 font-serif">
                   <a
                     href={GITHUB_URL}
                     target="_blank"

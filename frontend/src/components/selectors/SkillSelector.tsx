@@ -238,7 +238,7 @@ export function SkillSelector({
       </SelectorActionBar>
 
       {personaControlled && (
-        <div className="border-b border-blue-200/70 bg-blue-50/80 px-4 py-3 text-xs leading-relaxed text-blue-700 dark:border-blue-500/20 dark:bg-blue-500/10 dark:text-blue-200 sm:px-5">
+        <div className="border-b border-blue-200/70 bg-blue-50/80 px-4 py-3 text-12 leading-relaxed text-blue-700 dark:border-blue-500/20 dark:bg-blue-500/10 dark:text-blue-200 sm:px-5">
           {t(
             "personaPresets.skillsControlledHint",
             'The current persona "{{name}}" is controlling available Skills. To adjust skills for this conversation, clear the current persona or edit the persona preset.',
@@ -258,7 +258,7 @@ export function SkillSelector({
             value={searchQuery}
             onValueChange={setSearchQuery}
             placeholder={t("skills.searchPlaceholder")}
-            className="w-full rounded-2xl border border-stone-200 bg-white py-2.5 pl-9 pr-3 text-sm text-stone-700 shadow-sm outline-none transition-colors placeholder:text-stone-400 focus:border-[var(--theme-primary)] focus:bg-white dark:border-stone-700 dark:bg-stone-950/60 dark:text-stone-100 dark:placeholder:text-stone-500 dark:focus:bg-stone-950"
+            className="w-full rounded-2xl border border-stone-200 bg-white py-2.5 pl-9 pr-3 text-14 text-stone-700 shadow-sm outline-none transition-colors placeholder:text-stone-400 focus:border-[var(--theme-primary)] focus:bg-white dark:border-stone-700 dark:bg-stone-950/60 dark:text-stone-100 dark:placeholder:text-stone-500 dark:focus:bg-stone-950"
           />
         </div>
         {availableTags.length > 0 && (
@@ -283,7 +283,7 @@ export function SkillSelector({
                   setSearchQuery("");
                   setSelectedTags([]);
                 }}
-                className="text-xs text-[var(--theme-text-secondary)] transition-colors hover:text-[var(--theme-primary)]"
+                className="text-12 text-[var(--theme-text-secondary)] transition-colors hover:text-[var(--theme-primary)]"
               >
                 {t("marketplace.clearFilters")}
               </button>
@@ -335,10 +335,10 @@ export function SkillSelector({
                     />
                   </div>
                   <div className="flex-1 min-w-0">
-                    <span className="text-13 sm:text-sm font-semibold font-serif text-stone-800 dark:text-stone-100">
+                    <span className="text-13 sm:text-14 font-semibold font-serif text-stone-800 dark:text-stone-100">
                       {t(`skillSelector.sources.${cat}`)}
                     </span>
-                    <span className="ml-1.5 sm:ml-2 text-xs sm:text-xs text-stone-400 dark:text-stone-500 tabular-nums">
+                    <span className="ml-1.5 sm:ml-2 text-12 sm:text-12 text-stone-400 dark:text-stone-500 tabular-nums">
                       {enabledInCategory}/{allCategorySkills.length}
                     </span>
                   </div>
@@ -402,7 +402,7 @@ export function SkillSelector({
                             <div className="flex-1 min-w-0">
                               <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap">
                                 <span
-                                  className={`text-12 sm:text-13 font-medium truncate ${
+                                  className={`text-12 sm:text-13 font-medium font-serif truncate ${
                                     skill.enabled
                                       ? "text-stone-700 dark:text-stone-200"
                                       : "text-[var(--theme-primary)] dark:text-[var(--theme-primary)]"
@@ -411,7 +411,7 @@ export function SkillSelector({
                                   {skill.name}
                                 </span>
                               </div>
-                              <p className="text-xs sm:text-xs text-stone-400 dark:text-stone-500 truncate mt-0.5 leading-relaxed text-left">
+                              <p className="text-12 sm:text-12 text-stone-400 dark:text-stone-500 truncate mt-0.5 leading-relaxed text-left">
                                 {skill.description ||
                                   t("skillSelector.noDescription")}
                               </p>
@@ -439,7 +439,7 @@ export function SkillSelector({
           },
         )}
         {filteredSkills.length === 0 && (
-          <div className="rounded-xl border border-dashed border-stone-200 bg-stone-50/70 px-4 py-6 text-center text-sm text-stone-500 dark:border-stone-700 dark:bg-stone-800/40 dark:text-stone-400">
+          <div className="rounded-xl border border-dashed border-stone-200 bg-stone-50/70 px-4 py-6 text-center text-14 text-stone-500 dark:border-stone-700 dark:bg-stone-800/40 dark:text-stone-400">
             {t("skills.noMatchingSkills")}
           </div>
         )}

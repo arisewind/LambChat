@@ -39,7 +39,7 @@ function FieldInput({
 
   if (field.type === "toggle") {
     return (
-      <label className="flex items-center gap-2 text-sm">
+      <label className="flex items-center gap-2 text-14">
         <span className="text-stone-700 dark:text-stone-300">{label}</span>
         <button
           type="button"
@@ -62,7 +62,7 @@ function FieldInput({
   if (field.type === "select" && field.options) {
     return (
       <div>
-        <label className="mb-1 block text-xs font-medium text-stone-600 dark:text-stone-400">
+        <label className="mb-1 block text-12 font-medium text-stone-600 dark:text-stone-400">
           {label}
         </label>
         <Select
@@ -80,7 +80,7 @@ function FieldInput({
 
   return (
     <div>
-      <label className="mb-1 block text-xs font-medium text-stone-600 dark:text-stone-400">
+      <label className="mb-1 block text-12 font-medium text-stone-600 dark:text-stone-400">
         {label}
         {field.required && <span className="ml-0.5 text-red-500">*</span>}
       </label>
@@ -102,7 +102,7 @@ function FieldInput({
             onChange(e.target.value);
           }
         }}
-        className="w-full rounded-lg border border-[var(--glass-border)] bg-[var(--theme-bg-card)] px-3 py-1.5 text-sm text-stone-900 focus:outline-none disabled:cursor-not-allowed disabled:opacity-60 dark:text-stone-100"
+        className="w-full rounded-lg border border-[var(--glass-border)] bg-[var(--theme-bg-card)] px-3 py-1.5 text-14 text-stone-900 focus:outline-none disabled:cursor-not-allowed disabled:opacity-60 dark:text-stone-100"
       />
     </div>
   );
@@ -156,7 +156,7 @@ function ArrayEditor({
   return (
     <div className="space-y-3">
       {value.length === 0 && (
-        <p className="text-sm text-stone-400 dark:text-stone-500">
+        <p className="text-14 text-stone-400 dark:text-stone-500">
           {t("settingDesc.JSON_SCHEMA_EMPTY")}
         </p>
       )}
@@ -166,7 +166,7 @@ function ArrayEditor({
           className="relative rounded-lg border border-[var(--glass-border)] bg-[var(--theme-bg-secondary)] p-3"
         >
           <div className="mb-2 flex items-center justify-between">
-            <span className="text-xs font-medium text-stone-500 dark:text-stone-400">
+            <span className="text-12 font-medium text-stone-500 dark:text-stone-400">
               {itemLabel} {index + 1}
             </span>
             {!disabled && (
@@ -204,7 +204,7 @@ function ArrayEditor({
           variant="ghost"
           size="sm"
           leftIcon={<Plus size={14} />}
-          className="flex items-center gap-1.5 rounded-lg border border-dashed border-[var(--glass-border)] px-3 py-2 text-sm text-stone-500 hover:border-blue-400 hover:text-blue-500 dark:text-stone-400 dark:hover:border-blue-500 dark:hover:text-blue-400"
+          className="flex items-center gap-1.5 rounded-lg border border-dashed border-[var(--glass-border)] px-3 py-2 text-14 text-stone-500 hover:border-blue-400 hover:text-blue-500 dark:text-stone-400 dark:hover:border-blue-500 dark:hover:text-blue-400"
         >
           {t("settingDesc.JSON_SCHEMA_ADD_ITEM")} {itemLabel}
         </Button>
@@ -238,7 +238,7 @@ function ObjectArrayEditor({
       {keys.map((key) => (
         <div key={key}>
           <div className="mb-2 flex items-center justify-between">
-            <span className="rounded bg-stone-100 px-2 py-0.5 text-xs font-medium text-stone-600 dark:bg-stone-700 dark:text-stone-300">
+            <span className="rounded bg-stone-100 px-2 py-0.5 text-12 font-medium text-stone-600 dark:bg-stone-700 dark:text-stone-300">
               {keyLabel}: {key}
             </span>
           </div>
@@ -305,7 +305,7 @@ function ObjectArrayEditor({
                 variant="ghost"
                 size="sm"
                 leftIcon={<Plus size={12} />}
-                className="flex items-center gap-1.5 rounded-lg border border-dashed border-[var(--glass-border)] px-3 py-1.5 text-xs text-stone-500 hover:border-blue-400 hover:text-blue-500 dark:text-stone-400 dark:hover:border-blue-500 dark:hover:text-blue-400"
+                className="flex items-center gap-1.5 rounded-lg border border-dashed border-[var(--glass-border)] px-3 py-1.5 text-12 text-stone-500 hover:border-blue-400 hover:text-blue-500 dark:text-stone-400 dark:hover:border-blue-500 dark:hover:text-blue-400"
               >
                 {t("settingDesc.JSON_SCHEMA_ADD_ITEM")} {itemLabel}
               </Button>

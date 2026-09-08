@@ -109,7 +109,7 @@ export function RoleDetailSidebar({
         {/* 描述 */}
         {role.description && (
           <>
-            <p className="text-sm text-theme-text-secondary leading-relaxed">
+            <p className="text-14 text-theme-text-secondary leading-relaxed">
               {role.description}
             </p>
             <hr className="es-divider" />
@@ -125,7 +125,7 @@ export function RoleDetailSidebar({
           <div className="es-section space-y-3">
             {groupedPermissions.map((group) => (
               <div key={group.name}>
-                <p className="text-xs font-medium text-theme-text-secondary mb-1.5">
+                <p className="text-12 font-medium text-theme-text-secondary mb-1.5">
                   {group.name}
                 </p>
                 <div className="flex flex-wrap gap-1.5">
@@ -161,11 +161,11 @@ export function RoleDetailSidebar({
                 {t("roles.uploadLimitsTitle")}
               </label>
               <div className="es-section">
-                <div className="grid grid-cols-2 gap-x-4 gap-y-2">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-2">
                   {limitEntries.map(({ label, value }) => (
                     <div
                       key={label}
-                      className="flex items-center justify-between text-sm"
+                      className="flex items-center justify-between text-14"
                     >
                       <span className="text-theme-text-secondary">{label}</span>
                       <span className="font-medium text-theme-text">
@@ -181,7 +181,7 @@ export function RoleDetailSidebar({
 
         {/* 时间信息 */}
         <hr className="es-divider" />
-        <div className="flex items-center gap-1.5 text-xs text-theme-text-secondary">
+        <div className="flex items-center gap-1.5 text-12 text-theme-text-secondary">
           <Clock size={12} />
           <span>
             {t("roles.created")}: {formatDate(role.created_at)}

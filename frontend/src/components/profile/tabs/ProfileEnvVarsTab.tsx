@@ -130,7 +130,7 @@ export function ProfileEnvVarsTab() {
 
   if (!canRead) {
     return (
-      <div className="flex items-center justify-center py-12 text-stone-400 dark:text-stone-500 text-sm">
+      <div className="flex items-center justify-center py-12 text-stone-400 dark:text-stone-500 text-14">
         {t("common.noPermission")}
       </div>
     );
@@ -148,12 +148,12 @@ export function ProfileEnvVarsTab() {
       />
       <div className="rounded-2xl bg-stone-50 dark:bg-stone-700/40 p-4 border border-stone-200/60 dark:border-stone-600/40">
         <div className="flex items-center gap-2 mb-3">
-          <Braces size={15} className="text-amber-500 dark:text-amber-400" />
-          <h3 className="font-semibold font-serif uppercase tracking-wide text-stone-400 dark:text-stone-500">
+          <Braces size={13} className="text-amber-500 dark:text-amber-400" />
+          <h3 className="text-12 font-semibold font-serif uppercase tracking-wider text-stone-400 dark:text-stone-500">
             {t("envVars.title")}
           </h3>
         </div>
-        <p className="text-xs text-stone-500 dark:text-stone-400 mb-3">
+        <p className="text-12 text-stone-500 dark:text-stone-400 mb-3">
           {t("envVars.description")}
         </p>
 
@@ -165,7 +165,7 @@ export function ProfileEnvVarsTab() {
               value={newKey}
               onChange={(e) => setNewKey(e.target.value)}
               placeholder={t("envVars.keyPlaceholder")}
-              className="flex-1 min-w-0 px-3 py-1.5 text-xs rounded-lg bg-white dark:bg-stone-800 border border-stone-200 dark:border-stone-600 text-stone-800 dark:text-stone-200 placeholder:text-stone-400 dark:placeholder:text-stone-500 focus:outline-none focus:ring-1 focus:ring-amber-400"
+              className="flex-1 min-w-0 px-3 py-1.5 text-12 rounded-lg bg-white dark:bg-stone-800 border border-stone-200 dark:border-stone-600 text-stone-800 dark:text-stone-200 placeholder:text-stone-400 dark:placeholder:text-stone-500 focus:outline-none focus:ring-1 focus:ring-amber-400"
               onKeyDown={(e) => e.key === "Enter" && handleAdd()}
             />
             <input
@@ -173,7 +173,7 @@ export function ProfileEnvVarsTab() {
               value={newValue}
               onChange={(e) => setNewValue(e.target.value)}
               placeholder={t("envVars.valuePlaceholder")}
-              className="flex-1 min-w-0 px-3 py-1.5 text-xs rounded-lg bg-white dark:bg-stone-800 border border-stone-200 dark:border-stone-600 text-stone-800 dark:text-stone-200 placeholder:text-stone-400 dark:placeholder:text-stone-500 focus:outline-none focus:ring-1 focus:ring-amber-400"
+              className="flex-1 min-w-0 px-3 py-1.5 text-12 rounded-lg bg-white dark:bg-stone-800 border border-stone-200 dark:border-stone-600 text-stone-800 dark:text-stone-200 placeholder:text-stone-400 dark:placeholder:text-stone-500 focus:outline-none focus:ring-1 focus:ring-amber-400"
               onKeyDown={(e) => e.key === "Enter" && handleAdd()}
             />
             <button
@@ -194,7 +194,7 @@ export function ProfileEnvVarsTab() {
         {loading ? (
           <SkeletonList count={4} className="py-1" />
         ) : vars.length === 0 ? (
-          <div className="text-center py-6 text-xs text-stone-400 dark:text-stone-500">
+          <div className="text-center py-6 text-12 text-stone-400 dark:text-stone-500">
             {t("envVars.empty")}
           </div>
         ) : (
@@ -206,7 +206,7 @@ export function ProfileEnvVarsTab() {
               >
                 {editingKey === envVar.key ? (
                   <>
-                    <span className="text-xs font-mono font-medium text-stone-700 dark:text-stone-200 shrink-0">
+                    <span className="text-12 font-mono font-medium text-stone-700 dark:text-stone-200 shrink-0">
                       {envVar.key}
                     </span>
                     <span className="text-stone-300 dark:text-stone-600">
@@ -217,7 +217,7 @@ export function ProfileEnvVarsTab() {
                       value={editingValue}
                       onChange={(e) => setEditingValue(e.target.value)}
                       placeholder={t("envVars.newValuePlaceholder")}
-                      className="flex-1 min-w-0 px-2 py-0.5 text-xs font-mono rounded bg-stone-50 dark:bg-stone-700 border border-stone-200 dark:border-stone-600 text-stone-800 dark:text-stone-200 placeholder:text-stone-400 focus:outline-none focus:ring-1 focus:ring-amber-400"
+                      className="flex-1 min-w-0 px-2 py-0.5 text-12 font-mono rounded bg-stone-50 dark:bg-stone-700 border border-stone-200 dark:border-stone-600 text-stone-800 dark:text-stone-200 placeholder:text-stone-400 focus:outline-none focus:ring-1 focus:ring-amber-400"
                       autoFocus
                       onKeyDown={(e) => {
                         if (e.key === "Enter") saveEdit();
@@ -247,13 +247,13 @@ export function ProfileEnvVarsTab() {
                   </>
                 ) : (
                   <>
-                    <span className="text-xs font-mono font-medium text-stone-700 dark:text-stone-200 shrink-0 truncate">
+                    <span className="text-12 font-mono font-medium text-stone-700 dark:text-stone-200 shrink-0 truncate">
                       {envVar.key}
                     </span>
                     <span className="text-stone-300 dark:text-stone-600">
                       =
                     </span>
-                    <span className="flex-1 min-w-0 text-xs font-mono text-stone-400 dark:text-stone-500 select-none">
+                    <span className="flex-1 min-w-0 text-12 font-mono text-stone-400 dark:text-stone-500 select-none">
                       ••••••••
                     </span>
                     <div className="shrink-0 flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">

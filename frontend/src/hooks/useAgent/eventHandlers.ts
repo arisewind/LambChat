@@ -300,7 +300,12 @@ export function handleStreamEvent(
     }
 
     case "user:cancel": {
-      handleError(data, messageId, ctx, true, { keepConnectionOpen: true });
+      // reason=steer：插话打断 ask_human 挂起。已停止是状态行文字切换
+      // （cancelled 标志 → RunStepsCollapse「已停止」），不追加已取消胶囊。
+      handleError(data, messageId, ctx, true, {
+        keepConnectionOpen: true,
+        skipCancelledPart: data.reason === "steer",
+      });
       return;
     }
 
@@ -412,10 +417,13 @@ export function handleStreamEvent(
     "tool:result",
     "tool:args:chunk",
     "approval_resolved",
+    "hitl:suspended",
+    "human_resume_started",
     "artifact:result",
     "sandbox:starting",
     "sandbox:ready",
     "sandbox:error",
+    "status",
     "token:usage",
     "todo:updated",
     "summary",
@@ -555,10 +563,7 @@ function handleUserMessage(
         // 误命中上一轮的同内容消息，把流式助手插到旧消息下面。
         for (let index = prev.length - 1; index >= 0; index -= 1) {
           const candidate = prev[index];
-          if (
-            candidate?.role === "user" &&
-            candidate.content === userContent
-          ) {
+          if (candidate?.role === "user" && candidate.content === userContent) {
             existingUserIndex = index;
             break;
           }
@@ -654,7 +659,7 @@ function handleError(
   messageId: string,
   ctx: EventHandlerContext,
   forceCancelled?: boolean,
-  options?: { keepConnectionOpen?: boolean },
+  options?: { keepConnectionOpen?: boolean; skipCancelledPart?: boolean },
 ): void {
   const errorMsg = data.error
     ? translateApiError(data.code, data.error, undefined, i18n.t.bind(i18n))
@@ -665,11 +670,14 @@ function handleError(
     prev.map((m) => {
       if (m.id !== messageId) return m;
       if (isCancelled) {
+        const clearedParts = clearAllLoadingStates(m.parts || []);
         return {
           ...m,
           isStreaming: false,
           cancelled: true,
-          parts: appendCancelledPart(clearAllLoadingStates(m.parts || [])),
+          parts: options?.skipCancelledPart
+            ? clearedParts
+            : appendCancelledPart(clearedParts),
         };
       }
       return {

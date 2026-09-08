@@ -9,23 +9,24 @@ test("file operation pills render full file paths without path-breaking formatti
   const editFileItem = readSource("../EditFileItem.tsx");
   const lsItem = readSource("../LsItem.tsx");
 
+  // 基础标签仍是「工具名 + 完整路径」，流式尾部预览只追加其后
   expect(readFileItem).toMatch(
-    /label=\{`\$\{t\("chat\.message\.toolRead"\)\} \$\{filePath \|\| ""\}`\}/,
+    /useToolStreamingLabel\(\s*`\$\{t\("chat\.message\.toolRead"\)\} \$\{filePath \|\| ""\}`/,
   );
   expect(readFileItem).toMatch(/formatLabel=\{false\}/);
 
   expect(writeFileItem).toMatch(
-    /label=\{`\$\{t\("chat\.message\.toolWrite"\)\} \$\{filePath \|\| ""\}`\}/,
+    /useToolStreamingLabel\(\s*`\$\{t\("chat\.message\.toolWrite"\)\} \$\{filePath \|\| ""\}`/,
   );
   expect(writeFileItem).toMatch(/formatLabel=\{false\}/);
 
   expect(editFileItem).toMatch(
-    /label=\{`\$\{t\("chat\.message\.toolEdit"\)\} \$\{filePath \|\| ""\}`\}/,
+    /useToolStreamingLabel\(\s*`\$\{t\("chat\.message\.toolEdit"\)\} \$\{filePath \|\| ""\}`/,
   );
   expect(editFileItem).toMatch(/formatLabel=\{false\}/);
 
   expect(lsItem).toMatch(
-    /label=\{`\$\{t\("chat\.message\.toolLs"\)\} \$\{dirPath\}`\}/,
+    /useToolStreamingLabel\(\s*`\$\{t\("chat\.message\.toolLs"\)\} \$\{dirPath\}\$\{pillCount\}`/,
   );
   expect(lsItem).toMatch(/formatLabel=\{false\}/);
 });
@@ -37,10 +38,12 @@ test("read file pill renders the line range in the suffix so it survives path tr
   expect(readFileItem).toMatch(
     /const lineRange = readLineRangeLabel\(offset, limit\);/,
   );
-  expect(readFileItem).toMatch(/suffix=\{\n\s*lineRange \? \(\n\s*<span className="shrink-0/);
+  expect(readFileItem).toMatch(
+    /suffix=\{\n\s*lineRange \? \(\n\s*<span className="shrink-0/,
+  );
   // 面板标题同样带行号，侧栏里同文件的多个标签页可区分
   expect(readFileItem).toMatch(
-    /title: `\$\{t\("chat\.message\.toolRead"\)\} \$\{fileName \|\| filePath\}\$\{lineRange\}`/,
+    /title: `\$\{t\("chat\.message\.toolRead"\)\} \$\{\s*fileName \|\| filePath\s*\}\$\{lineRange\}`/,
   );
 });
 

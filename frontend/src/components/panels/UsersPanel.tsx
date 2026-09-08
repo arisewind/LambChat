@@ -45,7 +45,7 @@ interface UserAvatarProps {
 }
 
 function UserAvatar({ user, size = "sm" }: UserAvatarProps) {
-  const sizeClasses = size === "sm" ? "h-8 w-8 text-sm" : "h-10 w-10 text-base";
+  const sizeClasses = size === "sm" ? "h-8 w-8 text-14" : "h-10 w-10 text-16";
   const initial = user.username.charAt(0).toUpperCase();
   const fallback = (
     <div
@@ -267,7 +267,7 @@ function UserFormModal({
                       checked={selectedRoles.includes(role.name)}
                       onChange={() => toggleRole(role.name)}
                     />
-                    <span className="text-sm text-theme-text">{role.name}</span>
+                    <span className="text-14 text-theme-text">{role.name}</span>
                     {role.is_system && (
                       <span className="es-chip">{t("users.system")}</span>
                     )}
@@ -452,7 +452,7 @@ export function UsersPanel() {
 
       {/* 错误提示 */}
       {error && (
-        <div className="mx-3 mt-4 flex items-center gap-2 rounded-xl bg-red-50 p-3 text-sm text-red-600 dark:bg-red-900/30 dark:text-red-400 sm:mx-6">
+        <div className="mx-3 mt-4 flex items-center gap-2 rounded-xl bg-red-50 p-3 text-14 text-red-600 dark:bg-red-900/30 dark:text-red-400 sm:mx-6">
           <AlertCircle size={18} />
           <span>{error}</span>
         </div>
@@ -479,23 +479,23 @@ export function UsersPanel() {
               <table className="min-w-full divide-y divide-[var(--glass-border)]">
                 <thead className="bg-[var(--glass-bg-subtle)]">
                   <tr>
-                    <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-theme-text-secondary">
+                    <th className="px-6 py-3 text-left text-12 font-medium uppercase tracking-wider text-theme-text-secondary">
                       {t("users.user")}
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-theme-text-secondary">
+                    <th className="px-6 py-3 text-left text-12 font-medium uppercase tracking-wider text-theme-text-secondary">
                       {t("users.email")}
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-theme-text-secondary">
+                    <th className="px-6 py-3 text-left text-12 font-medium uppercase tracking-wider text-theme-text-secondary">
                       {t("users.roles")}
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-theme-text-secondary">
+                    <th className="px-6 py-3 text-left text-12 font-medium uppercase tracking-wider text-theme-text-secondary">
                       {t("users.status")}
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-theme-text-secondary">
+                    <th className="px-6 py-3 text-left text-12 font-medium uppercase tracking-wider text-theme-text-secondary">
                       {t("users.createdAt")}
                     </th>
                     {(canEdit || canDelete) && (
-                      <th className="px-6 py-3 text-right text-xs font-medium uppercase tracking-wider text-theme-text-secondary">
+                      <th className="px-6 py-3 text-right text-12 font-medium uppercase tracking-wider text-theme-text-secondary">
                         {t("users.actions")}
                       </th>
                     )}
@@ -510,12 +510,12 @@ export function UsersPanel() {
                       <td className="whitespace-nowrap px-6 py-4">
                         <div className="flex items-center gap-3">
                           <UserAvatar user={user} />
-                          <span className="font-medium text-theme-text">
+                          <span className="font-medium font-serif text-theme-text">
                             {user.username}
                           </span>
                         </div>
                       </td>
-                      <td className="whitespace-nowrap px-6 py-4 text-sm text-theme-text-secondary">
+                      <td className="whitespace-nowrap px-6 py-4 text-14 text-theme-text-secondary">
                         {user.email}
                       </td>
                       <td className="whitespace-nowrap px-6 py-4">
@@ -523,7 +523,10 @@ export function UsersPanel() {
                           {user.roles.map((roleName: string) => {
                             const role = roles.find((r) => r.name === roleName);
                             return (
-                              <span key={roleName} className="tag tag-default">
+                              <span
+                                key={roleName}
+                                className="tag tag-default font-serif"
+                              >
                                 {role ? role.name : roleName}
                               </span>
                             );
@@ -543,7 +546,7 @@ export function UsersPanel() {
                           </span>
                         )}
                       </td>
-                      <td className="whitespace-nowrap px-6 py-4 text-sm text-theme-text-secondary">
+                      <td className="whitespace-nowrap px-6 py-4 text-14 text-theme-text-secondary">
                         {formatDate(user.created_at)}
                       </td>
                       {(canEdit || canDelete) && (
@@ -583,10 +586,10 @@ export function UsersPanel() {
                   <div className="flex items-start gap-3">
                     <UserAvatar user={user} size="md" />
                     <div className="min-w-0 flex-1">
-                      <p className="truncate font-medium text-theme-text">
+                      <p className="truncate font-medium font-serif text-theme-text">
                         {user.username}
                       </p>
-                      <p className="truncate text-sm text-theme-text-secondary">
+                      <p className="truncate text-14 text-theme-text-secondary">
                         {user.email}
                       </p>
                     </div>
@@ -595,7 +598,10 @@ export function UsersPanel() {
                   {/* Roles tags */}
                   <div className="mt-3 flex flex-wrap gap-1">
                     {user.roles.map((roleName: string) => (
-                      <span key={roleName} className="tag tag-default">
+                      <span
+                        key={roleName}
+                        className="tag tag-default font-serif"
+                      >
                         {roles.find((r) => r.name === roleName)?.name ||
                           roleName}
                       </span>
@@ -616,7 +622,7 @@ export function UsersPanel() {
                           {t("users.disabled")}
                         </span>
                       )}
-                      <span className="text-xs text-theme-text-secondary opacity-60">
+                      <span className="text-12 text-theme-text-secondary opacity-60">
                         {formatDate(user.created_at)}
                       </span>
                     </div>

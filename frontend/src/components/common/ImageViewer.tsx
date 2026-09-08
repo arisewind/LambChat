@@ -222,7 +222,7 @@ export function ImageViewer({
   return createPortal(
     <div
       data-yields-sidebar
-      className="fixed inset-0 z-[300] flex flex-col bg-black/90"
+      className="safe-area-x fixed inset-0 z-[300] flex flex-col bg-black/90"
       style={{
         height: "var(--app-viewport-height, 100dvh)",
         transform: "translate3d(0, var(--app-viewport-offset-top, 0px), 0)",
@@ -239,7 +239,7 @@ export function ImageViewer({
         />
 
         {positionLabel && (
-          <div className="pointer-events-none absolute left-1/2 -translate-x-1/2 rounded-md bg-white/10 px-2.5 py-1 text-xs font-medium tabular-nums text-white/70">
+          <div className="pointer-events-none absolute left-1/2 -translate-x-1/2 rounded-md bg-white/10 px-2.5 py-1 text-12 font-medium tabular-nums text-white/70">
             {positionLabel}
           </div>
         )}

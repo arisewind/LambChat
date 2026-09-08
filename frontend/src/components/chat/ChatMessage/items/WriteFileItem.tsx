@@ -3,6 +3,7 @@ import { FilePlus } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { CollapsiblePill } from "../../../common";
 import { DeferredCodeMirrorViewer } from "../../../common/DeferredCodeMirrorViewer";
+import { useToolStreamingLabel } from "./useToolStreamingLabel";
 import { extractText } from "./toolUtils";
 import {
   openToolLivePanel,
@@ -44,7 +45,7 @@ function WriteFileDetail({ args, result }: ToolDetailProps) {
         (() => {
           const text = extractText(result);
           return text ? (
-            <pre className="group/result relative text-xs text-theme-text-tertiary whitespace-pre-wrap break-words p-3 rounded-lg bg-theme-bg border border-theme-border">
+            <pre className="group/result relative text-12 text-theme-text-tertiary whitespace-pre-wrap break-words p-3 rounded-lg bg-theme-bg border border-theme-border">
               {text}
               <ToolHoverCopyButton
                 text={text}
@@ -85,6 +86,13 @@ const WriteFileItem = memo(function WriteFileItem({
   const fileName = filePath.split("/").pop() || filePath;
   const content = (args.content as string) || "";
 
+  // 进行中：标签学「思考中」，平滑流出正在生成的参数尾部
+  const { label, isStreamingLabel } = useToolStreamingLabel(
+    `${t("chat.message.toolWrite")} ${filePath || ""}`,
+    args,
+    { isPending, result },
+  );
+
   // 参数生成中（无 result）也允许打开面板：实时等待写入结果
   const canExpand = !!content || !!result || isPending || !!filePath;
   const status = isPending
@@ -112,9 +120,10 @@ const WriteFileItem = memo(function WriteFileItem({
       <CollapsiblePill
         status={status}
         icon={<FilePlus size={12} className="shrink-0 opacity-50" />}
-        label={`${t("chat.message.toolWrite")} ${filePath || ""}`}
+        label={label}
         variant="tool"
         formatLabel={false}
+        animatedDots={isStreamingLabel}
         expandable={canExpand}
         onPanelOpen={() => {
           if (!canExpand) return;
@@ -156,7 +165,7 @@ const WriteFileItem = memo(function WriteFileItem({
               (() => {
                 const text = extractText(result);
                 return text ? (
-                  <pre className="group/result relative text-xs text-theme-text-tertiary whitespace-pre-wrap break-words mt-1 overflow-y-auto min-w-0">
+                  <pre className="group/result relative text-12 text-theme-text-tertiary whitespace-pre-wrap break-words mt-1 overflow-y-auto min-w-0">
                     {text}
                     <ToolHoverCopyButton text={text} position="resultCompact" />
                   </pre>

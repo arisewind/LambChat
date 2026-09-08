@@ -10,10 +10,10 @@ describe("ChatInput queued steer alignment", () => {
     );
 
     expect(source).toMatch(
-      /className="flex items-center gap-2 rounded-xl border px-3 py-2 text-sm"/,
+      /className="flex items-center gap-2 rounded-xl border px-3 py-2 text-14"/,
     );
     expect(source).toMatch(
-      /className="flex min-h-5 shrink-0 min-w-\[7rem\] items-center justify-center text-center text-xs"/,
+      /className="flex min-h-5 shrink-0 min-w-\[7rem\] items-center justify-center text-center text-12"/,
     );
     expect(source).not.toMatch(
       /AttachmentCard|openAttachmentPreview|attachments\?\./,

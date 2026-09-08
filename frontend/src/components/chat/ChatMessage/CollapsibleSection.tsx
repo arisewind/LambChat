@@ -66,7 +66,7 @@ export function CollapsibleSection({
           />
           <span
             className={clsx(
-              "text-xs uppercase tracking-wider font-medium",
+              "text-12 uppercase tracking-wider font-medium",
               isError
                 ? "text-red-600 dark:text-red-400"
                 : "text-theme-text-tertiary",

@@ -9,7 +9,7 @@ test("summary item keeps the shared pill chrome and adds a light description", (
   expect(source).toMatch(/suffix=\{/);
   expect(source).toMatch(/chat\.message\.summaryDescription/);
   expect(source).toMatch(/font-mono/);
-  expect(source).toMatch(/text-xs/);
+  expect(source).toMatch(/text-12/);
   expect(source).toMatch(/leading-none/);
   expect(source).toMatch(/font-medium/);
   expect(source).not.toMatch(/text-emerald/);

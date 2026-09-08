@@ -33,7 +33,7 @@ export function ChatPageSkeleton() {
           <div className="flex items-center gap-2 flex-shrink-0">
             {/* Mobile hamburger */}
             <div className="skeleton-line size-8 rounded-lg sm:hidden" />
-            {/* Model selector — matches real ModelSelector text-base font-semibold height */}
+            {/* Model selector — matches real ModelSelector text-16 font-semibold height */}
             <div className="flex items-center gap-1.5">
               <SkeletonLine
                 width="w-24 sm:w-28 md:w-36"
@@ -80,7 +80,7 @@ function UserMessageSkeleton({
               boxShadow: "var(--shadow-low)",
             }}
           >
-            <div className="leading-relaxed text-15 sm:text-base space-y-1.5">
+            <div className="leading-relaxed text-15 sm:text-16 space-y-1.5">
               {msg.lines.map((w, li) => (
                 <SkeletonLine key={li} width={w} />
               ))}
@@ -165,12 +165,12 @@ function ChatInputShellSkeleton() {
         </div>
       </div>
       {/* Toolbar — 1:1 with real ChatInputToolbar default idle state */}
-      <div className="flex max-w-full flex-nowrap justify-between gap-2 px-2 pb-3 pt-3 mx-0.5">
-        <div className="flex min-h-10 min-w-0 flex-1 items-center gap-1 overflow-x-auto no-scrollbar sm:gap-2">
-          {/* FeatureMenu button (chat-tool-btn: min 2.25rem, p-2, rounded-full) */}
+      <div className="flex max-w-full flex-nowrap justify-between gap-1 px-2 pb-3 pt-3 mx-0.5">
+        <div className="flex min-h-10 min-w-0 flex-1 items-center gap-0.5 sm:gap-1.5">
+          {/* FeatureMenu button (chat-tool-btn: fixed 2.25rem height, rounded-full) */}
           <div className="skeleton-line h-9 w-9 rounded-full shrink-0" />
-          {/* Agent chip (chat-tool-btn + avatar 18px + text-sm label) */}
-          <div className="chat-tool-btn group shrink min-w-0 pointer-events-none">
+          {/* Agent chip (chat-tool-btn + avatar 18px + text-14 label) */}
+          <div className="chat-tool-btn group shrink min-w-0 overflow-hidden pointer-events-none">
             <div className="flex flex-row items-center gap-2 min-w-0">
               <span className="relative h-[18px] w-[18px] shrink-0 inline-flex items-center justify-center overflow-hidden">
                 <div className="skeleton-line h-[18px] w-[18px] rounded-full" />
@@ -179,7 +179,7 @@ function ChatInputShellSkeleton() {
             </div>
           </div>
         </div>
-        <div className="flex shrink-0 items-center gap-3 self-end">
+        <div className="flex shrink-0 items-center gap-1 sm:gap-1.5 self-center">
           {/* Settings / Run Mode button (chat-tool-btn) */}
           <div className="skeleton-line h-9 w-9 rounded-full shrink-0" />
           {/* Send button (h-9 w-9 rounded-full) */}

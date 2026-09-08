@@ -8,6 +8,7 @@ import {
   toolDetailPropsFromPanelData,
   type ToolDetailProps,
 } from "./ToolLivePanelContent";
+import { useToolStreamingLabel } from "./useToolStreamingLabel";
 import { extractText } from "./toolUtils";
 import { ToolArgsBlock } from "./ToolArgsBlock";
 import { ToolDurationFooter } from "./ToolDurationFooter";
@@ -73,7 +74,7 @@ function ImageAnalyzeDetail({ args, result }: ToolDetailProps) {
       {analysis && (
         <div className="relative group rounded-lg tool-code-block">
           <div
-            className="prose prose-stone dark:prose-invert max-w-none text-sm leading-relaxed prose-p:my-0.5 prose-headings:my-1 p-3 sm:p-4"
+            className="prose prose-stone dark:prose-invert max-w-none text-14 leading-relaxed prose-p:my-0.5 prose-headings:my-1 p-3 sm:p-4"
             style={{ color: "var(--theme-text)" }}
           >
             <MarkdownContent content={analysis} />
@@ -130,7 +131,7 @@ const ImageAnalyzeItem = memo(function ImageAnalyzeItem({
   const analysisBlock = analysis ? (
     <div className="relative group rounded-lg tool-code-block">
       <div
-        className="prose prose-stone dark:prose-invert max-w-none text-sm leading-relaxed prose-p:my-0.5 prose-headings:my-1 p-3 sm:p-4"
+        className="prose prose-stone dark:prose-invert max-w-none text-14 leading-relaxed prose-p:my-0.5 prose-headings:my-1 p-3 sm:p-4"
         style={{ color: "var(--theme-text)" }}
       >
         <MarkdownContent content={analysis} />
@@ -161,13 +162,21 @@ const ImageAnalyzeItem = memo(function ImageAnalyzeItem({
       ? t("chat.message.toolImageAnalyzeCount", { count: imageUrls.length })
       : imageUrls[0] || "";
 
+  // 进行中：标签学「思考中」，平滑流出正在生成的参数尾部
+  const { label, isStreamingLabel } = useToolStreamingLabel(
+    `${t("chat.message.toolImageAnalyze")} ${
+      prompt ? truncate(prompt, 56) : truncate(imageSummary, 56)
+    }`,
+    args,
+    { isPending, result },
+  );
+
   return (
     <CollapsiblePill
       status={status}
       icon={<ScanSearch size={12} className="shrink-0 opacity-50" />}
-      label={`${t("chat.message.toolImageAnalyze")} ${
-        prompt ? truncate(prompt, 56) : truncate(imageSummary, 56)
-      }`}
+      label={label}
+      animatedDots={isStreamingLabel}
       variant="tool"
       formatLabel={false}
       expandable={canExpand}
@@ -209,7 +218,9 @@ const ImageAnalyzeItem = memo(function ImageAnalyzeItem({
           ))}
           {imageUrls.length > 3 && (
             <div className="text-11 text-theme-text-tertiary">
-              {t("chat.message.toolMoreFiles", { count: imageUrls.length - 3 })}
+              {t("chat.message.toolMoreImages", {
+                count: imageUrls.length - 3,
+              })}
             </div>
           )}
           {analysisBlock}

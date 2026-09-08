@@ -78,7 +78,7 @@ export function LanguageToggle({ className }: LanguageToggleProps) {
             <button
               key={lang.code}
               onClick={() => selectLanguage(lang.code)}
-              className={`w-full px-4 py-2 text-left text-sm flex items-center justify-between transition-colors ${
+              className={`w-full px-4 py-2 text-left text-14 flex items-center justify-between transition-colors ${
                 i18n.language === lang.code
                   ? "bg-stone-100 dark:bg-stone-700 text-stone-900 dark:text-stone-100"
                   : "text-stone-700 dark:text-stone-200 hover:bg-stone-50 dark:hover:bg-stone-700/50"

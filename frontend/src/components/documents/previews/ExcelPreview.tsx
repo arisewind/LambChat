@@ -248,7 +248,7 @@ const ExcelPreview = memo(function ExcelPreview({
   if (error) {
     return (
       <div className="p-4 rounded-lg bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800">
-        <p className="text-sm text-red-600 dark:text-red-400 font-medium">
+        <p className="text-14 text-red-600 dark:text-red-400 font-medium">
           {t("documents.excelPreviewError")}: {error}
         </p>
       </div>
@@ -491,7 +491,7 @@ const ExcelPreview = memo(function ExcelPreview({
         {/* Empty state */}
         {totalRows === 0 && (
           <div className="flex flex-col items-center justify-center py-20 text-stone-400 dark:text-stone-500">
-            <p className="text-sm">{t("documents.noData") || "No data"}</p>
+            <p className="text-14">{t("documents.noData") || "No data"}</p>
           </div>
         )}
 

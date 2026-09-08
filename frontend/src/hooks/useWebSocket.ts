@@ -36,14 +36,37 @@ export interface UsageUpdatedNotification {
   };
 }
 
+export interface SandboxPresenceNotification {
+  type: "sandbox:presence";
+  data: {
+    machines: Array<{
+      machine_id: string;
+      name: string;
+      platform: string;
+      version: string;
+      confirm_policy: string;
+      online: boolean;
+      last_seen?: number | null;
+    }>;
+    default_machine_id: string | null;
+    legacy_online: boolean;
+    revision: number;
+  };
+}
+
 export interface WebSocketMessageHandlers {
   onTaskComplete?: (notification: TaskCompleteNotification) => void;
   onRecommendQuestions?: (notification: RecommendQuestionsNotification) => void;
   onUsageUpdated?: (notification: UsageUpdatedNotification) => void;
+  onSandboxPresence?: (notification: SandboxPresenceNotification) => void;
   onSessionTaskStatus?: (data: {
     session_id: string;
     task_status: string;
   }) => void;
+  /** 连接认证通过（auth:ok）：消费方可据此收紧推送依赖、放宽轮询。 */
+  onWsOpen?: () => void;
+  /** 连接关闭（含手动断开）：消费方回落到轮询对账。 */
+  onWsClose?: () => void;
 }
 
 interface UseWebSocketOptions extends WebSocketMessageHandlers {
@@ -77,6 +100,21 @@ export function dispatchWebSocketMessage(
     const payload = data as Record<string, unknown>;
     if (typeof payload.trace_id !== "string") return;
     handlers.onUsageUpdated?.(message as UsageUpdatedNotification);
+  } else if (typedMessage.type === "sandbox:presence") {
+    const data = (message as { data?: unknown }).data;
+    if (!data || typeof data !== "object") return;
+    const payload = data as Record<string, unknown>;
+    if (typeof payload.revision !== "number") return;
+    if (!Array.isArray(payload.machines)) return;
+    const machinesOk = payload.machines.every(
+      (machine) =>
+        machine &&
+        typeof machine === "object" &&
+        typeof (machine as Record<string, unknown>).machine_id === "string" &&
+        (machine as Record<string, unknown>).machine_id,
+    );
+    if (!machinesOk) return;
+    handlers.onSandboxPresence?.(message as SandboxPresenceNotification);
   } else if (typedMessage.type === "session:task_status") {
     const data = (message as { data?: unknown }).data;
     if (data && typeof data === "object") {
@@ -106,7 +144,10 @@ export function useWebSocket(options: UseWebSocketOptions = {}) {
     onTaskComplete,
     onRecommendQuestions,
     onUsageUpdated,
+    onSandboxPresence,
     onSessionTaskStatus,
+    onWsOpen,
+    onWsClose,
     enabled = true,
   } = options;
   const wsRef = useRef<WebSocket | null>(null);
@@ -116,7 +157,10 @@ export function useWebSocket(options: UseWebSocketOptions = {}) {
   const onTaskCompleteRef = useRef(onTaskComplete);
   const onRecommendQuestionsRef = useRef(onRecommendQuestions);
   const onUsageUpdatedRef = useRef(onUsageUpdated);
+  const onSandboxPresenceRef = useRef(onSandboxPresence);
   const onSessionTaskStatusRef = useRef(onSessionTaskStatus);
+  const onWsOpenRef = useRef(onWsOpen);
+  const onWsCloseRef = useRef(onWsClose);
   const isMountedRef = useRef(true);
   const [isConnected, setIsConnected] = useState(false);
 
@@ -141,6 +185,18 @@ export function useWebSocket(options: UseWebSocketOptions = {}) {
   useEffect(() => {
     onUsageUpdatedRef.current = onUsageUpdated;
   }, [onUsageUpdated]);
+
+  useEffect(() => {
+    onSandboxPresenceRef.current = onSandboxPresence;
+  }, [onSandboxPresence]);
+
+  useEffect(() => {
+    onWsOpenRef.current = onWsOpen;
+  }, [onWsOpen]);
+
+  useEffect(() => {
+    onWsCloseRef.current = onWsClose;
+  }, [onWsClose]);
 
   useEffect(() => {
     onSessionTaskStatusRef.current = onSessionTaskStatus;
@@ -230,6 +286,7 @@ export function useWebSocket(options: UseWebSocketOptions = {}) {
             setIsConnected(true);
             reconnectAttemptRef.current = 0;
             authFailureCountRef.current = 0;
+            onWsOpenRef.current?.();
             console.log("[WebSocket] Auth confirmed");
             return;
           }
@@ -240,6 +297,7 @@ export function useWebSocket(options: UseWebSocketOptions = {}) {
             onTaskComplete: onTaskCompleteRef.current,
             onRecommendQuestions: onRecommendQuestionsRef.current,
             onUsageUpdated: onUsageUpdatedRef.current,
+            onSandboxPresence: onSandboxPresenceRef.current,
             onSessionTaskStatus: onSessionTaskStatusRef.current,
           });
         } catch (e) {
@@ -251,6 +309,7 @@ export function useWebSocket(options: UseWebSocketOptions = {}) {
         console.log("[WebSocket] Disconnected:", event.code, event.reason);
         isConnectingRef.current = false;
         setIsConnected(false);
+        onWsCloseRef.current?.();
 
         // Check if this was a manual disconnect BEFORE resetting the flag
         const wasManualDisconnect = isDisconnectingRef.current;

@@ -3,6 +3,8 @@ import { Copy, Check, Download, ChevronDown } from "lucide-react";
 import { ViewerDropdownMenuItem } from "../../common";
 import { downloadBlob } from "../../common/viewerDownload";
 import { copyToClipboard } from "../../../utils/clipboard";
+import { themeExportBackground } from "../../../utils/themeDom";
+import { useAppThemeMode } from "../../../hooks/useAppThemeMode";
 
 interface MermaidDiagramProps {
   code: string;
@@ -14,6 +16,7 @@ const MermaidDiagram = memo(function MermaidDiagram({
   code,
   t,
 }: MermaidDiagramProps) {
+  const themeMode = useAppThemeMode();
   const [svg, setSvg] = useState<string>("");
   const [error, setError] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
@@ -104,11 +107,15 @@ const MermaidDiagram = memo(function MermaidDiagram({
     const renderDiagram = async () => {
       try {
         const mermaid = await import("mermaid");
-        // Initialize mermaid with theme based on dark mode
-        const isDark = document.documentElement.classList.contains("dark");
+        // Initialize mermaid — follow the active theme; sepia keeps the light
+        // palette but repaints the canvas onto the beige card background
+        const isSepia = themeMode === "sepia";
         mermaid.default.initialize({
           startOnLoad: false,
-          theme: isDark ? "dark" : "default",
+          theme: themeMode === "dark" ? "dark" : "default",
+          ...(isSepia
+            ? { themeVariables: { background: "#faf6ea" } }
+            : {}),
           securityLevel: "strict",
           flowchart: {
             useMaxWidth: true,
@@ -131,7 +138,7 @@ const MermaidDiagram = memo(function MermaidDiagram({
       }
     };
     renderDiagram();
-  }, [code, t]);
+  }, [code, t, themeMode]);
 
   // Close dropdown when clicking outside
   useEffect(() => {
@@ -209,9 +216,7 @@ const MermaidDiagram = memo(function MermaidDiagram({
 
     img.onload = () => {
       ctx.scale(scale, scale);
-      ctx.fillStyle = document.documentElement.classList.contains("dark")
-        ? "#1c1917"
-        : "#ffffff";
+      ctx.fillStyle = themeExportBackground(themeMode);
       ctx.fillRect(0, 0, width, height);
       ctx.drawImage(img, 0, 0, width, height);
 
@@ -231,10 +236,10 @@ const MermaidDiagram = memo(function MermaidDiagram({
   if (error) {
     return (
       <div className="p-4 rounded-lg bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800">
-        <p className="text-sm text-red-600 dark:text-red-400 font-medium mb-2">
+        <p className="text-14 text-red-600 dark:text-red-400 font-medium mb-2">
           Mermaid Error
         </p>
-        <pre className="mt-2 text-xs text-red-500 dark:text-red-300 overflow-auto">
+        <pre className="mt-2 text-12 text-red-500 dark:text-red-300 overflow-auto">
           {error}
         </pre>
       </div>
@@ -247,7 +252,7 @@ const MermaidDiagram = memo(function MermaidDiagram({
       <div className="flex items-center gap-2 mb-2 flex-wrap">
         <button
           onClick={handleCopyCode}
-          className="flex shrink-0 items-center gap-1 whitespace-nowrap px-3 py-1.5 rounded-lg bg-stone-100 dark:bg-stone-800 hover:bg-stone-200 dark:hover:bg-stone-700 text-xs font-medium text-stone-600 dark:text-stone-300 transition-colors"
+          className="flex shrink-0 items-center gap-1 whitespace-nowrap px-3 py-1.5 rounded-lg bg-stone-100 dark:bg-stone-800 hover:bg-stone-200 dark:hover:bg-stone-700 text-12 font-medium text-stone-600 dark:text-stone-300 transition-colors"
         >
           {copied ? (
             <>
@@ -268,7 +273,7 @@ const MermaidDiagram = memo(function MermaidDiagram({
               e.stopPropagation();
               setShowDownloadMenu(!showDownloadMenu);
             }}
-            className="flex shrink-0 items-center gap-1 whitespace-nowrap px-3 py-1.5 rounded-lg bg-stone-100 dark:bg-stone-800 hover:bg-stone-200 dark:hover:bg-stone-700 text-xs font-medium text-stone-600 dark:text-stone-300 transition-colors"
+            className="flex shrink-0 items-center gap-1 whitespace-nowrap px-3 py-1.5 rounded-lg bg-stone-100 dark:bg-stone-800 hover:bg-stone-200 dark:hover:bg-stone-700 text-12 font-medium text-stone-600 dark:text-stone-300 transition-colors"
           >
             <Download size={14} />
             <span>{t("documents.download")}</span>

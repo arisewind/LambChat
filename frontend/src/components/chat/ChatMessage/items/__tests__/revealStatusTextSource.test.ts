@@ -15,10 +15,10 @@ test("file and project reveal status cards share title and subtitle text", () =>
   expect(source).toMatch(/export function RevealStatusText/);
   expect(source).toMatch(/export function RevealStatusLabel/);
   expect(source).toMatch(
-    /text-sm font-medium text-theme-text-secondary truncate/,
+    /text-14 font-medium text-theme-text-secondary truncate/,
   );
-  expect(source).toMatch(/text-xs text-theme-text-tertiary truncate mt-0\.5/);
-  expect(source).toMatch(/text-xs text-amber-600 dark:text-amber-400/);
+  expect(source).toMatch(/text-12 text-theme-text-tertiary truncate mt-0\.5/);
+  expect(source).toMatch(/text-12 text-amber-600 dark:text-amber-400/);
 
   for (const consumer of [fileReveal, projectReveal]) {
     expect(consumer).toMatch(
@@ -27,11 +27,11 @@ test("file and project reveal status cards share title and subtitle text", () =>
     expect(consumer).toMatch(/<RevealStatusText[\s\S]*title=/);
     expect(consumer).toMatch(/<RevealStatusLabel>/);
     expect(consumer).not.toMatch(
-      /text-sm font-medium text-theme-text-secondary truncate/,
+      /text-14 font-medium text-theme-text-secondary truncate/,
     );
     expect(consumer).not.toMatch(
-      /text-xs text-theme-text-tertiary truncate mt-0\.5/,
+      /text-12 text-theme-text-tertiary truncate mt-0\.5/,
     );
-    expect(consumer).not.toMatch(/text-xs text-amber-600 dark:text-amber-400/);
+    expect(consumer).not.toMatch(/text-12 text-amber-600 dark:text-amber-400/);
   }
 });

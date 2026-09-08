@@ -42,10 +42,10 @@ const AgentItem = memo(function AgentItem({
           />
         </div>
         <div className="flex-1 min-w-0 space-y-1">
-          <div className="text-sm font-medium font-serif text-stone-700 dark:text-stone-200 font-serif">
+          <div className="text-14 font-medium font-serif text-stone-700 dark:text-stone-200 font-serif">
             {displayName}
           </div>
-          <div className="text-xs text-stone-400 dark:text-stone-500 truncate">
+          <div className="text-12 text-stone-400 dark:text-stone-500 truncate">
             {displayDescription}
           </div>
         </div>
@@ -143,7 +143,7 @@ const AgentSelector = memo(function AgentSelector({
         onClick={toggleSelector}
         className="flex items-center gap-1.5 hover:opacity-70 transition-opacity"
       >
-        <span className="text-base font-semibold text-stone-700 dark:text-stone-200 font-serif">
+        <span className="text-16 font-semibold text-stone-700 dark:text-stone-200 font-serif">
           {currentDisplayName}
         </span>
         <ChevronDown
@@ -158,7 +158,7 @@ const AgentSelector = memo(function AgentSelector({
       {showSelector && (
         <div className="absolute left-0 top-full z-50 mt-2 w-72 rounded-xl bg-theme-bg-card dark:bg-stone-800 shadow-lg border border-stone-200 dark:border-stone-700 overflow-hidden animate-in fade-in-0 zoom-in-95 duration-150">
           {agentsLoading ? (
-            <div className="flex items-center justify-center px-3 py-4 text-sm text-stone-400 dark:text-stone-500 gap-2">
+            <div className="flex items-center justify-center px-3 py-4 text-14 text-stone-400 dark:text-stone-500 gap-2">
               <LoadingSpinner size="sm" />
               <span>Loading...</span>
             </div>

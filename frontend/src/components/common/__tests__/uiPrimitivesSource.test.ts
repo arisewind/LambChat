@@ -253,7 +253,7 @@ test("diagram viewers share blob download behavior", () => {
   expect(
     [mermaidViewer, documentMermaidViewer, excalidrawViewer].join("\n"),
   ).not.toMatch(
-    /const (?:pngUrl|url) = URL\.createObjectURL\(blob\)|URL\.revokeObjectURL\(pngUrl\)|w-full px-(?:3 py-2 text-left text-xs text-stone-700|4 py-2\.5 text-left text-sm text-white\/80)/,
+    /const (?:pngUrl|url) = URL\.createObjectURL\(blob\)|URL\.revokeObjectURL\(pngUrl\)|w-full px-(?:3 py-2 text-left text-12 text-stone-700|4 py-2\.5 text-left text-14 text-white\/80)/,
   );
 });
 

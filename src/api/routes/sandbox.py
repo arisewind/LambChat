@@ -1,0 +1,596 @@
+"""本地沙箱中继：daemon SSE 通道、结果回传、在线状态。"""
+
+import asyncio
+import contextlib
+import json
+import socket
+import time
+import uuid
+from typing import Any, AsyncIterator, Optional
+
+from fastapi import APIRouter, Depends, Request
+from fastapi.responses import StreamingResponse
+from pydantic import BaseModel, field_validator
+
+from src.api.deps import get_current_user_pat_or_jwt, require_pat_only
+from src.infra.logging import get_logger
+from src.infra.sandbox.relay import _frames
+from src.infra.sandbox.relay.presence import publish_presence
+from src.infra.sandbox.relay.registry import (
+    SandboxClientRegistry,
+    parse_confirm_policy,
+    parse_daemon_platform,
+    parse_daemon_version,
+)
+from src.infra.storage.redis import (
+    create_redis_client,
+    get_binary_redis_client,
+    get_redis_client,
+)
+from src.kernel.config import settings
+from src.kernel.errors import AppError, ErrorCode
+from src.kernel.schemas.user import TokenPayload
+
+logger = get_logger(__name__)
+
+router = APIRouter()
+
+#: 下发队列阻塞读超时（秒）：BLPOP 切片——空转时每秒一次 Redis 往返
+#: （替代旧的 50ms LPOP 轮询：Redis QPS 20/s → 1/s/daemon），心跳与 stop
+#: 检查随切片自然穿插。测试注入小值加速。
+_BLPOP_TIMEOUT = 1.0
+_HEARTBEAT_SECONDS = 15
+_NODE_ID = f"{socket.gethostname()}:{uuid.uuid4().hex[:8]}"
+
+#: 多机 channel 的属主键前缀：同机重连换属主，旧流心跳时据此退场（对应
+#: legacy 路径 register 清 hash 的「后连踢前连」语义）。
+_OWNER_PREFIX = "sandbox:machineowner"
+
+
+def _owner_key(user_id: str, machine_id: str) -> str:
+    return f"{_OWNER_PREFIX}:{user_id}:{machine_id}"
+
+
+def _redis():
+    return get_redis_client()
+
+
+def _binary_redis():
+    """帧通道专用二进制客户端（decode_responses=False）：stream/upblob list
+    里是裸二进制帧，共享客户端读取即抛 UnicodeDecodeError（2026-09-07 生产
+    事故，见 storage.redis.get_binary_redis_connection_pool）。"""
+    return get_binary_redis_client()
+
+
+def _registry() -> SandboxClientRegistry:
+    return SandboxClientRegistry()
+
+
+def _request_age_seconds(raw: str) -> float:
+    """解析下发帧的 ts 字段算龄；缺失/损坏按 0（新鲜）处理，兼容旧格式写入方。"""
+    try:
+        ts = json.loads(raw).get("ts")
+    except (ValueError, TypeError, AttributeError):
+        return 0.0
+    if not isinstance(ts, (int, float)) or isinstance(ts, bool):
+        return 0.0
+    return max(time.time() - float(ts), 0.0)
+
+
+async def channel_frames(
+    redis,
+    registry: SandboxClientRegistry,
+    user_id: str,
+    client_id: str,
+    *,
+    stop: asyncio.Event,
+    version: str = "",
+    platform: str = "",
+    confirm_policy: str = "",
+    machine_id: str = "",
+    machine_name: str = "",
+    stream_redis=None,
+    blpop_timeout: float | None = None,
+) -> AsyncIterator[str]:
+    """SSE 帧生成器：hello -> (tool_call | 心跳) 循环；连接期心跳注册表。
+
+    心跳前校验属主：新连接 register 清空注册表后，旧流在此退场（后连踢前连），
+    踢旧窗口收敛到一个心跳周期（15s）。旧流结束时 finally 的 unregister 只
+    hdel 自己的字段，不会破坏新连接的注册。心跳带同一 ``version``/``platform``
+    /``confirm_policy`` 重写——不带会把注册值降级回纯 node_id，daemon
+    版本/平台/策略 15s 后丢失。
+
+    多机（``machine_id`` 非空）：属主校验按机器属主键（同机重连换属主踢旧流），
+    下发队列按 ``registry.queue_key`` 分机器；legacy 路径语义零变化。
+
+    陈旧请求丢弃：daemon 重连后 list 里残留的断连前积压请求，按 dispatch 写入
+    的 ts 判龄，超过 ACK 超时的直接丢弃——执行窗口早已超时，下发只会白白
+    消耗 daemon 并让调用方等到 exec 超时。
+    """
+    hello = {"client_id": client_id}
+    if machine_id:
+        hello["machine_id"] = machine_id
+    yield f"event: hello\ndata: {json.dumps(hello)}\n\n"
+    loop = asyncio.get_event_loop()
+    last_beat = loop.time()  # 首个心跳在间隔之后到点，保证 hello 后紧跟的是 tool_call
+    req_key = registry.queue_key(user_id, machine_id) if machine_id else f"sandbox:req:{user_id}"
+    # 专用阻塞连接（每条 SSE 流独立池）：BLPOP 长阻塞会占住连接，不能与共享
+    # 池混用（会耗尽 50 连接的共享池）；缺省回退共享客户端（测试 Fake 无所谓）
+    blocking = stream_redis if stream_redis is not None else redis
+    timeout_slice = blpop_timeout if blpop_timeout is not None else _BLPOP_TIMEOUT
+    while not stop.is_set():
+        now = loop.time()
+        if now - last_beat >= _HEARTBEAT_SECONDS:
+            if machine_id:
+                # 多机属主校验：同机新连接已改写属主键时，旧流退场
+                owner = await redis.get(_owner_key(user_id, machine_id))
+                if owner != client_id:
+                    return
+            else:
+                active = await registry.get_active(user_id)
+                if active is None or active[0] != client_id:
+                    return  # 已被新连接取代（或注册表失效），旧流退场
+            await registry.heartbeat(
+                user_id,
+                client_id,
+                _NODE_ID,
+                version=version,
+                platform=platform,
+                confirm_policy=confirm_policy,
+                machine_id=machine_id,
+                machine_name=machine_name,
+            )
+            if machine_id:
+                await redis.set(_owner_key(user_id, machine_id), client_id, ex=35)
+            last_beat = now
+            yield ": heartbeat\n\n"
+        # 阻塞读下发队列：超时切片返回 None → 回到心跳检查；Redis 异常上抛
+        # 终结本流，daemon 走既有退避重连（与旧轮询模型同语义）
+        item = await blocking.blpop(req_key, timeout=timeout_slice)
+        if item is not None:
+            raw = item[1]
+            age = _request_age_seconds(raw)
+            if age > settings.SANDBOX_LOCAL_ACK_TIMEOUT:
+                logger.debug(
+                    "sandbox channel drops stale request for user %s (age %.1fs > %ss)",
+                    user_id,
+                    age,
+                    settings.SANDBOX_LOCAL_ACK_TIMEOUT,
+                )
+                continue
+            yield f"event: tool_call\ndata: {raw}\n\n"
+            continue
+
+
+def _version_tuple(version: str) -> tuple[int, ...]:
+    """语义化版本串 → 可比较 int 元组：按 ``.`` 分段，非数字段容错按 0 处理。
+
+    空串 → ``(0,)``（最低）：M1 旧 daemon 不上报 version，按最低版本拒连，
+    倒逼升级到带版本上报与 self-update 的新客户端。段数不齐时短元组直接
+    比较（``(0, 1) < (0, 1, 0)``），与直觉一致。
+
+    数字判定必须 ``isascii() and isdigit()``（M4 T8 加固）：Unicode 数字
+    （如 "٥"）``isdigit()`` 为真且 ``int()`` 可转成 5——伪造 version "٥.0"
+    若被解析成 (5,0) 就绕过了版本门。非 ASCII 数字一律按 0（拒连侧）。
+    """
+    if not version:
+        return (0,)
+    return tuple(
+        int(part) if part.isascii() and part.isdigit() else 0 for part in version.strip().split(".")
+    )
+
+
+@router.get("/channel")
+async def sandbox_channel(
+    version: str = "",
+    platform: str = "",
+    confirm_policy: str = "",
+    machine_id: str = "",
+    machine_name: str = "",
+    user: TokenPayload = Depends(require_pat_only("sandbox:execute")),
+):
+    """daemon SSE 通道。``?version=``/``?platform=``/``?confirm_policy=`` 是
+    daemon connect URL 自带的客户端版本、归一平台与确认策略（服务端访问日志
+    可见），随 register/heartbeat 存入注册表 hash value，status 端点解析成
+    daemon_version/daemon_platform/daemon_confirm_policy 暴露；platform 供
+    文件命令生成的平台分支（M4 T3）、confirm_policy 供服务端统一确认门
+    实时查询（非法值在入口归一空串，门侧按未上报归 all 保守确认）；
+    ``machine_id``/``machine_name``（多机 daemon）是注册表机器分槽主键与
+    展示名，空值走 legacy 单机路径（0.2.0 兼容）。
+
+    版本门（M4 T5）：version 低于 ``SANDBOX_MIN_DAEMON_VERSION``（缺失按最低）
+    直接 426 拒连——错误在 StreamingResponse 建立前 raise，走全局 AppError
+    处理器返回统一 JSON 契约，daemon 侧拿到结构化错误码而非沉默断流；拒绝
+    的连接不 register，不产生幽灵在线。
+    """
+    if _version_tuple(version) < _version_tuple(settings.SANDBOX_MIN_DAEMON_VERSION):
+        logger.info(
+            "sandbox channel rejected daemon version %r (min %s) for user %s",
+            version,
+            settings.SANDBOX_MIN_DAEMON_VERSION,
+            user.sub,
+        )
+        raise AppError(
+            ErrorCode.DAEMON_VERSION_UNSUPPORTED,
+            args={
+                "version": version or "unknown",
+                "min": settings.SANDBOX_MIN_DAEMON_VERSION,
+            },
+        )
+    confirm_policy = confirm_policy if confirm_policy in ("all", "commands", "none") else ""
+    registry = _registry()
+    client_id = uuid.uuid4().hex[:12]
+    await registry.register(
+        user.sub,
+        client_id,
+        _NODE_ID,
+        version=version,
+        platform=platform,
+        confirm_policy=confirm_policy,
+        machine_id=machine_id,
+        machine_name=machine_name,
+    )
+    if machine_id:  # 多机属主：同机重连改写属主键，旧流心跳时据此退场
+        await _redis().set(_owner_key(user.sub, machine_id), client_id, ex=35)
+    stop = asyncio.Event()
+    await publish_presence(user.sub)  # 上线事件：注册成功即推，不等心跳
+    # 每条 SSE 流一个专用阻塞客户端（独立连接池）：BLPOP 长阻塞独占连接，
+    # 不能占用共享池；流关闭时 aclose 释放底层连接
+    stream_redis = create_redis_client(isolated_pool=True)
+
+    async def _finalize_stream() -> None:
+        """断流清理：注销注册表 + 推送下线 presence。
+
+        必须经 ``asyncio.shield`` 以后台任务执行（见 generator 的 finally）——
+        客户端断开时 Starlette 在 anyio 取消域中取消流任务，被取消域内的
+        裸 ``await`` 会立即再抛 ``CancelledError``，清理代码无从完成，崩溃
+        感知退化为 35s TTL（真机 SIGKILL 冒烟实测：机器键平滑倒数至过期）。
+        """
+        with contextlib.suppress(Exception):
+            await stream_redis.aclose()
+        with contextlib.suppress(Exception):
+            await registry.unregister(user.sub, client_id, machine_id=machine_id)
+        await publish_presence(user.sub)  # 下线事件：断流即推（秒级感知）
+
+    async def generator():
+        try:
+            async for frame in channel_frames(
+                _redis(),
+                registry,
+                user.sub,
+                client_id,
+                stop=stop,
+                version=version,
+                platform=platform,
+                confirm_policy=confirm_policy,
+                machine_id=machine_id,
+                machine_name=machine_name,
+                stream_redis=stream_redis,
+            ):
+                yield frame
+        finally:
+            finalize = asyncio.create_task(_finalize_stream())
+            # 正常结束：等清理完成（语义与旧实现一致）；被取消：shield 只中断
+            # 本处的等待，后台任务继续把清理跑完
+            with contextlib.suppress(asyncio.CancelledError):
+                await asyncio.shield(finalize)
+
+    return StreamingResponse(
+        generator(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+            "X-Accel-Buffering": "no",
+        },
+    )
+
+
+class SandboxResultRequest(BaseModel):
+    stage: str  # "ack" | "done"
+    status: Optional[str] = None
+    stdout: Optional[str] = None
+    stderr: Optional[str] = None
+    exit_code: Optional[int] = None
+    error: Optional[str] = None
+    # fs_* 结构化 op 的结果体（文件级错误与 fs_download 的 content_b64 都在这里，
+    # daemon._process_fs_call 契约）。漏掉该字段会把它静默剥掉——fs_download 回
+    # 空内容，reveal_file/artifact 全线误报 file_not_found_or_empty（2026-09-07
+    # 生产事故）。body 上限（SANDBOX_RESULTS_MAX_BYTES）对 result 同样生效。
+    result: Optional[dict[str, Any]] = None
+
+
+@router.post("/results/{call_id}")
+async def sandbox_result(
+    call_id: str,
+    request: Request,
+    body: SandboxResultRequest,
+    machine_id: str = "",
+    user: TokenPayload = Depends(require_pat_only("sandbox:execute")),
+):
+    redis = _redis()
+    # 调用-机器绑定：dispatch 入队前写目标机，回传机不一致即拒（同用户 A 机
+    # 冒答 B 机）；无绑定键（旧调用/兼容窗口）或回传不带 machine_id（旧
+    # daemon）时跳过校验
+    assigned = await redis.get(f"sandbox:callassign:{call_id}")
+    if assigned and machine_id and assigned != machine_id:
+        raise AppError(ErrorCode.SANDBOX_RESULT_MISMATCH, args={"machine": machine_id})
+    # 回传 body 上限：stdout/base64 是失控大头。先查 Content-Length 头做早期
+    # 拒绝（超大请求不进内存），再在读完后二次校验（chunked 无 CL 的兜底）
+    content_length = request.headers.get("content-length")
+    if content_length and content_length.isdigit():
+        if int(content_length) > settings.SANDBOX_RESULTS_MAX_BYTES:
+            raise AppError(ErrorCode.SANDBOX_PAYLOAD_TOO_LARGE)
+    raw_body = await request.body()
+    if len(raw_body) > settings.SANDBOX_RESULTS_MAX_BYTES:
+        raise AppError(ErrorCode.SANDBOX_PAYLOAD_TOO_LARGE)
+    payload = {"user_id": user.sub, **body.model_dump(exclude_none=True)}
+    # 两阶段（ack/done）依次入队：dispatch 侧 BLPOP 按序消费；EXPIRE 防孤儿滞留
+    resp_key = f"sandbox:resp:{call_id}"
+    await redis.rpush(resp_key, json.dumps(payload))
+    await redis.expire(resp_key, 120)
+    return {"status": "ok"}
+
+
+def _stream_total_max_bytes() -> int:
+    """流式总量上限：统一上传上限（S3_INTERNAL_UPLOAD_MAX_SIZE）+ 1MiB 帧头开销
+    余量——二进制帧无 base64 膨胀，且流式端点永不整体缓冲。"""
+    return int(settings.S3_INTERNAL_UPLOAD_MAX_SIZE + 1024 * 1024)
+
+
+@router.post("/results/stream/{call_id}")
+async def sandbox_result_stream(
+    call_id: str,
+    request: Request,
+    user: TokenPayload = Depends(require_pat_only("sandbox:execute")),
+):
+    """流式结果回传：fs_download_stream 的二进制帧经 chunked body 逐帧入 Redis list。
+
+    分块通道每块一对 HTTP 往返，块数×往返时延是大文件传输的主导成本；流式
+    op 把整个文件装进一个 POST。帧原样透传（数据帧是裸字节——无 base64
+    膨胀与逐块 JSON 开销；解析在消费端 dispatch_local_stream），本端点只做
+    三件事：帧/总量上限、逐帧 rpush、无 eof 帧断流的哨兵补齐。
+    """
+    redis = _binary_redis()  # rpush 裸二进制帧；消费端 dispatch 同走二进制客户端
+    key = f"sandbox:stream:{user.sub}:{call_id}"
+    total = 0
+    saw_eof = False
+    buffer = b""
+    try:
+        async for chunk in request.stream():
+            if isinstance(chunk, str):  # 防御：个别传输层（ASGI 测试）可能给 str
+                chunk = chunk.encode("utf-8")
+            buffer += chunk
+            while True:
+                parsed = _frames.try_parse_frame(buffer)
+                if parsed is None:
+                    break
+                ftype, payload, buffer = parsed
+                total += len(payload)
+                if total > _stream_total_max_bytes():
+                    await _push_stream_error(redis, key, "sandbox_payload_too_large")
+                    raise AppError(ErrorCode.SANDBOX_PAYLOAD_TOO_LARGE)
+                await _push_stream_frame(redis, key, _frames.encode_frame(ftype, payload))
+                if ftype == _frames.FRAME_EOF:
+                    saw_eof = True
+                    return {"status": "ok"}
+    except AppError:
+        raise
+    except ValueError:
+        # 帧超限（try_parse_frame 的载荷上限）：哨兵补齐后按 413 拒绝
+        await _push_stream_error(redis, key, "sandbox_payload_too_large")
+        raise AppError(ErrorCode.SANDBOX_PAYLOAD_TOO_LARGE) from None
+    except Exception:
+        # 坏流等：哨兵补齐（消费端立即出错，不挂到超时）后按中继失败上抛
+        await _push_stream_error(redis, key, "stream_interrupted")
+        raise
+    if not saw_eof:
+        # body 结束但没有 eof 帧（daemon 断连/中途崩溃）
+        await _push_stream_error(redis, key, "stream_interrupted")
+    return {"status": "ok"}
+
+
+async def _push_stream_frame(redis, key: str, frame: bytes) -> None:
+    await redis.rpush(key, frame)
+    await redis.expire(key, 120)
+
+
+async def _push_stream_error(redis, key: str, text: str) -> None:
+    await _push_stream_frame(
+        redis, key, _frames.encode_frame(_frames.FRAME_ERROR, json.dumps({"error": text}).encode())
+    )
+
+
+@router.get("/upload/{call_id}")
+async def sandbox_upload_stream(
+    call_id: str,
+    user: TokenPayload = Depends(require_pat_only("sandbox:execute")),
+):
+    """流式上传拉流端点：daemon 对 fs_upload_stream 的单个 GET 在这里取走整个文件。
+
+    服务端生产者（dispatch_local_stream_upload）把二进制帧 rpush 进 Redis
+    list（有界窗口），本端点 lpop 逐帧转发为 chunked 响应直至 eof 帧——
+    数据不过服务端内存整缓冲。总量上限已在生产者侧预检（max_bytes）。
+    """
+    redis = _binary_redis()  # lpop 裸二进制帧，解码客户端读取即抛 UnicodeDecodeError
+    key = f"sandbox:upblob:{user.sub}:{call_id}"
+    resp_key = f"sandbox:resp:{call_id}"
+    deadline = time.monotonic() + float(settings.SANDBOX_LOCAL_STREAM_TIMEOUT) + 10.0
+    saw_eof = False
+
+    async def _frame_stream():
+        nonlocal saw_eof
+        try:
+            while time.monotonic() < deadline:
+                item = await redis.lpop(key)
+                if item is None:
+                    await asyncio.sleep(0.01)
+                    continue
+                if isinstance(item, str):
+                    item = item.encode("utf-8")
+                yield item
+                parsed = _frames.try_parse_frame(item)
+                if parsed is not None and parsed[0] == _frames.FRAME_EOF:
+                    saw_eof = True
+                    return
+        finally:
+            # daemon 拉流中途断开（SIGKILL/断网）：向 resp 队列推 error done，
+            # dispatch 快速显式失败——否则干等满 SANDBOX_LOCAL_STREAM_TIMEOUT。
+            # 正常 EOF 收尾不推（daemon 自会回真实 done）。断流时本生成器运行在
+            # 取消域内，裸 await 立即再抛 CancelledError——必须 shield 后台任务
+            # 完成推送（与 sandbox_channel._finalize_stream 同款语义）。
+            async def _push_interrupt_sentinel() -> None:
+                try:
+                    await redis.rpush(
+                        resp_key,
+                        json.dumps(
+                            {
+                                "user_id": user.sub,
+                                "stage": "done",
+                                "status": "error",
+                                "error": "stream_interrupted",
+                            }
+                        ),
+                    )
+                    await redis.expire(resp_key, 120)
+                except Exception:  # noqa: BLE001 - 哨兵尽力而为
+                    pass
+
+            async def _cleanup_upblob() -> None:
+                try:
+                    await redis.delete(key)
+                except Exception:  # noqa: BLE001 - 清理尽力而为
+                    pass
+
+            finalize = asyncio.create_task(
+                _push_interrupt_sentinel() if not saw_eof else _cleanup_upblob()
+            )
+            with contextlib.suppress(asyncio.CancelledError):
+                await asyncio.shield(finalize)
+
+    return StreamingResponse(
+        _frame_stream(),
+        media_type="application/octet-stream",
+        headers={"Cache-Control": "no-store", "X-Accel-Buffering": "no"},
+    )
+
+
+@router.get("/machines")
+async def sandbox_machines(user: TokenPayload = Depends(get_current_user_pat_or_jwt)):
+    """机器列表（多机 daemon）：含已知离线机（记忆层保留，online=False +
+    last_seen），前端选择器据此置灰展示而非直接消失。"""
+    machines = await _registry().list_machines(user.sub, include_offline=True)
+    default = await _registry().get_default_machine(user.sub)
+    return {"machines": machines, "default_machine_id": default}
+
+
+class MachineRenameRequest(BaseModel):
+    name: str
+
+    @field_validator("name")
+    @classmethod
+    def _name_not_blank(cls, value: str) -> str:
+        if not value.strip():
+            raise ValueError("name must not be blank")
+        return value
+
+
+@router.patch("/machines/{machine_id}")
+async def sandbox_machine_rename(
+    machine_id: str,
+    body: MachineRenameRequest,
+    user: TokenPayload = Depends(get_current_user_pat_or_jwt),
+):
+    """重命名机器：写 rename 覆盖层，daemon 重连上报的 hostname 不冲掉自定义名。"""
+    name = body.name.strip()
+    if not name:
+        raise AppError(ErrorCode.SANDBOX_MACHINE_NOT_FOUND, args={"machine": machine_id})
+    if len(name) > 64:
+        name = name[:64]
+    await _registry().rename_machine(user.sub, machine_id, name)
+    await publish_presence(user.sub)
+    return {"status": "ok", "machine_id": machine_id, "name": name}
+
+
+@router.put("/machines/{machine_id}/default")
+async def sandbox_machine_set_default(
+    machine_id: str,
+    user: TokenPayload = Depends(get_current_user_pat_or_jwt),
+):
+    """设默认机：无会话级选择时的执行目标。"""
+    await _registry().set_default_machine(user.sub, machine_id)
+    await publish_presence(user.sub)
+    return {"status": "ok", "default_machine_id": machine_id}
+
+
+@router.delete("/machines/{machine_id}")
+async def sandbox_machine_forget(
+    machine_id: str,
+    user: TokenPayload = Depends(get_current_user_pat_or_jwt),
+):
+    """移除离线机器（清集合成员、rename 覆盖层与默认机指向）。"""
+    removed = await _registry().forget_machine(user.sub, machine_id)
+    if not removed:
+        raise AppError(
+            ErrorCode.SANDBOX_MACHINE_NOT_FOUND,
+            args={"machine": machine_id},
+        )
+    await publish_presence(user.sub)
+    return {"status": "ok"}
+
+
+@router.get("/status")
+async def sandbox_status(user: TokenPayload = Depends(get_current_user_pat_or_jwt)):
+    """daemon 在线状态。
+
+    legacy 活跃连接优先（带 ``client_id``）；多机 daemon（0.3.0+ 带
+    machine_id）不落 legacy hash，在线判定走 :meth:`is_online`（任一机器
+    在线即在线，与机器列表一致），版本/平台/策略取缺省目标机的注册 value
+    （默认机→唯一在线机，与 dispatch 解析同规则；无缺省目标时这些字段为
+    null）。value 可能是 node_id|version|platform|confirm_policy（新
+    daemon）、node_id|version|platform（M4）、node_id|version（M2）或纯
+    node_id（M1 旧格式），解析不出的字段为 null。
+    """
+    registry = _registry()
+    active = await registry.get_active(user.sub)
+    if active is not None:
+        client_id, value = active
+    else:
+        if not await registry.is_online(user.sub):
+            return {"online": False}
+        target = await registry.resolve_target(user.sub)
+        client_id = None
+        value = await registry.machine_value(user.sub, target) if target else ""
+    status = {
+        "online": True,
+        "daemon_version": parse_daemon_version(value) or None,
+        "daemon_platform": parse_daemon_platform(value) or None,
+        "daemon_confirm_policy": parse_confirm_policy(value) or None,
+    }
+    if client_id is not None:
+        status["client_id"] = client_id
+    return status
+
+
+@router.post("/offline")
+async def sandbox_offline(
+    machine_id: str = "",
+    user: TokenPayload = Depends(require_pat_only("sandbox:execute")),
+):
+    """daemon 优雅退出通知：主动注销当前活跃连接（``machine_id`` 定向注销多机
+    中的本机；缺省走 legacy 活跃连接）。
+
+    不打此端点时，断连要等注册表 TTL（35s）或心跳属主校验（15s 周期）才暴露——
+    M1 冒烟实证的窗口是 15-35s；daemon 退出前调一次 offline 把窗口收敛到一次 RTT。
+    """
+    registry = _registry()
+    if machine_id:
+        await registry.unregister(user.sub, "", machine_id)
+        await _redis().delete(_owner_key(user.sub, machine_id))
+        await publish_presence(user.sub)
+        return {"status": "offline", "machine_id": machine_id}
+    active = await registry.get_active(user.sub)
+    if active is not None:
+        await registry.unregister(user.sub, active[0])
+    await publish_presence(user.sub)
+    return {"status": "offline"}

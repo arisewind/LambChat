@@ -40,7 +40,7 @@ export function SidebarMarkdownContent({
         <button
           type="button"
           onClick={() => setShowFull(true)}
-          className="inline-flex min-h-8 items-center gap-1.5 rounded-md border border-theme-border bg-theme-bg-card px-2.5 text-xs font-medium text-theme-text-secondary transition-colors hover:bg-theme-bg-subtle hover:text-theme-text"
+          className="inline-flex min-h-8 items-center gap-1.5 rounded-md border border-theme-border bg-theme-bg-card px-2.5 text-12 font-medium text-theme-text-secondary transition-colors hover:bg-theme-bg-subtle hover:text-theme-text"
         >
           <Maximize2 size={12} />
           {t("common.expand", "Expand")}

@@ -5,10 +5,7 @@ import uuid
 from datetime import timedelta
 from typing import Any, Callable, Optional, Sequence
 
-from langchain_core.messages import HumanMessage, SystemMessage
-
 from src.infra.async_utils import run_blocking_io
-from src.infra.llm.retry import ainvoke_with_retry
 from src.infra.logging import get_logger
 from src.infra.memory.client.base import MemoryBackend
 from src.infra.memory.client.native.classification import (
@@ -19,13 +16,11 @@ from src.infra.memory.client.native.classification import (
 from src.infra.memory.client.native.content import (
     build_content_fields,
     delete_memory_content,
-    maybe_await,
 )
 from src.infra.memory.client.native.indexing import build_memory_index
 from src.infra.memory.client.native.models import COLLECTION_NAME
 from src.infra.memory.client.native.search import recall_memories
 from src.infra.memory.client.native.summaries import (
-    _fallback_enrich,
     build_index_label,
     llm_enrich_memory,
 )
@@ -72,8 +67,8 @@ class NativeMemoryBackend(MemoryBackend):
         self._httpx_client: Any = None  # keep ref for proper cleanup
         self._store: Any = None
         self._logger = logger
-        # In-memory cache for memory index: {user_id: (built_at, index_str)}
-        self._index_cache: dict[str, tuple[float, str]] = {}
+        # In-memory cache for memory index: {(user_id, project_id): (built_at, index_str)}
+        self._index_cache: dict[tuple[str, str], tuple[float, str]] = {}
 
     @property
     def name(self) -> str:
@@ -85,7 +80,8 @@ class NativeMemoryBackend(MemoryBackend):
 
     async def _invalidate_cache(self, user_id: str) -> None:
         """Invalidate local index cache and publish invalidation to other instances."""
-        self._index_cache.pop(user_id, None)
+        for key in [k for k in self._index_cache if k[0] == user_id]:
+            self._index_cache.pop(key, None)
         try:
             from src.infra.memory.distributed import publish_memory_invalidation
 
@@ -140,7 +136,7 @@ class NativeMemoryBackend(MemoryBackend):
         default model. Provider credentials and base URL come from the model
         provider configuration.
         """
-        max_tokens = int(getattr(settings, "NATIVE_MEMORY_MAX_TOKENS", 2000))
+        max_tokens = int(getattr(settings, "NATIVE_MEMORY_MAX_TOKENS", 0) or 0)
         from src.infra.llm.client import LLMClient
         from src.infra.llm.models_service import resolve_model_reference
 
@@ -150,8 +146,11 @@ class NativeMemoryBackend(MemoryBackend):
         model_kwargs: dict[str, Any] = {
             "model_id": model_id,
             "temperature": 0.1,
-            "max_tokens": max_tokens,
         }
+        # 0 = 不限制（默认）：思考型模型 thinking 块先吃预算，固定小上限
+        # 会把结构化输出截断；不传时用模型默认上限
+        if max_tokens > 0:
+            model_kwargs["max_tokens"] = max_tokens
         if model_value:
             model_kwargs["model"] = model_value
         return await LLMClient.get_model(
@@ -168,6 +167,8 @@ class NativeMemoryBackend(MemoryBackend):
         tags: Optional[list[str]] = None,
         existing_memory_id: Optional[str] = None,
         source_refs: Optional[Sequence[ConversationSourceRef | dict[str, str]]] = None,
+        scope: Optional[str] = None,
+        project_id: Optional[str] = None,
     ) -> dict[str, Any]:
         # --- Validation (relaxed for manual retention — trust user intent) ---
         if len(content.strip()) < 5:
@@ -175,6 +176,13 @@ class NativeMemoryBackend(MemoryBackend):
                 "success": False,
                 "error": "Content too short (minimum 5 characters)",
             }
+
+        from src.infra.memory.scope import ScopeResolutionError, resolve_retain_scope
+
+        try:
+            scope, project_id = resolve_retain_scope(scope=scope, project_id=project_id)
+        except ScopeResolutionError as exc:
+            return {"success": False, "error": str(exc)}
 
         if not is_manual_memory_worthy(content, context):
             return {
@@ -199,10 +207,18 @@ class NativeMemoryBackend(MemoryBackend):
             enriched = await llm_enrich_memory(self, content)
             tags = enriched["tags"]
 
+        from src.infra.memory.scope import build_dedup_scope_clause
+
+        dedup_scope_clause = build_dedup_scope_clause(scope, project_id)
+
         async def fetch_recent_memories(target_user_id: str) -> list[dict[str, Any]]:
             seven_days_ago = utc_now() - timedelta(days=7)
             return await self._collection.find(
-                {"user_id": target_user_id, "updated_at": {"$gte": seven_days_ago}},
+                {
+                    "user_id": target_user_id,
+                    "updated_at": {"$gte": seven_days_ago},
+                    **dedup_scope_clause,
+                },
                 {"summary": 1, "memory_id": 1, "memory_type": 1},
             ).to_list(length=50)
 
@@ -212,6 +228,7 @@ class NativeMemoryBackend(MemoryBackend):
                     "user_id": target_user_id,
                     "embedding": {"$exists": True, "$ne": None},
                     "source": {"$ne": "session_summary"},
+                    **dedup_scope_clause,
                 },
                 {"memory_id": 1, "memory_type": 1, "summary": 1, "embedding": 1},
             ).to_list(length=200)
@@ -295,6 +312,8 @@ class NativeMemoryBackend(MemoryBackend):
                         "index_label": build_index_label(title, summary, content),
                         "context": context,
                         "tags": tags,
+                        "scope": scope,
+                        "project_id": project_id,
                         "embedding": embedding,
                         "updated_at": now,
                         "source_refs": source_ref_docs,
@@ -318,11 +337,15 @@ class NativeMemoryBackend(MemoryBackend):
                 memory_type=memory_type,
                 context=context,
                 updated_at_ts=int(now.timestamp()),
+                scope=scope,
+                project_id=project_id,
             )
             return {
                 "success": True,
                 "memory_id": _existing["memory_id"],
                 "memory_type": memory_type,
+                "scope": scope,
+                "project_id": project_id,
                 "updated_existing": True,
                 "message": "Memory updated successfully",
             }
@@ -336,6 +359,8 @@ class NativeMemoryBackend(MemoryBackend):
             "memory_type": memory_type,
             "context": context,
             "tags": tags,
+            "scope": scope,
+            "project_id": project_id,
             "source": "manual",
             "embedding": embedding,
             "created_at": now,
@@ -358,12 +383,16 @@ class NativeMemoryBackend(MemoryBackend):
             memory_type=memory_type,
             context=context,
             updated_at_ts=int(now.timestamp()),
+            scope=scope,
+            project_id=project_id,
         )
 
         return {
             "success": True,
             "memory_id": memory_id,
             "memory_type": memory_type,
+            "scope": scope,
+            "project_id": project_id,
             "message": "Memory stored successfully",
         }
 
@@ -374,9 +403,16 @@ class NativeMemoryBackend(MemoryBackend):
         max_results: int = 5,
         memory_types: Optional[list[str]] = None,
         context_filter: Optional[str] = None,
+        project_id: Optional[str] = None,
     ) -> dict[str, Any]:
         return await recall_memories(
-            self, user_id, query, max_results, memory_types, context_filter=context_filter
+            self,
+            user_id,
+            query,
+            max_results,
+            memory_types,
+            context_filter=context_filter,
+            project_id=project_id,
         )
 
     async def delete(
@@ -399,125 +435,8 @@ class NativeMemoryBackend(MemoryBackend):
             return {"success": True, "message": f"Memory {memory_id} deleted"}
         return {"success": False, "error": "Memory not found"}
 
-    async def auto_retain_from_text(
-        self,
-        user_id: str,
-        text: str,
-        source_refs: Optional[Sequence[ConversationSourceRef | dict[str, str]]] = None,
-    ) -> dict[str, Any]:
-        if not text.strip():
-            return {"success": True, "stored": 0, "candidates": 0}
-
-        try:
-            from src.infra.memory.tools import memory_retain
-
-            candidates = await self._get_auto_retain_candidates(user_id, text)
-            candidates_text = "\n".join(
-                (
-                    f"- id={item.get('memory_id')} "
-                    f"type={item.get('type')} "
-                    f"title={item.get('title', '')!r} "
-                    f"summary={item.get('summary', '')!r} "
-                    f"updated_at={item.get('created_at') or item.get('updated_at', '')}"
-                )
-                for item in candidates
-            )
-            model = (await maybe_await(self._get_memory_model())).bind_tools([memory_retain])
-            response = await ainvoke_with_retry(
-                model,
-                [
-                    SystemMessage(
-                        content=(
-                            "You are a background memory-retention evaluator.\n"
-                            "You receive the latest exchange: the user's message followed by the "
-                            "assistant's final reply.\n"
-                            "You may see similar existing memories.\n"
-                            "If the exchange contains durable cross-session memory, call memory_retain.\n"
-                            "If it does not, do not call any tool.\n"
-                            "Only retain durable facts about the user revealed in either message: "
-                            "user identity, preferences with reasons, durable project context, "
-                            "explicit feedback, or lasting references. Never retain the assistant's "
-                            "generic answer content, code, file paths, "
-                            "temporary worklogs, greetings, or transient status updates.\n"
-                            "When calling memory_retain, ALWAYS provide title, summary, and tags "
-                            "— this avoids a second LLM call. Keep title under 25 chars, summary under 80 chars, "
-                            "and provide 3-5 keyword tags.\n"
-                            "If one existing memory already covers the same topic, call memory_retain with "
-                            "`existing_memory_id` set to that memory id so the system updates it instead of "
-                            "creating a duplicate.\n"
-                            "If none match closely enough, omit `existing_memory_id`."
-                        )
-                    ),
-                    HumanMessage(
-                        content=(
-                            f"Latest exchange:\n{text}\n\n"
-                            f"Similar existing memories:\n{candidates_text or '(none)'}"
-                        )
-                    ),
-                ],
-                operation="native-memory-retention",
-            )
-        except Exception as e:
-            self._logger.debug("[NativeMemory] Background auto-retain decision failed: %s", e)
-            return {"success": False, "stored": 0, "candidates": 0, "error": str(e)}
-
-        tool_calls = getattr(response, "tool_calls", None) or []
-        stored = 0
-        for tool_call in tool_calls:
-            if tool_call.get("name") != "memory_retain":
-                continue
-            args = tool_call.get("args") or {}
-            content = str(args.get("content") or "").strip()
-            if not content:
-                continue
-            # Ensure all three enrichment fields are present so retain() skips the LLM call.
-            # Rule-based fallbacks fill gaps when the decision LLM omits optional params.
-            title = args.get("title")
-            summary = args.get("summary")
-            tags = args.get("tags")
-            if not title or not summary or not tags:
-                enriched = _fallback_enrich(content)
-                title = title or enriched["title"]
-                summary = summary or enriched["summary"]
-                tags = tags or enriched["tags"]
-            retain_kwargs = {
-                "context": args.get("context"),
-                "title": title,
-                "summary": summary,
-                "tags": tags,
-                "existing_memory_id": args.get("existing_memory_id"),
-            }
-            if source_refs is not None:
-                retain_kwargs["source_refs"] = source_refs
-            result = await self.retain(user_id, content, **retain_kwargs)
-            if result.get("success"):
-                if result.get("memory_id") and self._collection is not None:
-                    await self._collection.update_one(
-                        {"user_id": user_id, "memory_id": result["memory_id"]},
-                        {"$set": {"source": "auto_retained"}},
-                    )
-                stored += 1
-        return {"success": True, "stored": stored, "candidates": len(tool_calls)}
-
-    async def _get_auto_retain_candidates(self, user_id: str, text: str) -> list[dict[str, Any]]:
-        result = await recall_memories(
-            self,
-            user_id,
-            text,
-            max_results=5,
-            touch_access=False,
-            enable_rerank=False,
-        )
-        if not result.get("success"):
-            return []
-        return list(result.get("memories") or [])
-
-    # ------------------------------------------------------------------
-    # Memory index (for system prompt injection)
-    # ------------------------------------------------------------------
-
-    async def build_memory_index(self, user_id: str) -> str:
-        return await build_memory_index(self, user_id)
+    async def build_memory_index(self, user_id: str, project_id: Optional[str] = None) -> str:
+        return await build_memory_index(self, user_id, project_id=project_id)
 
     async def _update_access_stats(self, memory_ids: list[str], user_id: str = "") -> None:
         query: dict[str, Any] = {"memory_id": {"$in": memory_ids}}
@@ -592,6 +511,13 @@ class NativeMemoryBackend(MemoryBackend):
             )
         except Exception as e:
             logger.warning(f"[NativeMemory] Session context index creation skipped: {e}")
+        try:
+            col.create_index(
+                [("user_id", 1), ("scope", 1), ("project_id", 1)],
+                name="native_mem_scope_idx",
+            )
+        except Exception as e:
+            logger.warning(f"[NativeMemory] Scope index creation skipped: {e}")
 
     async def _maybe_create_vector_index(self) -> None:
         """Best-effort 创建 vectorSearch 索引（MongoDB 8.2+ 社区版内置）。
@@ -654,6 +580,9 @@ class NativeMemoryBackend(MemoryBackend):
                     "Content-Type": "application/json",
                 },
                 timeout=httpx.Timeout(30.0),
+                # httpx 连接池默认 5s 闲置断连：每条隔闲消息重付 ~1.5s TLS 握手，
+                # 恰好击穿 1.5s 的查询上下文注入预算（staging 实测冷 1.99s→热 0.44s）
+                limits=httpx.Limits(keepalive_expiry=60.0),
             )
 
             async def embed_fn(text: str) -> list[float]:

@@ -43,7 +43,7 @@ const HtmlPreview = memo(function HtmlPreview({ content }: HtmlPreviewProps) {
       <div className="flex items-center justify-between px-3 py-1.5 bg-stone-50 dark:bg-stone-900 border-b border-stone-200 dark:border-stone-700 shrink-0">
         <div className="flex items-center gap-2">
           <span className="w-2.5 h-2.5 rounded-full bg-emerald-400" />
-          <span className="text-xs text-stone-500 dark:text-stone-400">
+          <span className="text-12 text-stone-500 dark:text-stone-400">
             {t("documents.htmlDocument")}
           </span>
           <span className="text-11 text-stone-400 dark:text-stone-500 tabular-nums">
@@ -54,7 +54,7 @@ const HtmlPreview = memo(function HtmlPreview({ content }: HtmlPreviewProps) {
         <div className="flex items-center gap-0.5 bg-stone-100 dark:bg-stone-800 rounded-md p-0.5">
           <button
             onClick={() => setShowSource(false)}
-            className={`flex items-center gap-1.5 px-2.5 py-1 rounded text-xs font-medium transition-all ${
+            className={`flex items-center gap-1.5 px-2.5 py-1 rounded text-12 font-medium transition-all ${
               !showSource
                 ? "bg-white dark:bg-stone-700 text-stone-700 dark:text-stone-200 shadow-sm"
                 : "text-stone-500 dark:text-stone-400 hover:text-stone-700 dark:hover:text-stone-300"
@@ -65,7 +65,7 @@ const HtmlPreview = memo(function HtmlPreview({ content }: HtmlPreviewProps) {
           </button>
           <button
             onClick={() => setShowSource(true)}
-            className={`flex items-center gap-1.5 px-2.5 py-1 rounded text-xs font-medium transition-all ${
+            className={`flex items-center gap-1.5 px-2.5 py-1 rounded text-12 font-medium transition-all ${
               showSource
                 ? "bg-white dark:bg-stone-700 text-stone-700 dark:text-stone-200 shadow-sm"
                 : "text-stone-500 dark:text-stone-400 hover:text-stone-700 dark:hover:text-stone-300"

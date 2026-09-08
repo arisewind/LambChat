@@ -127,7 +127,7 @@ export default function DocumentPreviewContent({
             />
           </div>
         </div>
-        <p className="text-sm text-stone-500 dark:text-stone-400 font-medium">
+        <p className="text-14 text-stone-500 dark:text-stone-400 font-medium">
           {t("documents.loadingFileContent")}
         </p>
       </div>
@@ -141,10 +141,10 @@ export default function DocumentPreviewContent({
           <AlertCircle size={28} className="text-red-500" />
         </div>
         <div className="text-center">
-          <p className="text-sm text-red-600 dark:text-red-400 font-medium mb-2">
+          <p className="text-14 text-red-600 dark:text-red-400 font-medium mb-2">
             {error}
           </p>
-          <p className="text-xs text-stone-400 dark:text-stone-500">
+          <p className="text-12 text-stone-400 dark:text-stone-500">
             {t("documents.unableToLoadContent")}
           </p>
         </div>

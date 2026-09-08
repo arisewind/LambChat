@@ -155,6 +155,10 @@ class ModelFallbackMiddleware(AgentMiddleware):
         fallback_llm = await self._get_fallback_llm()
         new_request = request.override(model=fallback_llm)
         try:
+            # 空最终消息不上抛：中间件层没有「流式是否已把正文交付给用户」的
+            # 视野（2026-09-05 13:50 生产 4 例：message:chunk + done 之后才
+            # 追加 error，成功 run 被标失败且重试/降级重复烧钱）。零正文的
+            # 终态判定由 executor 按真实 message:chunk 事件兜底。
             return await handler(new_request)
         except Exception as fallback_exc:
             logger.error(
@@ -218,6 +222,11 @@ class EmptyContentRetryMiddleware(AgentMiddleware):
             if attempt < self.max_retries:
                 await asyncio.sleep(self.retry_delay)
 
+        # 耗尽后返回最后响应（含空最终消息）：本层没有「流式是否已交付正文」
+        # 的视野，无法区分「真空响应」与「已流式交付但最终聚合消息为空」，
+        # 后者上抛会把成功 run 标成失败并重复烧钱（2026-09-05 13:50 生产
+        # 4 例）。零正文的终态判定由 executor 按真实 message:chunk 事件兜底
+        # （tests/infra/task/test_executor_no_output_guard.py）。
         return last_response  # type: ignore[return-value]
 
 

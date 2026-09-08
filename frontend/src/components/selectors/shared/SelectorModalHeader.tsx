@@ -29,7 +29,7 @@ export function SelectorModalHeader({
   subtitle,
   onClose,
   className,
-  subtitleClassName = "text-xs sm:text-xs text-stone-500 dark:text-stone-400",
+  subtitleClassName = "text-12 sm:text-12 text-stone-500 dark:text-stone-400",
 }: SelectorModalHeaderProps) {
   return (
     <div
@@ -40,7 +40,7 @@ export function SelectorModalHeader({
       <div className="flex min-w-0 items-center gap-3 mt-2 sm:mt-0">
         <div className={SELECTOR_MODAL_ICON_TILE_CLASS}>{icon}</div>
         <div className="min-w-0">
-          <h2 className="truncate text-base sm:text-lg font-semibold text-stone-950 dark:text-stone-50">
+          <h2 className="truncate text-16 sm:text-18 font-semibold text-stone-950 dark:text-stone-50">
             {title}
           </h2>
           {subtitle && <p className={subtitleClassName}>{subtitle}</p>}

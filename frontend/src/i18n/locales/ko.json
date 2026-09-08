@@ -244,6 +244,23 @@
         "max": "최강",
         "medium": "중간"
       }
+    },
+    "sandbox": {
+      "label": "샌드박스",
+      "description": "샌드박스 명령 실행 위치를 선택합니다",
+      "options": {
+        "cloud": "클라우드 PC",
+        "local": "로컬 PC"
+      },
+      "offlineHint": "로컬 샌드박스가 오프라인 상태입니다: 다운로드 후 실행하면 사용할 수 있어요",
+      "downloadEntry": "로컬 샌드박스 다운로드"
+    },
+    "sandboxMachine": {
+      "label": "머신",
+      "description": "로컬 샌드박스 명령을 실행할 머신 선택",
+      "auto": "자동 (기본 머신)",
+      "offline": "오프라인",
+      "offlineHint": "해당 PC는 오프라인 상태라 실행 머신으로 선택할 수 없어요"
     }
   },
   "agents": {
@@ -267,7 +284,6 @@
     "continue": "계속",
     "enterResponse": "응답 입력...",
     "ignore": "무시",
-    "mainGoal": "주요 목표",
     "multiSelectHint": "여러 항목을 선택할 수 있습니다 · 클릭하여 선택/해제",
     "needsConfirmation": "확인 필요",
     "next": "다음 항목",
@@ -289,7 +305,7 @@
     },
     "selectOption": "옵션을 선택하세요",
     "send": "전송",
-    "shortcutHint": "↑↓ 이동 · Enter 확인 · 1-9 선택",
+    "shortcutHint": "Enter 제출",
     "submit": "확인"
   },
   "auth": {
@@ -460,6 +476,8 @@
     "publishSkillFailed": "스킬 게시에 실패했습니다.",
     "refreshTokenInvalid": "새로고침 토큰이 올바르지 않습니다.",
     "refreshTokenMissing": "새로고침 토큰이 없습니다.",
+    "releaseAssetFetchFailed": "릴리스 에셋 다운로드 실패(HTTP {{status}})",
+    "releaseAssetNotFound": "릴리스 에셋 {{name}}을(를) 찾을 수 없습니다",
     "registrationClosed": "가입이 닫혀 있습니다.",
     "repositoryOrBranchNotFound": "저장소 또는 브랜치를 찾을 수 없습니다.",
     "resetTokenExpired": "재설정 토큰이 만료되었습니다.",
@@ -628,7 +646,19 @@
     "roleNameExists": "역할 이름 {{name}}이(가) 이미 존재합니다",
     "systemRoleProtected": "시스템 역할은 수정하거나 삭제할 수 없습니다",
     "agentNotRegistered": "에이전트 '{{agent}}'이(가) 등록되어 있지 않습니다",
-    "bookmarkUpdateFailed": "북마크 상태 업데이트에 실패했습니다"
+    "bookmarkUpdateFailed": "북마크 상태 업데이트에 실패했습니다",
+    "modelEmptyResponse": "재시도 후에도 모델이 빈 응답을 반환했습니다. 다시 시도하거나 모델을 변경해 주세요",
+    "patNotFound": "개인 액세스 토큰이 없거나 폐기되었습니다",
+    "patExpired": "개인 액세스 토큰이 만료되었습니다",
+    "patScopeDenied": "토큰에 필요한 스코프 {{scope}}가 없습니다",
+    "daemonOffline": "로컬 샌드박스 데몬이 오프라인입니다",
+    "sandboxTimeout": "로컬 샌드박스 호출 시간 초과({{seconds}}초)",
+    "sandboxResultMismatch": "머신 \"{{machine}}\"이(가) 제출한 결과가 이 호출이 전달된 머신과 일치하지 않습니다",
+    "sandboxPayloadTooLarge": "로컬 샌드박스 페이로드가 너무 큽니다",
+    "sandboxExecFailed": "로컬 샌드박스 실행 실패: {{detail}}",
+    "daemonVersionUnsupported": "로컬 샌드박스 데몬 버전 {{version}}이(가) 최소 요구 사항 {{min}} 미만입니다. 업데이트해 주세요",
+    "sandboxMachineOffline": "선택한 샌드박스 머신 '{{machine}}'이(가) 오프라인 상태입니다",
+    "sandboxMachineNotFound": "샌드박스 머신 '{{machine}}'을(를) 찾을 수 없거나 제거되었습니다"
   },
   "categories": {
     "agent": "에이전트",
@@ -763,6 +793,7 @@
     "mermaid": "Mermaid",
     "mermaidDiagram": "Mermaid 다이어그램",
     "message": {
+      "addBookmark": "북마크 추가",
       "allFiles": "모든 파일",
       "args": "인수",
       "artifactsSubtitleFiles": "파일 {{count}}개",
@@ -777,6 +808,9 @@
       "askHumanWaiting": "입력 대기 중…",
       "askHumanYourAnswer": "사용자 답변",
       "assistant": "어시스턴트",
+      "bookmarkAdded": "북마크에 추가했습니다",
+      "bookmarkRemoved": "북마크를 제거했습니다",
+      "bookmarkToggleFailed": "북마크 작업에 실패했습니다",
       "cancelled": "생성이 취소되었습니다",
       "codePreview": "코드 미리보기",
       "collapse": "접기",
@@ -814,10 +848,12 @@
       "processing": "과정",
       "projects": "프로젝트",
       "rejected": "사용자가 작업을 거부했습니다",
+      "removeBookmark": "북마크 제거",
       "result": "결과",
       "retryAnswer": "다시 답변",
       "runStepsCount": "{{count}} 단계",
       "runStepsDetail": "전체 상세 보기",
+      "runStepsStopped": "중지됨",
       "runStepsSummary": "{{duration}} 동안 작업",
       "runStepsToggle": "실행 단계 펼치기/접기",
       "runStepsWorking": "작업 중 {{duration}}",
@@ -828,6 +864,7 @@
       "subagentProgress": "하위 에이전트 진행률",
       "summary": "요약",
       "summaryDescription": "핵심 요점",
+      "summaryFreedTokens": "{{tokens}} 토큰 절약",
       "synthesizing": "{{count}}개 하위 에이전트의 결과를 종합하는 중...",
       "systemPrompt": "시스템 프롬프트",
       "table": "표",
@@ -863,7 +900,7 @@
       "toolFileCount": "{{count}}개 파일",
       "toolFileCount_one": "{{count}}개 파일",
       "toolFileCount_other": "{{count}}개 파일",
-      "toolGlob": "Glob",
+      "toolGlob": "파일 찾기",
       "toolHistoryAssistant": "어시스턴트",
       "toolHistoryDetail": "히스토리 상세",
       "toolHistoryMatchAssistant": "어시스턴트",
@@ -876,6 +913,8 @@
       "toolHistoryMoreTurns_one": "+{{count}}개 대화 더",
       "toolHistoryMoreTurns_other": "+{{count}}개 대화 더",
       "toolHistorySearch": "히스토리 검색",
+      "toolHistorySessionCount": "세션 {{count}}개 발견",
+      "toolHistoryTurnCount": "대화 {{count}}턴",
       "toolHistoryUser": "사용자",
       "toolImageAnalyze": "이미지 분석",
       "toolImageAnalyzeCount": "{{count}}개 이미지",
@@ -891,7 +930,7 @@
       "toolImageTag": "이미지 생성",
       "toolInPath": "{{path}} 에서",
       "toolItemCount": "({{count}}개 항목)",
-      "toolLs": "목록",
+      "toolLs": "디렉터리 탐색",
       "toolMemberCount": "{{count}}명 멤버",
       "toolMemoryContent": "메모리 내용",
       "toolMemoryDaysAgo": "{{count}}일 전",
@@ -910,8 +949,12 @@
       "toolMemoryToday": "오늘",
       "toolMemoryYearsAgo": "{{count}}년 전",
       "toolMemoryYesterday": "어제",
-      "toolMoreFiles": "+{{count}} 더보기",
-      "toolMoreLines": "... +{{count}} 더보기 줄",
+      "toolMoreFiles": "파일 +{{count}}개 더",
+      "toolMoreImages": "이미지 +{{count}}장 더",
+      "toolMoreLines": "+{{count}}줄 더",
+      "toolMoreMemories": "메모리 +{{count}}개 더",
+      "toolMoreTasks": "작업 +{{count}}개 더",
+      "toolMoreTools": "도구 +{{count}}개 더",
       "toolOpenFile": "파일 열기",
       "toolOutput": "도구 출력",
       "toolParseError": "프로젝트 데이터 파싱 실패",
@@ -930,9 +973,9 @@
       "toolScheduledTaskRun": "작업 실행",
       "toolScheduledTaskUpdate": "작업 업데이트",
       "toolSearch": "검색",
-      "toolSearchAlreadyAvailable": "사용 가능",
+      "toolSearchAlreadyAvailable": "이미 사용 가능 {{count}}개",
       "toolSearchMoreParams": "더 많은 매개변수",
-      "toolSearchNewlyLoaded": "신규",
+      "toolSearchNewlyLoaded": "신규 로드 {{count}}개",
       "toolSearchPersonas": "검색",
       "toolSearchToolCount": "{{count}}개 도구 발견",
       "toolSearchTools": "도구 검색",
@@ -951,11 +994,7 @@
       "toolUploadUrlToSandbox": "URL을 샌드박스로 업로드",
       "toolVarCount": "{{count}}개 변수",
       "toolWrite": "쓰기",
-      "addBookmark": "북마크 추가",
-      "bookmarkAdded": "북마크에 추가했습니다",
-      "bookmarkRemoved": "북마크를 제거했습니다",
-      "bookmarkToggleFailed": "북마크 작업에 실패했습니다",
-      "removeBookmark": "북마크 제거"
+      "waitingConfirm": "확인 대기 중"
     },
     "messageInput": "메시지 입력",
     "noPermission": "메시지를 보낼 권한이 없습니다",
@@ -970,6 +1009,10 @@
     "rateLimited": "요청이 너무 많습니다. 잠시 후 다시 시도해 주세요",
     "requestFailed": "세션 로드에 실패했습니다",
     "runningPlaceholder": "계속 입력하면 수정이 순서대로 대기열에 추가됩니다…",
+    "memory": {
+      "initializing": "관련 메모리를 검색하는 중",
+      "ready": "메모리 검색 완료"
+    },
     "sandbox": {
       "elapsed": "소요 시간 {{duration}}",
       "error": "초기화 실패",
@@ -985,6 +1028,9 @@
     "sendLongTextAsText": "텍스트로 보내기",
     "sessionUnavailable": "세션이 없거나 삭제되었습니다",
     "shiftEnterNewLine": "로 줄바꿈",
+    "runMode": {
+      "sandbox": "샌드박스"
+    },
     "skillCreated": "스킬이 생성되었습니다",
     "skillUpdated": "스킬이 업데이트되었습니다",
     "slashCommands": {
@@ -1548,6 +1594,7 @@
     "agents": "에이전트",
     "architecture": "셀프 호스팅 아키텍처",
     "architectureDesc": "FastAPI + React 워크스페이스를 배포하고 LangGraph/deepagents 실행, Redis/MongoDB 영속성, 샌드박스 격리, MCP·Skills·메모리·모델 프로바이더 확장 계층을 결합합니다.",
+    "autoLoginPending": "로그인하는 중…",
     "badge": "셀프 호스팅 AI Agent 워크스페이스",
     "channels": "채널",
     "channelsIntegrations": "엔터프라이즈 채널",
@@ -1923,7 +1970,6 @@
     "users": "사용자 계정 및 접근 권한 관리"
   },
   "notification": {
-    "active": "활성",
     "cancel": "취소",
     "collapse": "상세 숨기기",
     "contentLabel": "내용",
@@ -1938,7 +1984,6 @@
     "endTime": "종료 시간",
     "expand": "상세 보기",
     "expired": "만료됨",
-    "inactive": "비활성",
     "isActive": "활성화",
     "noNotifications": "알림이 없습니다",
     "save": "저장",
@@ -2085,6 +2130,8 @@
     "changeAvatar": "아바타 변경",
     "changePassword": "비밀번호 변경",
     "confirmPassword": "비밀번호 확인",
+    "cloudSandbox": "클라우드 샌드박스",
+    "cloudSandboxDesc": "클라우드 샌드박스에서 코드를 실행하기 전 이 정책에 따라 확인을 요청합니다",
     "darkTheme": "다크",
     "defaultModel": "기본 모델",
     "defaultModelDesc": "새 대화에 사용할 기본 모델을 선택하세요",
@@ -2106,6 +2153,67 @@
     "lightTheme": "라이트",
     "limitedSupport": "일부 지원",
     "loading": "로딩 중...",
+    "serverUrl": {
+      "title": "서버",
+      "desc": "앱이 연결된 LambChat 서버 주소입니다. 변경하면 앱이 새로고침되며 다시 로그인해야 합니다.",
+      "change": "변경",
+      "cancel": "취소",
+      "reset": "기본값으로",
+      "resetTitle": "런타임 설정을 지우고 설치 패키지에 내장된 기본 서버로 되돌립니다"
+    },
+    "localSandbox": {
+      "title": "로컬 샌드박스",
+      "desc": "데스크톱 앱을 통해 사용자의 PC에서 직접 명령과 파일 작업을 수행합니다",
+      "statusOnline": "온라인",
+      "statusOffline": "오프라인",
+      "version": "daemon {{version}}",
+      "processRunning": "실행 중",
+      "processStopped": "중지됨",
+      "pairTitle": "LambChat 계정으로 로컬 샌드박스를 페어링하면 이 기기에서 코드를 실행할 수 있습니다.",
+      "pairWithCurrent": "현재 계정으로 페어링",
+      "pairOtherAccount": "또는 다른 계정으로 페어링:",
+      "pairNeedLogin": "로그인되어 있지 않습니다. 먼저 로그인한 후 페어링하세요.",
+      "pairButton": "페어링 및 시작",
+      "paired": "페어링 완료",
+      "policy": "실행 확인 정책",
+      "policyOptions": {
+        "all": "모든 작업 확인",
+        "commands": "명령만 확인",
+        "none": "확인 안 함"
+      },
+      "openWorkspaces": "작업 공간 폴더 열기",
+      "openAudit": "감사 폴더 열기",
+      "restartDaemon": "daemon 재시작",
+      "needDesktop": "로컬 샌드박스가 오프라인입니다. LambChat 데스크톱 앱과 페어링하면 웹에서도 사용할 수 있습니다.",
+      "webManaged": "페어링된 데스크톱 앱에서 관리",
+      "pairFailed": "페어링에 실패했습니다. 계정 정보를 확인하고 다시 시도하세요.",
+      "unpair": "페어링 해제",
+      "unpaired": "페어링이 해제되었습니다",
+      "machines": "내 머신",
+      "machinesDesc": "연결된 로컬 샌드박스 머신입니다. 세션마다 실행 대상을 선택할 수 있으며 미선택 시 기본 머신을 사용합니다.",
+      "machinesEmpty": "온라인 머신 없음",
+      "currentServer": "서버",
+      "setDefault": "기본으로 설정",
+      "defaultBadge": "기본",
+      "rename": "이름 변경",
+      "renameSave": "저장",
+      "renameCancel": "취소",
+      "platform": {
+        "windows": "Windows",
+        "macos": "macOS",
+        "linux": "Linux",
+        "unknown": "알 수 없음"
+      },
+      "downloadCta": "로컬 샌드박스 다운로드",
+      "offlineBadge": "오프라인",
+      "lastSeen": {
+        "minutes": "{{minutes}}분 전 접속",
+        "hours": "{{hours}}시간 전 접속",
+        "days": "{{days}}일 전 접속"
+      },
+      "forgetMachine": "이 머신 잊기",
+      "forgetMachineConfirm": "\"{{name}}\"을(를) 잊으시겠습니까? 이름과 기본 머신 설정이 삭제됩니다."
+    },
     "maxPinnedModels": "최대 {{max}}개 모델을 고정할 수 있습니다",
     "memoryToggle": "세션 간 메모리",
     "mobileNotification": "모바일 알림",
@@ -2134,6 +2242,7 @@
     "realtimeNotificationDesc": "WebSocket을 통해 작업 완료 알림 받기",
     "retry": "다시 시도",
     "roles": "역할",
+    "sandbox": "샌드박스",
     "searchModels": "모델 검색",
     "sendBehavior": "전송 동작",
     "sendOnEnter": "메시지 보내기",
@@ -2429,7 +2538,20 @@
     "bookmarks": {
       "description": "개요·요약 등 중요한 메시지를 저장하고 언제든 바로 이동할 수 있습니다.",
       "title": "메시지 북마크"
+    },
+    "download": {
+      "title": "로컬 샌드박스 다운로드"
     }
+  },
+  "serverSetup": {
+    "title": "LambChat 서버에 연결",
+    "desc": "서버 주소를 입력하고 시작하세요",
+    "label": "서버 주소",
+    "connect": "연결",
+    "testing": "연결 중…",
+    "fail": "서버 응답 이상(HTTP {{status}}). 주소를 확인해 주세요",
+    "unreachable": "이 주소에 연결할 수 없습니다. 서버가 실행 중인지 확인해 주세요",
+    "invalid": "주소 형식이 올바르지 않습니다"
   },
   "session": {
     "deleteFailed": "세션 삭제에 실패했습니다",
@@ -2540,7 +2662,7 @@
     "LANGFUSE_SECRET_KEY": "Langfuse 시크릿 키",
     "LANGFUSE_HOST": "Langfuse 서버 주소",
     "LLM_FALLBACK_MODEL": "기본 모델이 재시도 후에도 실패했고 모델별 폴백이 없을 때 전환할 모델 (비워두면 비활성화)",
-    "LLM_FIRST_EVENT_TIMEOUT": "스트리밍 응답의 첫 provider 이벤트 대기 시간(초, 0 이하는 비활성화, 이후 총 시간 또는 chunk 유휴 시간 제한 없음)",
+    "LLM_FIRST_EVENT_TIMEOUT": "스트리밍 응답의 첫 provider 이벤트 대기 시간(초, 0 이하는 비활성화, 이후 총 시간 제한 없음)",
     "LLM_MAX_RETRIES": "첫 LLM 호출 실패 후 재시도 횟수(시간 초과, 네트워크, 속도 제한, 5xx)",
     "LLM_MODEL_CACHE_SIZE": "LLM 모델 인스턴스 캐시 크기(인스턴스당 약 10-30MB). 기본값 50, 다중 사용자/다중 파라미터 시나리오 지원. 너무 작으면 빈번한 생성/소멸, 너무 크면 메모리 소비 증가.",
     "LLM_KV_CACHE": "OpenAI 호환 요청에 Codex와 동일한 KV 캐시 라우팅을 적용합니다: /v1/responses와 /v1/chat/completions 모두 세션 단위 prompt_cache_key를 전송합니다(responses는 암호화된 추론 콘텐츠 재생과 스테이트리스 store 포함). 공급자가 이 표준 필드를 거부하는 경우에만 비활성화하세요.",
@@ -2562,6 +2684,13 @@
     "MCP_SERVER_LOAD_CONCURRENCY": "MCP 서버 로드 동시 실행 수",
     "MCP_USER_CACHE_MAX_ENTRIES": "사용자별 MCP 캐시 최대 항목 수",
     "MCP_USER_CACHE_TTL_SECONDS": "사용자별 MCP 캐시 TTL(초)",
+    "MEMORY_EXTRACTION_ENABLED": "Codex 방식의 유휴 세션 메모리 추출을 활성화합니다. 전체 대화를 출처 참조가 포함된 지속 메모리로 정제합니다.",
+    "MEMORY_EXTRACTION_IDLE_SECONDS": "세션 종료 후 메모리 추출 대상이 될 때까지 기다리는 시간(초).",
+    "MEMORY_EXTRACTION_INTERVAL_SECONDS": "메모리 추출 대기 세션을 백그라운드에서 검색하는 간격(초).",
+    "MEMORY_EXTRACTION_MAX_AGE_DAYS": "종료된 지 이 일수 이내인 세션만 추출합니다.",
+    "MEMORY_EXTRACTION_MAX_ATTEMPTS": "한 세션의 메모리 추출 실패 후 최대 시도 횟수.",
+    "MEMORY_EXTRACTION_MAX_SESSIONS_PER_PASS": "한 번의 추출 작업에서 가져와 처리할 최대 세션 수.",
+    "MEMORY_EXTRACTION_TRANSCRIPT_MAX_CHARS": "세션마다 메모리 추출 모델에 전송할 대화 기록의 최대 문자 수.",
     "MEMORY_PERFORM": "사용할 메모리 제공자",
     "MONGODB_AUTH_SOURCE": "MongoDB 인증 데이터베이스",
     "MONGODB_DB": "MongoDB 데이터베이스 이름",
@@ -2590,17 +2719,18 @@
     "NATIVE_MEMORY_HYDRATE_CONCURRENCY": "메모리 하이드레이션(저장소 백엔드에서 전체 콘텐츠 복원) 동시 실행 수",
     "NATIVE_MEMORY_IMPORT_TOTAL_CONTENT_MAX_CHARS": "메모리 가져오기 시 모든 항목의 최대 총 콘텐츠 문자 수",
     "NATIVE_MEMORY_INDEX_CACHE_TTL": "메모리 인덱스 캐시 TTL(초, 사용자당)",
-    "NATIVE_MEMORY_INDEX_ENABLED": "컨텍스트 인식을 위해 시스템 프롬프트에 메모리 인덱스 주입",
+    "NATIVE_MEMORY_INDEX_ENABLED": "간결한 메모리 인덱스를 memory_recall 도구 설명에 추가하여 모델의 리콜 판단을 돕습니다. 인덱스 자체는 답변 근거가 아닙니다.",
     "NATIVE_MEMORY_INLINE_CONTENT_MAX_CHARS": "전체 메모리 본문을 스토리지 백엔드로 오프로드하기 전에 MongoDB에 인라인으로 유지할 최대 문자 수.",
     "NATIVE_MEMORY_MAX_AUTO_RETAIN_PER_DAY": "사용자당 일일 자동 메모리 평가 상한 (0=무제한, 기본 20)",
-    "NATIVE_MEMORY_MAX_TOKENS": "메모리 LLM 응답의 최대 토큰 수(추출, 통합, 재순위화). 값이 높을수록 긴 요약을 생성하지만 비용 증가.",
+    "NATIVE_MEMORY_MAX_TOKENS": "메모리 LLM 호출(추출, 통합, 재순위화)의 출력 토큰 상한. 0 = 제한 없음(기본값, 모델 기본 상한 사용). 추론형 모델은 제한 없음 권장(추론 블록이 예산을 점유해 출력이 잘리므로).",
     "NATIVE_MEMORY_MODEL": "메모리 추출, 통합, 재순위화에 사용할 모델 설정입니다. 비워두면 기본 모델을 사용합니다. 기존 모델 값도 계속 지원됩니다.",
     "NATIVE_MEMORY_PRUNE_THRESHOLD": "접근되지 않은 메모리가 통합 중에 정리되기까지의 일수",
     "NATIVE_MEMORY_QDRANT_API_KEY": "Qdrant API 키 (인증 없으면 비워두기)",
     "NATIVE_MEMORY_QDRANT_URL": "Qdrant 서버 주소 (예: http://127.0.0.1:6333)",
-    "NATIVE_MEMORY_QUERY_CONTEXT_ENABLED": "매 턴 메시지 생성 시 관련 메모리 자동 첨부 (쓰기 시점 주입, 기본 비활성)",
-    "NATIVE_MEMORY_QUERY_CONTEXT_MAX_CHARS": "주입 블록 문자 예산 (기본 1200)",
-    "NATIVE_MEMORY_QUERY_CONTEXT_TOP_K": "턴당 주입하는 관련 메모리 상한 (기본 3)",
+    "NATIVE_MEMORY_QUERY_CONTEXT_ENABLED": "기존 자동 쿼리 컨텍스트 주입과의 호환성을 위해 유지되는 설정입니다. 현재 읽기 경로는 사용자 메시지에 메모리를 주입하지 않으며 모델이 필요할 때 memory_recall을 호출합니다.",
+    "NATIVE_MEMORY_QUERY_CONTEXT_MAX_CHARS": "기존 자동 쿼리 컨텍스트 주입의 문자 예산입니다. 현재 리콜 도구 인덱스에서는 사용하지 않습니다.",
+    "NATIVE_MEMORY_QUERY_CONTEXT_TIMEOUT_SECONDS": "기존 자동 쿼리 컨텍스트 주입의 리콜 시간 제한입니다. 현재 리콜 도구 인덱스에서는 사용하지 않습니다.",
+    "NATIVE_MEMORY_QUERY_CONTEXT_TOP_K": "기존 자동 쿼리 컨텍스트 주입의 결과 상한입니다. 현재 리콜 도구 인덱스에서는 사용하지 않습니다.",
     "NATIVE_MEMORY_RECALL_MIN_SCORE": "메모리 리콜 결과의 최소 관련성 점수",
     "NATIVE_MEMORY_RERANK_API_BASE": "네이티브 메모리 재순위화 모델 엔드포인트의 API 기본 URL.",
     "NATIVE_MEMORY_RERANK_API_KEY": "네이티브 메모리 재순위화 모델 엔드포인트의 API 키.",
@@ -2645,7 +2775,7 @@
     "S3_CUSTOM_DOMAIN": "S3 파일의 사용자 정의 CDN 도메인",
     "S3_ENABLED": "파일 업로드용 S3 호환 스토리지 활성화",
     "S3_ENDPOINT_URL": "S3 엔드포인트 URL(MinIO 및 사용자 정의 제공자에 필요)",
-    "S3_INTERNAL_UPLOAD_MAX_SIZE": "최대 내부 업로드 크기(바이트, 기본값: 50MB)",
+    "S3_INTERNAL_UPLOAD_MAX_SIZE": "통합 파일 크기 상한(바이트, 기본 1GB): reveal 파일 전달, 로컬 샌드박스 다운로드, S3 내부 업로드에 공통 적용. 변경은 즉시 적용되며 초과 시 file_too_large 오류",
     "S3_MAX_FILE_SIZE": "최대 파일 크기(바이트, 기본값: 10MB)",
     "S3_PATH_STYLE": "경로 스타일 URL 사용(MinIO에 필요)",
     "S3_PRESIGNED_URL_EXPIRES": "사전 서명된 URL 만료 시간(초, 기본값: 7일)",
@@ -2654,6 +2784,7 @@
     "S3_REGION": "S3 리전",
     "S3_SECRET_KEY": "S3 시크릿 키",
     "SANDBOX_GREP_TIMEOUT": "샌드박스 grep 명령 타임아웃(초)",
+    "SANDBOX_LOCAL_EXEC_TIMEOUT": "로컬 샌드박스 명령 실행 타임아웃(초). 멈춘 명령은 시한에 도달하면 강제 종료되며, 변경 사항은 이후 명령에 즉시 적용됩니다.",
     "SANDBOX_PLATFORM": "사용할 샌드박스 플랫폼",
     "SESSION_EVENT_CHUNK_DUAL_WRITE_LEGACY": "분할 저장된 trace 이벤트를 기존 events 배열에도 쓰기",
     "SESSION_EVENT_CHUNK_SIZE": "각 trace event chunk 문서에 저장할 최대 이벤트 수",
@@ -2685,7 +2816,8 @@
     "WELCOME_SUGGESTION_ICON": "아이콘",
     "WELCOME_SUGGESTION_ITEM": "제안",
     "WELCOME_SUGGESTION_LANG": "언어",
-    "WELCOME_SUGGESTION_TEXT": "텍스트"
+    "WELCOME_SUGGESTION_TEXT": "텍스트",
+    "LLM_STREAM_IDLE_TIMEOUT": "스트리밍 chunk 사이의 최대 유휴 시간(초). 업스트림 정체로 실행이 멈추는 것을 방지(0 이하는 비활성화)"
   },
   "settings": {
     "defaultModel": "기본 모델",
@@ -2866,6 +2998,7 @@
     "noSessions": "아직 채팅 세션이 없습니다",
     "older": "이전",
     "open": "열기",
+    "pendingStatus": "대기 중",
     "pinToTop": "고정",
     "pinToggleFailed": "고정 상태 업데이트 실패",
     "pinned": "고정됨",
@@ -2886,6 +3019,7 @@
     "renameFailed": "세션 이름 변경에 실패했습니다",
     "renamed": "세션 이름이 변경되었습니다",
     "retry": "재시도",
+    "runningStatus": "실행 중",
     "scrollToTop": "맨 위로",
     "searchResultCount": "{{count}}개 결과",
     "searchSessions": "세션 검색",
@@ -3273,6 +3407,7 @@
   },
   "updateDownload": "지금 업데이트",
   "updateDownloading": "다운로드 중...",
+  "updateDownloadNetworkError": "다운로드 실패, 네트워크를 확인한 후 다시 시도하세요",
   "updateError": "업데이트 실패",
   "updateGoToDownload": "다운로드로 이동",
   "updateNewVersion": "새 버전 {{version}} 사용 가능",
@@ -3467,5 +3602,56 @@
     "sessionTitle": "이 대화의 북마크",
     "locating": "북마크를 찾는 중…",
     "messageMissing": "북마크한 메시지를 기록에서 찾을 수 없습니다. 삭제되었을 수 있습니다"
+  },
+  "update": {
+    "aboutTitle": "정보",
+    "checkNow": "업데이트 확인",
+    "notificationBody": "버전 {{version}}이(가) 출시되었습니다. 설정에서 업데이트를 확인하세요",
+    "notificationTitle": "새 버전 available",
+    "upToDate": "최신 버전입니다",
+    "installPermissionHint": "먼저 LambChat의 알 수 없는 앱 설치를 허용한 뒤 업그레이드를 다시 눌러주세요",
+    "updateRelaunchInstall": "재시작 후 설치"
+  },
+  "download": {
+    "title": "로컬 샌드박스 다운로드",
+    "description": "Agent의 명령 실행과 파일 접근을 내 컴퓨터에서 처리합니다 — 데이터는 기기를 벗어나지 않아요.",
+    "latestVersion": "최신 버전: {{version}}",
+    "detectedPlatform": "현재 기기",
+    "back": "채팅으로 돌아가기",
+    "viewAllReleases": "GitHub에서 모든 릴리스 보기",
+    "loadFailed": "지금 다운로드 링크를 가져올 수 없어요. GitHub Releases에서 최신 패키지를 받을 수 있어요:",
+    "noAssets": "이 릴리스에는 패키지가 없어요.",
+    "desktop": {
+      "title": "데스크톱 앱(권장)",
+      "desc": "설치 후 LambChat 계정으로 로그인하면 자동으로 페어링되어 웹에서 로컬 샌드박스를 선택할 수 있어요."
+    },
+    "daemon": {
+      "title": "독립 daemon(서버 / GUI 없음)",
+      "desc": "서버나 개발 머신에서 daemon을 실행하세요 — 데스크톱 앱이 필요 없어요.",
+      "usage": "사용법: 플랫폼에 맞는 바이너리를 받아 실행 권한을 부여하고, 서버에 로그인해 계속 실행합니다.",
+      "binaries": "바이너리"
+    },
+    "tutorial": {
+      "title": "페어링 튜토리얼",
+      "step1": "데스크톱 앱을 설치하고 LambChat 계정으로 로그인하세요(자동 페어링). 서버 사용자는 위의 daemon 명령을 실행하세요.",
+      "step2": "LambChat 웹을 열고 설정 → 환경설정 → 샌드박스에서 로컬 샌드박스가 '온라인'으로 표시되는지 확인하세요.",
+      "step3": "채팅 입력창의 '샌드박스' 선택기에서 '로컬'로 전환하면 Agent가 내 컴퓨터에서 실행돼요."
+    },
+    "macInstall": {
+      "title": "터미널 한 줄 설치(권장)",
+      "body": "아래 명령을 터미널에 붙여넣어 실행하면 최신 버전을 자동으로 내려받아 설치합니다. 터미널 설치는 \"손상됨\" 알림이 표시되지 않습니다."
+    },
+    "macGatekeeper": {
+      "title": "macOS 첫 실행 안내",
+      "body": "공증되지 않은 앱을 브라우저에서 다운로드하면 첫 실행 시 \"손상됨\"으로 표시될 수 있습니다. LambChat를 응용 프로그램 폴더로 드래그한 후 터미널에서 아래 명령을 실행해 격리 플래그를 제거하면 정상적으로 실행됩니다:"
+    },
+    "tag": "LambChat · 로컬 샌드박스",
+    "heroCta": "데스크톱 앱 받기",
+    "heroCtaTutorial": "페어링 튜토리얼 보기",
+    "downloadFor": "{{platform}} 버전 다운로드",
+    "mobile": {
+      "title": "모바일 앱",
+      "desc": "LambChat Android 클라이언트(APK 직접 설치). 웹과 같은 계정으로 로그인하세요."
+    }
   }
 }

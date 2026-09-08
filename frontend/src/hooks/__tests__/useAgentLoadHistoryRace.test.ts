@@ -10,7 +10,12 @@ test("loadHistory ignores stale async results instead of overwriting the active 
   expect(source).toMatch(/loadHistoryRequestIdRef/);
   expect(source).toMatch(/isStaleHistoryLoad/);
   expect(source).toMatch(/loadHistoryRequestIdRef\.current \+= 1/);
-  expect(source).toMatch(
+  // 状态声明已下沉 loadingStates.ts（useAgent.ts 行数红线）
+  const statesSource = readFileSync(
+    resolve(__dirname, "../useAgent/loadingStates.ts"),
+    "utf8",
+  );
+  expect(statesSource).toMatch(
     /const \[historyLoadGeneration, setHistoryLoadGeneration\]/,
   );
   expect(source).toMatch(
@@ -34,7 +39,7 @@ test("loadHistory ignores stale async results instead of overwriting the active 
 test("clearMessages clears loading flags when a history load is invalidated", () => {
   const source = readFileSync(resolve(__dirname, "../useAgent.ts"), "utf8");
   const clearMessagesBody = source.match(
-    /const clearMessages = useCallback\(\(\) => \{([\s\S]*?)\n {2}\}, \[\]\);/,
+    /const clearMessages = useCallback\(\(\) => \{([\s\S]*?)\n {2}\}, \[[\s\S]*?\]\);/,
   )?.[1];
 
   expect(clearMessagesBody).toBeTruthy();

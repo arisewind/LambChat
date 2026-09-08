@@ -61,11 +61,27 @@ def test_vision_model_sends_image_attachment_as_multimodal_block():
 
     assert isinstance(message, HumanMessage)
     assert isinstance(message.content, list)
-    assert message.content[0] == {"type": "text", "text": "what is this?"}
+    assert message.content[0]["type"] == "text"
+    assert "what is this?" in message.content[0]["text"]
     assert message.content[1] == {
         "type": "image_url",
         "image_url": {"url": "/api/upload/file/uploads/img.png"},
     }
+
+
+def test_vision_model_keeps_image_url_in_text_summary_for_url_mode():
+    """URL 模式下视觉模型的文本摘要必须保留图片链接。
+
+    模型无法从 image 块里读回 URL；文本里没有链接时，模型拿不到文件字节
+    （无法调用 upload_url_to_sandbox 按需下载），只能要求用户重新上传。
+    """
+    message = build_human_message("what is this?", [image_attachment()], supports_vision=True)
+
+    assert isinstance(message.content, list)
+    assert "User Uploaded Attachments" in message.content[0]["text"]
+    assert "/api/upload/file/uploads/img.png" in message.content[0]["text"]
+    assert "Corresponding image: #1" in message.content[0]["text"]
+    assert message.content[1]["image_url"]["url"] == "/api/upload/file/uploads/img.png"
 
 
 def test_non_vision_model_keeps_image_attachment_as_text_summary():

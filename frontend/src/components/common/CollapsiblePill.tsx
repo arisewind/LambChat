@@ -146,7 +146,7 @@ export function CollapsiblePill({
         onClick={handleToggle}
         className={clsx(
           "pill-btn",
-          "inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-medium max-w-full h-7",
+          "inline-flex items-center gap-2 px-3 py-1 rounded-full text-12 font-medium max-w-full h-7",
           statusStyles[status],
           enterClass,
           status === "loading" && "pill-loading-breathe",
@@ -158,7 +158,7 @@ export function CollapsiblePill({
         {icon}
         <span
           className={clsx(
-            "text-xs font-mono font-medium min-w-0 truncate overflow-hidden leading-none",
+            "text-12 font-mono font-medium min-w-0 truncate overflow-hidden leading-none",
             animatedDots && "typing-dots",
           )}
         >

@@ -6,7 +6,7 @@ from src.infra.agent.middleware.image_url import ImageUrlToBase64Middleware
 from src.infra.agent.middleware.main_agent_context import MainAgentContextMiddleware
 from src.infra.agent.middleware.prompt_injection import (
     EnvVarPromptMiddleware,
-    MemoryIndexMiddleware,
+    MemoryRecallIndexMiddleware,
     SectionPromptMiddleware,
 )
 from src.infra.agent.middleware.retry import (
@@ -15,6 +15,7 @@ from src.infra.agent.middleware.retry import (
     _is_empty_content,
     create_retry_middleware,
 )
+from src.infra.agent.middleware.sandbox_confirm import SandboxConfirmMiddleware
 from src.infra.agent.middleware.sandbox_workspace import SandboxWorkspaceMiddleware
 from src.infra.agent.middleware.steer import SteerMiddleware
 from src.infra.agent.middleware.subagent_activity import SubagentActivityMiddleware
@@ -26,6 +27,7 @@ from src.infra.agent.middleware.tool_interception import (
 )
 
 __all__ = [
+    "SandboxConfirmMiddleware",
     "create_retry_middleware",
     "create_code_interpreter_middleware",
     "ArtifactDeliveryMiddleware",
@@ -33,7 +35,7 @@ __all__ = [
     "EnvVarPromptMiddleware",
     "ImageUrlToBase64Middleware",
     "MainAgentContextMiddleware",
-    "MemoryIndexMiddleware",
+    "MemoryRecallIndexMiddleware",
     "ModelFallbackMiddleware",
     "SandboxWorkspaceMiddleware",
     "SectionPromptMiddleware",

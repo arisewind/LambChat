@@ -333,12 +333,12 @@ function ProjectRevealPreviewPanel({
         }
       >
         {loadingError ? (
-          <div className="p-6 text-sm text-amber-600 dark:text-amber-400">
+          <div className="p-6 text-14 text-amber-600 dark:text-amber-400">
             {t("project.loadFilesFailed")}
           </div>
         ) : !loadedFiles ? (
           <div className="h-full bg-theme-bg-elevated flex items-center justify-center">
-            <div className="text-theme-text-tertiary text-sm flex items-center gap-2">
+            <div className="text-theme-text-tertiary text-14 flex items-center gap-2">
               <LoadingSpinner size="sm" className="text-theme-text-tertiary" />
               {t("project.loadingFiles")}
             </div>

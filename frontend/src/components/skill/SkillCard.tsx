@@ -148,7 +148,7 @@ export function SkillCard({
         ) : undefined
       }
       meta={
-        <div className="flex flex-wrap items-center gap-2 text-xs text-[var(--theme-text-secondary)]">
+        <div className="flex flex-wrap items-center gap-2 text-12 text-[var(--theme-text-secondary)]">
           <div className="skill-meta-pill">
             <FileText size={13} />
             <span>

@@ -26,7 +26,7 @@ export function MobileMenu({
             <button
               key={item.id}
               onClick={() => onScrollToSection(item.id)}
-              className={`w-full text-left px-4 py-3 rounded-xl text-sm font-medium transition-colors ${
+              className={`w-full text-left px-4 py-3 rounded-xl text-14 font-medium transition-colors ${
                 activeSection === item.id
                   ? "text-stone-900 dark:text-stone-100 bg-stone-100/80 dark:bg-stone-800/50"
                   : "text-stone-500 dark:text-stone-400 hover:text-stone-700 dark:hover:text-stone-200 hover:bg-stone-50 dark:hover:bg-stone-800/20"

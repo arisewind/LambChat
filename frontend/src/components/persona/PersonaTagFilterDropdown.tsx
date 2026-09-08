@@ -77,14 +77,14 @@ export function PersonaTagFilterDropdown({
         onPointerDown={(e) => e.stopPropagation()}
       >
         <div className="mb-2 flex items-center justify-between">
-          <p className="text-xs font-semibold uppercase tracking-[0.16em] text-[var(--theme-text-secondary)]">
+          <p className="text-12 font-semibold uppercase tracking-[0.16em] text-[var(--theme-text-secondary)]">
             {t("personaPresets.tags", "标签")}
           </p>
           {hasActiveFilters && (
             <button
               type="button"
               onClick={onClearFilters}
-              className="text-xs text-[var(--theme-text-secondary)] transition-colors hover:text-[var(--theme-primary)]"
+              className="text-12 text-[var(--theme-text-secondary)] transition-colors hover:text-[var(--theme-primary)]"
             >
               {t("personaPresets.clearFilters", "清除筛选")}
             </button>

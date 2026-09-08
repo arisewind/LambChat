@@ -200,7 +200,7 @@ export function AgentConfigPanel() {
             leftIcon={<RefreshCw size={16} />}
             aria-label={t("common.refresh")}
           >
-            <span className="hidden sm:inline text-sm">
+            <span className="hidden sm:inline text-14">
               {t("common.refresh")}
             </span>
           </Button>
@@ -220,7 +220,7 @@ export function AgentConfigPanel() {
         <div className="flex glass-divider px-2">
           <button
             onClick={() => setActiveTab("global")}
-            className={`px-4 py-3.5 text-sm font-medium transition-all relative ${
+            className={`px-4 py-3.5 text-14 font-medium transition-all relative ${
               activeTab === "global"
                 ? "text-stone-900 dark:text-stone-100"
                 : "text-stone-500 hover:text-stone-700 dark:text-stone-400 dark:hover:text-stone-200"
@@ -233,7 +233,7 @@ export function AgentConfigPanel() {
           </button>
           <button
             onClick={() => setActiveTab("roles")}
-            className={`px-4 py-3.5 text-sm font-medium transition-all relative ${
+            className={`px-4 py-3.5 text-14 font-medium transition-all relative ${
               activeTab === "roles"
                 ? "text-stone-900 dark:text-stone-100"
                 : "text-stone-500 hover:text-stone-700 dark:text-stone-400 dark:hover:text-stone-200"
@@ -269,7 +269,7 @@ export function AgentConfigPanel() {
         ) : (
           // 非管理员只显示可用 agents
           <div className="space-y-5">
-            <p className="text-sm text-stone-500 dark:text-stone-400 px-1 leading-relaxed">
+            <p className="text-14 text-stone-500 dark:text-stone-400 px-1 leading-relaxed">
               {t("agentConfig.availableAgents")}
             </p>
             <div className="grid gap-3">
@@ -297,10 +297,10 @@ export function AgentConfigPanel() {
                       />
                     </div>
                     <div className="min-w-0 flex-1">
-                      <h4 className="text-sm font-semibold text-stone-900 dark:text-stone-100 truncate tracking-tight font-serif">
+                      <h4 className="text-14 font-semibold text-stone-900 dark:text-stone-100 truncate tracking-tight font-serif">
                         {displayName}
                       </h4>
-                      <p className="text-xs text-stone-500 dark:text-stone-400 truncate mt-0.5 hidden sm:block">
+                      <p className="text-12 text-stone-500 dark:text-stone-400 truncate mt-0.5 hidden sm:block">
                         {displayDescription}
                       </p>
                     </div>

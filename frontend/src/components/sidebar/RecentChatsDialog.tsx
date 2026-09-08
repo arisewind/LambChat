@@ -14,6 +14,7 @@ import {
   type RecentChatsPaginationState,
 } from "./recentChatsPagination";
 import { MarkAllReadBadge } from "./MarkAllReadBadge";
+import { Tooltip } from "../common/Tooltip";
 import { AlertCircle } from "lucide-react";
 
 interface RecentChatsDialogProps {
@@ -220,7 +221,7 @@ export function RecentChatsDialog({
       <div className="flex items-center justify-between px-4 pt-3 pb-2 border-b border-stone-200/60 dark:border-stone-800/60 shrink-0">
         <div className="flex items-center gap-2">
           <BrandLogo alt={APP_NAME} className="h-5" />
-          <span className="text-sm font-bold text-stone-800 dark:text-stone-100 font-serif leading-none">
+          <span className="text-14 font-bold text-stone-800 dark:text-stone-100 font-serif leading-none">
             {t("sidebar.recentChats")}
           </span>
         </div>
@@ -230,7 +231,7 @@ export function RecentChatsDialog({
             badgeId="all"
             markingReadId={markingReadId ?? null}
             onMarkAllRead={() => onMarkAllRead?.()}
-            title={t("sidebar.markAllRead")}
+            tooltip={t("sidebar.markAllRead")}
           />
         )}
       </div>
@@ -240,7 +241,7 @@ export function RecentChatsDialog({
         {isLoading ? (
           renderLoadingRows(6)
         ) : sessions.length === 0 ? (
-          <div className="flex h-full flex-col items-center justify-center text-center text-xs text-stone-400 dark:text-stone-500">
+          <div className="flex h-full flex-col items-center justify-center text-center text-12 text-stone-400 dark:text-stone-500">
             {t("sidebar.noSessions") || "No recent chats"}
           </div>
         ) : (
@@ -250,6 +251,14 @@ export function RecentChatsDialog({
               const isWaitingForHuman = taskStatus === "waiting_human";
               const isGenerating =
                 taskStatus === "running" || taskStatus === "pending";
+              const runningLabel = isGenerating
+                ? t(
+                    taskStatus === "pending"
+                      ? "sidebar.pendingStatus"
+                      : "sidebar.runningStatus",
+                    taskStatus === "pending" ? "等待中" : "运行中",
+                  )
+                : null;
 
               return (
                 <button
@@ -266,7 +275,7 @@ export function RecentChatsDialog({
                 >
                   <div className="min-w-0 flex-1">
                     <div
-                      className={`truncate text-13 ${
+                      className={`truncate text-13 font-serif ${
                         session.id === currentSessionId
                           ? "text-stone-800 dark:text-stone-100 font-medium"
                           : "text-stone-600 dark:text-stone-300 group-hover:text-stone-700 dark:group-hover:text-stone-200"
@@ -278,32 +287,24 @@ export function RecentChatsDialog({
                       {formatDateTime(session.updated_at)}
                     </div>
                   </div>
-                  {isGenerating && (
-                    <span
-                      title={t(
-                        taskStatus === "pending"
-                          ? "sidebar.pendingStatus"
-                          : "sidebar.runningStatus",
-                        taskStatus === "pending" ? "等待中" : "运行中",
-                      )}
-                      aria-label={t(
-                        taskStatus === "pending"
-                          ? "sidebar.pendingStatus"
-                          : "sidebar.runningStatus",
-                        taskStatus === "pending" ? "等待中" : "运行中",
-                      )}
-                      className="shrink-0 inline-flex items-center justify-center w-4 h-4 rounded-full border-2 border-amber-500/25 border-t-amber-500 dark:border-t-amber-400 animate-spin"
-                    />
+                  {isGenerating && runningLabel && (
+                    <Tooltip content={runningLabel}>
+                      <span
+                        aria-label={runningLabel}
+                        className="shrink-0 inline-flex items-center justify-center w-4 h-4 rounded-full border-2 border-amber-500/25 border-t-amber-500 dark:border-t-amber-400 animate-spin"
+                      />
+                    </Tooltip>
                   )}
                   {isWaitingForHuman && (
-                    <span
-                      data-session-status="ask-human"
-                      title="Ask human · 等待你的回复"
-                      aria-label="Ask human · 等待你的回复"
-                      className="shrink-0 inline-flex items-center justify-center w-4 h-4 text-amber-500 dark:text-amber-400"
-                    >
-                      <AlertCircle size={16} strokeWidth={2.3} />
-                    </span>
+                    <Tooltip content={t("sidebar.waitingHuman", "等待回复")}>
+                      <span
+                        data-session-status="ask-human"
+                        aria-label="Ask human · 等待你的回复"
+                        className="shrink-0 inline-flex items-center justify-center w-4 h-4 text-amber-500 dark:text-amber-400"
+                      >
+                        <AlertCircle size={16} strokeWidth={2.3} />
+                      </span>
+                    </Tooltip>
                   )}
                   {session.unread_count != null && session.unread_count > 0 && (
                     <span className="shrink-0 inline-flex h-4 min-w-[16px] items-center justify-center rounded-full bg-red-500 px-1 text-10 font-medium leading-none text-white">

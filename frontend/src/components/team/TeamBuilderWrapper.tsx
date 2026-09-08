@@ -608,7 +608,7 @@ export function TeamBuilderWrapper() {
               ) : (
                 <button
                   onClick={handleCreateNew}
-                  className="btn-primary h-9 text-sm"
+                  className="btn-primary h-9 text-14"
                 >
                   <Plus size={15} />
                   {t("team.createFirst")}
@@ -690,7 +690,7 @@ export function TeamBuilderWrapper() {
                       />
                       <div className="min-w-0 flex-1">
                         <h3
-                          className="truncate text-base font-semibold font-serif  text-[var(--theme-text)] leading-tight"
+                          className="truncate text-16 font-semibold font-serif  text-[var(--theme-text)] leading-tight"
                           title={team.name}
                         >
                           {team.name}

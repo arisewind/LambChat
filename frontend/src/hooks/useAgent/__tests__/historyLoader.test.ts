@@ -2,7 +2,9 @@ import {
   normalizeEventRunIds,
   prepareMessagesForRunningRun,
   reconstructMessagesFromEvents,
+  resolveLegacyScheduledTaskApproval,
 } from "../historyLoader.ts";
+import { vi } from "vitest";
 import type { Message } from "../../../types";
 import type { HistoryEvent } from "../types.ts";
 
@@ -855,6 +857,60 @@ test("reconstructMessagesFromEvents keeps token usage after cancel on the cancel
   expect(messages[1]?.duration).toBe(24927.353858947754);
 });
 
+test("user:cancel with reason=steer marks cancelled without the cancelled pill part", () => {
+  const runId = "run_20260905_steer_interrupt";
+  const messages = reconstructMessagesFromEvents(
+    [
+      {
+        id: "event-user",
+        event_type: "user:message",
+        run_id: runId,
+        timestamp: "2026-09-05T10:00:00.000Z",
+        data: { content: "任务", message_id: `${runId}:user`, attachments: [] },
+      },
+      {
+        id: "event-chunk",
+        event_type: "message:chunk",
+        run_id: runId,
+        timestamp: "2026-09-05T10:00:01.000Z",
+        data: { content: "半截输出", depth: 0 },
+      },
+      {
+        id: "event-approval-required",
+        event_type: "approval_required",
+        run_id: runId,
+        timestamp: "2026-09-05T10:00:05.000Z",
+        data: { id: "appr-1", message: "要继续吗？", fields: [] },
+      },
+      {
+        id: "event-steer-cancel",
+        event_type: "user:cancel",
+        run_id: runId,
+        timestamp: "2026-09-05T10:00:20.000Z",
+        data: { run_id: runId, reason: "steer" },
+      },
+      {
+        id: "event-done",
+        event_type: "done",
+        run_id: runId,
+        timestamp: "2026-09-05T10:00:20.100Z",
+        data: { status: "cancelled" },
+      },
+    ] satisfies HistoryEvent[],
+    new Set<string>(),
+    { activeSubagentStack: [] },
+  );
+
+  expect(messages.length).toBe(2);
+  const assistant = messages[1];
+  expect(assistant?.role).toBe("assistant");
+  // 已停止走状态行文字切换：cancelled 标志置位，但不出现 cancelled part 胶囊
+  expect(assistant?.cancelled).toBe(true);
+  expect(assistant?.parts?.some((part) => part.type === "cancelled")).toBe(
+    false,
+  );
+});
+
 test("reconstructMessagesFromEvents keeps late run events after cancel on the cancelled assistant", () => {
   const runId = "run_20260530120841_cf52eb51";
   const messages = reconstructMessagesFromEvents(
@@ -1099,7 +1155,11 @@ test("renders a retried steer:message only once by message_id", () => {
         event_type: "user:message",
         run_id: "run-retry",
         timestamp: "2026-08-22T15:00:00.000Z",
-        data: { content: "任务", message_id: "run-retry:user", attachments: [] },
+        data: {
+          content: "任务",
+          message_id: "run-retry:user",
+          attachments: [],
+        },
       } satisfies HistoryEvent,
       {
         event_type: "message:chunk",
@@ -1157,7 +1217,11 @@ test("places a legacy tail steer:message before the reply turn it answers", () =
         event_type: "user:message",
         run_id: runId,
         timestamp: "2026-08-22T15:14:35.186Z",
-        data: { content: "搜索 今日新闻", message_id: `${runId}:user`, attachments: [] },
+        data: {
+          content: "搜索 今日新闻",
+          message_id: `${runId}:user`,
+          attachments: [],
+        },
       } satisfies HistoryEvent,
       {
         event_type: "thinking",
@@ -1169,13 +1233,22 @@ test("places a legacy tail steer:message before the reply turn it answers", () =
         event_type: "tool:start",
         run_id: runId,
         timestamp: "2026-08-22T15:14:41.476Z",
-        data: { tool: "web-search", args: { query: "今日新闻" }, tool_call_id: "t1" },
+        data: {
+          tool: "web-search",
+          args: { query: "今日新闻" },
+          tool_call_id: "t1",
+        },
       } satisfies HistoryEvent,
       {
         event_type: "tool:result",
         run_id: runId,
         timestamp: "2026-08-22T15:14:42.100Z",
-        data: { tool: "web-search", result: "结果", tool_call_id: "t1", success: true },
+        data: {
+          tool: "web-search",
+          result: "结果",
+          tool_call_id: "t1",
+          success: true,
+        },
       } satisfies HistoryEvent,
       {
         event_type: "thinking",
@@ -1482,4 +1555,387 @@ test("restores run modes on user messages from history events", () => {
 
   expect(messages.length).toBe(1);
   expect(messages[0]?.runModes).toEqual(["auto", "goal"]);
+});
+
+test("resolves a scheduled-task approval pill from an approval_resolved event without tool_call_id", () => {
+  const messages = reconstructMessagesFromEvents(
+    [
+      {
+        event_type: "user:message",
+        run_id: "run-st-confirm",
+        timestamp: "2026-09-01T00:00:00.000Z",
+        data: { content: "创建定时任务", message_id: "run-st-confirm:user" },
+      },
+      {
+        event_type: "approval_required",
+        run_id: "run-st-confirm",
+        timestamp: "2026-09-01T00:00:01.000Z",
+        data: {
+          id: "approval-st-1",
+          message: "Please confirm creation of this scheduled task.",
+          type: "confirm",
+          fields: [],
+          timeout: 300,
+        },
+      },
+      {
+        event_type: "approval_resolved",
+        run_id: "run-st-confirm",
+        timestamp: "2026-09-01T00:00:02.000Z",
+        data: {
+          id: "approval-st-1",
+          approval_id: "approval-st-1",
+          status: "approved",
+          success: true,
+          result: { status: "success", message: "ok", values: {} },
+        },
+      },
+    ] satisfies HistoryEvent[],
+    new Set<string>(),
+    { activeSubagentStack: [] },
+  );
+
+  const askHuman = messages[1]?.parts?.find(
+    (part) => part.type === "tool" && part.name === "ask_human",
+  );
+  expect(askHuman).toMatchObject({ isPending: false, success: true });
+});
+
+test("reports fetched scheduled-task approvals via onApprovalLookup", async () => {
+  const onApprovalLookup = vi.fn();
+  vi.stubGlobal("localStorage", {
+    getItem: () => null,
+    setItem: () => {},
+    removeItem: () => {},
+  });
+  vi.stubGlobal(
+    "fetch",
+    vi.fn().mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          id: "approval-legacy-1",
+          status: "approved",
+          message: "Please confirm creation of this scheduled task.",
+          type: "confirm",
+          fields: [],
+          metadata: { approval_type: "scheduled_task_create" },
+        }),
+        { status: 200, headers: { "Content-Type": "application/json" } },
+      ),
+    ),
+  );
+
+  const messages = reconstructMessagesFromEvents(
+    [
+      {
+        event_type: "approval_required",
+        run_id: "run-legacy",
+        timestamp: "2026-09-01T00:00:00.000Z",
+        data: {
+          id: "approval-legacy-1",
+          message: "Please confirm creation of this scheduled task.",
+          type: "confirm",
+          fields: [],
+          timeout: 300,
+        },
+      } satisfies HistoryEvent,
+    ],
+    new Set<string>(),
+    { activeSubagentStack: [], onApprovalLookup },
+  );
+
+  // 事件本身不带 metadata（旧版后端），先按 pending 重建 pill
+  expect(messages[0]?.parts?.[0]).toMatchObject({
+    type: "tool",
+    name: "ask_human",
+    id: "approval-legacy-1",
+    isPending: true,
+  });
+
+  await vi.waitFor(() => expect(onApprovalLookup).toHaveBeenCalled());
+  const approval = onApprovalLookup.mock.calls[0]?.[0] as {
+    id: string;
+    status: string;
+    metadata?: Record<string, unknown>;
+  };
+
+  const resolved = resolveLegacyScheduledTaskApproval(messages, approval);
+  expect(resolved[0]?.parts?.[0]).toMatchObject({
+    isPending: false,
+    success: true,
+  });
+  vi.unstubAllGlobals();
+});
+
+test("resolveLegacyScheduledTaskApproval only touches terminal scheduled-task approvals", () => {
+  const buildMessages = () => [
+    {
+      id: "m1",
+      role: "assistant" as const,
+      content: "",
+      timestamp: new Date(),
+      parts: [
+        {
+          type: "tool" as const,
+          name: "ask_human",
+          id: "approval-x",
+          args: { message: "confirm?", fields: [] },
+          isPending: true,
+          depth: 0,
+        },
+      ],
+    },
+  ];
+
+  // pending 审批不动（卡片还要继续交互）
+  expect(
+    resolveLegacyScheduledTaskApproval(buildMessages(), {
+      id: "approval-x",
+      status: "pending",
+      metadata: { approval_type: "scheduled_task_create" },
+    })[0]?.parts?.[0],
+  ).toMatchObject({ isPending: true });
+
+  // 非 scheduled-task 审批不动（真实 ask_human 走 interrupt 恢复路径）
+  const untouched = buildMessages();
+  const result = resolveLegacyScheduledTaskApproval(untouched, {
+    id: "approval-x",
+    status: "approved",
+    metadata: { mode: "interrupt" },
+  });
+  expect(result[0]?.parts?.[0]).toMatchObject({ isPending: true });
+
+  // scheduled-task 已决审批：补收尾，避免幽灵 pill 永远转圈
+  const resolved = resolveLegacyScheduledTaskApproval(buildMessages(), {
+    id: "approval-x",
+    status: "rejected",
+    metadata: { approval_type: "scheduled_task_create" },
+  });
+  expect(resolved[0]?.parts?.[0]).toMatchObject({
+    isPending: false,
+    success: false,
+  });
+});
+
+test("steer delivered marks the pre-steer assistant turn as cancelled", () => {
+  const messages = reconstructMessagesFromEvents(
+    [
+      {
+        event_type: "user:message",
+        run_id: "run-1",
+        timestamp: "2026-09-05T00:00:00.000Z",
+        data: { content: "任务", message_id: "run-1:user" },
+      },
+      {
+        event_type: "message:chunk",
+        run_id: "run-1",
+        timestamp: "2026-09-05T00:00:01.000Z",
+        data: { content: "第一轮部分输出" },
+      },
+      {
+        event_type: "steer:message",
+        run_id: "run-1",
+        timestamp: "2026-09-05T00:00:02.000Z",
+        data: {
+          content: "加点中国的",
+          message_id: "steer-1",
+          created_at: "2026-09-05T00:00:01.500Z",
+        },
+      },
+      {
+        event_type: "message:chunk",
+        run_id: "run-1",
+        timestamp: "2026-09-05T00:00:03.000Z",
+        data: { content: "插话后的回答" },
+      },
+      {
+        event_type: "done",
+        run_id: "run-1",
+        timestamp: "2026-09-05T00:00:04.000Z",
+        data: { status: "completed" },
+      },
+    ] satisfies HistoryEvent[],
+    new Set<string>(),
+    { activeSubagentStack: [] },
+  );
+
+  // [user, assistant(已停止), steer-user, assistant(final)]
+  expect(messages).toHaveLength(4);
+  const sealed = messages[1];
+  expect(sealed.role).toBe("assistant");
+  expect(sealed.cancelled).toBe(true);
+  // 已停止是状态行文字切换，不追加 cancelled part 胶囊
+  expect(sealed.parts?.some((part) => part.type === "cancelled")).toBe(false);
+  const final = messages[3];
+  expect(final.cancelled).toBeUndefined();
+  expect(final.parts?.some((part) => part.type === "cancelled")).toBe(false);
+});
+
+test("steer with no prior assistant output adds no cancelled marker", () => {
+  const messages = reconstructMessagesFromEvents(
+    [
+      {
+        event_type: "user:message",
+        run_id: "run-1",
+        timestamp: "2026-09-05T00:00:00.000Z",
+        data: { content: "任务", message_id: "run-1:user" },
+      },
+      {
+        event_type: "steer:message",
+        run_id: "run-1",
+        timestamp: "2026-09-05T00:00:02.000Z",
+        data: {
+          content: "快点",
+          message_id: "steer-1",
+          created_at: "2026-09-05T00:00:01.500Z",
+        },
+      },
+      {
+        event_type: "message:chunk",
+        run_id: "run-1",
+        timestamp: "2026-09-05T00:00:03.000Z",
+        data: { content: "插话后的回答" },
+      },
+      {
+        event_type: "done",
+        run_id: "run-1",
+        timestamp: "2026-09-05T00:00:04.000Z",
+        data: { status: "completed" },
+      },
+    ] satisfies HistoryEvent[],
+    new Set<string>(),
+    { activeSubagentStack: [] },
+  );
+
+  // [user, steer-user, assistant(final)] —— 没有封存的空气泡
+  expect(messages).toHaveLength(3);
+  expect(messages.some((message) => message.cancelled)).toBe(false);
+});
+
+test("sandbox confirm approval does not synthesize an extra tool card", () => {
+  // 沙箱确认门（origin=sandbox_confirm）：执行卡（等待确认→结果）+ 审批面板
+  // 已完整表达，历史回放不得再合成 ask_human 卡——否则一次执行渲染两张卡。
+  const stableId = "tools:e5648a60-7bef-ec09-bc93-884797cec567|5fc527e7b116";
+  const messages = reconstructMessagesFromEvents(
+    [
+      {
+        event_type: "user:message",
+        run_id: "run-sbx",
+        timestamp: "2026-09-05T15:51:09.000Z",
+        data: { content: "看看磁盘", message_id: "run-sbx:user" },
+      },
+      {
+        event_type: "metadata",
+        run_id: "run-sbx",
+        timestamp: "2026-09-05T15:51:10.000Z",
+        data: { session_id: "s1", agent_id: "search" },
+      },
+      {
+        event_type: "tool:start",
+        run_id: "run-sbx",
+        timestamp: "2026-09-05T15:51:15.000Z",
+        data: {
+          tool: "execute",
+          tool_call_id: stableId,
+          args: { command: "df -h" },
+        },
+      },
+      {
+        event_type: "approval_required",
+        run_id: "run-sbx",
+        timestamp: "2026-09-05T15:51:16.000Z",
+        data: {
+          id: "approval-sbx-1",
+          message: "确认在本机执行命令：\ndf -h",
+          type: "form",
+          fields: [],
+          origin: "sandbox_confirm",
+        },
+      },
+      {
+        event_type: "hitl:suspended",
+        run_id: "run-sbx",
+        timestamp: "2026-09-05T15:51:16.500Z",
+        data: { session_id: "s1", run_id: "run-sbx", status: "waiting_human" },
+      },
+      {
+        event_type: "approval_resolved",
+        run_id: "run-sbx",
+        timestamp: "2026-09-05T15:51:59.000Z",
+        data: {
+          id: "approval-sbx-1",
+          tool_call_id: null,
+          interrupt_id: "intr-1",
+          status: "approved",
+          success: true,
+        },
+      },
+      {
+        event_type: "human_resume_started",
+        run_id: "run-sbx",
+        timestamp: "2026-09-05T15:51:59.500Z",
+        data: { approval_id: "approval-sbx-1" },
+      },
+      {
+        event_type: "tool:start",
+        run_id: "run-sbx",
+        timestamp: "2026-09-05T15:52:00.000Z",
+        data: {
+          tool: "execute",
+          tool_call_id: stableId,
+          args: { command: "df -h" },
+        },
+      },
+      {
+        event_type: "tool:result",
+        run_id: "run-sbx",
+        timestamp: "2026-09-05T15:52:01.000Z",
+        data: {
+          tool: "execute",
+          tool_call_id: stableId,
+          result: "文件系统 468G",
+          success: true,
+        },
+      },
+    ] satisfies HistoryEvent[],
+    new Set<string>(),
+    { activeSubagentStack: [] },
+  );
+
+  const toolParts = messages
+    .filter((m) => m.role === "assistant")
+    .flatMap((m) => (m.parts || []).filter((p) => p.type === "tool"));
+  expect(toolParts).toHaveLength(1);
+  expect(toolParts[0]).toMatchObject({ id: stableId, name: "execute" });
+  expect(toolParts[0].result).toBe("文件系统 468G");
+});
+
+test("legacy sandbox confirm approval (no origin) is recognized by message prefix", () => {
+  const messages = reconstructMessagesFromEvents(
+    [
+      {
+        event_type: "user:message",
+        run_id: "run-sbx-old",
+        timestamp: "2026-09-05T15:25:46.000Z",
+        data: { content: "磁盘", message_id: "run-sbx-old:user" },
+      },
+      {
+        event_type: "approval_required",
+        run_id: "run-sbx-old",
+        timestamp: "2026-09-05T15:25:56.000Z",
+        data: {
+          id: "approval-old",
+          message: "确认在本机执行命令：\ndf -h",
+          type: "form",
+          fields: [],
+        },
+      },
+    ] satisfies HistoryEvent[],
+    new Set<string>(),
+    { activeSubagentStack: [] },
+  );
+  const toolParts = messages
+    .filter((m) => m.role === "assistant")
+    .flatMap((m) => (m.parts || []).filter((p) => p.type === "tool"));
+  expect(toolParts).toHaveLength(0);
 });

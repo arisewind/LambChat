@@ -121,7 +121,7 @@ export function RolesModelTab({
 
   return (
     <div className="space-y-4 animate-glass-enter">
-      <p className="hidden px-1 text-sm leading-relaxed text-stone-500 sm:block dark:text-stone-400">
+      <p className="hidden px-1 text-14 leading-relaxed text-stone-500 sm:block dark:text-stone-400">
         {t("agentConfig.modelsDescription")}
       </p>
 
@@ -136,7 +136,7 @@ export function RolesModelTab({
           <div className="agent-config-list overflow-hidden rounded-lg border border-[var(--glass-border)] bg-[var(--glass-bg)] divide-y divide-[var(--glass-border)]">
             {/* Header row */}
             <div className="flex items-center justify-between gap-3 font-serif bg-[var(--glass-bg-subtle)] px-3.5 py-2.5 sm:px-4">
-              <h4 className="min-w-0 truncate text-xs font-medium uppercase tracking-wider text-stone-500 dark:text-stone-400">
+              <h4 className="min-w-0 truncate text-12 font-medium uppercase tracking-wider text-stone-500 dark:text-stone-400">
                 {t("agentConfig.selectModelsForRole", {
                   roleName: selectedRoleData?.name,
                 })}
@@ -144,14 +144,14 @@ export function RolesModelTab({
               <div className="flex items-center gap-1">
                 <button
                   onClick={handleSelectAll}
-                  className="text-xs px-2 py-1 rounded-md text-stone-500 hover:text-stone-700 hover:bg-white/50 dark:text-stone-400 dark:hover:text-stone-200 dark:hover:bg-stone-700/40 transition-colors duration-150"
+                  className="text-12 px-2 py-1 rounded-md text-stone-500 hover:text-stone-700 hover:bg-white/50 dark:text-stone-400 dark:hover:text-stone-200 dark:hover:bg-stone-700/40 transition-colors duration-150"
                 >
                   {t("agentConfig.selectAll")}
                 </button>
                 <span className="text-stone-300 dark:text-stone-600">|</span>
                 <button
                   onClick={handleClearAll}
-                  className="text-xs px-2 py-1 rounded-md text-stone-500 hover:text-stone-700 hover:bg-white/50 dark:text-stone-400 dark:hover:text-stone-200 dark:hover:bg-stone-700/40 transition-colors duration-150"
+                  className="text-12 px-2 py-1 rounded-md text-stone-500 hover:text-stone-700 hover:bg-white/50 dark:text-stone-400 dark:hover:text-stone-200 dark:hover:bg-stone-700/40 transition-colors duration-150"
                 >
                   {t("agentConfig.clearAll")}
                 </button>
@@ -198,14 +198,14 @@ export function RolesModelTab({
                         size={20}
                       />
                       <div className="min-w-0 flex-1">
-                        <div className="truncate text-sm font-medium font-serif text-stone-950 dark:text-stone-100">
+                        <div className="truncate text-14 font-medium font-serif text-stone-950 dark:text-stone-100">
                           {model.label}
                         </div>
-                        <div className="text-xs font-mono text-stone-400 dark:text-stone-500 truncate sm:hidden mt-0.5">
+                        <div className="text-12 font-mono text-stone-400 dark:text-stone-500 truncate sm:hidden mt-0.5">
                           {model.value}
                         </div>
                       </div>
-                      <span className="text-xs font-mono text-stone-400 dark:text-stone-500 truncate max-w-[140px] hidden sm:inline">
+                      <span className="text-12 font-mono text-stone-400 dark:text-stone-500 truncate max-w-[140px] hidden sm:inline">
                         {model.value}
                       </span>
                       {hasDesc && (
@@ -228,7 +228,7 @@ export function RolesModelTab({
                     </label>
                     {expandedModel === model.id && hasDesc && (
                       <div className="px-3.5 pb-3 pl-[3.25rem] pt-0 sm:px-4 sm:pl-[3.75rem]">
-                        <p className="text-xs text-stone-500 dark:text-stone-400 leading-relaxed">
+                        <p className="text-12 text-stone-500 dark:text-stone-400 leading-relaxed">
                           {model.description}
                         </p>
                       </div>
@@ -246,7 +246,7 @@ export function RolesModelTab({
                 onClick={handleSave}
                 loading={isSaving}
                 leftIcon={<Save size={16} />}
-                className="px-5 py-2.5 text-sm"
+                className="px-5 py-2.5 text-14"
               >
                 {t("common.save")}
               </Button>

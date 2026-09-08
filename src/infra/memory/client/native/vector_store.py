@@ -112,6 +112,8 @@ class QdrantVectorIndex:
         memory_type: str,
         context: Optional[str],
         updated_at: int,
+        scope: Optional[str] = None,
+        project_id: Optional[str] = None,
     ) -> bool:
         from qdrant_client.models import PointStruct
 
@@ -128,6 +130,10 @@ class QdrantVectorIndex:
                             "memory_type": memory_type,
                             "context": context,
                             "updated_at": updated_at,
+                            # scope 过滤的权威在 Mongo hydration；payload 携带
+                            # 归属字段供未来精确下推与排查
+                            "scope": scope or "user",
+                            "project_id": project_id,
                         },
                     )
                 ],
@@ -159,15 +165,17 @@ class QdrantVectorIndex:
         user_id: str,
         limit: int,
         memory_types: Optional[list[str]] = None,
-        context_filter: Optional[str] = None,
+        context_values: Optional[list[str]] = None,
     ) -> Optional[list[VectorHit]]:
         from qdrant_client.models import FieldCondition, Filter, MatchAny, MatchValue
 
         must = [FieldCondition(key="user_id", match=MatchValue(value=user_id))]
         if memory_types:
             must.append(FieldCondition(key="memory_type", match=MatchAny(any=memory_types)))
-        if context_filter:
-            must.append(FieldCondition(key="context", match=MatchValue(value=context_filter)))
+        if context_values:
+            # context 家族已在 Mongo 解析为具体值列表（'project' → project/
+            # project_status/...），MatchAny 下推
+            must.append(FieldCondition(key="context", match=MatchAny(any=context_values)))
         try:
             if not await self._client.collection_exists(COLLECTION):
                 return []
@@ -309,6 +317,8 @@ async def index_write_through(
     memory_type: str,
     context: Optional[str],
     updated_at_ts: int,
+    scope: Optional[str] = None,
+    project_id: Optional[str] = None,
 ) -> bool:
     idx = await get_vector_index()
     if idx is None or not embedding:
@@ -320,6 +330,8 @@ async def index_write_through(
         memory_type=memory_type,
         context=context,
         updated_at=updated_at_ts,
+        scope=scope,
+        project_id=project_id,
     )
 
 
@@ -336,7 +348,7 @@ async def index_search(
     user_id: str,
     limit: int,
     memory_types: Optional[list[str]] = None,
-    context_filter: Optional[str] = None,
+    context_values: Optional[list[str]] = None,
 ) -> Optional[list[VectorHit]]:
     """None = 未启用/故障 → 调用方走既有 $vectorSearch/余弦链路；list = 权威结果。"""
     idx = await get_vector_index()
@@ -347,7 +359,7 @@ async def index_search(
         user_id=user_id,
         limit=limit,
         memory_types=memory_types,
-        context_filter=context_filter,
+        context_values=context_values,
     )
 
 
@@ -368,6 +380,8 @@ async def backfill_from_mongo(collection, batch_size: int = 100) -> dict:
             "memory_type": 1,
             "context": 1,
             "updated_at": 1,
+            "scope": 1,
+            "project_id": 1,
         },
     )
     batch: list[PointStruct] = []
@@ -385,6 +399,8 @@ async def backfill_from_mongo(collection, batch_size: int = 100) -> dict:
                         if hasattr(doc.get("updated_at"), "timestamp")
                         else (doc.get("updated_at") or 0)
                     ),
+                    "scope": doc.get("scope") or "user",
+                    "project_id": doc.get("project_id"),
                 },
             )
         )

@@ -52,7 +52,7 @@ export function VideoViewer({ src, isOpen, onClose, title }: VideoViewerProps) {
   return createPortal(
     <div
       data-yields-sidebar
-      className="fixed inset-0 z-[300] flex flex-col bg-black"
+      className="safe-area-x fixed inset-0 z-[300] flex flex-col bg-black"
       onClick={handleBackgroundClick}
     >
       <ViewerTopBar className="bg-black/80 shrink-0">
@@ -63,7 +63,7 @@ export function VideoViewer({ src, isOpen, onClose, title }: VideoViewerProps) {
           iconOnly
         />
         {title && (
-          <span className="text-sm text-white/70 truncate max-w-[60vw] hidden sm:block">
+          <span className="text-14 text-white/70 truncate max-w-[60vw] hidden sm:block">
             {title}
           </span>
         )}

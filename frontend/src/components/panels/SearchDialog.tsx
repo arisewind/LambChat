@@ -323,10 +323,10 @@ export function SearchDialog({
               {/* Empty search results */}
               {hasQuery && allSessions.length === 0 && (
                 <div className="flex h-full flex-col items-center justify-center px-4 text-center">
-                  <p className="text-sm text-stone-400 dark:text-stone-500">
+                  <p className="text-14 text-stone-400 dark:text-stone-500">
                     {t("sidebar.noSearchResults")}
                   </p>
-                  <p className="mt-1 text-xs text-stone-300 dark:text-stone-600">
+                  <p className="mt-1 text-12 text-stone-300 dark:text-stone-600">
                     &quot;{searchQuery}&quot;
                   </p>
                 </div>
@@ -360,20 +360,20 @@ export function SearchDialog({
                     }`}
                   >
                     <span className="flex-1 min-w-0">
-                      <span className="block text-sm text-stone-700 dark:text-stone-200 truncate leading-snug">
+                      <span className="block text-14 font-serif text-stone-700 dark:text-stone-200 truncate leading-snug">
                         {getSessionTitle(session, t)}
                       </span>
                       {searchMatch && (
                         <span
                           title={searchMatch}
-                          className="mt-0.5 block text-xs text-stone-400 dark:text-stone-500 truncate leading-relaxed"
+                          className="mt-0.5 block text-12 text-stone-400 dark:text-stone-500 truncate leading-relaxed"
                         >
                           {searchMatch}
                         </span>
                       )}
                     </span>
                     {projectName && (
-                      <span className="flex-shrink-0 flex items-center gap-1 text-11 text-stone-400 dark:text-stone-500 bg-stone-100 dark:bg-stone-800/50 px-1.5 py-0.5 rounded-md">
+                      <span className="flex-shrink-0 flex items-center gap-1 text-11 font-serif text-stone-400 dark:text-stone-500 bg-stone-100 dark:bg-stone-800/50 px-1.5 py-0.5 rounded-md">
                         <Hash size={9} strokeWidth={2} />
                         {projectName}
                       </span>

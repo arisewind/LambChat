@@ -1,13 +1,8 @@
 import { memo, useMemo } from "react";
-import {
-  History,
-  Search,
-  User,
-  MessageSquareText,
-  Clock,
-} from "lucide-react";
+import { History, Search, User, MessageSquareText, Clock } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { CollapsiblePill } from "../../../common";
+import { useToolStreamingLabel } from "./useToolStreamingLabel";
 import { extractText } from "./toolUtils";
 import {
   openToolLivePanel,
@@ -89,7 +84,8 @@ function matchSourceLabel(
   t: (key: string) => string,
 ): string | null {
   if (source === "user") return t("chat.message.toolHistoryMatchUser");
-  if (source === "assistant") return t("chat.message.toolHistoryMatchAssistant");
+  if (source === "assistant")
+    return t("chat.message.toolHistoryMatchAssistant");
   if (source === "both") return t("chat.message.toolHistoryMatchBoth");
   return null;
 }
@@ -115,9 +111,15 @@ function HistoryQueryChip({
   return (
     <ToolArgsBlock size={size}>
       {isSearch ? (
-        <Search size={size === "detail" ? 14 : 12} className="shrink-0 text-sky-500 dark:text-sky-400" />
+        <Search
+          size={size === "detail" ? 14 : 12}
+          className="shrink-0 text-sky-500 dark:text-sky-400"
+        />
       ) : (
-        <History size={size === "detail" ? 14 : 12} className="shrink-0 text-sky-500 dark:text-sky-400" />
+        <History
+          size={size === "detail" ? 14 : 12}
+          className="shrink-0 text-sky-500 dark:text-sky-400"
+        />
       )}
       <span className="text-sky-600 dark:text-sky-400 font-mono font-medium min-w-0 truncate">
         {isSearch ? truncate(value, 80) : truncate(value, 36)}
@@ -142,7 +144,7 @@ function PreviewLine({
         {icon}
         {label}
       </span>
-      <span className="text-xs text-theme-text-secondary leading-relaxed min-w-0 break-words line-clamp-2">
+      <span className="text-12 text-theme-text-secondary leading-relaxed min-w-0 break-words line-clamp-2">
         {text}
       </span>
     </div>
@@ -162,11 +164,16 @@ function ConversationHistoryDetail({
   const hasRawFallback = !!result && !parsed;
 
   return (
-    <div className="space-y-3 max-h-full overflow-y-auto p-2 sm:p-4">
+    <div className="flex h-full min-h-0 flex-col space-y-3 overflow-y-auto p-2 sm:p-4 [&_pre]:!max-h-none">
       <HistoryQueryChip toolName={toolName} args={args} size="detail" />
 
       {parsed?.kind === "search" && parsed.items && parsed.items.length > 0 && (
         <div className="space-y-2">
+          <div className="text-12 text-theme-text-tertiary px-1">
+            {t("chat.message.toolHistorySessionCount", {
+              count: parsed.items.length,
+            })}
+          </div>
           {parsed.items.map((item, i) => {
             const badge = matchSourceLabel(item.match_source, t);
             return (
@@ -175,7 +182,7 @@ function ConversationHistoryDetail({
                 className="rounded-xl bg-theme-bg border border-theme-border px-3.5 py-3 space-y-2 shadow-[0_1px_2px_rgb(0_0_0/0.04)]"
               >
                 <div className="flex items-center gap-2 min-w-0">
-                  <span className="text-sm font-semibold text-theme-text truncate flex-1">
+                  <span className="text-14 font-semibold text-theme-text truncate flex-1">
                     {item.session_name || item.session_id}
                   </span>
                   {badge && (
@@ -209,8 +216,15 @@ function ConversationHistoryDetail({
       {parsed?.kind === "detail" && parsed.turns && parsed.turns.length > 0 && (
         <div className="space-y-2">
           {parsed.sessionName && (
-            <div className="text-sm font-semibold text-theme-text px-1">
-              {parsed.sessionName}
+            <div className="flex items-center gap-2 px-1">
+              <span className="text-14 font-semibold text-theme-text truncate">
+                {parsed.sessionName}
+              </span>
+              <span className="shrink-0 text-10 text-theme-text-tertiary tabular-nums">
+                {t("chat.message.toolHistoryTurnCount", {
+                  count: parsed.turns.length,
+                })}
+              </span>
             </div>
           )}
           {parsed.turns.map((turn, i) => (
@@ -234,7 +248,7 @@ function ConversationHistoryDetail({
       )}
 
       {hasRawFallback && (
-        <pre className="group/result relative text-xs text-theme-text-tertiary whitespace-pre-wrap break-words p-3 rounded-lg bg-theme-bg border border-theme-border">
+        <pre className="group/result relative text-12 text-theme-text-tertiary whitespace-pre-wrap break-words p-3 rounded-lg bg-theme-bg border border-theme-border">
           {truncate(extractText(result as never), 600)}
           <ToolHoverCopyButton
             text={extractText(result as never)}
@@ -299,7 +313,8 @@ const ConversationHistoryItem = memo(function ConversationHistoryItem({
   const titleLabel = isSearch
     ? t("chat.message.toolHistorySearch")
     : t("chat.message.toolHistoryDetail");
-  const sessionName = parsed?.kind === "detail" ? parsed.sessionName : undefined;
+  const sessionName =
+    parsed?.kind === "detail" ? parsed.sessionName : undefined;
 
   const pillLabel = isSearch
     ? `${titleLabel} ${query ? `"${truncate(query, 24)}"` : ""}${
@@ -324,6 +339,12 @@ const ConversationHistoryItem = memo(function ConversationHistoryItem({
 
   // ── Inline (compact) view ──
 
+  // 进行中：标签学「思考中」，平滑流出正在生成的参数尾部
+  const { label, isStreamingLabel } = useToolStreamingLabel(pillLabel, args, {
+    isPending,
+    result,
+  });
+
   const inlinePreviewLimit = isDetail ? 2 : 3;
   const inlineRows = isSearch
     ? items.slice(0, inlinePreviewLimit).map((item, i) => (
@@ -331,7 +352,7 @@ const ConversationHistoryItem = memo(function ConversationHistoryItem({
           key={item.session_id + (item.run_id || "") + i}
           className="flex items-center gap-2 px-2.5 py-1.5 rounded-lg bg-theme-bg border border-theme-border"
         >
-          <span className="text-xs text-theme-text min-w-0 truncate flex-1 font-medium">
+          <span className="text-12 text-theme-text min-w-0 truncate flex-1 font-medium">
             {item.session_name || item.session_id}
           </span>
           <span className="text-10 text-theme-text-tertiary tabular-nums shrink-0">
@@ -344,10 +365,10 @@ const ConversationHistoryItem = memo(function ConversationHistoryItem({
           key={turn.run_id || i}
           className="px-2.5 py-1.5 rounded-lg bg-theme-bg border border-theme-border space-y-1"
         >
-          <div className="text-xs text-theme-text min-w-0 truncate">
+          <div className="text-12 text-theme-text min-w-0 truncate">
             {turn.user_message || "—"}
           </div>
-          <div className="text-xs text-theme-text-tertiary min-w-0 truncate">
+          <div className="text-12 text-theme-text-tertiary min-w-0 truncate">
             {turn.assistant_final || "—"}
           </div>
         </div>
@@ -357,7 +378,8 @@ const ConversationHistoryItem = memo(function ConversationHistoryItem({
     <CollapsiblePill
       status={status}
       icon={<History size={12} className="shrink-0 opacity-50" />}
-      label={pillLabel}
+      label={label}
+      animatedDots={isStreamingLabel}
       variant="tool"
       formatLabel={false}
       expandable={canExpand}
@@ -385,7 +407,7 @@ const ConversationHistoryItem = memo(function ConversationHistoryItem({
           <HistoryQueryChip toolName={toolName} args={args} size="compact" />
           {inlineRows}
           {count > inlinePreviewLimit && (
-            <div className="text-xs text-theme-text-tertiary px-2.5">
+            <div className="text-12 text-theme-text-tertiary px-2.5">
               {t(
                 isSearch
                   ? "chat.message.toolHistoryMoreSessions"

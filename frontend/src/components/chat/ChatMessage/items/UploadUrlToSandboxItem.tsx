@@ -7,6 +7,7 @@ import {
   toolDetailPropsFromPanelData,
   type ToolDetailProps,
 } from "./ToolLivePanelContent";
+import { useToolStreamingLabel } from "./useToolStreamingLabel";
 import { ToolArgsBlock } from "./ToolArgsBlock";
 import { ToolDurationFooter } from "./ToolDurationFooter";
 import { ToolHoverCopyButton } from "./ToolHoverCopyButton";
@@ -31,7 +32,7 @@ function UploadUrlToSandboxDetail({ args, result }: ToolDetailProps) {
   const resultText = stringifyResult(result);
 
   return (
-    <div className="space-y-3 max-h-full overflow-y-auto p-2 sm:p-4">
+    <div className="flex h-full min-h-0 flex-col space-y-3 overflow-y-auto p-2 sm:p-4 [&_pre]:!max-h-none">
       {url && (
         <ToolArgsBlock size="detail" wrap>
           <LinkIcon
@@ -51,7 +52,7 @@ function UploadUrlToSandboxDetail({ args, result }: ToolDetailProps) {
         </ToolArgsBlock>
       )}
       {hasResult && (
-        <div className="group/result relative text-xs text-theme-text-secondary overflow-y-auto min-w-0">
+        <div className="group/result relative flex-1 min-h-0 text-12 text-theme-text-secondary overflow-y-auto min-w-0">
           <ToolHoverCopyButton
             text={resultText}
             position="resultCompact"
@@ -103,7 +104,7 @@ const UploadUrlToSandboxItem = memo(function UploadUrlToSandboxItem({
   const resultText = stringifyResult(result);
 
   const resultPreview = hasResult ? (
-    <div className="group/result relative text-xs text-theme-text-secondary overflow-y-auto min-w-0">
+    <div className="group/result relative text-12 text-theme-text-secondary overflow-y-auto min-w-0">
       <ToolHoverCopyButton
         text={resultText}
         position="resultCompact"
@@ -126,13 +127,21 @@ const UploadUrlToSandboxItem = memo(function UploadUrlToSandboxItem({
     />
   );
 
+  // 进行中：标签学「思考中」，平滑流出正在生成的参数尾部
+  const { label, isStreamingLabel } = useToolStreamingLabel(
+    `${t("chat.message.toolUploadUrlToSandbox")} ${
+      filePath ? truncate(filePath, 56) : truncate(url, 56)
+    }`,
+    args,
+    { isPending, result },
+  );
+
   return (
     <CollapsiblePill
       status={status}
       icon={<Download size={12} className="shrink-0 opacity-50" />}
-      label={`${t("chat.message.toolUploadUrlToSandbox")} ${
-        filePath ? truncate(filePath, 56) : truncate(url, 56)
-      }`}
+      label={label}
+      animatedDots={isStreamingLabel}
       variant="tool"
       formatLabel={false}
       expandable={canExpand}
@@ -146,9 +155,7 @@ const UploadUrlToSandboxItem = memo(function UploadUrlToSandboxItem({
           subtitle: filePath || url || undefined,
           fallback: detailContent || undefined,
           buildDetail: (data) => (
-            <UploadUrlToSandboxDetail
-              {...toolDetailPropsFromPanelData(data)}
-            />
+            <UploadUrlToSandboxDetail {...toolDetailPropsFromPanelData(data)} />
           ),
           footer: durationFooter,
         });

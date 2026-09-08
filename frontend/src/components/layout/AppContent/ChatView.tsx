@@ -41,7 +41,10 @@ import type { ChatViewProps } from "./ChatViewProps";
 import { useCurrentTeam, resolveChatAssistantIdentity } from "./ChatViewProps";
 import { useChatOutline } from "./useChatOutline";
 import { resolveAgentDisplayName } from "../../agent/agentCatalog";
-import { shouldShowMessageOutline, createMessageAnchorId } from "./messageOutline";
+import {
+  shouldShowMessageOutline,
+  createMessageAnchorId,
+} from "./messageOutline";
 import { SessionBookmarksButton } from "../../chat/SessionBookmarksButton";
 import { loadHistoryUntilMessageFound } from "../../../utils/bookmarkHistoryPaging";
 import {
@@ -200,7 +203,8 @@ export function ChatView({
 
   // O(全部 parts) 的 ask-human 扫描每 tick 只跑一次（此前每渲染两遍）
   const hasPendingAskHumanParts = useMemo(
-    () => hasPendingAskHuman(messages.flatMap((message) => message.parts ?? [])),
+    () =>
+      hasPendingAskHuman(messages.flatMap((message) => message.parts ?? [])),
     [messages],
   );
 
@@ -619,14 +623,14 @@ export function ChatView({
     return (
       <div className="flex justify-center py-3">
         {isLoadingOlderHistory ? (
-          <span className="text-xs text-[var(--theme-text-tertiary)]">
+          <span className="text-12 text-[var(--theme-text-tertiary)]">
             {t("chat.historyLoadingOlder", "正在加载更早的消息…")}
           </span>
         ) : (
           <button
             type="button"
             onClick={() => void onLoadOlderHistory?.()}
-            className="rounded-full border border-[var(--theme-border)] px-4 py-1.5 text-xs text-[var(--theme-text-secondary)] transition-colors hover:bg-[var(--glass-bg-subtle)]"
+            className="rounded-full border border-[var(--theme-border)] px-4 py-1.5 text-12 text-[var(--theme-text-secondary)] transition-colors hover:bg-[var(--glass-bg-subtle)]"
           >
             {t("chat.historyLoadOlder", "加载更早的消息")}
           </button>

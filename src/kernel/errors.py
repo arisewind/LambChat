@@ -85,6 +85,43 @@ class ErrorCode(Enum):
         "OAuth provider '{{provider}}' is not enabled",
     )
 
+    # ---------- sandbox：本地沙箱 PAT 与守护进程 ----------
+    PAT_NOT_FOUND = ("pat_not_found", 401, "Personal access token not found or revoked")
+    PAT_EXPIRED = ("pat_expired", 401, "Personal access token expired")
+    PAT_SCOPE_DENIED = ("pat_scope_denied", 403, "Token missing required scope '{{scope}}'")
+    DAEMON_OFFLINE = ("daemon_offline", 409, "Local sandbox daemon is offline")
+    SANDBOX_MACHINE_OFFLINE = (
+        "sandbox_machine_offline",
+        409,
+        "Selected sandbox machine '{{machine}}' is offline",
+    )
+    SANDBOX_MACHINE_NOT_FOUND = (
+        "sandbox_machine_not_found",
+        404,
+        "Sandbox machine '{{machine}}' not found",
+    )
+    SANDBOX_TIMEOUT = ("sandbox_timeout", 504, "Local sandbox call timed out after {{seconds}}s")
+    SANDBOX_EXEC_FAILED = (
+        "sandbox_exec_failed",
+        500,
+        "Local sandbox execution failed: {{detail}}",
+    )
+    SANDBOX_PAYLOAD_TOO_LARGE = (
+        "sandbox_payload_too_large",
+        413,
+        "Local sandbox payload exceeds limit",
+    )
+    SANDBOX_RESULT_MISMATCH = (
+        "sandbox_result_mismatch",
+        409,
+        "Result submitted by machine '{{machine}}' does not match the machine this call was dispatched to",
+    )
+    DAEMON_VERSION_UNSUPPORTED = (
+        "daemon_version_unsupported",
+        426,
+        "Daemon version {{version}} is below minimum {{min}}; please update",
+    )
+
     # ---------- push：推送订阅 ----------
     PUSH_UNAVAILABLE = (
         "push_unavailable",
@@ -199,6 +236,18 @@ class ErrorCode(Enum):
         "sessions_not_in_project",
         400,
         "Some sessions do not belong to this project",
+    )
+
+    # ---------- release / version：发布与客户端更新 ----------
+    RELEASE_ASSET_NOT_FOUND = (
+        "release_asset_not_found",
+        404,
+        "Release asset {{name}} not found",
+    )
+    RELEASE_ASSET_FETCH_FAILED = (
+        "release_asset_fetch_failed",
+        502,
+        "Failed to fetch release asset from upstream (HTTP {{status}})",
     )
 
     # ---------- 通用操作失败 ----------
@@ -616,6 +665,11 @@ class ErrorCode(Enum):
     MODEL_NOT_FOUND = ("model_not_found", 404, "Model not found")
     MODEL_DISABLED = ("model_disabled", 400, "Model is disabled")
     MODEL_NOT_ALLOWED = ("model_not_allowed", 403, "Model not allowed")
+    MODEL_EMPTY_RESPONSE = (
+        "model_empty_response",
+        500,
+        "The model returned an empty response after retries, please try again or switch models",
+    )
 
     # ---------- team：团队 ----------
     TEAM_NOT_FOUND = ("team_not_found", 404, "Team not found")
@@ -694,3 +748,17 @@ class AppError(Exception):
     @property
     def http_status(self) -> int:
         return self.error_code.status
+
+    @property
+    def display_message(self) -> str:
+        """插值 ``{{param}}`` 后的展示文案（SSE 等直接面向用户的场景）。
+
+        HTTP 契约走 code+message+args 三段式由前端插值；SSE 错误事件只带
+        单条文本，这里先行插值，不留 ``{{detail}}`` 原文。
+        """
+        import re
+
+        def _sub(match: "re.Match[str]") -> str:
+            return str(self.args_data.get(match.group(1), match.group(0)))
+
+        return re.sub(r"\{\{(\w+)\}\}", _sub, self.message)

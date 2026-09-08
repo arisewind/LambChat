@@ -36,7 +36,7 @@ export function AgentModelPanel() {
             key={section.id}
             type="button"
             onClick={() => setActiveSection(section.id)}
-            className={`flex items-center justify-center gap-2 rounded-md px-3 py-2 text-sm font-medium transition-colors duration-150 ${
+            className={`flex items-center justify-center gap-2 rounded-md px-3 py-2 text-14 font-medium transition-colors duration-150 ${
               isActive
                 ? "bg-white text-stone-950 shadow-sm ring-1 ring-[var(--glass-border)] dark:bg-stone-800 dark:text-stone-50"
                 : "text-stone-500 hover:bg-white/60 hover:text-stone-800 dark:text-stone-400 dark:hover:bg-stone-800/60 dark:hover:text-stone-100"

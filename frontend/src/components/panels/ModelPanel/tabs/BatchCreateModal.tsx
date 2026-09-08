@@ -244,7 +244,7 @@ export const BatchCreateModal = ({
               setBatchActiveTab("addOneByOne");
               setImportResult(null);
             }}
-            className={`px-4 py-3 text-sm font-medium border-b-2 transition-colors ${
+            className={`px-4 py-3 text-14 font-medium border-b-2 transition-colors ${
               batchActiveTab === "addOneByOne"
                 ? "border-theme-border text-theme-text"
                 : "border-transparent text-theme-text-secondary hover:text-theme-text"
@@ -257,7 +257,7 @@ export const BatchCreateModal = ({
               setBatchActiveTab("jsonImport");
               setImportResult(null);
             }}
-            className={`px-4 py-3 text-sm font-medium border-b-2 transition-colors ${
+            className={`px-4 py-3 text-14 font-medium border-b-2 transition-colors ${
               batchActiveTab === "jsonImport"
                 ? "border-theme-border text-theme-text"
                 : "border-transparent text-theme-text-secondary hover:text-theme-text"
@@ -272,7 +272,7 @@ export const BatchCreateModal = ({
           {batchActiveTab === "addOneByOne" && (
             <div className="es-section">
               <div className="flex items-center gap-2">
-                <h4 className="text-xs font-semibold uppercase tracking-wider text-theme-text-secondary">
+                <h4 className="text-12 font-semibold uppercase tracking-wider text-theme-text-secondary">
                   {t("agentConfig.sharedConfig")}
                 </h4>
                 <span className="es-chip">
@@ -306,7 +306,10 @@ export const BatchCreateModal = ({
                     value={batchApiFormat}
                     onChange={(v) => setBatchApiFormat(v as ApiFormat | "")}
                     options={[
-                      { value: "", label: t("agentConfig.apiFormatFollowDefault") },
+                      {
+                        value: "",
+                        label: t("agentConfig.apiFormatFollowDefault"),
+                      },
                       { value: "chat_completions", label: "Chat Completions" },
                       { value: "responses", label: "Responses" },
                     ]}
@@ -349,10 +352,10 @@ export const BatchCreateModal = ({
           {batchActiveTab === "addOneByOne" && (
             <div className="space-y-3">
               <div className="flex items-center justify-between">
-                <p className="text-xs text-theme-text-secondary">
+                <p className="text-12 text-theme-text-secondary">
                   {t("agentConfig.batchModelListHint", "* 值 和标签为必填项")}
                 </p>
-                <span className="text-xs text-theme-text-secondary">
+                <span className="text-12 text-theme-text-secondary">
                   {validBatchRows.length > 0 &&
                     `${validBatchRows.length}/${batchRows.length}`}
                 </span>
@@ -409,7 +412,7 @@ export const BatchCreateModal = ({
                     </div>
                   </div>
                   <details className="group">
-                    <summary className="text-xs text-theme-text-secondary cursor-pointer select-none hover:text-theme-text transition-colors">
+                    <summary className="text-12 text-theme-text-secondary cursor-pointer select-none hover:text-theme-text transition-colors">
                       {t("agentConfig.advancedConfig", "高级配置")}
                     </summary>
                     <div
@@ -516,7 +519,7 @@ export const BatchCreateModal = ({
               ))}
               <button
                 onClick={addBatchRow}
-                className="w-full flex items-center justify-center gap-1.5 px-3 py-2.5 text-sm text-theme-text-secondary hover:text-theme-text border border-dashed border-theme-border hover:border-theme-text-secondary rounded-xl transition-colors"
+                className="w-full flex items-center justify-center gap-1.5 px-3 py-2.5 text-14 text-theme-text-secondary hover:text-theme-text border border-dashed border-theme-border hover:border-theme-text-secondary rounded-xl transition-colors"
               >
                 <Plus size={16} />
                 {t("agentConfig.batchAddRow")}
@@ -557,7 +560,7 @@ export const BatchCreateModal = ({
               </div>
               {importJson.trim() && (
                 <div
-                  className={`rounded-xl p-3 text-sm flex items-center gap-2 ${
+                  className={`rounded-xl p-3 text-14 flex items-center gap-2 ${
                     importValidation.valid
                       ? "bg-green-50 text-green-700 dark:bg-green-900/30 dark:text-green-400"
                       : "bg-red-50 text-red-700 dark:bg-red-900/30 dark:text-red-400"
@@ -584,7 +587,7 @@ export const BatchCreateModal = ({
                   }`}
                 >
                   {importResult.success ? <Check size={20} /> : <X size={20} />}
-                  <span className="whitespace-pre-wrap text-sm">
+                  <span className="whitespace-pre-wrap text-14">
                     {importResult.message}
                   </span>
                 </div>

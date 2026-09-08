@@ -429,7 +429,7 @@ export function ScheduledTaskPanel({
                     >
                       {/* Title row */}
                       <div className="flex flex-wrap items-center gap-2 mb-1.5">
-                        <h4 className="truncate text-base font-semibold font-serif  text-[var(--theme-text)]">
+                        <h4 className="truncate text-16 font-semibold font-serif  text-[var(--theme-text)]">
                           {task.name}
                         </h4>
                         <StatusBadge status={task.status} />
@@ -437,7 +437,7 @@ export function ScheduledTaskPanel({
 
                       {/* Description */}
                       {task.description && (
-                        <p className="text-sm leading-relaxed text-[var(--theme-text-secondary)] line-clamp-2">
+                        <p className="text-14 leading-relaxed text-[var(--theme-text-secondary)] line-clamp-2">
                           {task.description}
                         </p>
                       )}

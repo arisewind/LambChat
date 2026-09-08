@@ -47,7 +47,7 @@ export function AboutDialog({ isOpen, onClose }: AboutDialogProps) {
         {/* Header */}
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-2">
-            <h2 className="text-lg font-semibold font-serif text-stone-900 dark:text-stone-100 font-serif">
+            <h2 className="text-18 font-semibold font-serif text-stone-900 dark:text-stone-100 font-serif">
               {t("about.title", APP_NAME)}
             </h2>
           </div>
@@ -94,7 +94,7 @@ export function AboutDialog({ isOpen, onClose }: AboutDialogProps) {
               />
             </div>
           ) : error ? (
-            <div className="rounded-lg bg-red-50 p-3 text-sm text-red-700 dark:bg-red-900/30 dark:text-red-400">
+            <div className="rounded-lg bg-red-50 p-3 text-14 text-red-700 dark:bg-red-900/30 dark:text-red-400">
               {error}
             </div>
           ) : versionInfo ? (
@@ -102,17 +102,17 @@ export function AboutDialog({ isOpen, onClose }: AboutDialogProps) {
               {/* App Version */}
               <div className="flex items-center justify-between rounded-lg bg-stone-50 p-4 dark:bg-stone-700/50">
                 <div>
-                  <div className="text-xs text-stone-500 dark:text-stone-400">
+                  <div className="text-12 text-stone-500 dark:text-stone-400">
                     {t("about.currentVersion", "Current Version")}
                   </div>
-                  <div className="font-mono text-2xl font-bold text-stone-900 dark:text-stone-100">
+                  <div className="font-mono text-24 font-bold text-stone-900 dark:text-stone-100">
                     {versionInfo.app_version}
                   </div>
                 </div>
                 <button
                   onClick={handleCheckUpdates}
                   disabled={isLoading}
-                  className="flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50"
+                  className="flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-14 font-medium text-white hover:bg-blue-700 disabled:opacity-50"
                 >
                   <RefreshCw
                     className={`h-4 w-4 ${isLoading ? "animate-spin" : ""}`}
@@ -127,11 +127,11 @@ export function AboutDialog({ isOpen, onClose }: AboutDialogProps) {
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
                       <ArrowDownCircle className="h-5 w-5 text-stone-400 dark:text-stone-500" />
-                      <span className="text-sm text-stone-500 dark:text-stone-400">
+                      <span className="text-14 text-stone-500 dark:text-stone-400">
                         {t("about.latestVersion", "Latest Version")}
                       </span>
                     </div>
-                    <span className="font-mono text-lg font-bold text-stone-900 dark:text-stone-100">
+                    <span className="font-mono text-18 font-bold text-stone-900 dark:text-stone-100">
                       {versionInfo.latest_version}
                     </span>
                   </div>
@@ -144,14 +144,14 @@ export function AboutDialog({ isOpen, onClose }: AboutDialogProps) {
                   <div className="flex items-center gap-2">
                     <ArrowDownCircle className="h-5 w-5 text-green-600 dark:text-green-400" />
                     <div>
-                      <div className="text-sm font-medium text-green-800 dark:text-green-200">
+                      <div className="text-14 font-medium text-green-800 dark:text-green-200">
                         {t("about.updateAvailable", "New version available!")}
                       </div>
                     </div>
                   </div>
                   <button
                     onClick={handleGoToRelease}
-                    className="flex items-center gap-1 rounded-lg bg-green-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-green-700"
+                    className="flex items-center gap-1 rounded-lg bg-green-600 px-3 py-1.5 text-14 font-medium text-white hover:bg-green-700"
                   >
                     <ExternalLink className="h-4 w-4" />
                     {t("about.viewUpdate", "Update")}
@@ -161,7 +161,7 @@ export function AboutDialog({ isOpen, onClose }: AboutDialogProps) {
 
               {/* No Update Message */}
               {versionInfo.latest_version && !versionInfo.has_update && (
-                <div className="rounded-lg bg-green-50 p-3 text-center text-sm text-green-700 dark:bg-green-900/30 dark:text-green-400">
+                <div className="rounded-lg bg-green-50 p-3 text-center text-14 text-green-700 dark:bg-green-900/30 dark:text-green-400">
                   {t("about.upToDate", "You're up to date!")}
                 </div>
               )}
@@ -170,7 +170,7 @@ export function AboutDialog({ isOpen, onClose }: AboutDialogProps) {
               {versionInfo.github_url && (
                 <button
                   onClick={handleGoToGitHub}
-                  className="flex w-full items-center justify-center gap-2 rounded-lg border border-stone-200 p-3 text-sm font-medium text-stone-600 hover:bg-stone-50 dark:border-stone-600 dark:text-stone-400 dark:hover:bg-stone-700"
+                  className="flex w-full items-center justify-center gap-2 rounded-lg border border-stone-200 p-3 text-14 font-medium text-stone-600 hover:bg-stone-50 dark:border-stone-600 dark:text-stone-400 dark:hover:bg-stone-700"
                 >
                   <Github className="h-4 w-4" />
                   {t("about.viewOnGitHub", "View on GitHub")}
@@ -184,7 +184,7 @@ export function AboutDialog({ isOpen, onClose }: AboutDialogProps) {
         <div className="mt-6 flex justify-end">
           <button
             onClick={onClose}
-            className="rounded-lg bg-stone-100 px-4 py-2 text-sm font-medium text-stone-700 hover:bg-stone-200 dark:bg-stone-700 dark:text-stone-300 dark:hover:bg-stone-600"
+            className="rounded-lg bg-stone-100 px-4 py-2 text-14 font-medium text-stone-700 hover:bg-stone-200 dark:bg-stone-700 dark:text-stone-300 dark:hover:bg-stone-600"
           >
             {t("common.close", "Close")}
           </button>

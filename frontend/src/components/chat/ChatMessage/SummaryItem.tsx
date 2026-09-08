@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useMemo } from "react";
 import { FileText } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { CollapsiblePill } from "../../common";
@@ -14,14 +14,25 @@ export function SummaryItem({
   content,
   isStreaming,
   panelKey,
+  freedTokens,
 }: {
   content: string;
   isStreaming?: boolean;
   panelKey?: string;
+  freedTokens?: number;
 }) {
   const { t } = useTranslation();
 
   const status: CollapsibleStatus = isStreaming ? "loading" : "success";
+  const suffix = useMemo(
+    () =>
+      freedTokens != null
+        ? t("chat.message.summaryFreedTokens", {
+            tokens: freedTokens.toLocaleString(),
+          })
+        : t("chat.message.summaryDescription"),
+    [t, freedTokens],
+  );
 
   useEffect(() => {
     if (!isPersistentToolPanelOpen(panelKey)) return;
@@ -45,8 +56,8 @@ export function SummaryItem({
       icon={<FileText size={12} className="shrink-0 opacity-50" />}
       label={t("chat.message.summary")}
       suffix={
-        <span className="text-xs font-mono font-medium min-w-0 truncate overflow-hidden leading-none">
-          {t("chat.message.summaryDescription")}
+        <span className="text-12 font-mono font-medium min-w-0 truncate overflow-hidden leading-none">
+          {suffix}
         </span>
       }
       variant="summary"

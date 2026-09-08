@@ -98,10 +98,10 @@ export function ConfirmDialog({
               <AlertTriangle size={22} />
             </div>
             <div className="flex-1 min-w-0">
-              <h3 className="text-base font-semibold font-serif text-stone-900 dark:text-stone-100">
+              <h3 className="text-16 font-semibold font-serif text-stone-900 dark:text-stone-100">
                 {title}
               </h3>
-              <p className="mt-1.5 text-sm text-stone-600 dark:text-stone-400 leading-relaxed">
+              <p className="mt-1.5 text-14 text-stone-600 dark:text-stone-400 leading-relaxed">
                 {message}
               </p>
             </div>
@@ -113,7 +113,7 @@ export function ConfirmDialog({
           <button
             onClick={onCancel}
             disabled={loading}
-            className="px-4 py-2 text-sm font-medium text-stone-700 dark:text-stone-300 bg-theme-bg-card dark:bg-stone-800 border border-stone-200 dark:border-stone-600 rounded-lg hover:bg-stone-50 dark:hover:bg-stone-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            className="px-4 py-2 text-14 font-medium text-stone-700 dark:text-stone-300 bg-theme-bg-card dark:bg-stone-800 border border-stone-200 dark:border-stone-600 rounded-lg hover:bg-stone-50 dark:hover:bg-stone-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {cancelLabel}
           </button>
@@ -121,7 +121,7 @@ export function ConfirmDialog({
             ref={confirmButtonRef}
             onClick={onConfirm}
             disabled={loading}
-            className={`px-4 py-2 text-sm font-medium rounded-lg transition-colors inline-flex items-center justify-center gap-2 disabled:opacity-70 ${variantStyles[variant].confirmButton}`}
+            className={`px-4 py-2 text-14 font-medium rounded-lg transition-colors inline-flex items-center justify-center gap-2 disabled:opacity-70 ${variantStyles[variant].confirmButton}`}
           >
             {loading ? (
               <span className="inline-flex h-4 w-4 items-center justify-center">

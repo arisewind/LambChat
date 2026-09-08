@@ -22,7 +22,7 @@ export function SkillFormNormal(a: SkillFormActions) {
           <div className="space-y-4 px-4 py-4 sm:px-5">
             {/* Name */}
             <div className="space-y-1.5">
-              <label className="block text-xs font-medium text-[var(--theme-text-secondary)]">
+              <label className="block text-12 font-medium text-[var(--theme-text-secondary)]">
                 {t("skills.form.name")}
               </label>
               <Input
@@ -62,10 +62,10 @@ export function SkillFormNormal(a: SkillFormActions) {
                 }
               />
               {a.errors.name && (
-                <p className="text-xs text-red-500">{a.errors.name}</p>
+                <p className="text-12 text-red-500">{a.errors.name}</p>
               )}
               {a.isEditing && !a.errors.name && (
-                <p className="text-xs text-stone-400 dark:text-stone-500">
+                <p className="text-12 text-stone-400 dark:text-stone-500">
                   {t("skills.form.nameCannotChange")}
                 </p>
               )}
@@ -73,7 +73,7 @@ export function SkillFormNormal(a: SkillFormActions) {
 
             {/* Description */}
             <div className="space-y-1.5">
-              <label className="block text-xs font-medium text-[var(--theme-text-secondary)]">
+              <label className="block text-12 font-medium text-[var(--theme-text-secondary)]">
                 {t("skills.form.description")}
               </label>
               <Textarea
@@ -85,13 +85,13 @@ export function SkillFormNormal(a: SkillFormActions) {
                 className="resize-none leading-6"
               />
               {a.errors.description && (
-                <p className="text-xs text-red-500">{a.errors.description}</p>
+                <p className="text-12 text-red-500">{a.errors.description}</p>
               )}
             </div>
 
             {/* Tags */}
             <div className="space-y-1.5">
-              <label className="block text-xs font-medium text-[var(--theme-text-secondary)]">
+              <label className="block text-12 font-medium text-[var(--theme-text-secondary)]">
                 {t("adminMarketplace.tags")}
               </label>
               <div className="skill-tag-editor rounded-2xl bg-[var(--theme-bg)] p-3 shadow-sm">
@@ -99,7 +99,7 @@ export function SkillFormNormal(a: SkillFormActions) {
                   <Tag size={12} className="text-[var(--theme-primary)]" />
                   {t("adminMarketplace.tags")}
                 </div>
-                <p className="mt-2 text-xs leading-5 text-[var(--theme-text-secondary)]/80">
+                <p className="mt-2 text-12 leading-5 text-[var(--theme-text-secondary)]/80">
                   {t("adminMarketplace.tagsHint")}
                 </p>
                 <Input
@@ -128,24 +128,24 @@ export function SkillFormNormal(a: SkillFormActions) {
                     </span>
                   ))}
                   {normalizeTags(a.tagsInput).length === 0 && (
-                    <span className="text-xs text-[var(--theme-text-secondary)]/80">
+                    <span className="text-12 text-[var(--theme-text-secondary)]/80">
                       {t("adminMarketplace.tagsPlaceholder")}
                     </span>
                   )}
                 </div>
               </div>
               {a.errors.tags && (
-                <p className="text-xs text-red-500">{a.errors.tags}</p>
+                <p className="text-12 text-red-500">{a.errors.tags}</p>
               )}
             </div>
 
             {/* Enabled toggle */}
             <div className="skill-toggle-panel flex items-center justify-between rounded-2xl bg-[var(--theme-bg)] px-3 py-3">
               <div className="min-w-0 pr-3">
-                <p className="text-sm font-medium text-[var(--theme-text)]">
+                <p className="text-14 font-medium text-[var(--theme-text)]">
                   {t("skills.form.enabled")}
                 </p>
-                <p className="mt-1 text-xs text-[var(--theme-text-secondary)]">
+                <p className="mt-1 text-12 text-[var(--theme-text-secondary)]">
                   {a.enabled
                     ? t("skills.form.enabledHint")
                     : t("skills.form.disabledHint")}
@@ -230,7 +230,7 @@ export function SkillFormNormal(a: SkillFormActions) {
                     a.updateFilePath(a.activeFileIndex, e.target.value)
                   }
                   placeholder={t("skills.form.filePathPlaceholder")}
-                  className="bg-transparent font-mono text-xs"
+                  className="bg-transparent font-mono text-12"
                 />
               </div>
             </div>
@@ -266,7 +266,7 @@ export function SkillFormNormal(a: SkillFormActions) {
                           d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
                         />
                       </svg>
-                      <span className="text-sm text-[var(--theme-text-secondary)]">
+                      <span className="text-14 text-[var(--theme-text-secondary)]">
                         {currentPath.split("/").pop()}
                       </span>
                     </div>
@@ -316,7 +316,7 @@ export function SkillFormNormal(a: SkillFormActions) {
               );
             })()}
             {(a.errors.content || a.errors.files) && (
-              <p className="mt-2 text-xs text-red-500">
+              <p className="mt-2 text-12 text-red-500">
                 {a.errors.content || a.errors.files}
               </p>
             )}

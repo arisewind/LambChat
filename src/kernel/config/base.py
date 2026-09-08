@@ -87,6 +87,7 @@ class Settings(BaseSettings):
     LLM_REQUEST_TIMEOUT: float = 0.0  # 非流式完整响应总超时（秒；<=0 禁用）
     LLM_FIRST_EVENT_TIMEOUT: float = 30.0  # 流式首事件超时（秒；<=0 禁用）
     TASK_RUN_WATCHDOG_TIMEOUT: float = 1800.0  # 任务 run 级 watchdog 总超时（秒；<=0 禁用）
+    LLM_STREAM_IDLE_TIMEOUT: float = 120.0  # 流式 chunk 空闲超时（秒；<=0 禁用）
     LLM_FALLBACK_MODEL: str | None = None  # 全局兜底模型（DB 未配置 fallback_model 时使用）
     LLM_OPENAI_API_FORMAT: str = (
         "chat_completions"  # OpenAI 协议线格式默认值（chat_completions | responses）
@@ -150,6 +151,9 @@ class Settings(BaseSettings):
     TASK_STARTUP_CLEANUP_CONCURRENCY: int = 16
     # 周期孤儿接管间隔：缩短实例死亡后对话自动恢复的停顿（心跳按龄判死 + 扫描间隔）
     TASK_ORPHAN_RECOVERY_INTERVAL_SECONDS: int = 15
+    # 僵尸 trace 全局兜底扫描间隔（秒）：updated_at 超过 10 分钟仍 running 的
+    # trace 终结为 error（直连 SSE run / 挂死 run 的唯一回收路径）。<=0 禁用。
+    STALE_TRACE_RECOVERY_INTERVAL_SECONDS: int = 300
     # 心跳按龄判死阈值（秒）：实例死亡后允许接管的前置等待。恢复入口与 arq
     # worker 侧均有同款活性复核兜底，20s（2 个心跳周期）不会误接管活任务。
     # <=0 时回退到内置公式 max(30, 3×心跳间隔)。
@@ -234,6 +238,15 @@ class Settings(BaseSettings):
     # Sandbox Settings
     ENABLE_SANDBOX: bool = True
     SANDBOX_PLATFORM: str = "daytona"
+    SANDBOX_LOCAL_ACK_TIMEOUT: int = 30  # 本地沙箱 daemon ACK 超时（秒）
+    SANDBOX_LOCAL_EXEC_TIMEOUT: int = 120  # 本地沙箱执行总超时（秒）
+    # 本地沙箱流式传输（fs_download_stream）总超时（秒）：单个 chunked POST
+    # 装下整个文件，大文件按带宽计而非按块计——120s 的 exec 超时对 100MB 慢
+    # 上行不够（10Mbps ≈ 110s+），流式专用窗口放宽到 10 分钟。
+    SANDBOX_LOCAL_STREAM_TIMEOUT: int = 600
+    SANDBOX_RESULTS_MAX_BYTES: int = 2097152  # 本地沙箱 results 回传 body 上限（字节，2 MiB）
+    # 本地沙箱 daemon 最低连接版本（语义化比较）：低于即拒连（426），逼客户端 self-update
+    SANDBOX_MIN_DAEMON_VERSION: str = "0.3.1"  # 0.3.1：Windows python3 shim 修复（复制 exe 找不到 stdlib）+ 输出 GBK 解码；0.3.0 及以下必须升级
     DAYTONA_API_KEY: str = ""
     DAYTONA_SERVER_URL: str = ""
     DAYTONA_TIMEOUT: int = 180
@@ -301,7 +314,9 @@ class Settings(BaseSettings):
     S3_CUSTOM_DOMAIN: Optional[str] = None
     S3_PATH_STYLE: bool = False
     S3_MAX_FILE_SIZE: int = 10 * 1024 * 1024
-    S3_INTERNAL_UPLOAD_MAX_SIZE: int = 50 * 1024 * 1024
+    # reveal 文件 / 本地沙箱下载 / S3 内部上传共用的统一上限（环境变量
+    # S3_INTERNAL_UPLOAD_MAX_SIZE 可覆盖；超限给显式 file_too_large 报错）
+    S3_INTERNAL_UPLOAD_MAX_SIZE: int = 1024 * 1024 * 1024
     S3_PUBLIC_BUCKET: bool = False
     S3_PRESIGNED_URL_EXPIRES: int = 7 * 24 * 3600
 
@@ -328,8 +343,12 @@ class Settings(BaseSettings):
             "http://localhost:5173",
             "tauri://localhost",
             "https://tauri.localhost",
+            "http://tauri.localhost",
             "capacitor://localhost",
             "http://localhost",
+            # Capacitor 5+ Android 默认 androidScheme=https，WebView origin 为
+            # https://localhost；缺失时移动端请求全被 CORS 拦（Failed to fetch）
+            "https://localhost",
         ]
     )
     DEFAULT_AGENT: str = "fast"
@@ -402,7 +421,9 @@ class Settings(BaseSettings):
     NATIVE_MEMORY_RERANK_MODEL: str = ""
     NATIVE_MEMORY_RERANK_API_BASE: str = ""
     NATIVE_MEMORY_RERANK_API_KEY: str = ""
-    NATIVE_MEMORY_MAX_TOKENS: int = 2000
+    # 记忆 LLM 输出预算：0 = 不限制（默认，用模型默认上限）；思考型模型
+    # 的 thinking 块会先吃预算，固定小上限会把结构化输出截断成解析失败
+    NATIVE_MEMORY_MAX_TOKENS: int = 0
     NATIVE_MEMORY_INLINE_CONTENT_MAX_CHARS: int = 1200
     NATIVE_MEMORY_IMPORT_TOTAL_CONTENT_MAX_CHARS: int = 2_000_000
     NATIVE_MEMORY_COMPACTION_CONTENT_MAX_CHARS: int = 4000
@@ -418,7 +439,10 @@ class Settings(BaseSettings):
     NATIVE_MEMORY_AUTO_CAPTURE_INPUT_MAX_CHARS: int = 8000
     NATIVE_MEMORY_AUTO_CAPTURE_MAX_TASKS: int = 8
     NATIVE_MEMORY_MAX_AUTO_RETAIN_PER_DAY: int = 20
+    # Legacy automatic query-context injection. Memory is recalled explicitly through
+    # memory_recall; the compact index is controlled by NATIVE_MEMORY_INDEX_ENABLED.
     NATIVE_MEMORY_QUERY_CONTEXT_ENABLED: bool = False
+    NATIVE_MEMORY_QUERY_CONTEXT_TIMEOUT_SECONDS: float = 5.0
     NATIVE_MEMORY_SELF_EVOLVE_ENABLED: bool = False
     NATIVE_MEMORY_SELF_EVOLVE_MAX_PER_NIGHT: int = 3
     NATIVE_MEMORY_SELF_EVOLVE_INTERVAL_SECONDS: int = 43200
@@ -427,6 +451,15 @@ class Settings(BaseSettings):
     NATIVE_MEMORY_QDRANT_API_KEY: str = ""
     NATIVE_MEMORY_QUERY_CONTEXT_TOP_K: int = 3
     NATIVE_MEMORY_QUERY_CONTEXT_MAX_CHARS: int = 1200
+    # Codex 式 Phase 1 会话提取（extraction.py）：空闲会话全量转录 → 结构化
+    # raw_memory；认领租约 + 退避 + 每日限额控制成本。
+    MEMORY_EXTRACTION_ENABLED: bool = True
+    MEMORY_EXTRACTION_IDLE_SECONDS: int = 1800
+    MEMORY_EXTRACTION_MAX_AGE_DAYS: int = 30
+    MEMORY_EXTRACTION_MAX_SESSIONS_PER_PASS: int = 3
+    MEMORY_EXTRACTION_MAX_ATTEMPTS: int = 3
+    MEMORY_EXTRACTION_TRANSCRIPT_MAX_CHARS: int = 24_000
+    MEMORY_EXTRACTION_INTERVAL_SECONDS: int = 900
 
     # Audio transcription tool settings
     ENABLE_AUDIO_TRANSCRIPTION: bool = False

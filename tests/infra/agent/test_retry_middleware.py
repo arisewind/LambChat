@@ -2,7 +2,7 @@ import httpx
 import pytest
 from langchain_core.messages import AIMessage
 
-from src.infra.agent.middleware.retry import ModelFallbackMiddleware
+from src.infra.agent.middleware.retry import EmptyContentRetryMiddleware, ModelFallbackMiddleware
 
 
 class _Request:
@@ -88,6 +88,78 @@ async def test_fallback_runs_when_primary_returns_truncated_content() -> None:
     result = await middleware.awrap_model_call(_Request(primary_model), handler)
 
     assert result.content == "fallback answer"
+
+
+async def test_empty_content_retry_exhausted_returns_last_response_without_raise() -> None:
+    """重试耗尽仍空最终消息时返回最后响应，不上抛。
+
+    中间件层没有「用户是否已通过流式拿到正文」的视野：2026-09-05 13:50 生产
+    4 例，上游流式已把完整答案交付（message:chunk + done 之后）但最终聚合
+    AIMessage 为空，此处上抛会在 done 后追加 error、把成功 run 标成失败，
+    还触发 210K input 的重试/降级重复烧钱。「零正文」的终态判定权在
+    executor 层（按真实 message:chunk 事件判定，见
+    tests/infra/task/test_executor_no_output_guard.py）。
+    """
+    middleware = EmptyContentRetryMiddleware(max_retries=1, retry_delay=0)
+    calls = 0
+
+    async def handler(_request):
+        nonlocal calls
+        calls += 1
+        return AIMessage(content="", additional_kwargs={"reasoning_content": "长篇思考"})
+
+    result = await middleware.awrap_model_call(None, handler)
+
+    assert result.content == ""
+    assert calls == 2
+
+
+async def test_truncated_content_exhausted_still_returns_last_response() -> None:
+    """截断启发式命中的半截回答不上抛：部分内容已流出，保留给用户。"""
+    middleware = EmptyContentRetryMiddleware(max_retries=1, retry_delay=0)
+
+    async def handler(_request):
+        return AIMessage(
+            content="半截回答：",
+            response_metadata={"stop_reason": "max_tokens"},
+        )
+
+    result = await middleware.awrap_model_call(None, handler)
+
+    assert result.content == "半截回答："
+
+
+async def test_tool_call_only_response_returns_without_raise() -> None:
+    """只有 tool_calls 的响应是正常中间态，不算空、立即返回。"""
+    middleware = EmptyContentRetryMiddleware(max_retries=1, retry_delay=0)
+    message = AIMessage(
+        content="",
+        tool_calls=[{"name": "web_search", "args": {"q": "news"}, "id": "call-1"}],
+    )
+
+    async def handler(_request):
+        return message
+
+    result = await middleware.awrap_model_call(None, handler)
+
+    assert result is message
+
+
+async def test_fallback_empty_final_message_returns_response_without_raise() -> None:
+    """兜底模型的最终消息为空时返回该响应，不上抛（同上：流式可能已交付）。"""
+    primary_model = object()
+    fallback_model = object()
+    middleware = ModelFallbackMiddleware(fallback_model="openai/fallback-model")
+    middleware._fallback_llm = fallback_model
+
+    async def handler(request):
+        if request.model is primary_model:
+            return AIMessage(content="")
+        return AIMessage(content="", additional_kwargs={"reasoning_content": "兜底也在思考"})
+
+    result = await middleware.awrap_model_call(_Request(primary_model), handler)
+
+    assert result.content == ""
 
 
 async def test_fallback_model_is_created_with_same_thinking_config(monkeypatch) -> None:

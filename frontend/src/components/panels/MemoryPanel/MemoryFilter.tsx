@@ -69,7 +69,7 @@ export function MemoryFilter({
         value={contextValue}
         onChange={(e) => contextOnChange(e.target.value)}
         placeholder={t("memory.contextFilterPlaceholder")}
-        className="h-9 w-36 rounded-lg border border-border bg-input px-2.5 text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+        className="h-9 w-36 rounded-lg border border-border bg-input px-2.5 text-12 text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
         aria-label={t("memory.contextFilterPlaceholder")}
       />
     </div>

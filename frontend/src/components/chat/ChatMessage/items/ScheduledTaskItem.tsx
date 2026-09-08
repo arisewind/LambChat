@@ -13,6 +13,7 @@ import {
 } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { CollapsiblePill } from "../../../common";
+import { useToolStreamingLabel } from "./useToolStreamingLabel";
 import { extractText } from "./toolUtils";
 import {
   openToolLivePanel,
@@ -60,7 +61,7 @@ function TriggerBadge({
   return (
     <span
       className={clsx(
-        "inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md text-xs font-medium",
+        "inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md text-12 font-medium",
         styles[type] || styles.date,
       )}
     >
@@ -81,7 +82,7 @@ function StatusBadge({
 }) {
   if (!enabled) {
     return (
-      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-theme-bg-subtle text-theme-text-tertiary text-xs">
+      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-theme-bg-subtle text-theme-text-tertiary text-12">
         <AlertCircle size={10} />
         {t("scheduledTask.paused")}
       </span>
@@ -91,7 +92,7 @@ function StatusBadge({
   return (
     <span
       className={clsx(
-        "inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-xs font-medium",
+        "inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-12 font-medium",
         isActive
           ? "bg-[color-mix(in_srgb,#10b981_10%,var(--theme-bg-card))] text-emerald-700 dark:text-emerald-300 ring-1 ring-inset ring-[color-mix(in_srgb,#10b981_20%,transparent)]"
           : "bg-theme-bg-subtle text-theme-text-tertiary ring-1 ring-inset ring-theme-border",
@@ -307,11 +308,11 @@ function RejectionCard({
           </div>
           <div className="min-w-0 flex-1 space-y-0.5">
             {taskName && (
-              <p className="text-sm font-semibold text-theme-text truncate">
+              <p className="text-14 font-semibold text-theme-text truncate">
                 {taskName}
               </p>
             )}
-            <p className="text-xs text-theme-text-secondary">{summary}</p>
+            <p className="text-12 text-theme-text-secondary">{summary}</p>
           </div>
         </div>
 
@@ -320,7 +321,7 @@ function RejectionCard({
           <div className="flex flex-wrap gap-1.5 pl-[2.75rem]">
             {triggerType && <TriggerBadge type={triggerType} t={t} />}
             {schedule && (
-              <span className="px-2 py-0.5 rounded-md bg-theme-bg-subtle text-theme-text-tertiary text-xs font-mono leading-relaxed">
+              <span className="px-2 py-0.5 rounded-md bg-theme-bg-subtle text-theme-text-tertiary text-12 font-mono leading-relaxed">
                 {schedule}
               </span>
             )}
@@ -342,7 +343,7 @@ function RejectionCard({
                 <p className="text-10 font-medium uppercase tracking-wider text-theme-text-tertiary mb-0.5">
                   {t("chat.message.description")}
                 </p>
-                <p className="text-xs text-theme-text-secondary whitespace-pre-wrap break-words">
+                <p className="text-12 text-theme-text-secondary whitespace-pre-wrap break-words">
                   {description}
                 </p>
               </div>
@@ -444,13 +445,13 @@ function ScheduledTaskDetail({ args, result }: ToolDetailProps) {
             <CalendarClock size={18} className="text-[var(--theme-primary)]" />
           </div>
           <div className="min-w-0 flex-1 space-y-1.5">
-            <div className="text-sm text-theme-text font-semibold truncate">
+            <div className="text-14 text-theme-text font-semibold truncate">
               {displayName}
             </div>
             <div className="flex flex-wrap gap-1.5">
               {trigger && <TriggerBadge type={trigger} t={t} />}
               {schedule && (
-                <span className="px-2 py-0.5 rounded-md bg-theme-bg-subtle text-theme-text-tertiary text-xs font-mono leading-relaxed">
+                <span className="px-2 py-0.5 rounded-md bg-theme-bg-subtle text-theme-text-tertiary text-12 font-mono leading-relaxed">
                   {schedule}
                 </span>
               )}
@@ -458,7 +459,7 @@ function ScheduledTaskDetail({ args, result }: ToolDetailProps) {
                 <StatusBadge status={status} enabled={enabled} t={t} />
               )}
               {typeof totalRuns === "number" && totalRuns > 0 && (
-                <span className="px-2 py-0.5 rounded-md bg-theme-bg-subtle text-theme-text-tertiary text-xs tabular-nums">
+                <span className="px-2 py-0.5 rounded-md bg-theme-bg-subtle text-theme-text-tertiary text-12 tabular-nums">
                   {t("scheduledTask.runsCount", { count: totalRuns })}
                 </span>
               )}
@@ -474,7 +475,7 @@ function ScheduledTaskDetail({ args, result }: ToolDetailProps) {
           icon={<MessageSquare size={12} />}
           defaultExpanded={true}
         >
-          <div className="text-sm text-theme-text-secondary whitespace-pre-wrap break-words leading-relaxed">
+          <div className="text-14 text-theme-text-secondary whitespace-pre-wrap break-words leading-relaxed">
             {taskMessage}
           </div>
         </DetailSection>
@@ -487,7 +488,7 @@ function ScheduledTaskDetail({ args, result }: ToolDetailProps) {
             size={12}
             className="shrink-0 text-[var(--theme-primary)] mt-0.5"
           />
-          <span className="text-xs text-theme-text-secondary leading-relaxed">
+          <span className="text-12 text-theme-text-secondary leading-relaxed">
             {effect}
           </span>
         </div>
@@ -495,7 +496,7 @@ function ScheduledTaskDetail({ args, result }: ToolDetailProps) {
 
       {/* Result message (confirmation) */}
       {resultMessage && !isList && (
-        <div className="flex items-center gap-2 text-xs">
+        <div className="flex items-center gap-2 text-12">
           <CheckCircle2
             size={13}
             className="shrink-0 text-emerald-500 dark:text-emerald-400"
@@ -542,7 +543,7 @@ function ScheduledTaskDetail({ args, result }: ToolDetailProps) {
                     className="shrink-0 text-[var(--theme-primary)]"
                   />
                   <div className="min-w-0 flex-1">
-                    <div className="text-sm text-theme-text font-medium truncate">
+                    <div className="text-14 text-theme-text font-medium truncate">
                       {tkName}
                     </div>
                   </div>
@@ -565,7 +566,7 @@ function ScheduledTaskDetail({ args, result }: ToolDetailProps) {
 
       {/* Pure text fallback (no structured data parsed) */}
       {resultMessage && !displayName && !isList && (
-        <pre className="group/result relative text-xs text-theme-text-tertiary whitespace-pre-wrap break-words p-3 rounded-lg bg-theme-bg border border-theme-border">
+        <pre className="group/result relative text-12 text-theme-text-tertiary whitespace-pre-wrap break-words p-3 rounded-lg bg-theme-bg border border-theme-border">
           {resultMessage}
           <ToolHoverCopyButton
             text={resultMessage}
@@ -764,7 +765,9 @@ const ScheduledTaskItem = memo(function ScheduledTaskItem({
           })}
           {tasks.length > 6 && (
             <span className="text-10 text-theme-text-tertiary pl-2">
-              {t("chat.message.toolMoreFiles", { count: tasks.length - 6 })}
+              {t("chat.message.toolMoreTasks", {
+                count: tasks.length - 6,
+              })}
             </span>
           )}
         </div>
@@ -772,7 +775,7 @@ const ScheduledTaskItem = memo(function ScheduledTaskItem({
 
       {/* Pure text fallback */}
       {resultMessage && !displayName && !isList && (
-        <pre className="group/result relative text-xs text-theme-text-tertiary whitespace-pre-wrap break-words overflow-y-auto min-w-0">
+        <pre className="group/result relative text-12 text-theme-text-tertiary whitespace-pre-wrap break-words overflow-y-auto min-w-0">
           {resultMessage.length > 300
             ? resultMessage.slice(0, 297) + "…"
             : resultMessage}
@@ -782,12 +785,20 @@ const ScheduledTaskItem = memo(function ScheduledTaskItem({
     </ToolInlineDetails>
   );
 
+  // 进行中：标签学「思考中」，平滑流出正在生成的参数尾部
+  const { label, isStreamingLabel } = useToolStreamingLabel(
+    `${actionLabel}${labelSuffix ? ` ${labelSuffix}` : ""}`,
+    args,
+    { isPending, result },
+  );
+
   return (
     <>
       <CollapsiblePill
         status={pillStatus}
         icon={<CalendarClock size={12} className="shrink-0 opacity-50" />}
-        label={`${actionLabel}${labelSuffix ? ` ${labelSuffix}` : ""}`}
+        label={label}
+        animatedDots={isStreamingLabel}
         variant="tool"
         expandable={canExpand}
         onPanelOpen={() => {

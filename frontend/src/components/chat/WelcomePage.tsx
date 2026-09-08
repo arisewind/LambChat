@@ -430,7 +430,7 @@ export const WelcomePage = memo(function WelcomePage({
         </h1>
         {/* Subtle subtitle prompt */}
         <p
-          className="welcome-subtitle mt-1.5 sm:mt-2 md:mt-2.5 xl:mt-3 2xl:mt-3 text-sm sm:text-base md:text-17 xl:text-lg 2xl:text-lg text-center font-serif"
+          className="welcome-subtitle mt-1.5 sm:mt-2 md:mt-2.5 xl:mt-3 2xl:mt-3 text-14 sm:text-16 md:text-17 xl:text-18 2xl:text-18 text-center font-serif"
           style={{ color: "var(--theme-text-secondary)" }}
         >
           {subtitle}
@@ -469,7 +469,7 @@ export const WelcomePage = memo(function WelcomePage({
         >
           <div className="welcome-suggestions-header flex items-center justify-between mb-2 sm:mb-2.5 md:mb-2.5 xl:mb-3 2xl:mb-3">
             <div
-              className="flex items-center gap-1.5 text-xs sm:text-13 md:text-13 font-medium font-serif"
+              className="flex items-center gap-1.5 text-12 sm:text-13 md:text-13 font-medium font-serif"
               style={{ color: "var(--theme-text-secondary)" }}
             >
               <Sparkles
@@ -782,7 +782,7 @@ export const WelcomePage = memo(function WelcomePage({
                     {/* Hover shimmer layer */}
                     <span className="welcome-card-shimmer" aria-hidden="true" />
                     <span
-                      className="relative flex items-center justify-center size-6 sm:size-7 xl:size-8 2xl:size-8 rounded-lg text-13 sm:text-15 xl:text-lg 2xl:text-lg shrink-0 transition-transform duration-300 group-hover:scale-110"
+                      className="relative flex items-center justify-center size-6 sm:size-7 xl:size-8 2xl:size-8 rounded-lg text-13 sm:text-15 xl:text-18 2xl:text-18 shrink-0 transition-transform duration-300 group-hover:scale-110"
                       style={{
                         backgroundColor: "var(--theme-primary-light)",
                         color: "var(--theme-primary)",

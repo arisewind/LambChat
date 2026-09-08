@@ -473,3 +473,286 @@ test("complete event cancels unfinished todo items", () => {
   ]);
   expect(todo.items[1].activeForm).toBe(undefined);
 });
+
+// ---------- 确认门挂起/恢复：工具卡「等待确认」态 + 旧 id 重复折叠 ----------
+
+test("hitl suspension marks pending tools as awaiting confirmation", () => {
+  const started = processMessageEvent(
+    "tool:start",
+    { tool: "execute", tool_call_id: "stable-1", args: { command: "df -h" } },
+    [],
+    "",
+    [],
+    0,
+    [],
+    true,
+    "message-1",
+  );
+
+  const suspended = processMessageEvent(
+    "hitl:suspended",
+    { session_id: "s1", run_id: "r1", status: "waiting_human" },
+    started.parts,
+    "",
+    started.toolCalls,
+    0,
+    [],
+    true,
+    "message-1",
+  );
+
+  expect(suspended.parts[0]).toMatchObject({
+    type: "tool",
+    isPending: true,
+    awaitingConfirmation: true,
+  });
+});
+
+test("human resume clears awaiting confirmation back to running", () => {
+  const started = processMessageEvent(
+    "tool:start",
+    { tool: "execute", tool_call_id: "stable-1", args: { command: "df -h" } },
+    [],
+    "",
+    [],
+    0,
+    [],
+    true,
+    "message-1",
+  );
+  const suspended = processMessageEvent(
+    "hitl:suspended",
+    {},
+    started.parts,
+    "",
+    [],
+    0,
+    [],
+    true,
+    "message-1",
+  );
+
+  const resumed = processMessageEvent(
+    "human_resume_started",
+    { approval_id: "a1" },
+    suspended.parts,
+    "",
+    [],
+    0,
+    [],
+    true,
+    "message-1",
+  );
+
+  expect(resumed.parts[0]).toMatchObject({ isPending: true });
+  expect(resumed.parts[0].awaitingConfirmation).toBeFalsy();
+});
+
+test("replayed tool start with a new id takes over the dangling duplicate", () => {
+  // 旧后端：interrupt 挂起那次 start（id A）与恢复重放 start（id B）不同 id
+  const first = processMessageEvent(
+    "tool:start",
+    {
+      tool: "execute",
+      tool_call_id: "id-attempt-1",
+      args: { command: "df -h" },
+    },
+    [],
+    "",
+    [],
+    0,
+    [],
+    false,
+    "message-1",
+  );
+  const second = processMessageEvent(
+    "tool:start",
+    {
+      tool: "execute",
+      tool_call_id: "id-attempt-2",
+      args: { command: "df -h" },
+    },
+    first.parts,
+    "",
+    first.toolCalls,
+    0,
+    [],
+    false,
+    "message-1",
+  );
+
+  expect(second.parts).toHaveLength(1);
+  expect(second.parts[0]).toMatchObject({
+    id: "id-attempt-2",
+    isPending: true,
+  });
+
+  const withResult = processMessageEvent(
+    "tool:result",
+    {
+      tool: "execute",
+      tool_call_id: "id-attempt-2",
+      result: "Filesystem 468G",
+      success: true,
+    },
+    second.parts,
+    "",
+    second.toolCalls,
+    0,
+    [],
+    false,
+    "message-1",
+  );
+  expect(withResult.parts).toHaveLength(1);
+  expect(withResult.parts[0].result).toBe("Filesystem 468G");
+});
+
+test("tool start with different args still appends a separate part", () => {
+  const first = processMessageEvent(
+    "tool:start",
+    { tool: "execute", tool_call_id: "a", args: { command: "df -h" } },
+    [],
+    "",
+    [],
+    0,
+    [],
+    false,
+    "message-1",
+  );
+  const second = processMessageEvent(
+    "tool:start",
+    { tool: "execute", tool_call_id: "b", args: { command: "ls" } },
+    first.parts,
+    "",
+    first.toolCalls,
+    0,
+    [],
+    false,
+    "message-1",
+  );
+  expect(second.parts).toHaveLength(2);
+});
+
+test("summary stats event before text creates a stub the text merges into", () => {
+  const stats = processMessageEvent(
+    "summary",
+    { content: "", freed_tokens: 12345 },
+    [],
+    "",
+    [],
+    0,
+    [],
+    true,
+    "message-1",
+  );
+
+  expect(stats.parts).toHaveLength(1);
+  expect(stats.parts[0]).toMatchObject({
+    type: "summary",
+    freed_tokens: 12345,
+  });
+
+  const text = processMessageEvent(
+    "summary",
+    { content: "compressed context", summary_id: "summary-1" },
+    stats.parts,
+    "",
+    [],
+    0,
+    [],
+    true,
+    "message-1",
+  );
+
+  expect(text.parts).toHaveLength(1);
+  expect(text.parts[0]).toMatchObject({
+    type: "summary",
+    summary_id: "summary-1",
+    content: "compressed context",
+    freed_tokens: 12345,
+  });
+});
+
+test("summary stats event after text attaches to the last summary part", () => {
+  const text = processMessageEvent(
+    "summary",
+    { content: "compressed context", summary_id: "summary-1" },
+    [],
+    "",
+    [],
+    0,
+    [],
+    true,
+    "message-1",
+  );
+
+  const stats = processMessageEvent(
+    "summary",
+    { content: "", freed_tokens: 999 },
+    text.parts,
+    "",
+    [],
+    0,
+    [],
+    true,
+    "message-1",
+  );
+
+  expect(stats.parts).toHaveLength(1);
+  expect(stats.parts[0]).toMatchObject({
+    type: "summary",
+    freed_tokens: 999,
+    content: "compressed context",
+  });
+});
+
+test("summary stats event lands inside the subagent like its text", () => {
+  let parts: MessagePart[] = [
+    {
+      type: "subagent",
+      agent_id: "agent-1",
+      agent_name: "Research",
+      input: "look this up",
+      depth: 1,
+      isPending: true,
+      status: "running",
+      parts: [],
+    },
+  ];
+  const stack = [{ agent_id: "agent-1", depth: 1, message_id: "message-1" }];
+
+  const stats = processMessageEvent(
+    "summary",
+    { content: "", freed_tokens: 777 },
+    parts,
+    "",
+    [],
+    1,
+    stack,
+    true,
+    "message-1",
+  );
+  parts = stats.parts;
+
+  const text = processMessageEvent(
+    "summary",
+    { content: "sub summary", summary_id: "summary-9", agent_id: "agent-1" },
+    parts,
+    "",
+    [],
+    1,
+    stack,
+    true,
+    "message-1",
+  );
+
+  const subagent = text.parts[0];
+  expect(subagent.type).toBe("subagent");
+  const summaries = subagent.parts?.filter((part) => part.type === "summary");
+  expect(summaries?.length).toBe(1);
+  expect(summaries?.[0]).toMatchObject({
+    summary_id: "summary-9",
+    content: "sub summary",
+    freed_tokens: 777,
+  });
+});

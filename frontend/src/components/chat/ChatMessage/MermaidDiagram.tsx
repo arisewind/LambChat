@@ -12,6 +12,8 @@ import { ViewerToolbar } from "../../common/ViewerToolbar";
 import { ViewerTopBarButton } from "../../common/ViewerTopBarButton";
 import { downloadBlob } from "../../common/viewerDownload";
 import { copyToClipboard } from "../../../utils/clipboard";
+import { useAppThemeMode } from "../../../hooks/useAppThemeMode";
+import { themeExportBackground } from "../../../utils/themeDom";
 
 // Fix common AI-generated mermaid syntax issues:
 // - subgraph 🎯 ["title"] → subgraph S1["🎯 title"]
@@ -45,6 +47,7 @@ export function MermaidDiagram({
   isStreaming?: boolean;
 }) {
   const { t } = useTranslation();
+  const themeMode = useAppThemeMode();
   const ref = useRef<HTMLDivElement>(null);
   const [svg, setSvg] = useState<string>("");
   const [error, setError] = useState<string | null>(null);
@@ -152,10 +155,15 @@ export function MermaidDiagram({
       try {
         const mermaid = await import("mermaid");
 
-        // Initialize mermaid
+        // Initialize mermaid — follow the active theme; sepia keeps the light
+        // palette but repaints the canvas onto the beige card background
+        const isSepia = themeMode === "sepia";
         mermaid.default.initialize({
           startOnLoad: false,
-          theme: "default",
+          theme: themeMode === "dark" ? "dark" : "default",
+          ...(isSepia
+            ? { themeVariables: { background: "#faf6ea" } }
+            : {}),
           securityLevel: "strict",
         });
 
@@ -199,7 +207,7 @@ export function MermaidDiagram({
     };
 
     renderDiagram();
-  }, [chart, t, shouldRenderDiagram]);
+  }, [chart, t, shouldRenderDiagram, themeMode]);
 
   // Close dropdown when clicking outside
   useEffect(() => {
@@ -271,9 +279,7 @@ export function MermaidDiagram({
 
     img.onload = () => {
       ctx.scale(pngScale, pngScale);
-      ctx.fillStyle = document.documentElement.classList.contains("dark")
-        ? "#1c1917"
-        : "#ffffff";
+      ctx.fillStyle = themeExportBackground(themeMode);
       ctx.fillRect(0, 0, width, height);
       ctx.drawImage(img, 0, 0, width, height);
 
@@ -295,12 +301,12 @@ export function MermaidDiagram({
     return (
       <div className="my-2 sm:my-3 max-w-full overflow-hidden rounded-xl border border-stone-200 dark:border-stone-700">
         <div className="flex items-center justify-between px-3 sm:px-4 py-2 bg-stone-200/70 dark:bg-stone-800/50">
-          <span className="text-xs font-medium text-stone-500 dark:text-stone-400">
+          <span className="text-12 font-medium text-stone-500 dark:text-stone-400">
             mermaid
           </span>
           <button
             onClick={handleCopyCode}
-            className="flex items-center gap-1 rounded-md px-2 py-1 text-xs font-medium transition-all min-h-[32px] min-w-[32px] touch-manipulation"
+            className="flex items-center gap-1 rounded-md px-2 py-1 text-12 font-medium transition-all min-h-[32px] min-w-[32px] touch-manipulation"
           >
             {copied ? (
               <>
@@ -325,7 +331,7 @@ export function MermaidDiagram({
             )}
           </button>
         </div>
-        <pre className="p-3 bg-stone-50 dark:bg-stone-800 overflow-x-auto max-h-64 overflow-y-auto text-xs text-stone-700 dark:text-stone-300 font-mono">
+        <pre className="p-3 bg-stone-50 dark:bg-stone-800 overflow-x-auto max-h-64 overflow-y-auto text-12 text-stone-700 dark:text-stone-300 font-mono">
           {chart}
         </pre>
       </div>
@@ -336,12 +342,12 @@ export function MermaidDiagram({
     return (
       <div className="my-2 sm:my-3 max-w-full overflow-hidden rounded-xl border border-stone-200 dark:border-stone-700">
         <div className="flex items-center justify-between px-3 sm:px-4 py-2 bg-stone-200/70 dark:bg-stone-800/50">
-          <span className="text-xs font-medium text-stone-500 dark:text-stone-400">
+          <span className="text-12 font-medium text-stone-500 dark:text-stone-400">
             mermaid
           </span>
           <button
             onClick={handleCopyCode}
-            className="flex items-center gap-1 rounded-md px-2 py-1 text-xs font-medium transition-all min-h-[32px] min-w-[32px] touch-manipulation"
+            className="flex items-center gap-1 rounded-md px-2 py-1 text-12 font-medium transition-all min-h-[32px] min-w-[32px] touch-manipulation"
           >
             {copied ? (
               <>
@@ -361,7 +367,7 @@ export function MermaidDiagram({
             )}
           </button>
         </div>
-        <pre className="p-3 bg-stone-50 dark:bg-stone-800 overflow-x-auto max-h-64 overflow-y-auto text-xs text-stone-700 dark:text-stone-300 font-mono">
+        <pre className="p-3 bg-stone-50 dark:bg-stone-800 overflow-x-auto max-h-64 overflow-y-auto text-12 text-stone-700 dark:text-stone-300 font-mono">
           {chart}
         </pre>
       </div>
@@ -371,7 +377,7 @@ export function MermaidDiagram({
   if (!svg) {
     return (
       <div className="mermaid-diagram overflow-x-auto rounded-lg bg-stone-50 p-4 dark:bg-stone-800">
-        <div className="text-sm text-stone-500 dark:text-stone-400">
+        <div className="text-14 text-stone-500 dark:text-stone-400">
           Loading diagram...
         </div>
       </div>
@@ -384,14 +390,14 @@ export function MermaidDiagram({
         {/* Header bar with action buttons */}
         <div className="flex items-center justify-between px-3 sm:px-4 py-2 bg-stone-200/70 dark:bg-stone-800/50">
           <div className="flex items-center gap-2 min-w-0">
-            <span className="text-xs font-medium text-stone-500 dark:text-stone-400">
+            <span className="text-12 font-medium text-stone-500 dark:text-stone-400">
               mermaid
             </span>
           </div>
           <div className="flex items-center gap-1">
             <button
               onClick={handleCopyCode}
-              className="flex items-center gap-1 rounded-md px-2 py-1 text-xs font-medium transition-all min-h-[32px] min-w-[32px] touch-manipulation"
+              className="flex items-center gap-1 rounded-md px-2 py-1 text-12 font-medium transition-all min-h-[32px] min-w-[32px] touch-manipulation"
               title={
                 copied ? t("chat.message.copied") : t("chat.message.copyCode")
               }
@@ -425,7 +431,7 @@ export function MermaidDiagram({
                   e.stopPropagation();
                   setShowDownloadMenu(!showDownloadMenu);
                 }}
-                className="flex items-center gap-1 rounded-md px-2 py-1 text-xs font-medium transition-all hover:bg-stone-300/50 dark:hover:bg-stone-700/50 min-h-[32px] min-w-[32px] touch-manipulation"
+                className="flex items-center gap-1 rounded-md px-2 py-1 text-12 font-medium transition-all hover:bg-stone-300/50 dark:hover:bg-stone-700/50 min-h-[32px] min-w-[32px] touch-manipulation"
                 title={t("documents.download")}
               >
                 <Download
@@ -462,7 +468,7 @@ export function MermaidDiagram({
                 setShowCode(true);
                 setIsFullscreen(true);
               }}
-              className="flex items-center gap-1 rounded-md px-2 py-1 text-xs font-medium transition-all hover:bg-stone-300/50 dark:hover:bg-stone-700/50 min-h-[32px] min-w-[32px] touch-manipulation"
+              className="flex items-center gap-1 rounded-md px-2 py-1 text-12 font-medium transition-all hover:bg-stone-300/50 dark:hover:bg-stone-700/50 min-h-[32px] min-w-[32px] touch-manipulation"
               title={t("mermaidViewer.showCode")}
             >
               <Code size={14} className="text-stone-500 dark:text-stone-400" />
@@ -473,7 +479,7 @@ export function MermaidDiagram({
             {/* Fullscreen button */}
             <button
               onClick={() => setIsFullscreen(true)}
-              className="flex items-center gap-1 rounded-md px-2 py-1 text-xs font-medium transition-all hover:bg-stone-300/50 dark:hover:bg-stone-700/50 min-h-[32px] min-w-[32px] touch-manipulation"
+              className="flex items-center gap-1 rounded-md px-2 py-1 text-12 font-medium transition-all hover:bg-stone-300/50 dark:hover:bg-stone-700/50 min-h-[32px] min-w-[32px] touch-manipulation"
               title={t("imageViewer.fullscreen", "Fullscreen")}
             >
               <Maximize2
@@ -696,7 +702,7 @@ function MermaidViewer({
   return createPortal(
     <div
       data-yields-sidebar
-      className="fixed inset-0 z-[300] flex flex-col bg-black/90"
+      className="safe-area-x fixed inset-0 z-[300] flex flex-col bg-black/90"
     >
       {/* Top bar - close + code actions */}
       <ViewerTopBar>
@@ -712,7 +718,7 @@ function MermaidViewer({
           <button
             type="button"
             onClick={toggleCode}
-            className={`flex items-center gap-1.5 rounded-lg px-3 h-10 text-sm font-medium transition-colors cursor-pointer ${
+            className={`flex items-center gap-1.5 rounded-lg px-3 h-10 text-14 font-medium transition-colors cursor-pointer ${
               showCode
                 ? "bg-white/20 text-white/70"
                 : "hover:bg-white/10 text-white/70"
@@ -739,7 +745,7 @@ function MermaidViewer({
           <button
             type="button"
             onClick={handleCopyCode}
-            className="flex items-center gap-1 rounded-lg px-3 h-10 text-sm font-medium transition-colors cursor-pointer hover:bg-white/10"
+            className="flex items-center gap-1 rounded-lg px-3 h-10 text-14 font-medium transition-colors cursor-pointer hover:bg-white/10"
             aria-label={t("chat.message.copyCode")}
           >
             {copied ? (
@@ -839,11 +845,11 @@ function MermaidViewer({
         {showCode && (
           <div className="w-full sm:w-[480px] border-l border-white/10 bg-stone-900 flex flex-col overflow-hidden">
             <div className="flex items-center justify-between px-4 py-2 border-b border-white/10">
-              <span className="text-xs font-medium text-white/50">
+              <span className="text-12 font-medium text-white/50">
                 {t("chat.mermaid", "Mermaid")}
               </span>
             </div>
-            <pre className="flex-1 overflow-auto p-4 text-sm text-stone-300 font-mono whitespace-pre-wrap break-words">
+            <pre className="flex-1 overflow-auto p-4 text-14 text-stone-300 font-mono whitespace-pre-wrap break-words">
               {chart}
             </pre>
           </div>

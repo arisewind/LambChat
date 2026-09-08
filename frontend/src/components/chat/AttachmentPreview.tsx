@@ -78,10 +78,10 @@ export const AttachmentPreview = memo(function AttachmentPreview({
 
             {/* File info */}
             <div className="flex-1 min-w-0 relative z-[1]">
-              <p className="text-sm font-medium text-stone-900 dark:text-stone-100 truncate">
+              <p className="text-14 font-medium text-stone-900 dark:text-stone-100 truncate">
                 {attachment.name}
               </p>
-              <p className="text-xs text-stone-500 dark:text-stone-400">
+              <p className="text-12 text-stone-500 dark:text-stone-400">
                 {isUploading
                   ? `${attachment.uploadProgress ?? 0}%`
                   : formatFileSize(attachment.size)}

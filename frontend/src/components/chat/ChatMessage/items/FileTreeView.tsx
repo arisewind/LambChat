@@ -193,11 +193,11 @@ function FileTreeNode({
         >
           <FolderIcon size={36} className="shrink-0" />
           <div className="flex-1 min-w-0 text-left">
-            <div className="text-sm font-medium text-theme-text truncate">
+            <div className="text-14 font-medium text-theme-text truncate">
               {node.name}
             </div>
             {expanded && dirSize > 0 && (
-              <div className="text-xs text-theme-text-tertiary mt-0.5">
+              <div className="text-12 text-theme-text-tertiary mt-0.5">
                 {formatSize(dirSize)}
               </div>
             )}
@@ -278,10 +278,10 @@ function FileTreeNode({
         getFileIcon(node.name)
       )}
       <div className="flex-1 min-w-0 text-left">
-        <div className="text-sm text-theme-text-secondary truncate">
+        <div className="text-14 text-theme-text-secondary truncate">
           {node.name}
         </div>
-        <div className="text-xs text-theme-text-tertiary mt-0.5">
+        <div className="text-12 text-theme-text-tertiary mt-0.5">
           {node.isBinary ? "Binary" : formatSize(node.size)}
         </div>
       </div>
@@ -363,7 +363,7 @@ export function FileTreeView({
     <div className="flex flex-col h-full bg-theme-bg-card">
       {showHeader && (
         <div className="flex items-center justify-between px-3 py-2 border-b border-theme-border shrink-0">
-          <span className="text-xs text-theme-text-tertiary">
+          <span className="text-12 text-theme-text-tertiary">
             {t("project.fileCount", "{{count}} 个文件", {
               count: fileCount,
             })}
@@ -372,7 +372,7 @@ export function FileTreeView({
             onClick={() =>
               exportProjectZip(files, projectName || "project", binaryFiles)
             }
-            className="flex items-center gap-1 px-2 py-1 rounded-md text-xs font-medium text-theme-text-tertiary hover:bg-theme-bg-subtle transition-colors"
+            className="flex items-center gap-1 px-2 py-1 rounded-md text-12 font-medium text-theme-text-tertiary hover:bg-theme-bg-subtle transition-colors"
           >
             <Download size={16} />
             {t("project.exportZip")}

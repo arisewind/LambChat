@@ -31,6 +31,7 @@ import {
   type RevealFileImageInfo,
 } from "./revealFileImageUtils";
 import { MessageImageGallery } from "./MessageImageGallery";
+import { Tooltip } from "../../common/Tooltip";
 import { RevealArtifactsSummary } from "./RevealArtifactsSummary";
 import { RunStepsCollapse } from "./RunStepsCollapse";
 import {
@@ -52,6 +53,7 @@ import {
   formatCostDetailRow,
   hasPricedCost,
 } from "./tokenCostDisplay";
+import { cacheHitRateFromTokens } from "../todayUsageSnapshot";
 import { useFxRates } from "../../../hooks/useFxRates";
 import { formatCostUsd, type FxRatesDoc } from "../../../utils/currency";
 import {
@@ -116,10 +118,15 @@ function TokenDetailsButton({
   const [costExpanded, setCostExpanded] = useState(false);
   const buttonRef = useRef<HTMLButtonElement>(null);
   const popupRef = useRef<HTMLDivElement>(null);
-  const cacheRate =
-    tokenUsage && tokenUsage.input_tokens > 0
-      ? (tokenUsage.cache_read_tokens ?? 0) / tokenUsage.input_tokens
-      : null;
+  // 口径与今日用量卡一致：分母取有效 prompt 输入并 clamp ≤1，
+  // 兼容 input_tokens 不含缓存 token 的 provider。
+  const cacheRate = tokenUsage
+    ? cacheHitRateFromTokens(
+        tokenUsage.input_tokens ?? 0,
+        tokenUsage.cache_read_tokens ?? 0,
+        tokenUsage.cache_creation_tokens ?? 0,
+      )
+    : null;
   const costRows = buildCostDetailRows(tokenUsage);
   const priced = hasPricedCost(tokenUsage);
   const costRowLabels: Record<string, string> = {
@@ -183,18 +190,20 @@ function TokenDetailsButton({
 
   return (
     <div className="relative">
-      <button
-        ref={buttonRef}
-        onClick={() => setShowDetails(!showDetails)}
-        className={clsx(
-          "p-1.5 rounded-md transition-colors",
-          "hover:bg-stone-200 dark:hover:bg-stone-700",
-          "text-stone-400 dark:text-stone-500 hover:text-stone-600 dark:hover:text-stone-300",
-        )}
-        title={t("chat.message.tokenUsage")}
-      >
-        <Info size={16} />
-      </button>
+      <Tooltip content={t("chat.message.tokenUsage")}>
+        <button
+          ref={buttonRef}
+          onClick={() => setShowDetails(!showDetails)}
+          aria-label={t("chat.message.tokenUsage")}
+          className={clsx(
+            "p-1.5 rounded-md transition-colors",
+            "hover:bg-stone-200 dark:hover:bg-stone-700",
+            "text-stone-400 dark:text-stone-500 hover:text-stone-600 dark:hover:text-stone-300",
+          )}
+        >
+          <Info size={16} />
+        </button>
+      </Tooltip>
       {/* ChatGPT style details popup */}
       {showDetails &&
         createPortal(
@@ -208,7 +217,7 @@ function TokenDetailsButton({
               "whitespace-nowrap",
             )}
           >
-            <div className="text-xs space-y-1.5">
+            <div className="text-12 space-y-1.5">
               {tokenUsage && (
                 <>
                   <div className="flex justify-between gap-4 text-sky-600 dark:text-sky-400">
@@ -271,23 +280,25 @@ function TokenDetailsButton({
                   </div>
                   {priced && (
                     <div className="border-t border-theme-border pt-1.5 mt-1.5 space-y-1.5">
-                      <div className="flex justify-between gap-4 text-amber-600 dark:text-amber-400">
-                        <button
-                          type="button"
-                          onClick={() => setCostExpanded(!costExpanded)}
-                          aria-expanded={costExpanded}
-                          title={t("chat.message.costDetail")}
-                          className="flex items-center gap-0.5 transition-colors hover:text-amber-700 dark:hover:text-amber-300"
-                        >
-                          <span>{t("chat.message.costTotal")}</span>
-                          <ChevronDown
-                            size={12}
-                            className={clsx(
-                              "opacity-50 transition-transform",
-                              costExpanded && "rotate-180",
-                            )}
-                          />
-                        </button>
+                      <div className="flex items-center justify-between gap-4 text-amber-600 dark:text-amber-400">
+                        <Tooltip content={t("chat.message.costDetail")}>
+                          <button
+                            type="button"
+                            onClick={() => setCostExpanded(!costExpanded)}
+                            aria-expanded={costExpanded}
+                            aria-label={t("chat.message.costDetail")}
+                            className="flex items-center gap-0.5 transition-colors hover:text-amber-700 dark:hover:text-amber-300"
+                          >
+                            <span>{t("chat.message.costTotal")}</span>
+                            <ChevronDown
+                              size={12}
+                              className={clsx(
+                                "opacity-50 transition-transform",
+                                costExpanded && "rotate-180",
+                              )}
+                            />
+                          </button>
+                        </Tooltip>
                         <span className="font-medium tabular-nums">
                           {formatCostUsd(tokenUsage.cost_usd ?? 0, {
                             language,
@@ -448,18 +459,20 @@ function GoalDetailsButton({ goal }: { goal: ActiveGoalSpec }) {
 
   return (
     <div className="relative">
-      <button
-        ref={buttonRef}
-        onClick={() => setShowDetails(!showDetails)}
-        className={clsx(
-          "p-1.5 rounded-md transition-colors",
-          "hover:bg-stone-200 dark:hover:bg-stone-700",
-          "text-stone-400 dark:text-stone-500 hover:text-stone-600 dark:hover:text-stone-300",
-        )}
-        title={t("chat.goal.active")}
-      >
-        <Target size={16} />
-      </button>
+      <Tooltip content={t("chat.goal.active")}>
+        <button
+          ref={buttonRef}
+          onClick={() => setShowDetails(!showDetails)}
+          aria-label={t("chat.goal.active")}
+          className={clsx(
+            "p-1.5 rounded-md transition-colors",
+            "hover:bg-stone-200 dark:hover:bg-stone-700",
+            "text-stone-400 dark:text-stone-500 hover:text-stone-600 dark:hover:text-stone-300",
+          )}
+        >
+          <Target size={16} />
+        </button>
+      </Tooltip>
       {showDetails &&
         Object.keys(popupStyle).length > 0 &&
         createPortal(
@@ -474,13 +487,13 @@ function GoalDetailsButton({ goal }: { goal: ActiveGoalSpec }) {
           >
             <div className="flex items-start justify-between gap-2 mb-2">
               <span
-                className="text-xs font-medium"
+                className="text-12 font-medium"
                 style={{ color: "var(--theme-primary)" }}
               >
                 {t("chat.goal.active")}
               </span>
               <span
-                className="text-xs px-1.5 py-0.5 rounded-full font-medium"
+                className="text-12 px-1.5 py-0.5 rounded-full font-medium"
                 style={{
                   color: "var(--theme-primary)",
                   backgroundColor:
@@ -490,25 +503,25 @@ function GoalDetailsButton({ goal }: { goal: ActiveGoalSpec }) {
                 {statusLabel}
               </span>
             </div>
-            <p className="text-sm text-theme-text leading-relaxed break-words">
+            <p className="text-14 text-theme-text leading-relaxed break-words">
               {goal.objective}
             </p>
             {durationText && (
               <div className="flex justify-between gap-4 border-t border-theme-border pt-1.5 mt-2">
-                <span className="text-xs text-theme-text-secondary">
+                <span className="text-12 text-theme-text-secondary">
                   {t("chat.goal.duration")}
                 </span>
-                <span className="text-xs text-theme-text font-medium tabular-nums">
+                <span className="text-12 text-theme-text font-medium tabular-nums">
                   {durationText}
                 </span>
               </div>
             )}
             {startedAt && (
               <div className="flex justify-between gap-4 pt-1">
-                <span className="text-xs text-theme-text-secondary">
+                <span className="text-12 text-theme-text-secondary">
                   {t("chat.goal.startedAt")}
                 </span>
-                <span className="text-xs text-theme-text font-medium tabular-nums">
+                <span className="text-12 text-theme-text font-medium tabular-nums">
                   {formatDateTimeShort(new Date(goal.started_at!))}
                 </span>
               </div>
@@ -695,7 +708,9 @@ export const ChatMessage = memo(function ChatMessage({
           onOpenPreview={onOpenPreview}
           onRecommendQuestionClick={onRecommendQuestionClick}
           onRetryCancelled={
-            group.part.type === "cancelled" && onRetryCancelledMessage
+            isLastMessage &&
+            group.part.type === "cancelled" &&
+            onRetryCancelledMessage
               ? () => void onRetryCancelledMessage(message.id)
               : undefined
           }
@@ -732,7 +747,7 @@ export const ChatMessage = memo(function ChatMessage({
               personaAvatar={personaAvatar}
             />
             <span
-              className="min-w-0 truncate text-base sm:text-lg font-semibold tracking-tight font-serif"
+              className="min-w-0 truncate text-16 sm:text-18 font-semibold tracking-tight font-serif"
               style={{ color: "var(--theme-text)" }}
             >
               {personaName || t("chat.message.assistant")}
@@ -765,6 +780,7 @@ export const ChatMessage = memo(function ChatMessage({
                   startedAtMs={getRunStartedAtMs(message)}
                   stateKey={message.id}
                   active={message.isStreaming}
+                  stopped={message.cancelled === true}
                   renderExpanded={() => renderPartGroups(runHeadGroups)}
                 />
               )}
@@ -787,7 +803,7 @@ export const ChatMessage = memo(function ChatMessage({
               {message.toolCalls && message.toolCalls.length > 0 && (
                 <div className="mt-4 space-y-2">
                   <div
-                    className="text-xs font-medium uppercase tracking-wide mb-2"
+                    className="text-12 font-medium uppercase tracking-wide mb-2"
                     style={{ color: "var(--theme-text-secondary)" }}
                   >
                     {t("chat.message.toolCalls")} ({message.toolCalls.length})
@@ -816,26 +832,34 @@ export const ChatMessage = memo(function ChatMessage({
         {/* Copy button and Token button - same line at bottom, show on message hover (only after message completes) */}
         {!message.isStreaming && !isWaitingForHuman && (
           <div className="chat-message-actions flex items-center gap-1 pb-2">
-            <button
-              onClick={() => {
-                const textContent = getAssistantTextContent();
-                if (textContent) {
-                  copyToClipboard(textContent);
-                  setCopied(true);
-                  toast.success(t("chat.message.copied"));
-                  setTimeout(() => setCopied(false), 2000);
-                }
-              }}
-              className={clsx(
-                "p-1.5 rounded-md transition-colors",
-                copied
-                  ? "text-emerald-500 dark:text-emerald-400"
-                  : "hover:bg-stone-200 dark:hover:bg-stone-700 text-stone-400 dark:text-stone-500 hover:text-stone-600 dark:hover:text-stone-300",
-              )}
-              title={copied ? t("chat.message.copied") : t("chat.message.copy")}
+            <Tooltip
+              content={
+                copied ? t("chat.message.copied") : t("chat.message.copy")
+              }
             >
-              {copied ? <Check size={16} /> : <Copy size={16} />}
-            </button>
+              <button
+                onClick={() => {
+                  const textContent = getAssistantTextContent();
+                  if (textContent) {
+                    copyToClipboard(textContent);
+                    setCopied(true);
+                    toast.success(t("chat.message.copied"));
+                    setTimeout(() => setCopied(false), 2000);
+                  }
+                }}
+                aria-label={
+                  copied ? t("chat.message.copied") : t("chat.message.copy")
+                }
+                className={clsx(
+                  "p-1.5 rounded-md transition-colors",
+                  copied
+                    ? "text-emerald-500 dark:text-emerald-400"
+                    : "hover:bg-stone-200 dark:hover:bg-stone-700 text-stone-400 dark:text-stone-500 hover:text-stone-600 dark:hover:text-stone-300",
+                )}
+              >
+                {copied ? <Check size={16} /> : <Copy size={16} />}
+              </button>
+            </Tooltip>
             {isAuthenticated && sessionId && (
               <BookmarkButton
                 sessionId={sessionId}
@@ -845,31 +869,33 @@ export const ChatMessage = memo(function ChatMessage({
               />
             )}
             {sessionId && onForkMessage && (
-              <button
-                onClick={async () => {
-                  if (isForking) return;
-                  setIsForking(true);
-                  try {
-                    await onForkMessage(message.id);
-                  } finally {
-                    setIsForking(false);
-                  }
-                }}
-                disabled={isForking}
-                className={clsx(
-                  "p-1.5 rounded-md transition-colors",
-                  "hover:bg-stone-200 dark:hover:bg-stone-700",
-                  "text-stone-400 dark:text-stone-500 hover:text-stone-600 dark:hover:text-stone-300",
-                  isForking && "opacity-60 cursor-wait",
-                )}
-                title={t("chat.message.fork")}
-              >
-                {isForking ? (
-                  <Loader2 size={16} className="animate-spin" />
-                ) : (
-                  <GitBranch size={16} />
-                )}
-              </button>
+              <Tooltip content={t("chat.message.fork")}>
+                <button
+                  onClick={async () => {
+                    if (isForking) return;
+                    setIsForking(true);
+                    try {
+                      await onForkMessage(message.id);
+                    } finally {
+                      setIsForking(false);
+                    }
+                  }}
+                  disabled={isForking}
+                  aria-label={t("chat.message.fork")}
+                  className={clsx(
+                    "p-1.5 rounded-md transition-colors",
+                    "hover:bg-stone-200 dark:hover:bg-stone-700",
+                    "text-stone-400 dark:text-stone-500 hover:text-stone-600 dark:hover:text-stone-300",
+                    isForking && "opacity-60 cursor-wait",
+                  )}
+                >
+                  {isForking ? (
+                    <Loader2 size={16} className="animate-spin" />
+                  ) : (
+                    <GitBranch size={16} />
+                  )}
+                </button>
+              </Tooltip>
             )}
             {/* Token usage statistics button */}
             {(message.tokenUsage || message.duration) && (

@@ -14,7 +14,10 @@ test("eval tool has a dedicated item with code preview", () => {
   expect(source).toMatch(/function getEvalCodePreview/);
   expect(source).toMatch(/function getEvalPillSummary/);
   expect(source).toMatch(/Code2 size=\{12\}/);
-  expect(source).toMatch(/label=\{pillLabel\}/);
+  // 基础标签（含 pillSummary）经流式标签 hook 进入 pill
+  expect(source).toMatch(
+    /useToolStreamingLabel\(\s*pillSummary \? `\$\{evalLabel\} \$\{pillSummary\}` : evalLabel,/,
+  );
   expect(source).toMatch(/formatLabel=\{false\}/);
   expect(source).toMatch(/chat\.message\.codePreview/);
 });
@@ -23,8 +26,13 @@ test("generic tool calls include an argument summary in the pill label", () => {
   const source = readSource("../../ToolCallItem.tsx");
 
   expect(source).toMatch(/function buildToolPillSummary/);
-  expect(source).toMatch(/const pillLabel = pillSummary/);
-  expect(source).toMatch(/label=\{pillLabel\}/);
+  expect(source).toMatch(
+    /const pillSummary = buildToolPillSummary\(displayArgs\);/,
+  );
+  // 基础标签（含 pillSummary）经流式标签 hook 进入 pill
+  expect(source).toMatch(
+    /useToolStreamingLabel\(\s*pillSummary \? `\$\{toolName\} \$\{pillSummary\}` : toolName,/,
+  );
   expect(source).toMatch(/formatLabel=\{false\}/);
 });
 
@@ -55,7 +63,7 @@ test("eval item renders the parsed wire result instead of raw tags", () => {
 test("eval result values render in the standard mono block without oversized display", () => {
   const source = readSource("../EvalItem.tsx");
 
-  expect(source).not.toMatch(/text-2xl/);
+  expect(source).not.toMatch(/text-24/);
   expect(source).not.toMatch(/isProminentEvalValue/);
   expect(source).toMatch(/evalCodePreviewClassName/);
 });

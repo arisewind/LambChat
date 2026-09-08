@@ -32,14 +32,14 @@ export function Footer({ onScrollToSection }: FooterProps) {
                 className="h-6 w-auto text-stone-900 dark:text-stone-100"
               />
             </div>
-            <p className="text-sm text-stone-400 dark:text-stone-500 leading-[1.75] mb-7 max-w-xs">
+            <p className="text-14 text-stone-400 dark:text-stone-500 leading-[1.75] mb-7 max-w-xs">
               {t("landing.footerTagline")}
             </p>
             <a
               href={GITHUB_URL}
               target="_blank"
               rel="noopener noreferrer"
-              className="blog-btn-ghost inline-flex items-center gap-2 rounded-full border border-stone-200/80 dark:border-stone-700/50 px-4 py-2 text-xs font-medium text-stone-500 dark:text-stone-400 hover:text-stone-900 dark:hover:text-stone-50 transition-all duration-200"
+              className="blog-btn-ghost inline-flex items-center gap-2 rounded-full border border-stone-200/80 dark:border-stone-700/50 px-4 py-2 text-12 font-medium text-stone-500 dark:text-stone-400 hover:text-stone-900 dark:hover:text-stone-50 transition-all duration-200"
             >
               <GitHubIcon className="h-3.5 w-3.5" />
               GitHub
@@ -120,10 +120,10 @@ export function Footer({ onScrollToSection }: FooterProps) {
 
         {/* Bottom */}
         <div className="pt-8 border-t border-stone-200/30 dark:border-stone-800/20 flex flex-col sm:flex-row items-center justify-between gap-3">
-          <span className="text-xs text-stone-300 dark:text-stone-600 font-serif tracking-wide">
+          <span className="text-12 text-stone-300 dark:text-stone-600 font-serif tracking-wide">
             &copy; {new Date().getFullYear()} {APP_NAME}
           </span>
-          <div className="flex items-center gap-2.5 text-xs text-stone-300 dark:text-stone-600">
+          <div className="flex items-center gap-2.5 text-12 text-stone-300 dark:text-stone-600">
             <span>{t("footer.openSource", "Open Source")}</span>
             <span className="w-1 h-1 rounded-full bg-stone-200 dark:bg-stone-700" />
             <span>{t("footer.mit")}</span>

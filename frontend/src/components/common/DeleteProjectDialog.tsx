@@ -70,7 +70,7 @@ export function DeleteProjectDialog({
               className="text-red-500 dark:text-red-400"
             />
             <span
-              className="text-sm font-medium"
+              className="text-14 font-medium"
               style={{ color: "var(--theme-text)" }}
             >
               {t("sidebar.deleteProjectTitle")}
@@ -88,7 +88,7 @@ export function DeleteProjectDialog({
         {/* Description */}
         <div className="px-5 py-4">
           <p
-            className="text-sm leading-relaxed"
+            className="text-14 leading-relaxed"
             style={{ color: "var(--theme-text-secondary)" }}
           >
             {t("sidebar.deleteProjectDesc", { name: projectName })}
@@ -100,7 +100,7 @@ export function DeleteProjectDialog({
           <button
             onClick={() => onConfirm(true)}
             disabled={loading}
-            className="flex w-full items-center gap-3 px-4 py-3 rounded-lg text-left text-sm transition-colors text-red-500/80 hover:text-red-500 dark:text-red-400/80 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-500/10 active:scale-[0.98] disabled:opacity-70 disabled:cursor-not-allowed"
+            className="flex w-full items-center gap-3 px-4 py-3 rounded-lg text-left text-14 transition-colors text-red-500/80 hover:text-red-500 dark:text-red-400/80 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-500/10 active:scale-[0.98] disabled:opacity-70 disabled:cursor-not-allowed"
           >
             <Trash2 size={16} strokeWidth={1.8} className="shrink-0" />
             <div className="min-w-0">
@@ -108,7 +108,7 @@ export function DeleteProjectDialog({
                 {t("sidebar.deleteProjectAndSessions")}
               </span>
               <span
-                className="block text-xs mt-0.5 opacity-60"
+                className="block text-12 mt-0.5 opacity-60"
                 style={{ color: "var(--theme-text-secondary)" }}
               >
                 {t(
@@ -124,14 +124,14 @@ export function DeleteProjectDialog({
           <button
             onClick={() => onConfirm(false)}
             disabled={loading}
-            className="flex w-full items-center gap-3 px-4 py-3 rounded-lg text-left text-sm transition-colors text-[var(--theme-text-secondary)] hover:text-[var(--theme-text)] hover:bg-[var(--theme-bg-subtle)] active:scale-[0.98] disabled:opacity-70 disabled:cursor-not-allowed"
+            className="flex w-full items-center gap-3 px-4 py-3 rounded-lg text-left text-14 transition-colors text-[var(--theme-text-secondary)] hover:text-[var(--theme-text)] hover:bg-[var(--theme-bg-subtle)] active:scale-[0.98] disabled:opacity-70 disabled:cursor-not-allowed"
           >
             <FolderInput size={16} strokeWidth={1.8} className="shrink-0" />
             <div className="min-w-0">
               <span className="block">
                 {t("sidebar.deleteProjectKeepSessions")}
               </span>
-              <span className="block text-xs mt-0.5 opacity-60">
+              <span className="block text-12 mt-0.5 opacity-60">
                 {t("sidebar.deleteProjectKeepSessionsHint", "会话移至未分类")}
               </span>
             </div>
@@ -150,7 +150,7 @@ export function DeleteProjectDialog({
             ref={cancelRef}
             onClick={onCancel}
             disabled={loading}
-            className="px-4 py-2 text-sm font-medium rounded-lg transition-colors text-[var(--theme-text-secondary)] hover:text-[var(--theme-text)] hover:bg-[var(--theme-bg-subtle)] disabled:opacity-50 disabled:cursor-not-allowed"
+            className="px-4 py-2 text-14 font-medium rounded-lg transition-colors text-[var(--theme-text-secondary)] hover:text-[var(--theme-text)] hover:bg-[var(--theme-bg-subtle)] disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {t("common.cancel")}
           </button>

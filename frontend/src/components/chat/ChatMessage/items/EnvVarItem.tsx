@@ -2,6 +2,7 @@ import { memo, useMemo } from "react";
 import { KeyRound, ShieldCheck } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { CollapsiblePill } from "../../../common";
+import { useToolStreamingLabel } from "./useToolStreamingLabel";
 import { extractText } from "./toolUtils";
 import {
   openToolLivePanel,
@@ -82,7 +83,7 @@ function EnvVarDetail({ args, result }: ToolDetailProps) {
               size={13}
               className="text-emerald-500 dark:text-emerald-400 shrink-0"
             />
-            <span className="text-xs font-medium text-emerald-700 dark:text-emerald-300">
+            <span className="text-12 font-medium text-emerald-700 dark:text-emerald-300">
               {t("chat.message.toolVarCount", { count: allKeys.length })}
             </span>
             <span className="text-10 text-emerald-600/60 dark:text-emerald-400/50 ml-auto">
@@ -102,7 +103,7 @@ function EnvVarDetail({ args, result }: ToolDetailProps) {
                     className="text-emerald-500 dark:text-emerald-400"
                   />
                 </div>
-                <span className="text-sm font-mono text-theme-text min-w-0 truncate flex-1">
+                <span className="text-14 font-mono text-theme-text min-w-0 truncate flex-1">
                   {k}
                 </span>
                 <span className="text-11 text-theme-text-tertiary font-mono shrink-0 tracking-widest">
@@ -115,7 +116,7 @@ function EnvVarDetail({ args, result }: ToolDetailProps) {
       )}
 
       {result && allKeys.length === 0 && (
-        <pre className="group/result relative text-xs text-theme-text-tertiary whitespace-pre-wrap break-words p-3 rounded-lg bg-theme-bg border border-theme-border">
+        <pre className="group/result relative text-12 text-theme-text-tertiary whitespace-pre-wrap break-words p-3 rounded-lg bg-theme-bg border border-theme-border">
           {(() => {
             const text = extractText(result);
             return text.length > 600 ? text.slice(0, 597) + "…" : text;
@@ -229,12 +230,20 @@ const EnvVarItem = memo(function EnvVarItem({
 
   // ── Inline (compact) view ──
 
+  // 进行中：标签学「思考中」，平滑流出正在生成的参数尾部
+  const { label, isStreamingLabel } = useToolStreamingLabel(
+    `${actionLabel}${labelSuffix ? ` ${labelSuffix}` : ""}`,
+    args,
+    { isPending, result },
+  );
+
   return (
     <>
       <CollapsiblePill
         status={pillStatus}
         icon={<KeyRound size={12} className="shrink-0 opacity-50" />}
-        label={`${actionLabel}${labelSuffix ? ` ${labelSuffix}` : ""}`}
+        label={label}
+        animatedDots={isStreamingLabel}
         variant="tool"
         expandable={canExpand}
         onPanelOpen={() => {
@@ -260,7 +269,7 @@ const EnvVarItem = memo(function EnvVarItem({
           <ToolInlineDetails>
             {allKeys.length > 0 && (
               <div>
-                <div className="text-xs text-theme-text-tertiary mb-1">
+                <div className="text-12 text-theme-text-tertiary mb-1">
                   {t("chat.message.toolVarCount", { count: allKeys.length })}
                 </div>
                 <div className="flex flex-wrap gap-1">
@@ -286,7 +295,7 @@ const EnvVarItem = memo(function EnvVarItem({
             )}
 
             {result && allKeys.length === 0 && (
-              <pre className="group/result relative text-xs text-theme-text-tertiary whitespace-pre-wrap break-words overflow-y-auto min-w-0">
+              <pre className="group/result relative text-12 text-theme-text-tertiary whitespace-pre-wrap break-words overflow-y-auto min-w-0">
                 {(() => {
                   const text = extractText(result);
                   return text.length > 300 ? text.slice(0, 297) + "…" : text;

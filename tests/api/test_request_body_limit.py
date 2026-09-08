@@ -188,3 +188,54 @@ async def test_body_size_middleware_allows_multipart_upload_routes(
 
     assert response.status_code == 200
     assert response.json() == {"ok": True}
+
+
+@pytest.mark.asyncio
+async def test_body_size_middleware_exempts_sandbox_stream_results(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """本地沙箱流式回传端点不受全局请求体门限。
+
+    /api/sandbox/results/stream 的二进制帧 chunked POST 自带分级上限
+    （总量 S3_INTERNAL_UPLOAD_MAX_SIZE + 1MiB、单帧 8MiB、断流哨兵）；
+    若仍受全局 8MiB 门限管辖，>8MiB 的流式下载必然 413——daemon 断通道
+    重连、调用超时并连坐同机在飞调用（scripts/e2e_local_sandbox.py 大文件
+    档实测捕获）。"""
+    monkeypatch.setattr(api_main, "API_REQUEST_BODY_MAX_BYTES", 8, raising=False)
+
+    called = False
+
+    async def app(scope: Scope, receive, send):
+        nonlocal called
+        called = True
+        while True:
+            message = await receive()
+            if message["type"] != "http.request" or not message.get("more_body"):
+                break
+        await send({"type": "http.response.start", "status": 200, "headers": []})
+        await send({"type": "http.response.body", "body": b"ok"})
+
+    middleware = api_main.RequestBodyLimitMiddleware(app)
+    scope: Scope = {
+        "type": "http",
+        "method": "POST",
+        "path": "/api/sandbox/results/stream/abc123",
+        "headers": [],
+    }
+    messages: list[Message] = [
+        {"type": "http.request", "body": b"1234", "more_body": True},
+        {"type": "http.request", "body": b"56789", "more_body": False},
+    ]
+    sent: list[Message] = []
+
+    async def receive() -> Message:
+        return messages.pop(0)
+
+    async def send(message: Message) -> None:
+        sent.append(message)
+
+    await middleware(scope, receive, send)
+
+    assert called is True
+    assert sent[0]["type"] == "http.response.start"
+    assert sent[0]["status"] == 200

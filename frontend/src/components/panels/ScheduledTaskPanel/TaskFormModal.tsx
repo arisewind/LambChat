@@ -526,7 +526,7 @@ export function TaskFormModal({
                 ] as const
               ).map(({ key, label, value, set }) => (
                 <div key={key} className="scheduled-task-form-field">
-                  <label className="scheduled-task-label text-xs">
+                  <label className="scheduled-task-label text-12">
                     {label}
                   </label>
                   <Input
@@ -553,11 +553,11 @@ export function TaskFormModal({
                 setJsonError(null);
               }}
               rows={4}
-              className={`${inputClass} resize-y font-mono text-xs`}
+              className={`${inputClass} resize-y font-mono text-12`}
               placeholder="{}"
             />
             {jsonError && (
-              <p className="mt-1 text-xs text-red-500">{jsonError}</p>
+              <p className="mt-1 text-12 text-red-500">{jsonError}</p>
             )}
           </div>
 
@@ -607,7 +607,7 @@ export function TaskFormModal({
           <div className="space-y-3">
             {/* Enabled toggle */}
             <div className="flex items-center justify-between">
-              <span className="text-sm font-medium text-theme-text-secondary">
+              <span className="text-14 font-medium text-theme-text-secondary">
                 {t("scheduledTask.enabled")}
               </span>
               <ToggleSwitch
@@ -623,7 +623,7 @@ export function TaskFormModal({
 
             {triggerType !== "date" && (
               <div className="flex items-center justify-between">
-                <span className="text-sm font-medium text-theme-text-secondary">
+                <span className="text-14 font-medium text-theme-text-secondary">
                   {t("scheduledTask.runOnStart")}
                 </span>
                 <ToggleSwitch

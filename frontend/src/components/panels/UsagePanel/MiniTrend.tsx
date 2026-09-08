@@ -32,7 +32,7 @@ function ChartTooltip({
         {label}
       </p>
       {payload.map((entry) => (
-        <div key={entry.name} className="flex items-center gap-2 text-xs">
+        <div key={entry.name} className="flex items-center gap-2 text-12">
           <span
             className="h-2 w-2 rounded-full"
             style={{ backgroundColor: entry.color }}
@@ -88,7 +88,7 @@ export function MiniTrend({ points }: { points: UsageDailyPoint[] }) {
             <LineChart size={15} strokeWidth={2} />
           </div>
           <div>
-            <h3 className="text-13 font-bold tracking-tight text-theme-text sm:text-sm">
+            <h3 className="text-13 font-bold tracking-tight text-theme-text sm:text-14">
               {t("usage.trend.title")}
             </h3>
             <p className="text-10 text-theme-text-tertiary sm:text-11">
@@ -114,7 +114,7 @@ export function MiniTrend({ points }: { points: UsageDailyPoint[] }) {
         {!hasData ? (
           <div className="usage-empty-state flex h-[180px] flex-col items-center justify-center gap-2 text-theme-text-tertiary sm:h-[220px]">
             <LineChart size={24} className="opacity-20" />
-            <span className="text-xs">{t("usage.trend.empty")}</span>
+            <span className="text-12">{t("usage.trend.empty")}</span>
           </div>
         ) : (
           <ResponsiveContainer

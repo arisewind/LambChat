@@ -108,14 +108,28 @@ feat/fix 分支 ──PR──▶ develop ──PR──▶ main ──▶ yang 
                  CI 全量检查
                  出 develop-<时间戳> 镜像
                        │
-                 update-staging.sh ──▶ staging 验证（yang 8021，仅 SSH 隧道可达）
+                 update-staging.sh ──▶ staging 验证（https://test.lambchat.com，8021 SSH 隧道备用）
 ```
 
 | 分支 | 用途 | 保护 |
 |------|------|------|
 | `main` | 生产分支，每次合并出 `main-<时间戳>` 镜像 | 必须 PR；Merge Gate 只放行 `develop` 与 `hotfix/*` 来源 |
 | `develop` | 集成分支（默认分支），所有 feature/fix PR 的目标，每次合并出 `develop-<时间戳>` 镜像 | 必须 PR（0 approvals，自合留痕即可） |
-| `feat/*` `fix/*` `perf/*` `docs/*` `chore/*` | 短生命周期工作分支，从 `develop` 拉 | 无 |
+| `feat/*` `fix/*` `perf/*` `docs/*` `chore/*` | 短生命周期工作分支，从最新 `origin/develop` 拉 | 无 |
+
+### 开发起点（基于最新 origin/develop）
+
+**规矩：任何开发开工前，先同步远端并基于最新的 `origin/develop` 进行——新分支直接从 `origin/develop` 拉，已有分支先 rebase 到 `origin/develop` 再继续；禁止基于过期的本地 `develop` 或其他工作分支开工。**
+
+```bash
+git fetch origin
+
+# 开新工作分支：直接基于最新 origin/develop
+git checkout -b feat/xxx origin/develop
+
+# 已有分支继续开发 / 开 PR 前：先 rebase 到最新 origin/develop
+git rebase origin/develop
+```
 
 ### 提交信息规范
 
@@ -137,12 +151,25 @@ Conventional Commits + 中文描述：`类型(范围): 摘要`。
 |-----|------|------|
 | `develop-YYYYMMDD-HHmmss` | push `develop` | staging 验证 |
 | `main-YYYYMMDD-HHmmss` | push `main` | 生产部署 |
-| `v*` | 发版 tag | 归档 |
+| `v*` | 发版 tag（只打在 `main`） | 归档 + App Release 触发 |
+
+### 发版节奏（防热修风暴）
+
+**规矩：同一自然日最多发一个正式版。**当天发现的问题攒到 develop（P0 例外：生产不可用/数据丢失可即时热修）；出包后处于「烘焙态」，真机抽检通过再推给桌面端。桌面端打包问题（安装包内路径/签名/启动类）历史上只有装包才能发现，v2.9.0~v2.9.2 一天四版即此教训——现在 CI 已有打包产物冒烟门禁 + latest.json 延后发布双保险，但真机抽检（至少 mac + windows 各一台）仍是发布前最后一道人工关。
+
+### 发版流程（App Release / `v*` tag）
+
+**规矩：发版 tag 一律打在 `main` 的合并提交上——hotfix 或 develop 晋升合入 `main`、CI 全绿后再打 tag；禁止在 feature 分支或未晋升到 `main` 的提交上发版。**
+
+1. 打 tag 前先 bump 六处版本文件并保持一致：`frontend/package.json`、`frontend/src-tauri/tauri.conf.json`、android `versionName`/`versionCode`（数字串 = 版本去点）、iOS `MARKETING_VERSION`、`pyproject.toml`（服务端 `/api/version` 运行时读它，漏 bump 网页端版本号就不同步）、`client/lambchat_sandbox/__init__.py` 的 `__version__`（daemon 自更新比版本，漏 bump daemon 永不更新）——app-release.yml 的 preflight 会校验 tag 与版本一致，漂移直接红。
+2. 在 `main` 合并提交上打 tag 并推送，触发 `app-release.yml`：六端矩阵构建（Linux x86_64/arm64、Windows、macOS Apple Silicon/Intel）+ Android/iOS，即发即传上传 GitHub Release。
+3. 出包默认**烘焙态**：资产全部上 Release、CI 打包产物冒烟（mac 直接跑 .app 内 daemon、Linux 解包 deb 跑、Windows 跑 sidecar）须绿，但 `latest.json` **不上传**——桌面端自更新不感知。真机抽检（mac/windows）通过后，到 Actions 手动跑 **Desktop Updater Publish**（输入 tag）才把 latest.json 推给桌面端；此时发版完成的判据是 latest.json 五个桌面平台条目齐全（含 `darwin-x86_64`）。仓库变量 `DESKTOP_UPDATER_AUTO_PUBLISH=true` 可恢复随包直发（不建议）。
+4. 重打同一 tag：先删远端 tag 与旧 run，再在新提交上重推；资产同名 `--clobber` 原地替换。
 
 ### 晋升 checklist（develop → main）
 
 1. develop 上 CI 全绿
-2. staging 验证：yang 上 `/data/lambchat-k8s/update-staging.sh` 滚到目标 tag，本地 `ssh -L 8021:127.0.0.1:8021 yang` 后访问 `http://127.0.0.1:8021` 真实跑一轮对话
+2. staging 验证：yang 上 `/data/lambchat-k8s/update-staging.sh` 滚到目标 tag，访问 `https://test.lambchat.com` 真实跑一轮对话（备用：本地 `ssh -L 8021:127.0.0.1:8021 yang` 后打开 `http://127.0.0.1:8021`）
 3. 开 PR `develop` → `main`，合并（Merge Gate 会校验来源）
 4. 生产部署：yang 上 `/data/lambchat-k8s/update.sh`（自动取最新 `main-*` tag，滚动失败自动回滚）
 5. 部署后回归：`bash /root/disttest/run-all.sh`
@@ -398,9 +425,23 @@ LLM 模型通过 **Model Config UI** 配置，无需在环境变量中设置 API
 | 后端逻辑 | `uv run pytest`（相关测试） |
 | 后端格式/类型 | `make lint` + `make typecheck` |
 | 跨栈变更 | `make check-all` |
+| 本地沙箱/daemon/传输链路 | `uv run python scripts/e2e_local_sandbox.py`（详见下方规矩） |
 | 文档变更 | 确认 Markdown 链接、命令和路径正确 |
 
 如果验证因缺少服务、依赖或环境变量无法完成，明确说明。
+
+### 本地沙箱链路 E2E（平台开发硬性门禁）
+
+**规矩：凡涉及本地沙箱链路的开发——`src/infra/sandbox/`、`client/lambchat_sandbox/`、`src/api/routes/sandbox.py`、请求体门限/传输相关中间件、桌面端 daemon 托管（`frontend/src-tauri/src/daemon.rs`）——合并前必须在本机跑通全量 E2E：**
+
+```bash
+uv run python scripts/e2e_local_sandbox.py             # 功能链路（15 项，须全 PASS）
+uv run python scripts/e2e_local_sandbox.py --stress    # 发版前/大改动追加压测段
+```
+
+- 脚本自举环境：后端未起会自动拉起、注册一次性测试用户并铸 PAT、拉起 daemon，结束自动回收（测试用户/PAT/工作目录），只要求本机 MongoDB/Redis 可达（凭据读 `.env`）。
+- 覆盖面：SSE 握手与多机注册表、exec 往返、机器绑定防冒答（409）、双向流式大文件传输（10/50/100MB sha256 校验）、结构化 fs op、分块 base64 兜底、优雅下线秒级翻转；`--stress` 追加并发扫描与持续负载。
+- 这条门禁的由来：`fs_upload_stream` 分发漏注册（上传快路径整条失效）与请求体门限误伤流式回传（>8MiB 下载全灭）两个生产级 bug，都是单测/seam 全绿下只有该 E2E 抓到的。
 
 ## 本地开发地址
 

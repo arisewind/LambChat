@@ -15,15 +15,14 @@ function readComponent(...segments: string[]): string {
 test("channel panel configuration card heading uses font-serif", () => {
   const source = readComponent("panels/ChannelPanel.tsx");
   expect(source).toMatch(
-    /<h3 className="mb-4 text-sm font-semibold font-serif/,
+    /<h3 className="mb-4 text-14 font-semibold font-serif/,
   );
 });
 
 test("profile preferences dropdown title uses font-serif", () => {
-  const source = readComponent("profile/tabs/ProfilePreferencesTab.tsx");
-  expect(source).toMatch(
-    /<h4 className="text-sm font-semibold font-serif/,
-  );
+  // SelectRow（含下拉弹窗标题）已从 ProfilePreferencesTab 抽取为共享组件
+  const source = readComponent("profile/SelectRow.tsx");
+  expect(source).toMatch(/<h4 className="text-14 font-semibold font-serif/);
 });
 
 test("team pane titles use font-serif like team member names", () => {
@@ -36,26 +35,26 @@ test("team pane titles use font-serif like team member names", () => {
 test("shared dialog titles use font-serif", () => {
   const confirm = readComponent("common/ConfirmDialog.tsx");
   const contact = readComponent("common/ContactAdminDialog.tsx");
-  expect(confirm).toMatch(/text-base font-semibold font-serif/);
-  expect(contact).toMatch(/text-base font-semibold font-serif tracking-tight/);
+  expect(confirm).toMatch(/text-16 font-semibold font-serif/);
+  expect(contact).toMatch(/text-16 font-semibold font-serif tracking-tight/);
 });
 
 test("not found page headline uses font-serif like error boundary", () => {
   const source = readComponent("common/NotFoundPage.tsx");
-  expect(source).toMatch(/text-2xl font-semibold font-serif/);
+  expect(source).toMatch(/text-24 font-semibold font-serif/);
 });
 
 test("shared project error headline uses font-serif like shared page", () => {
   const source = readComponent("share/SharedProjectPage.tsx");
-  expect(source).toMatch(/<h1 className="text-xl font-semibold font-serif/);
+  expect(source).toMatch(/<h1 className="text-20 font-semibold font-serif/);
 });
 
 test("cad preview phase heading uses font-serif like its idle heading", () => {
   const source = readComponent("documents/previews/CadPreview.tsx");
-  expect(source.match(/text-base font-medium font-serif/g)?.length).toBe(2);
+  expect(source.match(/text-16 font-medium font-serif/g)?.length).toBe(2);
 });
 
 test("skill preview modal files heading uses font-serif", () => {
   const source = readComponent("panels/MarketplacePanel/SkillPreviewModal.tsx");
-  expect(source).toMatch(/text-sm font-semibold font-serif/);
+  expect(source).toMatch(/text-14 font-semibold font-serif/);
 });

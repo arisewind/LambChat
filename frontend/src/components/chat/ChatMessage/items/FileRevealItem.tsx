@@ -10,6 +10,7 @@ import {
   isExcalidrawFile,
 } from "../../../documents/utils";
 import { ExcalidrawCardPreview } from "../../../documents/previews/ExcalidrawCardPreview";
+import { mediaProxyFallbackSrc } from "../../../documents/documentFetchCache";
 import { getFullUrl } from "../../../../services/api";
 import { buildChatThumbUrl } from "../../../../utils/chatThumbs";
 import {
@@ -117,7 +118,7 @@ export function FileRevealItem({
             seconds: seconds % 60,
           });
     return (
-      <span className="inline-flex items-center gap-1 text-xs text-[var(--theme-text-secondary)] tabular-nums px-2">
+      <span className="inline-flex items-center gap-1 text-12 text-[var(--theme-text-secondary)] tabular-nums px-2">
         <Clock size={11} className="shrink-0" />
         {text}
       </span>
@@ -299,10 +300,10 @@ export function FileRevealItem({
           <FileIcon size={20} className="text-red-500" />
         </div>
         <div className="flex-1 min-w-0">
-          <div className="text-sm font-medium text-red-700 dark:text-red-300 truncate">
+          <div className="text-14 font-medium text-red-700 dark:text-red-300 truncate">
             {fileName}
           </div>
-          <div className="text-xs text-red-500 dark:text-red-400 truncate mt-0.5">
+          <div className="text-12 text-red-500 dark:text-red-400 truncate mt-0.5">
             {parsed.error}
           </div>
         </div>
@@ -344,6 +345,11 @@ export function FileRevealItem({
                 className="w-full"
                 src={parsed.s3Url}
                 preload="metadata"
+                onError={(e) => {
+                  // 直连 302 的预签名地址不可达时，改走应用代理流式加载
+                  const fallback = mediaProxyFallbackSrc(e.currentTarget);
+                  if (fallback) e.currentTarget.src = fallback;
+                }}
               />
             </div>
           ) : (
@@ -384,7 +390,13 @@ export function FileRevealItem({
                     playsInline
                     onLoadedData={() => setMediaLoaded(true)}
                     onCanPlay={() => setMediaLoaded(true)}
-                    onError={() => setMediaLoaded(true)}
+                    onError={(e) => {
+                      // 直连 302 的预签名地址不可达时，改走应用代理流式加载；
+                      // 重试仍失败再撤掉骨架屏
+                      const fallback = mediaProxyFallbackSrc(e.currentTarget);
+                      if (fallback) e.currentTarget.src = fallback;
+                      else setMediaLoaded(true);
+                    }}
                   />
                 )
               )}
@@ -421,11 +433,11 @@ export function FileRevealItem({
             <div className={`p-1.5 rounded-md shrink-0 ${bg}`}>
               <FileIcon size={14} className={color} />
             </div>
-            <span className="text-xs font-medium text-theme-text-secondary min-w-0 truncate flex-1">
+            <span className="text-12 font-medium text-theme-text-secondary min-w-0 truncate flex-1">
               {fileName}
             </span>
             {parsed.description && (
-              <span className="text-xs text-theme-text-tertiary truncate max-w-[200px]">
+              <span className="text-12 text-theme-text-tertiary truncate max-w-[200px]">
                 {parsed.description}
               </span>
             )}
@@ -454,11 +466,11 @@ export function FileRevealItem({
           </div>
 
           <div className="flex-1 min-w-0">
-            <div className="text-sm font-medium text-theme-text truncate">
+            <div className="text-14 font-medium text-theme-text truncate">
               {fileName}
             </div>
             {parsed.description && (
-              <div className="text-xs text-theme-text-tertiary truncate mt-1">
+              <div className="text-12 text-theme-text-tertiary truncate mt-1">
                 {parsed.description}
               </div>
             )}

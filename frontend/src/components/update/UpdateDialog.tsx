@@ -4,6 +4,7 @@ import { Download, ExternalLink, RefreshCw, X } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { useBodyScrollLock } from "../../hooks/useBodyScrollLock";
 import { LoadingSpinner } from "../common/LoadingSpinner";
+import { ReleaseNotesMarkdown } from "./ReleaseNotesMarkdown";
 import { UpdateProgressBar } from "./UpdateProgressBar";
 import type { UpdateState } from "../../types";
 
@@ -54,7 +55,7 @@ export function UpdateDialog({
         <div className="flex items-center justify-between px-5 pt-5 pb-3">
           <div className="flex items-center gap-2">
             <Download size={20} className="text-[var(--theme-primary)]" />
-            <h3 className="text-base font-semibold text-stone-900 dark:text-stone-100">
+            <h3 className="text-16 font-semibold text-stone-900 dark:text-stone-100">
               {t("updateNewVersion", {
                 version: state.version ?? "",
               })}
@@ -74,7 +75,7 @@ export function UpdateDialog({
         {/* Body */}
         <div className="px-5 pb-4 space-y-3">
           {state.publishedAt && (
-            <p className="text-xs text-stone-500 dark:text-stone-400">
+            <p className="text-12 text-stone-500 dark:text-stone-400">
               {t("updatePublishedAt", {
                 date: new Date(state.publishedAt).toLocaleDateString(),
               })}
@@ -83,11 +84,11 @@ export function UpdateDialog({
 
           {state.releaseNotes && (
             <div className="space-y-1">
-              <p className="text-xs font-medium text-stone-600 dark:text-stone-300">
+              <p className="text-12 font-medium text-stone-600 dark:text-stone-300">
                 {t("updateReleaseNotes", "更新内容")}
               </p>
-              <div className="max-h-40 overflow-y-auto rounded-lg bg-stone-50 dark:bg-stone-900/50 p-3 text-sm text-stone-600 dark:text-stone-400 leading-relaxed prose prose-sm prose-stone dark:prose-invert max-w-none">
-                {state.releaseNotes}
+              <div className="max-h-40 overflow-y-auto rounded-lg bg-stone-50 dark:bg-stone-900/50 p-3">
+                <ReleaseNotesMarkdown content={state.releaseNotes} />
               </div>
             </div>
           )}
@@ -101,7 +102,7 @@ export function UpdateDialog({
           )}
 
           {state.error && (
-            <div className="rounded-lg bg-red-50 dark:bg-red-900/20 p-3 text-sm text-red-600 dark:text-red-400">
+            <div className="rounded-lg bg-red-50 dark:bg-red-900/20 p-3 text-14 text-red-600 dark:text-red-400">
               {state.error}
             </div>
           )}
@@ -112,7 +113,7 @@ export function UpdateDialog({
           {!state.downloading && (
             <button
               onClick={onSkip}
-              className="px-4 py-2 text-sm font-medium text-stone-700 dark:text-stone-300 bg-white dark:bg-stone-800 border border-stone-200 dark:border-stone-600 rounded-lg hover:bg-stone-50 dark:hover:bg-stone-700 transition-colors"
+              className="px-4 py-2 text-14 font-medium text-stone-700 dark:text-stone-300 bg-white dark:bg-stone-800 border border-stone-200 dark:border-stone-600 rounded-lg hover:bg-stone-50 dark:hover:bg-stone-700 transition-colors"
             >
               {t("updateSkip", "稍后提醒")}
             </button>
@@ -121,7 +122,7 @@ export function UpdateDialog({
           {platform === "ios" ? (
             <button
               onClick={onUpgrade}
-              className="px-4 py-2 text-sm font-medium text-white bg-[var(--theme-primary)] rounded-lg hover:opacity-90 transition-opacity inline-flex items-center gap-2"
+              className="px-4 py-2 text-14 font-medium text-white bg-[var(--theme-primary)] rounded-lg hover:opacity-90 transition-opacity inline-flex items-center gap-2"
             >
               <ExternalLink size={16} />
               {t("updateGoToDownload", "前往下载")}
@@ -130,7 +131,7 @@ export function UpdateDialog({
             <button
               onClick={onUpgrade}
               disabled={state.downloading}
-              className="px-4 py-2 text-sm font-medium text-white bg-[var(--theme-primary)] rounded-lg hover:opacity-90 transition-opacity inline-flex items-center justify-center gap-2 disabled:opacity-70 disabled:cursor-not-allowed"
+              className="px-4 py-2 text-14 font-medium text-white bg-[var(--theme-primary)] rounded-lg hover:opacity-90 transition-opacity inline-flex items-center justify-center gap-2 disabled:opacity-70 disabled:cursor-not-allowed"
             >
               {state.downloading ? (
                 <span className="inline-flex h-4 w-4 items-center justify-center">
@@ -141,14 +142,16 @@ export function UpdateDialog({
               )}
               {state.downloading
                 ? t("updateDownloading", "正在下载...")
-                : t("updateDownload", "立即升级")}
+                : state.readyToInstall
+                  ? t("updateRelaunchInstall", "重启并安装")
+                  : t("updateDownload", "立即升级")}
             </button>
           )}
 
           {state.error && !state.downloading && (
             <button
               onClick={onUpgrade}
-              className="px-4 py-2 text-sm font-medium text-stone-600 dark:text-stone-400 hover:text-stone-800 dark:hover:text-stone-200 transition-colors"
+              className="px-4 py-2 text-14 font-medium text-stone-600 dark:text-stone-400 hover:text-stone-800 dark:hover:text-stone-200 transition-colors"
             >
               {t("updateRetry", "重试")}
             </button>

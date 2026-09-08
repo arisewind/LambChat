@@ -137,10 +137,10 @@ const ExcalidrawPreview = memo(function ExcalidrawPreview({
           <AlertCircle size={28} className="text-red-500" />
         </div>
         <div className="text-center">
-          <p className="text-sm text-red-600 dark:text-red-400 font-medium mb-2">
+          <p className="text-14 text-red-600 dark:text-red-400 font-medium mb-2">
             {error}
           </p>
-          <p className="text-xs text-stone-400 dark:text-stone-500">
+          <p className="text-12 text-stone-400 dark:text-stone-500">
             The file may be corrupted or in an unsupported format.
           </p>
         </div>
@@ -410,7 +410,7 @@ export function ExcalidrawFullscreenViewer({
   return createPortal(
     <div
       data-yields-sidebar
-      className="fixed inset-0 z-[300] flex flex-col bg-black/90"
+      className="safe-area-x fixed inset-0 z-[300] flex flex-col bg-black/90"
       onClick={handleBackgroundClick}
     >
       {/* Top bar — matches ImageViewer pattern */}

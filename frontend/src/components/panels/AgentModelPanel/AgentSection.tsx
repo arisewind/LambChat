@@ -173,7 +173,7 @@ export function AgentSection() {
         <div className="inline-grid grid-cols-2 rounded-lg border border-[var(--glass-border)] bg-[var(--glass-bg-subtle)] p-1 my-3 font-serif">
           <button
             onClick={() => setActiveTab("global")}
-            className={`flex items-center justify-center gap-2 rounded-md px-3 py-2 text-sm font-medium transition-all duration-150 ${
+            className={`flex items-center justify-center gap-2 rounded-md px-3 py-2 text-14 font-medium transition-all duration-150 ${
               activeTab === "global"
                 ? "bg-white text-stone-950 shadow-sm ring-1 ring-[var(--glass-border)] dark:bg-stone-800 dark:text-stone-50"
                 : "text-stone-500 hover:bg-white/60 hover:text-stone-800 dark:text-stone-400 dark:hover:bg-stone-800/60 dark:hover:text-stone-100"
@@ -183,7 +183,7 @@ export function AgentSection() {
           </button>
           <button
             onClick={() => setActiveTab("roles")}
-            className={`flex items-center justify-center gap-2 rounded-md px-3 py-2 text-sm font-medium transition-all duration-150 ${
+            className={`flex items-center justify-center gap-2 rounded-md px-3 py-2 text-14 font-medium transition-all duration-150 ${
               activeTab === "roles"
                 ? "bg-white text-stone-950 shadow-sm ring-1 ring-[var(--glass-border)] dark:bg-stone-800 dark:text-stone-50"
                 : "text-stone-500 hover:bg-white/60 hover:text-stone-800 dark:text-stone-400 dark:hover:bg-stone-800/60 dark:hover:text-stone-100"
@@ -213,7 +213,7 @@ export function AgentSection() {
         )
       ) : (
         <div className="">
-          <p className="text-sm text-theme-text-secondary px-1 leading-relaxed hidden sm:block">
+          <p className="text-14 text-theme-text-secondary px-1 leading-relaxed hidden sm:block">
             {t("agentConfig.availableAgents")}
           </p>
           <div className="glass-card divide-y divide-[var(--glass-border)] overflow-hidden rounded-xl">
@@ -238,10 +238,10 @@ export function AgentSection() {
                     <AgentIcon icon={agent.icon || "Bot"} size={20} />
                   </div>
                   <div className="min-w-0 flex-1">
-                    <h4 className="truncate text-sm font-medium font-serif text-theme-text tracking-tight">
+                    <h4 className="truncate text-14 font-medium font-serif text-theme-text tracking-tight">
                       {displayName}
                     </h4>
-                    <p className="mt-0.5 hidden truncate text-xs text-theme-text-secondary sm:block">
+                    <p className="mt-0.5 hidden truncate text-12 text-theme-text-secondary sm:block">
                       {displayDescription}
                     </p>
                   </div>

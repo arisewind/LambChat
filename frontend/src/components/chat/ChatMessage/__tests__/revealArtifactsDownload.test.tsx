@@ -163,8 +163,13 @@ test("folder download appears immediately before the expansion chevron", () => {
     name: "Expand: folder",
   });
 
-  expect(folderButton.nextElementSibling).toBe(folderDownload);
-  expect(folderDownload.nextElementSibling).toBe(folderChevron);
+  // Tooltip 在按钮外包了一层 display:contents 的 span（不影响布局），
+  // 顺序断言走到包装层：展开按钮 → 下载包装 → 折叠箭头包装
+  const downloadWrapper = folderDownload.parentElement!;
+  const chevronWrapper = folderChevron.parentElement!;
+
+  expect(folderButton.nextElementSibling).toBe(downloadWrapper);
+  expect(downloadWrapper.nextElementSibling).toBe(chevronWrapper);
 });
 
 test("keeps long nested folder rows inside the panel width boundary", () => {

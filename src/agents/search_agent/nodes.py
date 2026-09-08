@@ -21,15 +21,16 @@ from src.agents.core.node_utils import (
     emit_token_usage,
     inline_image_attachments_as_data_urls,
     isolated_nested_graph_run,
-    resolve_auto_memory_capture_text,
     resolve_fallback_model,
     resolve_model_image_url_to_base64,
     resolve_model_supports_vision,
 )
 from src.agents.core.persona import build_persona_prompt_sections
+from src.agents.core.prompt_policy import sandbox_shell_platform_section
 from src.agents.core.startup_preparation import prepare_agent_inputs
 from src.agents.core.subagent_prompts import (
     CODEBASE_INVESTIGATOR_PROMPT,
+    CONTEXT_WORKER_PROMPT,
     IMPLEMENTATION_WORKER_PROMPT,
     MAIN_AGENT_PROMPT_SECTIONS,
     RESEARCH_SUBAGENT_PROMPT,
@@ -52,6 +53,7 @@ from src.infra.agent.middleware import (
     EnvVarPromptMiddleware,
     ImageUrlToBase64Middleware,
     MainAgentContextMiddleware,
+    MemoryRecallIndexMiddleware,
     SectionPromptMiddleware,
     SteerMiddleware,
     SubagentActivityMiddleware,
@@ -66,6 +68,7 @@ from src.infra.backend import (
     create_persistent_backend,
     create_sandbox_backend,
 )
+from src.infra.envvar.sync import sync_sandbox_env_vars
 from src.infra.goal import (
     build_goal_input,
     create_goal_rubric_middleware,
@@ -84,6 +87,28 @@ logger = get_logger(__name__)
 # ============================================================================
 # 节点函数
 # ============================================================================
+
+
+async def _build_sandbox_runtime_policy(
+    sandbox_backend: Any, sandbox_work_dir: str | None, *, user_id: str
+) -> str:
+    """沙箱运行时提示段：workspace 策略 + （仅本地 daemon）shell 方言段。
+
+    本地 daemon 在 win32/darwin 上时追加平台段（prompt_policy.sandbox_shell_platform_section），
+    让模型生成 cmd.exe / macOS 兼容命令——否则模型默认 POSIX 语法在 Windows
+    cmd.exe 全军覆没（实测根因之二）。云端沙箱与 Linux/未上报一律不加段，
+    prompt 逐字节保持现状；段文本随会话内 daemon 平台稳定，provider 前缀
+    缓存不受逐 turn 影响。
+    """
+    if not sandbox_backend or not sandbox_work_dir:
+        return ""
+    from src.infra.backend.local import WorkspaceAliasBackend, _lookup_daemon_platform
+
+    shell_section = ""
+    if isinstance(sandbox_backend, WorkspaceAliasBackend):
+        shell_section = sandbox_shell_platform_section(await _lookup_daemon_platform(user_id))
+    base = SANDBOX_RUNTIME_SECTION.format(work_dir=sandbox_work_dir)
+    return "\n\n".join(part for part in (base, shell_section) if part)
 
 
 async def agent_node(state: Dict[str, Any], config: RunnableConfig) -> Dict[str, Any]:
@@ -153,6 +178,7 @@ async def agent_node(state: Dict[str, Any], config: RunnableConfig) -> Dict[str,
             context=context,
             presenter=presenter,
             assistant_id=assistant_id,
+            agent_options=agent_options,
         )
         logger.debug(f"[Agent] Backend init: {(time.time() - backend_start) * 1000:.3f}ms")
         return result
@@ -196,10 +222,8 @@ async def agent_node(state: Dict[str, Any], config: RunnableConfig) -> Dict[str,
     # 自定义子代理配置 - 强制将所有中间信息保存到文件
     search_base_url = configurable.get("base_url", "")
     subagent_prompt_sections = [s for s in (*persona_sections, memory_guide) if s]
-    sandbox_runtime_policy = (
-        SANDBOX_RUNTIME_SECTION.format(work_dir=sandbox_work_dir)
-        if sandbox_backend and sandbox_work_dir
-        else ""
+    sandbox_runtime_policy = await _build_sandbox_runtime_policy(
+        sandbox_backend, sandbox_work_dir, user_id=context.user_id or "default"
     )
 
     def _build_subagent_middleware(subagent_type: str) -> list:
@@ -265,6 +289,15 @@ async def agent_node(state: Dict[str, Any], config: RunnableConfig) -> Dict[str,
             "system_prompt": RESEARCH_SUBAGENT_PROMPT,
             "middleware": _build_subagent_middleware("researcher"),
         },
+        {
+            # deepagents 0.7.12+：fork 模式继承父对话历史与状态，承接需要
+            # 父上下文的委派（沿用既定决策/标识符，而非孤立重述任务背景）。
+            "name": "context-worker",
+            "description": SPECIALIZED_SUBAGENT_DESCRIPTIONS["context-worker"],
+            "system_prompt": CONTEXT_WORKER_PROMPT,
+            "middleware": _build_subagent_middleware("context-worker"),
+            "mode": "fork",
+        },
     ]
 
     # 构建中间件栈：steer → retry → binary → authored prompts → sandbox tools → memory_index → tool search
@@ -293,23 +326,43 @@ async def agent_node(state: Dict[str, Any], config: RunnableConfig) -> Dict[str,
     ]
     if _prompt_sections:
         user_middleware.append(SectionPromptMiddleware(sections=_prompt_sections))
+    if settings.ENABLE_MEMORY and context.user_id:
+        user_middleware.append(
+            MemoryRecallIndexMiddleware(
+                user_id=context.user_id,
+                session_id=str(state.get("session_id") or "") or None,
+            )
+        )
     if sandbox_backend:
         user_middleware.append(EnvVarPromptMiddleware(user_id=context.user_id or "default"))
-        if sandbox_work_dir:
-            from src.infra.agent.middleware import SandboxWorkspaceMiddleware
-
-            user_middleware.append(
-                SandboxWorkspaceMiddleware(
-                    policy_text=SANDBOX_RUNTIME_SECTION.format(work_dir=sandbox_work_dir)
-                )
-            )
-    if settings.ENABLE_MEMORY and settings.NATIVE_MEMORY_INDEX_ENABLED and context.user_id:
-        from src.infra.agent.middleware import MemoryIndexMiddleware
+        # 沙箱统一确认门（本地 + 云端）：整批单次 interrupt，本地读 daemon
+        # 上报策略，云端读用户 metadata 偏好（未设置归 none 保持云上历史行为）
+        from src.infra.agent.middleware.sandbox_confirm import (
+            SandboxConfirmMiddleware,
+            _CloudPolicyResolver,
+        )
+        from src.infra.backend.local import WorkspaceAliasBackend
 
         user_middleware.append(
-            MemoryIndexMiddleware(user_id=context.user_id, session_id=context.session_id)
+            SandboxConfirmMiddleware(
+                user_id=context.user_id or "default",
+                policy_resolver=(
+                    None
+                    if isinstance(sandbox_backend, WorkspaceAliasBackend)
+                    else _CloudPolicyResolver(context.user_id or "default")
+                ),
+                # 确认策略与执行同机（本地多机）：会话选机透传，与 dispatch 同源
+                machine_id=(
+                    (agent_options or {}).get("sandbox_machine_id") or None
+                    if isinstance(sandbox_backend, WorkspaceAliasBackend)
+                    else None
+                ),
+            )
         )
+        if sandbox_runtime_policy:
+            from src.infra.agent.middleware import SandboxWorkspaceMiddleware
 
+            user_middleware.append(SandboxWorkspaceMiddleware(policy_text=sandbox_runtime_policy))
     # Tool search: per-turn dynamic content
     if context.deferred_manager is not None:
         from src.infra.agent.middleware import ToolSearchMiddleware
@@ -382,7 +435,16 @@ async def agent_node(state: Dict[str, Any], config: RunnableConfig) -> Dict[str,
     if hitl_resume is not None:
         from langgraph.types import Command
 
-        graph_input: Any = Command(resume=hitl_resume.get("resume_value"))
+        resume_map = hitl_resume.get("resume_value")
+        sandbox_message = hitl_resume.get("sandbox_confirm_message")
+        if sandbox_message and isinstance(resume_map, dict):
+            # 沙箱确认门整批：同批全部中断共享批复值（并行工具各任务各中断）
+            from src.infra.task.hitl import expand_sandbox_confirm_resume
+
+            resume_map = await expand_sandbox_confirm_resume(
+                inner_graph, inner_config, resume_map, message=sandbox_message
+            )
+        graph_input: Any = Command(resume=resume_map)
     else:
         if supports_vision:
             attachments = await inline_image_attachments_as_data_urls(
@@ -472,29 +534,11 @@ async def agent_node(state: Dict[str, Any], config: RunnableConfig) -> Dict[str,
             logger.warning("[SearchAgent] Failed to inspect graph state after run: %s", e)
 
     if settings.ENABLE_MEMORY and context.user_id:
-        memory_text = resolve_auto_memory_capture_text(
-            hitl_suspended=getattr(presenter, "hitl_suspended", False),
-            user_input=user_input,
-            recommendation_input=recommendation_input,
-            assistant_text=event_processor.output_text,
-        )
-        if memory_text:
-            from src.infra.logging.context import TraceContext
-            from src.infra.memory.tools import schedule_auto_memory_capture
-            from src.kernel.schemas.conversation_history import ConversationSourceRef
+        # Codex 式 Phase 1 记忆提取：run 结束后 kick 一轮「空闲会话」扫描，
+        # 完整会话转录提炼 raw_memory（替代旧的每轮最后一条交换评估器）。
+        from src.infra.memory.extraction import schedule_memory_extraction
 
-            request_context = TraceContext.get_request_context()
-            source_refs = (
-                [
-                    ConversationSourceRef(
-                        session_id=request_context.session_id,
-                        run_id=request_context.run_id,
-                    )
-                ]
-                if request_context.session_id and request_context.run_id
-                else None
-            )
-            schedule_auto_memory_capture(context.user_id, memory_text, source_refs=source_refs)
+        schedule_memory_extraction(context.user_id)
 
     # 持久化已发现的延迟工具名（跨 turn 恢复，分布式安全）
     session_id = state.get("session_id", "")
@@ -526,11 +570,19 @@ async def agent_node(state: Dict[str, Any], config: RunnableConfig) -> Dict[str,
     return {"output": output_text}
 
 
+def _resolve_sandbox_platform(agent_options: Dict[str, Any] | None, default_platform: str) -> str:
+    """会话级沙箱选择：agent_options.sandbox 覆盖全局平台（spec §3.4）。"""
+    choice = (agent_options or {}).get("sandbox")
+    # 非字符串值（如列表/字典，不可哈希）不能进 set 成员判断，回退默认平台
+    return choice if isinstance(choice, str) and choice in {"local", "cloud"} else default_platform
+
+
 async def _create_backend_and_prompt(
     state: Dict[str, Any],
     context: SearchAgentContext,
     presenter: Presenter,
     assistant_id: str,
+    agent_options: Dict[str, Any] | None = None,
 ) -> tuple[Any, str, Any, Any, str | None]:
     """
     创建 Backend 实例和系统提示
@@ -543,10 +595,13 @@ async def _create_backend_and_prompt(
         context: Agent 上下文
         presenter: 输出处理器
         assistant_id: 助手 ID
+        agent_options: 会话级选项；sandbox=local 时路由到本地沙箱后端
 
     Returns:
         (backend, system_prompt, store, sandbox_backend, sandbox_work_dir) 元组。
-        sandbox_backend 在沙箱模式下为 LazySandboxBackend 实例，否则为 None。
+        sandbox_backend 在沙箱模式下为 LazySandboxBackend（云端）或
+        WorkspaceAliasBackend（agent_options.sandbox=local，别名剥离器）实例，
+        否则为 None。
     """
     # 创建 store（优先 PostgreSQL → MongoDB fallback）
     store = await acreate_store()
@@ -570,6 +625,34 @@ async def _create_backend_and_prompt(
         raise ValueError("Sandbox requires authenticated user (user_id is required)")
 
     session_id = state.get("session_id") or context.session_id
+    platform = _resolve_sandbox_platform(agent_options, settings.SANDBOX_PLATFORM.lower())
+    if platform == "local":
+        from src.infra.backend.local import WorkspaceAliasBackend
+
+        # WorkspaceAliasBackend：prompt_policy 让模型用 /workspace/{sid}/x 别名
+        # 路径调文件工具，别名剥离层把路径翻译回相对路径再构造命令（F1）。
+        # 会话级选机（多机 daemon）：agent_options.sandbox_machine_id 缺省走
+        # 注册表默认解析（默认机→唯一在线→legacy）
+        local_backend = WorkspaceAliasBackend(
+            user_id=user_id,
+            session_id=session_id,
+            machine_id=(agent_options or {}).get("sandbox_machine_id") or None,
+        )
+        # 用户 env 变量注入（对齐云端：backend.env_vars → 执行时下发）；
+        # env_var 工具运行中改动经 sync_envvar_change 实时刷新同一属性
+        await sync_sandbox_env_vars(local_backend, user_id)
+        logger.info(
+            f"Sandbox enabled (local), using local sandbox backend for assistant: {assistant_id}"
+        )
+        # 本地 daemon 常驻用户机器：无云端沙箱需要懒初始化/释放，
+        # 因此不走 LazySandboxBackend，也不注册 context.run_sandbox。
+        return (
+            create_sandbox_backend(local_backend, assistant_id, user_id=user_id),
+            SANDBOX_SYSTEM_PROMPT,
+            store,
+            local_backend,
+            local_backend.work_dir,
+        )
     sandbox_backend = LazySandboxBackend(
         session_id=session_id,
         user_id=context.user_id,

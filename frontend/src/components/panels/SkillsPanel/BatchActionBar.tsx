@@ -26,7 +26,7 @@ export function BatchActionBar({
         <span className="mr-1.5 inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-[var(--theme-primary)] px-1 text-10 font-bold leading-none text-white dark:text-[var(--theme-bg)]">
           {selectedCount}
         </span>
-        <span className="mr-1 text-xs text-[var(--theme-text-secondary)] hidden sm:inline">
+        <span className="mr-1 text-12 text-[var(--theme-text-secondary)] hidden sm:inline">
           {t("skills.batchSelected")}
         </span>
         <div className="w-px h-4 bg-[var(--theme-border)]" />
@@ -35,7 +35,7 @@ export function BatchActionBar({
           size="sm"
           onClick={() => onBatchToggle(false)}
           disabled={batchLoading}
-          className="text-xs text-[var(--theme-text-secondary)] hover:bg-[var(--theme-hover)] disabled:pointer-events-none disabled:opacity-40"
+          className="text-12 text-[var(--theme-text-secondary)] hover:bg-[var(--theme-hover)] disabled:pointer-events-none disabled:opacity-40"
         >
           <Power size={13} />
           <span className="hidden sm:inline">{t("skills.card.disable")}</span>
@@ -45,7 +45,7 @@ export function BatchActionBar({
           size="sm"
           onClick={() => onBatchToggle(true)}
           disabled={batchLoading}
-          className="text-xs text-[var(--theme-text-secondary)] hover:bg-[var(--theme-hover)] disabled:pointer-events-none disabled:opacity-40"
+          className="text-12 text-[var(--theme-text-secondary)] hover:bg-[var(--theme-hover)] disabled:pointer-events-none disabled:opacity-40"
         >
           <Zap size={13} />
           <span className="hidden sm:inline">{t("skills.card.enable")}</span>
@@ -55,7 +55,7 @@ export function BatchActionBar({
           size="sm"
           onClick={onBatchDelete}
           disabled={batchLoading}
-          className="text-xs disabled:pointer-events-none disabled:opacity-40 dark:text-red-400 dark:hover:bg-red-950/40 dark:hover:text-red-300"
+          className="text-12 disabled:pointer-events-none disabled:opacity-40 dark:text-red-400 dark:hover:bg-red-950/40 dark:hover:text-red-300"
         >
           {batchLoading ? <LoadingSpinner size="xs" /> : <Trash2 size={13} />}
           <span className="hidden sm:inline">{t("common.delete")}</span>

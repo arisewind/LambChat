@@ -345,7 +345,7 @@ export function MCPServerForm({
                 };
                 return (
                   <div key={role} className="es-section !gap-2">
-                    <div className="text-xs font-semibold text-[var(--theme-text)]">
+                    <div className="text-12 font-semibold text-[var(--theme-text)]">
                       {role}
                     </div>
                     <div className="es-row es-row-2">

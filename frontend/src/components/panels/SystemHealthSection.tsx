@@ -47,10 +47,8 @@ function MetricCard({
     <div className="flex items-center gap-2.5 rounded-lg bg-[var(--glass-bg-subtle)] px-3 py-2">
       <Icon size={16} className="shrink-0 text-stone-400 dark:text-stone-500" />
       <div className="min-w-0">
-        <p className="text-11 text-stone-400 dark:text-stone-500">
-          {label}
-        </p>
-        <p className="text-sm font-medium tabular-nums text-stone-700 dark:text-stone-200">
+        <p className="text-11 text-stone-400 dark:text-stone-500">{label}</p>
+        <p className="text-14 font-medium tabular-nums text-stone-700 dark:text-stone-200">
           {value ?? "-"}
         </p>
       </div>
@@ -158,7 +156,7 @@ export function SystemHealthSection() {
             <Activity size={16} />
           </div>
           <div>
-            <span className="text-sm font-semibold font-serif text-stone-800 dark:text-stone-100">
+            <span className="text-14 font-semibold font-serif text-stone-800 dark:text-stone-100">
               {t("systemHealth.title", "System Health")}
             </span>
             {overview && (
@@ -197,7 +195,7 @@ export function SystemHealthSection() {
       {/* Collapsed summary line */}
       {!expanded && overview && (
         <div className="border-t border-[var(--glass-border)] px-4 py-2">
-          <p className="text-xs text-stone-500 dark:text-stone-400">
+          <p className="text-12 text-stone-500 dark:text-stone-400">
             RSS: {overview.rss ?? "-"} &middot;{" "}
             {t("systemHealth.threads", "Threads")}: {overview.threads ?? "-"}{" "}
             &middot; {t("systemHealth.openFiles", "Files")}:{" "}
@@ -216,7 +214,7 @@ export function SystemHealthSection() {
           )}
 
           {error && (
-            <p className="py-2 text-center text-sm text-red-500">{error}</p>
+            <p className="py-2 text-center text-14 text-red-500">{error}</p>
           )}
 
           {diagnostics && overview && (
@@ -251,7 +249,7 @@ export function SystemHealthSection() {
                   {diagnostics.highlights.map((highlight, i) => (
                     <p
                       key={i}
-                      className={`text-xs ${
+                      className={`text-12 ${
                         highlight.kind === "status" &&
                         highlight.status === "suspected_leak"
                           ? "text-red-600 dark:text-red-400"
@@ -267,14 +265,14 @@ export function SystemHealthSection() {
               {/* Top growth allocations */}
               {diagnostics.top_growth.length > 0 && (
                 <div>
-                  <h4 className="mb-1.5 text-xs font-semibold uppercase tracking-wider text-stone-400">
+                  <h4 className="mb-1.5 text-12 font-semibold uppercase tracking-wider text-stone-400">
                     {t("systemHealth.topGrowth", "Top Growth")}
                   </h4>
                   <div className="space-y-1">
                     {diagnostics.top_growth.map((row, i) => (
                       <div
                         key={i}
-                        className="flex items-center justify-between rounded-md bg-[var(--glass-bg)] px-2.5 py-1.5 text-xs"
+                        className="flex items-center justify-between rounded-md bg-[var(--glass-bg)] px-2.5 py-1.5 text-12"
                       >
                         <code className="max-w-[70%] truncate text-stone-600 dark:text-stone-300">
                           {row.location}
@@ -291,14 +289,14 @@ export function SystemHealthSection() {
               {/* Top allocations */}
               {diagnostics.top_allocations.length > 0 && (
                 <div>
-                  <h4 className="mb-1.5 text-xs font-semibold uppercase tracking-wider text-stone-400">
+                  <h4 className="mb-1.5 text-12 font-semibold uppercase tracking-wider text-stone-400">
                     {t("systemHealth.topAllocations", "Top Allocations")}
                   </h4>
                   <div className="space-y-1">
                     {diagnostics.top_allocations.map((row, i) => (
                       <div
                         key={i}
-                        className="flex items-center justify-between rounded-md bg-[var(--glass-bg)] px-2.5 py-1.5 text-xs"
+                        className="flex items-center justify-between rounded-md bg-[var(--glass-bg)] px-2.5 py-1.5 text-12"
                       >
                         <code className="max-w-[70%] truncate text-stone-600 dark:text-stone-300">
                           {row.location}
@@ -315,14 +313,14 @@ export function SystemHealthSection() {
               {/* Top object types */}
               {diagnostics.top_objects.length > 0 && (
                 <div>
-                  <h4 className="mb-1.5 text-xs font-semibold uppercase tracking-wider text-stone-400">
+                  <h4 className="mb-1.5 text-12 font-semibold uppercase tracking-wider text-stone-400">
                     {t("systemHealth.topObjects", "Top Object Types")}
                   </h4>
                   <div className="space-y-1">
                     {diagnostics.top_objects.map((row, i) => (
                       <div
                         key={i}
-                        className="flex items-center justify-between rounded-md bg-[var(--glass-bg)] px-2.5 py-1.5 text-xs"
+                        className="flex items-center justify-between rounded-md bg-[var(--glass-bg)] px-2.5 py-1.5 text-12"
                       >
                         <code className="text-stone-600 dark:text-stone-300">
                           {row.type}

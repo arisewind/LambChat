@@ -23,7 +23,7 @@ export function PanelLoadingState({
           />
         </div>
         {text ? (
-          <p className="text-sm text-stone-500 dark:text-stone-400">{text}</p>
+          <p className="text-14 text-stone-500 dark:text-stone-400">{text}</p>
         ) : null}
       </div>
     </div>

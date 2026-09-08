@@ -136,7 +136,7 @@ function TimelinePreviewCard({
       style={cardStyle}
     >
       {/* User message */}
-      <div className="truncate text-sm font-medium leading-snug text-[var(--theme-text)] [&_p]:inline">
+      <div className="truncate text-14 font-medium leading-snug text-[var(--theme-text)] [&_p]:inline">
         <ReactMarkdown remarkPlugins={[...cjkGfmRemarkPlugins]}>
           {turn.user.label}
         </ReactMarkdown>
@@ -147,7 +147,7 @@ function TimelinePreviewCard({
 
       {/* Assistant response */}
       {responseText && (
-        <div className="line-clamp-3 text-xs leading-relaxed text-[var(--theme-text-secondary)] [&_p]:inline [&_code]:rounded [&_code]:bg-[var(--theme-bg-subtle)] [&_code]:px-0.5">
+        <div className="line-clamp-3 text-12 leading-relaxed text-[var(--theme-text-secondary)] [&_p]:inline [&_code]:rounded [&_code]:bg-[var(--theme-bg-subtle)] [&_code]:px-0.5">
           <ReactMarkdown remarkPlugins={[...cjkGfmRemarkPlugins]}>
             {responseText}
           </ReactMarkdown>

@@ -113,12 +113,12 @@ export function ResetPassword() {
                 <XCircle className="h-6 w-6 text-red-500 dark:text-red-400" />
               )}
             </div>
-            <h1 className="text-2xl font-bold tracking-[-0.02em] text-stone-900 dark:text-stone-100 mb-1 font-serif">
+            <h1 className="text-24 font-bold tracking-[-0.02em] text-stone-900 dark:text-stone-100 mb-1 font-serif">
               {type === "success"
                 ? t("auth.resetPasswordSuccessTitle")
                 : t("auth.resetPasswordFailed")}
             </h1>
-            <p className="text-sm leading-relaxed text-stone-400 dark:text-stone-500">
+            <p className="text-14 leading-relaxed text-stone-400 dark:text-stone-500">
               {type === "success"
                 ? t("auth.resetPasswordSuccessDesc")
                 : t("auth.resetPasswordFailedDesc")}
@@ -126,7 +126,7 @@ export function ResetPassword() {
           </div>
           <button
             onClick={handleBackToLogin}
-            className="blog-btn-primary auth-primary-button min-h-12 w-full rounded-full py-3 text-sm font-medium transition-all"
+            className="blog-btn-primary auth-primary-button min-h-12 w-full rounded-full py-3 text-14 font-medium transition-all"
           >
             {t("auth.goToLogin")}
           </button>
@@ -173,7 +173,7 @@ export function ResetPassword() {
       >
         <div className="w-full max-w-[22.5rem] sm:max-w-[450px]">
           <div className="mb-5 text-center">
-            <h1 className="text-2xl font-bold tracking-[-0.02em] text-stone-900 dark:text-stone-100 mb-1 font-serif">
+            <h1 className="text-24 font-bold tracking-[-0.02em] text-stone-900 dark:text-stone-100 mb-1 font-serif">
               {t("auth.resetPassword")}
             </h1>
             <p className="text-13 leading-relaxed text-stone-400 dark:text-stone-500">
@@ -211,7 +211,7 @@ export function ResetPassword() {
               <button
                 type="submit"
                 disabled={isSubmitting}
-                className="auth-primary-button min-h-12 w-full rounded-xl py-3 text-sm transition-all duration-200 hover:-translate-y-px active:translate-y-0 disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:translate-y-0"
+                className="auth-primary-button min-h-12 w-full rounded-xl py-3 text-14 transition-all duration-200 hover:-translate-y-px active:translate-y-0 disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:translate-y-0"
               >
                 <span className="inline-flex items-center justify-center gap-2">
                   {isSubmitting && (

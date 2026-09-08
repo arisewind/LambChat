@@ -16,16 +16,17 @@ import {
   type SubagentStackItem,
   type HistoryEvent,
   type UseAgentReturn,
-  type ActiveGoalSpec,
   type ChatSubmissionCallbacks,
 } from "./useAgent/types";
 import { applyRecommendQuestionsToMessages } from "./useAgent/recommendQuestionsUpdate";
+import { useChatRuntimeStates } from "./useAgent/loadingStates";
 import {
   reconstructMessagesFromEvents,
   getLastEventTimestamp,
   prepareMessagesForRunningRun,
   extractGoalFromEvents,
   extractGoalsByRunFromEvents,
+  createScheduledTaskApprovalLookup,
 } from "./useAgent/historyLoader";
 import { clearAllLoadingStates } from "./useAgent/messageParts";
 import { type EventHandlerContext } from "./useAgent/eventHandlers";
@@ -38,9 +39,8 @@ import {
 import { createOptimisticMessagesForSend } from "./useAgent/optimisticMessages";
 import { startQueuePositionPolling } from "./useAgent/queuePolling";
 import {
-  promoteSteerFollowUps,
-  selectSteersForFollowUp,
   useSteerQueue,
+  useSteerFollowUpPromotion,
 } from "./useAgent/steerQueue";
 import { getValidAccessToken } from "../services/api/tokenManager";
 import { resolveRunEnabledSkills } from "./useAgent/runSkillOverrides";
@@ -68,28 +68,40 @@ export function useAgent(options?: UseAgentOptions): UseAgentReturn {
     Permission.FEEDBACK_WRITE,
   ]);
 
-  // State
+  // State（messages + 运行态簇；簇实现下沉 loadingStates.ts 控行数红线）
   const [messages, setMessages] = useState<Message[]>([]);
-
-  const [isLoading, setIsLoading] = useState(false);
-  const [isLoadingHistory, setIsLoadingHistory] = useState(false);
-  const [historyLoadGeneration, setHistoryLoadGeneration] = useState(0);
-  const [sessionId, setSessionId] = useState<string | null>(null);
-  const [currentProjectId, setCurrentProjectId] = useState<string | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  const [connectionStatus, setConnectionStatus] =
-    useState<ConnectionStatus>("disconnected");
-  const [currentRunId, setCurrentRunId] = useState<string | null>(null);
-  const [newlyCreatedSession, setNewlyCreatedSession] =
-    useState<BackendSession | null>(null);
-  const [isInitializingSandbox, setIsInitializingSandbox] = useState(false);
-  const [sandboxError, setSandboxError] = useState<string | null>(null);
-  const [selectedTeamId, setSelectedTeamId] = useState<string | null>(null);
-  const [activeGoal, setActiveGoal] = useState<ActiveGoalSpec | null>(null);
-  const [goalsByRunId, setGoalsByRunId] = useState<
-    Record<string, ActiveGoalSpec>
-  >({});
-  const [goalModeEnabled, setGoalModeEnabled] = useState(false);
+  const {
+    isLoading,
+    setIsLoading,
+    isLoadingHistory,
+    setIsLoadingHistory,
+    historyLoadGeneration,
+    setHistoryLoadGeneration,
+    sessionId,
+    setSessionId,
+    currentProjectId,
+    setCurrentProjectId,
+    error,
+    setError,
+    connectionStatus,
+    setConnectionStatus,
+    currentRunId,
+    setCurrentRunId,
+    newlyCreatedSession,
+    setNewlyCreatedSession,
+    isInitializingSandbox,
+    setIsInitializingSandbox,
+    sandboxError,
+    setSandboxError,
+    selectedTeamId,
+    setSelectedTeamId,
+    activeGoal,
+    setActiveGoal,
+    goalsByRunId,
+    setGoalsByRunId,
+    goalModeEnabled,
+    setGoalModeEnabled,
+  } = useChatRuntimeStates();
   const [autoModeEnabled, setAutoModeEnabled] = useAutoModeSetting();
 
   // Refs for connection management
@@ -174,6 +186,13 @@ export function useAgent(options?: UseAgentOptions): UseAgentReturn {
     messagesRef.current = messages;
   }, [messages]);
 
+  // 历史回放查到已决的 scheduled-task 审批时，补收尾对应 ask_human pill（详见 historyLoader）
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- 工厂仅依赖 useState 的稳定 setter
+  const onApprovalLookup = useCallback(
+    createScheduledTaskApprovalLookup(setMessages),
+    [],
+  );
+
   // History trace-window pagination (older pages prepend on scroll)
   const {
     hasMoreHistoryTraces,
@@ -191,6 +210,7 @@ export function useAgent(options?: UseAgentOptions): UseAgentReturn {
     streamingMessageIdRef,
     setMessages,
     setGoalsByRunId,
+    onApprovalLookup,
   });
 
   // Create event handler context
@@ -214,7 +234,18 @@ export function useAgent(options?: UseAgentOptions): UseAgentReturn {
       setActiveGoal,
       setGoalsByRunId,
     }),
-    [options, markSteerDelivered],
+    [
+      options,
+      markSteerDelivered,
+      setCurrentRunId,
+      setSessionId,
+      setMessages,
+      setConnectionStatus,
+      setIsInitializingSandbox,
+      setSandboxError,
+      setActiveGoal,
+      setGoalsByRunId,
+    ],
   );
 
   // Create SSE connection context
@@ -364,7 +395,11 @@ export function useAgent(options?: UseAgentOptions): UseAgentReturn {
           let reconstructedMessages = reconstructMessagesFromEvents(
             historyEvents,
             processedEventIdsRef.current,
-            { options, activeSubagentStack: activeSubagentStackRef.current },
+            {
+              options,
+              activeSubagentStack: activeSubagentStackRef.current,
+              onApprovalLookup,
+            },
           );
           const lastTimestamp = getLastEventTimestamp(historyEvents);
           lastHistoryTimestampRef.current = lastTimestamp;
@@ -453,6 +488,17 @@ export function useAgent(options?: UseAgentOptions): UseAgentReturn {
       recordFirstWindow,
       recordFeedback,
       resetHistoryPagination,
+      onApprovalLookup,
+      setActiveGoal,
+      setCurrentProjectId,
+      setCurrentRunId,
+      setError,
+      setGoalModeEnabled,
+      setGoalsByRunId,
+      setHistoryLoadGeneration,
+      setIsLoading,
+      setIsLoadingHistory,
+      setSessionId,
     ],
   );
 
@@ -736,7 +782,12 @@ export function useAgent(options?: UseAgentOptions): UseAgentReturn {
         const errWithMeta = err as Error & { code?: string };
         const errorMessage =
           err instanceof Error
-            ? translateApiError(errWithMeta.code, err.message, undefined, i18n.t.bind(i18n))
+            ? translateApiError(
+                errWithMeta.code,
+                err.message,
+                undefined,
+                i18n.t.bind(i18n),
+              )
             : i18n.t("chat.unknownError");
         setError(errorMessage);
         setMessages((prev) =>
@@ -777,6 +828,17 @@ export function useAgent(options?: UseAgentOptions): UseAgentReturn {
       selectedTeamId,
       goalModeEnabled,
       clearSteer,
+      setActiveGoal,
+      setConnectionStatus,
+      setCurrentProjectId,
+      setCurrentRunId,
+      setError,
+      setGoalModeEnabled,
+      setGoalsByRunId,
+      setIsInitializingSandbox,
+      setIsLoading,
+      setNewlyCreatedSession,
+      setSessionId,
     ],
   );
 
@@ -789,37 +851,18 @@ export function useAgent(options?: UseAgentOptions): UseAgentReturn {
 
   // If the run finishes after the API accepted a steer but before the next
   // model boundary, promote it to a normal follow-up instead of leaving it
-  // stranded above the composer.
-  useEffect(() => {
-    if (isLoading || isSendingRef.current) return;
-    const followUps = selectSteersForFollowUp(steerQueue.steerMessages).filter(
-      (item) => !followUpSteerIdsRef.current.has(item.id),
-    );
-    if (followUps.length === 0) return;
-    for (const item of followUps) {
-      followUpSteerIdsRef.current.add(item.id);
-    }
-    let cancelled = false;
-    const timer = window.setTimeout(() => {
-      // 先取消后端队列中的残留项再补发，否则新 run 的首次模型调用会把
-      // 同一条插话再次注入（同内容投递两次）。FIFO 逐条等待补发，避免
-      // 单 run 守卫丢弃后续条目。
-      void promoteSteerFollowUps(followUps, {
-        sessionId: sessionIdRef.current,
-        cancelSteer: (sessionId, content, messageId) =>
-          sessionApi.cancelSteer(sessionId, content, messageId),
-        sendMessage: async (content, attachments) => {
-          await sendMessageRef.current?.(content, attachments);
-        },
-        isCancelled: (id) => cancelled || cancelledSteerIdsRef.current.has(id),
-        clearSteer,
-      });
-    }, 0);
-    return () => {
-      cancelled = true;
-      window.clearTimeout(timer);
-    };
-  }, [clearSteer, isLoading, steerQueue.steerMessages]);
+  // stranded above the composer.（运行中探测/重试在 hook 内部，见
+  // useSteerFollowUpPromotion）
+  useSteerFollowUpPromotion({
+    isLoading,
+    isSendingRef,
+    steerMessages: steerQueue.steerMessages,
+    clearSteer,
+    cancelledSteerIdsRef,
+    followUpSteerIdsRef,
+    sessionIdRef,
+    sendMessageRef,
+  });
 
   const stopGeneration = useCallback(async () => {
     isSendingRef.current = false;
@@ -850,7 +893,7 @@ export function useAgent(options?: UseAgentOptions): UseAgentReturn {
         );
       }
     }
-  }, [options]);
+  }, [options, setIsInitializingSandbox, setIsLoading, setSandboxError]);
 
   const clearMessages = useCallback(() => {
     loadHistoryRequestIdRef.current += 1;
@@ -884,12 +927,24 @@ export function useAgent(options?: UseAgentOptions): UseAgentReturn {
       abortControllerRef.current = null;
     }
     clearReconnectTimeout(reconnectTimeoutRef);
-  }, [clearSteerMessages, resetHistoryPagination]);
+  }, [
+    clearSteerMessages,
+    resetHistoryPagination,
+    setActiveGoal,
+    setConnectionStatus,
+    setCurrentRunId,
+    setError,
+    setGoalModeEnabled,
+    setGoalsByRunId,
+    setIsLoading,
+    setIsLoadingHistory,
+    setSessionId,
+  ]);
 
   const clearActiveGoal = useCallback(() => {
     setGoalModeEnabled(false);
     setActiveGoal(null);
-  }, []);
+  }, [setActiveGoal, setGoalModeEnabled]);
 
   const selectAgent = useCallback(
     (agentId: string) => {
@@ -908,9 +963,12 @@ export function useAgent(options?: UseAgentOptions): UseAgentReturn {
   );
 
   // Select a team for team-mode agent
-  const selectTeam = useCallback((teamId: string | null) => {
-    setSelectedTeamId(teamId);
-  }, []);
+  const selectTeam = useCallback(
+    (teamId: string | null) => {
+      setSelectedTeamId(teamId);
+    },
+    [setSelectedTeamId],
+  );
 
   const applyRecommendQuestions = useCallback(
     (runId: string, questions: string[]) => {

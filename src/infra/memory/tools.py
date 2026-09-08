@@ -8,18 +8,17 @@ are identical regardless of which memory provider is active.
 
 import asyncio
 import json
-import uuid
-from typing import Annotated, Any, Optional, Sequence
+from typing import Annotated, Any, Optional
 
 from langchain.tools import ToolRuntime, tool
 from langchain_core.tools import BaseTool
-from langsmith.run_helpers import tracing_context
 
 from src.infra.async_utils import run_blocking_io
 from src.infra.logging import get_logger
 from src.infra.memory.client.base import (
     MemoryBackend,
     create_memory_backend,
+    get_session_id_from_runtime,
     get_user_id_from_runtime,
 )
 from src.infra.memory.compaction_agent import (
@@ -44,39 +43,6 @@ _backend_lock: Optional[asyncio.Lock] = None
 _backend_lock_loop: Optional[asyncio.AbstractEventLoop] = None
 _backend_reset_task: Optional[asyncio.Task] = None
 _background_tasks: set[asyncio.Task] = set()
-_auto_capture_tasks_by_user: dict[str, asyncio.Task] = {}
-_auto_capture_user_locks: dict[str, asyncio.Lock] = {}
-_AUTO_CAPTURE_LOCKS_MAX = 500  # Prevent unbounded lock accumulation
-_AUTO_CAPTURE_INPUT_MAX_CHARS = 8000
-_AUTO_CAPTURE_MAX_TASKS = 8
-
-
-def _get_auto_capture_lock_fns():
-    from src.infra.memory.distributed import acquire_auto_capture_lock, release_auto_capture_lock
-
-    return acquire_auto_capture_lock, release_auto_capture_lock
-
-
-def _cleanup_local_auto_capture_lock(user_id: str, lock: asyncio.Lock) -> None:
-    waiters = getattr(lock, "_waiters", None)
-    has_waiters = bool(waiters) if waiters is not None else False
-    if not lock.locked() and not has_waiters:
-        current = _auto_capture_user_locks.get(user_id)
-        if current is lock:
-            _auto_capture_user_locks.pop(user_id, None)
-
-
-def _evict_idle_auto_capture_locks() -> None:
-    """Evict idle locks when the dict grows too large."""
-    if len(_auto_capture_user_locks) <= _AUTO_CAPTURE_LOCKS_MAX:
-        return
-    idle_users = [
-        uid
-        for uid, lock in _auto_capture_user_locks.items()
-        if not lock.locked() and not getattr(lock, "_waiters", None)
-    ]
-    for uid in idle_users[: len(_auto_capture_user_locks) // 4]:
-        _auto_capture_user_locks.pop(uid, None)
 
 
 def _get_backend_lock() -> asyncio.Lock:
@@ -90,40 +56,6 @@ def _get_backend_lock() -> asyncio.Lock:
         _backend_lock = asyncio.Lock()
         _backend_lock_loop = current_loop
     return _backend_lock
-
-
-def _clip_auto_capture_input(user_input: str) -> str:
-    max_chars = max(
-        int(
-            getattr(
-                settings,
-                "NATIVE_MEMORY_AUTO_CAPTURE_INPUT_MAX_CHARS",
-                _AUTO_CAPTURE_INPUT_MAX_CHARS,
-            )
-            or 0
-        ),
-        1,
-    )
-    if len(user_input) <= max_chars:
-        return user_input
-    return (
-        user_input[:max_chars].rstrip()
-        + f"\n\n[truncated from {len(user_input)} chars for auto memory capture]"
-    )
-
-
-def _get_auto_capture_max_tasks() -> int:
-    return max(
-        int(
-            getattr(
-                settings,
-                "NATIVE_MEMORY_AUTO_CAPTURE_MAX_TASKS",
-                _AUTO_CAPTURE_MAX_TASKS,
-            )
-            or 0
-        ),
-        1,
-    )
 
 
 async def _get_backend() -> Optional[MemoryBackend]:
@@ -155,23 +87,31 @@ async def memory_retain(
     content: Annotated[str, "The memory content to store (facts, observations, experiences)"],
     title: Annotated[
         Optional[str],
-        "Short title for this memory (max 25 chars, e.g. 'Go expert new to React', 'prefers raw SQL')",
+        "Short title (max 25 chars)",
     ] = None,
     summary: Annotated[
         Optional[str],
-        "Brief summary of this memory (max 80 chars)",
+        "Brief summary (max 80 chars)",
     ] = None,
     context: Annotated[
         Optional[str],
-        "Optional context or category for this memory (e.g., 'user_identity', 'project_constraint', 'feedback_rule', 'reference_link')",
+        "Optional context label, e.g. 'user_identity' or 'feedback_rule'",
     ] = None,
     tags: Annotated[
         Optional[list[str]],
-        "Optional keyword tags for this memory (e.g., ['Go', 'React', 'newcomer']). Max 5 tags.",
+        "Optional keyword tags. Max 5.",
     ] = None,
     existing_memory_id: Annotated[
         Optional[str],
         "Optional existing memory ID to update instead of relying on fuzzy deduplication.",
+    ] = None,
+    scope: Annotated[
+        Optional[str],
+        "Ownership scope: 'user' (cross-project personal preference, default), "
+        "'project' (bound to the current session's project), or 'reference' "
+        "(external docs/links). Project ownership is inherited from the current "
+        "session; when the session has no project, project-scoped content is "
+        "automatically stored as 'user' scope (see result note).",
     ] = None,
     source_refs: Annotated[
         Optional[list[ConversationSourceRef]],
@@ -181,17 +121,16 @@ async def memory_retain(
 ) -> str:
     """
     Store a memory for cross-session persistence. STRICT: only genuinely useful,
-    non-temporary information is accepted. Content that is too short or resembles
-    code/commands will be rejected. If a semantically similar memory already exists
-    it is merged and updated automatically (result `updated_existing` is true), so
-    write the FULL refreshed content including previously known details, not just
-    the delta. Prefer storing high-signal facts like user preferences, project
-    context, feedback, or external references. Use explicit context labels such as
-    `user_identity`, `project_constraint`, `project_status`, `feedback_rule`, or
-    `reference_link` instead of vague buckets like `user_preferences`.
-    When a durable fact came from conversation history, preserve its authorized
-    `source_refs`. Later, memory_recall returns these pointers and the SOP is to call
-    get_conversation_detail for the original final answer.
+    non-temporary information is accepted — follow the Cross-Session Memory
+    guide's Remember/Skip policy. Content that is too short or resembles
+    code/commands will be rejected. If a semantically similar memory already
+    exists it is merged and updated automatically (result `updated_existing`
+    is true), so write the FULL refreshed content including previously known
+    details, not just the delta. Use explicit context labels such as
+    `user_identity`, `project_constraint`, `project_status`, `feedback_rule`,
+    or `reference_link`. For durable facts from conversation history, preserve
+    their authorized `source_refs`; memory_recall returns them for the
+    get_conversation_detail evidence SOP.
     """
     user_id = get_user_id_from_runtime(runtime)
     if not user_id:
@@ -204,6 +143,13 @@ async def memory_retain(
         return await _json_dumps_result({"success": False, "error": "Memory service not available"})
 
     try:
+        from src.infra.memory.scope import resolve_session_project_id
+
+        project_id = await resolve_session_project_id(get_session_id_from_runtime(runtime))
+        # 无项目会话里 LLM 显式要 scope='project'：backend 会硬拒绝（生产上
+        # 表现为前端红色报错 + agent 重试一轮）。工具层先降级为自动推导
+        # （无归属 → user），不丢数据；结果里带 note 告知实际归属。
+        scope_downgraded = scope == "project" and not project_id
         result = await backend.retain(
             user_id,
             content,
@@ -213,7 +159,15 @@ async def memory_retain(
             tags=tags,
             existing_memory_id=existing_memory_id,
             source_refs=source_refs,
+            scope=None if scope_downgraded else scope,
+            project_id=project_id,
         )
+        if scope_downgraded and isinstance(result, dict) and result.get("success"):
+            result.setdefault("scope", "user")
+            result["note"] = (
+                "session has no project context; stored as 'user' scope "
+                "(assign the session to a project to keep it project-scoped)"
+            )
         return await _json_dumps_result(result)
     except Exception as e:
         logger.error(f"[Memory] Failed to retain memory: {e}")
@@ -226,23 +180,30 @@ async def memory_recall(
     max_results: Annotated[int, "Maximum number of memories to return (default: 5)"] = 5,
     memory_types: Annotated[
         Optional[list[str]],
-        "Filter by memory types (backend-specific), or None for all types",
+        "Filter by memory types, or None for all",
     ] = None,
     context: Annotated[
         Optional[str],
-        "Optional exact-match context scope filter (e.g. 'project_constraint'), or None for all scopes",
+        "Optional context family prefix filter ('project' also matches project_status/"
+        "project_constraint), or None for all scopes",
     ] = None,
     runtime: ToolRuntime = None,  # type: ignore[assignment]
 ) -> str:
     """
     Search and retrieve relevant memories from cross-session storage.
 
-    Use this tool to recall previously stored information. The search is
-    semantic and will find memories that are conceptually related to the query.
-    SOP for evidence: when a recalled memory contains `source_refs`, use each
-    authorized `session_id` and `run_id` with get_conversation_detail to inspect
-    the original final answer. Treat the memory as a locator/summary and the
-    conversation detail as the source of truth.
+    Memories are not injected into user messages. When prior facts, preferences,
+    project state, decisions, or corrections may matter, call this tool with a
+    focused query instead of guessing from the compact index.
+    Scope isolation is automatic: results include user/reference memories plus
+    the current session's project memories; other projects' memories are
+    never returned — do not generalize a project constraint to other contexts.
+    Each result returns complete `text`: read it in full and do not omit
+    fine-grained facts. If `text_complete` is false, `preview` is truncated —
+    search the cited source instead of treating it as complete evidence.
+    With `source_refs`, call `get_conversation_detail` (`session_id`, `run_id`)
+    for the original final answer: the memory is a locator, the conversation
+    detail is the source of truth.
     """
     user_id = get_user_id_from_runtime(runtime)
     if not user_id:
@@ -255,7 +216,12 @@ async def memory_recall(
         return await _json_dumps_result({"success": False, "error": "Memory service not available"})
 
     try:
-        result = await backend.recall(user_id, query, max_results, memory_types, context)
+        from src.infra.memory.scope import resolve_session_project_id
+
+        project_id = await resolve_session_project_id(get_session_id_from_runtime(runtime))
+        result = await backend.recall(
+            user_id, query, max_results, memory_types, context, project_id=project_id
+        )
         return await _json_dumps_result(result)
     except Exception as e:
         logger.error(f"[Memory] Failed to recall memories: {e}")
@@ -310,7 +276,17 @@ def get_memory_delete_tool() -> BaseTool:
 
 def get_all_memory_tools() -> list[BaseTool]:
     """Get all unified memory tools (works with any backend)."""
-    return [memory_retain, memory_recall, memory_delete]
+    return [*get_inline_memory_tools(), *get_deferred_memory_tools()]
+
+
+def get_inline_memory_tools() -> list[BaseTool]:
+    """High-frequency, non-destructive tools mounted directly on the agent."""
+    return [memory_retain, memory_recall]
+
+
+def get_deferred_memory_tools() -> list[BaseTool]:
+    """Destructive, low-frequency tools exposed through the `search_tools` channel."""
+    return [memory_delete]
 
 
 def _background_task_error(task: asyncio.Task) -> None:
@@ -321,138 +297,6 @@ def _background_task_error(task: asyncio.Task) -> None:
             logger.warning(f"[Memory] Background task failed: {exc}")
     except asyncio.CancelledError:
         pass
-
-
-def _auto_capture_task_done(user_id: str, task: asyncio.Task) -> None:
-    current = _auto_capture_tasks_by_user.get(user_id)
-    if current is task:
-        _auto_capture_tasks_by_user.pop(user_id, None)
-    _background_tasks.discard(task)
-    _background_task_error(task)
-
-
-async def _auto_retain_user_memory(
-    user_id: str,
-    user_input: str,
-    source_refs: Optional[Sequence[ConversationSourceRef | dict[str, str]]] = None,
-) -> None:
-    if not user_id or not user_input.strip():
-        return
-    if not await user_memory_enabled(user_id):
-        logger.debug("[Memory] Auto-capture skipped: memory disabled by user %s", user_id)
-        return
-    lock = _auto_capture_user_locks.get(user_id)
-    if lock is None:
-        _evict_idle_auto_capture_locks()
-        lock = asyncio.Lock()
-        _auto_capture_user_locks[user_id] = lock
-    try:
-        async with lock:
-            instance_id = uuid.uuid4().hex[:8]
-            acquire_lock, release_lock = _get_auto_capture_lock_fns()
-            lock_state = await acquire_lock(user_id, instance_id)
-            if lock_state != "acquired":
-                return
-            try:
-                from src.infra.memory.distributed import check_auto_retain_daily_limit
-
-                daily_state = await check_auto_retain_daily_limit(user_id)
-                if daily_state == "exceeded":
-                    logger.debug(
-                        "[Memory] Auto-retain daily limit reached for user %s, skipping",
-                        user_id,
-                    )
-                    return
-                backend = await _get_backend()
-                if backend is None:
-                    return
-                if hasattr(backend, "auto_retain_from_text"):
-                    if source_refs is None:
-                        result = await backend.auto_retain_from_text(user_id, user_input)
-                    else:
-                        result = await backend.auto_retain_from_text(
-                            user_id, user_input, source_refs
-                        )
-                    stored = 0
-                    if isinstance(result, dict):
-                        stored = int(result.get("stored") or 0)
-                    logger.info(
-                        "[Memory] Auto-retain completed for user %s: stored=%s candidates=%s",
-                        user_id,
-                        stored,
-                        result.get("candidates") if isinstance(result, dict) else None,
-                    )
-                    if stored > 0:
-                        try:
-                            compaction_result = (
-                                await get_memory_compaction_agent().maybe_compact_after_write(
-                                    backend, user_id
-                                )
-                            )
-                            logger.info(
-                                "[Memory] Auto-compaction check for user %s: %s",
-                                user_id,
-                                compaction_result,
-                            )
-                        except Exception as e:
-                            logger.warning(
-                                "[Memory] Background memory compaction check failed: %s", e
-                            )
-            finally:
-                await release_lock(user_id, instance_id)
-    finally:
-        _cleanup_local_auto_capture_lock(user_id, lock)
-
-
-async def _auto_retain_user_memory_detached(
-    user_id: str,
-    user_input: str,
-    source_refs: Optional[Sequence[ConversationSourceRef | dict[str, str]]] = None,
-) -> None:
-    """Run background memory capture without inheriting the chat trace parent."""
-    with tracing_context(parent=False):
-        if source_refs is None:
-            await _auto_retain_user_memory(user_id, user_input)
-        else:
-            await _auto_retain_user_memory(user_id, user_input, source_refs)
-
-
-def schedule_auto_memory_capture(
-    user_id: str,
-    user_input: str,
-    source_refs: Optional[Sequence[ConversationSourceRef | dict[str, str]]] = None,
-) -> None:
-    """Best-effort background capture of durable user memories from latest input."""
-    try:
-        loop = asyncio.get_running_loop()
-    except RuntimeError:
-        return
-
-    existing = _auto_capture_tasks_by_user.get(user_id)
-    if existing is not None and not existing.done():
-        logger.debug("[Memory] Auto-retain already running for user %s, skipping", user_id)
-        return
-    active_auto_capture_tasks = sum(
-        1 for task in _auto_capture_tasks_by_user.values() if not task.done()
-    )
-    if active_auto_capture_tasks >= _get_auto_capture_max_tasks():
-        logger.warning(
-            "[Memory] Auto-retain skipped for user %s: active task limit reached (%s)",
-            user_id,
-            active_auto_capture_tasks,
-        )
-        return
-
-    clipped_input = _clip_auto_capture_input(user_input)
-    logger.info("[Memory] Scheduling auto-retain for user %s", user_id)
-    if source_refs is None:
-        coro = _auto_retain_user_memory_detached(user_id, clipped_input)
-    else:
-        coro = _auto_retain_user_memory_detached(user_id, clipped_input, source_refs)
-    task = loop.create_task(coro)
-    _auto_capture_tasks_by_user[user_id] = task
-    _background_tasks.add(task)
-    task.add_done_callback(lambda done: _auto_capture_task_done(user_id, done))
 
 
 async def run_scheduled_memory_compaction() -> dict:
@@ -572,6 +416,9 @@ async def shutdown() -> None:
     if _background_tasks:
         await asyncio.gather(*_background_tasks, return_exceptions=True)
     _background_tasks.clear()
+    from src.infra.memory.extraction import stop_memory_extraction_tasks
+
+    await stop_memory_extraction_tasks()
     await stop_memory_compaction_agent()
 
     # Close backend
@@ -580,8 +427,6 @@ async def shutdown() -> None:
     _backend_lock = None
     _backend_lock_loop = None
     _backend_reset_task = None
-    _auto_capture_tasks_by_user.clear()
-    _auto_capture_user_locks.clear()
     if backend is not None:
         try:
             await backend.close()

@@ -72,10 +72,10 @@ export function ContactAdminDialog({
             <ShieldCheck className="h-7 w-7 text-amber-500 dark:text-amber-400" />
           </div>
           <div className="text-center">
-            <h3 className="text-base font-semibold font-serif tracking-tight text-stone-900 dark:text-stone-50">
+            <h3 className="text-16 font-semibold font-serif tracking-tight text-stone-900 dark:text-stone-50">
               {title}
             </h3>
-            <p className="mt-2 text-sm leading-relaxed text-stone-500 dark:text-stone-400">
+            <p className="mt-2 text-14 leading-relaxed text-stone-500 dark:text-stone-400">
               {description}
             </p>
           </div>
@@ -88,7 +88,7 @@ export function ContactAdminDialog({
               {adminEmail && (
                 <a
                   href={`mailto:${adminEmail}`}
-                  className="group flex items-center gap-3 rounded-xl border border-stone-100 bg-stone-50/50 px-4 py-3 text-sm text-stone-600 transition-all hover:border-stone-200 hover:bg-white hover:shadow-sm dark:border-stone-800 dark:bg-stone-800/40 dark:text-stone-300 dark:hover:border-stone-700 dark:hover:bg-stone-800/70"
+                  className="group flex items-center gap-3 rounded-xl border border-stone-100 bg-stone-50/50 px-4 py-3 text-14 text-stone-600 transition-all hover:border-stone-200 hover:bg-white hover:shadow-sm dark:border-stone-800 dark:bg-stone-800/40 dark:text-stone-300 dark:hover:border-stone-700 dark:hover:bg-stone-800/70"
                 >
                   <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-white shadow-sm ring-1 ring-stone-900/5 dark:bg-stone-700 dark:ring-stone-600/50 dark:shadow-none">
                     <Mail size={15} className="text-stone-400" />
@@ -105,7 +105,7 @@ export function ContactAdminDialog({
                   href={adminUrl}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="group flex items-center gap-3 rounded-xl border border-stone-100 bg-stone-50/50 px-4 py-3 text-sm text-stone-600 transition-all hover:border-stone-200 hover:bg-white hover:shadow-sm dark:border-stone-800 dark:bg-stone-800/40 dark:text-stone-300 dark:hover:border-stone-700 dark:hover:bg-stone-800/70"
+                  className="group flex items-center gap-3 rounded-xl border border-stone-100 bg-stone-50/50 px-4 py-3 text-14 text-stone-600 transition-all hover:border-stone-200 hover:bg-white hover:shadow-sm dark:border-stone-800 dark:bg-stone-800/40 dark:text-stone-300 dark:hover:border-stone-700 dark:hover:bg-stone-800/70"
                 >
                   <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-white shadow-sm ring-1 ring-stone-900/5 dark:bg-stone-700 dark:ring-stone-600/50 dark:shadow-none">
                     <ExternalLink size={15} className="text-stone-400" />
@@ -122,7 +122,7 @@ export function ContactAdminDialog({
             </div>
           ) : (
             <div className="rounded-xl border border-stone-100 bg-stone-50/50 px-4 py-4 text-center dark:border-stone-800 dark:bg-stone-800/40">
-              <p className="text-sm text-stone-400 dark:text-stone-500">
+              <p className="text-14 text-stone-400 dark:text-stone-500">
                 {t(
                   "contactAdmin.noContactInfo",
                   "暂无管理员联系方式，请联系系统管理员。",
@@ -137,7 +137,7 @@ export function ContactAdminDialog({
           <button
             ref={closeRef}
             onClick={onClose}
-            className="w-full rounded-xl bg-stone-900 py-2.5 text-sm font-medium text-white shadow-sm transition-all hover:bg-stone-800 active:bg-stone-700 dark:bg-stone-100 dark:text-stone-900 dark:hover:bg-stone-200 dark:active:bg-stone-300"
+            className="w-full rounded-xl bg-stone-900 py-2.5 text-14 font-medium text-white shadow-sm transition-all hover:bg-stone-800 active:bg-stone-700 dark:bg-stone-100 dark:text-stone-900 dark:hover:bg-stone-200 dark:active:bg-stone-300"
           >
             {t("common.close", "关闭")}
           </button>

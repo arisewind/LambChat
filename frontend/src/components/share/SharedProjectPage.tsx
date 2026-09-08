@@ -186,12 +186,12 @@ export function SharedProjectPage({
       <div className="min-h-dvh bg-theme-bg text-theme-text flex items-center justify-center p-4">
         <div className="bg-theme-bg-card rounded-2xl shadow-xl border border-theme-border px-8 py-10 max-w-md text-center">
           <AlertCircle className="h-10 w-10 mx-auto mb-4 text-theme-text-secondary" />
-          <h1 className="text-xl font-semibold font-serif mb-2">
+          <h1 className="text-20 font-semibold font-serif mb-2">
             {error === "not_project"
               ? "这不是一个项目分享链接"
               : "分享不存在或已失效"}
           </h1>
-          <p className="text-theme-text-secondary text-sm">
+          <p className="text-theme-text-secondary text-14">
             {t("share.pageUnavailable", "链接可能已删除或无访问权限。")}
           </p>
         </div>
@@ -234,7 +234,7 @@ export function SharedProjectPage({
       <section className="border-b border-theme-border">
         <div className="max-w-4xl lg:max-w-5xl mx-auto px-4 sm:px-6 py-8 sm:py-10">
           <div className="flex items-start gap-4">
-            <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-theme-bg-subtle border border-theme-border text-2xl">
+            <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-theme-bg-subtle border border-theme-border text-24">
               {isEmojiIcon(projectIcon) ? (
                 <span>{projectIcon || "📁"}</span>
               ) : (
@@ -242,13 +242,13 @@ export function SharedProjectPage({
               )}
             </div>
             <div className="min-w-0 flex-1">
-              <p className="text-xs uppercase tracking-wider text-theme-text-secondary mb-1">
+              <p className="text-12 uppercase tracking-wider text-theme-text-secondary mb-1">
                 {t("share.sharedProject", "分享的项目")}
               </p>
-              <h1 className="text-2xl sm:text-3xl font-serif tracking-tight font-semibold break-words">
+              <h1 className="text-24 sm:text-30 font-serif tracking-tight font-semibold break-words">
                 {manifest.project.name}
               </h1>
-              <div className="mt-2 flex items-center gap-2 text-sm text-theme-text-secondary">
+              <div className="mt-2 flex items-center gap-2 text-14 text-theme-text-secondary">
                 <MessageSquare size={14} />
                 <span>
                   {manifest.sessions_total} {t("share.conversations", "个会话")}
@@ -294,7 +294,7 @@ export function SharedProjectPage({
                         {session.name ||
                           t("share.untitledSession", "未命名会话")}
                       </span>
-                      <span className="block text-xs text-theme-text-secondary truncate">
+                      <span className="block text-12 text-theme-text-secondary truncate">
                         {session.agent_name}
                         {session.updated_at
                           ? ` · ${formatDate(session.updated_at)}`
@@ -325,7 +325,7 @@ export function SharedProjectPage({
                 type="button"
                 onClick={loadMore}
                 disabled={loadingMore}
-                className="inline-flex items-center gap-2 rounded-lg border border-theme-border bg-theme-bg-card px-4 py-2 text-sm font-medium text-theme-text hover:bg-theme-bg-subtle transition-colors disabled:opacity-60"
+                className="inline-flex items-center gap-2 rounded-lg border border-theme-border bg-theme-bg-card px-4 py-2 text-14 font-medium text-theme-text hover:bg-theme-bg-subtle transition-colors disabled:opacity-60"
               >
                 {loadingMore ? (
                   <Loader2 className="h-4 w-4 animate-spin" />
@@ -345,7 +345,7 @@ export function SharedProjectPage({
 
       {/* Footer */}
       <footer className="safe-area-bottom border-t border-theme-border">
-        <div className="max-w-4xl lg:max-w-5xl mx-auto px-4 sm:px-6 py-6 flex items-center justify-between text-sm text-theme-text-secondary">
+        <div className="max-w-4xl lg:max-w-5xl mx-auto px-4 sm:px-6 py-6 flex items-center justify-between text-14 text-theme-text-secondary">
           <span>{APP_NAME}</span>
           <a
             href={GITHUB_URL}
@@ -371,7 +371,7 @@ function SessionMessages({ content }: { content: SharedContentResponse }) {
 
   if (messages.length === 0) {
     return (
-      <p className="text-center text-theme-text-secondary py-6 text-sm">
+      <p className="text-center text-theme-text-secondary py-6 text-14">
         暂无消息
       </p>
     );

@@ -171,7 +171,7 @@ export function ProfileInfoTab() {
               className="size-20 rounded-full border-4 border-white dark:border-stone-700 shadow-lg ring-2 ring-stone-100 dark:ring-stone-600"
               errorFallback={
                 <div className="size-16 sm:size-20 rounded-full bg-gradient-to-br from-amber-400 to-orange-500 flex items-center justify-center border-4 border-white dark:border-stone-700 shadow-lg ring-2 ring-stone-100 dark:ring-stone-600">
-                  <span className="text-3xl font-bold text-white font-serif">
+                  <span className="text-30 font-bold text-white font-serif">
                     {user?.username?.charAt(0).toUpperCase() || "U"}
                   </span>
                 </div>
@@ -179,7 +179,7 @@ export function ProfileInfoTab() {
             />
           ) : (
             <div className="size-16 sm:size-20 rounded-full bg-gradient-to-br from-amber-400 to-orange-500 flex items-center justify-center border-4 border-white dark:border-stone-700 shadow-lg ring-2 ring-stone-100 dark:ring-stone-600">
-              <span className="text-3xl font-bold text-white font-serif">
+              <span className="text-30 font-bold text-white font-serif">
                 {user?.username?.charAt(0).toUpperCase() || "U"}
               </span>
             </div>
@@ -192,7 +192,7 @@ export function ProfileInfoTab() {
         </div>
         {canUploadAvatar && (
           <div className="mt-3 flex items-center gap-2">
-            <label className="cursor-pointer rounded-lg bg-stone-100 dark:bg-stone-700 px-3 py-1.5 text-xs font-medium text-stone-600 dark:text-stone-300 hover:bg-stone-200 dark:hover:bg-stone-600 transition-colors">
+            <label className="cursor-pointer rounded-lg bg-stone-100 dark:bg-stone-700 px-3 py-1.5 text-12 font-medium text-stone-600 dark:text-stone-300 hover:bg-stone-200 dark:hover:bg-stone-600 transition-colors">
               {t("profile.changeAvatar")}
               <input
                 type="file"
@@ -236,7 +236,7 @@ export function ProfileInfoTab() {
                 autoFocus
               />
               {usernameError && (
-                <p className="text-xs text-red-500 dark:text-red-400">
+                <p className="text-12 text-red-500 dark:text-red-400">
                   {usernameError}
                 </p>
               )}
@@ -267,11 +267,11 @@ export function ProfileInfoTab() {
             </div>
           ) : (
             <div className="flex items-center justify-between gap-3 font-serif">
-              <span className="text-sm text-stone-500 dark:text-stone-400 shrink-0">
+              <span className="text-14 text-stone-500 dark:text-stone-400 shrink-0">
                 {t("profile.username")}
               </span>
               <div className="flex items-center gap-2 min-w-0">
-                <span className="text-sm font-medium text-stone-900 dark:text-stone-100 truncate">
+                <span className="text-14 font-medium text-stone-900 dark:text-stone-100 truncate">
                   {user?.username || "-"}
                 </span>
                 <IconButton
@@ -291,23 +291,23 @@ export function ProfileInfoTab() {
         </div>
 
         <div className="flex items-center justify-between py-3.5 border-b border-stone-100 dark:border-stone-700/60 gap-3">
-          <span className="text-sm text-stone-500 dark:text-stone-400 shrink-0">
+          <span className="text-14 text-stone-500 dark:text-stone-400 shrink-0">
             {t("profile.email")}
           </span>
-          <span className="text-sm font-medium text-stone-900 dark:text-stone-100 truncate text-right">
+          <span className="text-14 font-medium text-stone-900 dark:text-stone-100 truncate text-right">
             {user?.email || "-"}
           </span>
         </div>
         {user?.roles && user.roles.length > 0 && (
           <div className="flex items-center justify-between py-3.5 gap-3">
-            <span className="text-sm text-stone-500 dark:text-stone-400 shrink-0">
+            <span className="text-14 text-stone-500 dark:text-stone-400 shrink-0">
               {t("profile.roles")}
             </span>
             <div className="flex flex-wrap justify-end gap-1.5">
               {user.roles.map((role) => (
                 <span
                   key={role}
-                  className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-stone-100 dark:bg-stone-700 text-stone-600 dark:text-stone-300"
+                  className="inline-flex items-center px-2 py-0.5 rounded-full text-12 font-medium bg-stone-100 dark:bg-stone-700 text-stone-600 dark:text-stone-300"
                 >
                   {role}
                 </span>
@@ -319,7 +319,7 @@ export function ProfileInfoTab() {
         {/* Contact Info */}
         {(adminEmail || adminUrl) && (
           <div className="mt-5 pt-5 border-t border-stone-100 dark:border-stone-700/60 space-y-0">
-            <p className="text-xs text-stone-400 dark:text-stone-500 mb-1">
+            <p className="text-12 text-stone-400 dark:text-stone-500 mb-1">
               {t("about.contactTitle", "Contact")}
             </p>
             {adminEmail && (
@@ -327,11 +327,11 @@ export function ProfileInfoTab() {
                 href={`mailto:${adminEmail}`}
                 className="flex items-center justify-between py-3.5 border-b border-stone-100 dark:border-stone-700/60 gap-3 group"
               >
-                <span className="flex items-center gap-2 text-sm text-stone-500 dark:text-stone-400 shrink-0">
+                <span className="flex items-center gap-2 text-14 text-stone-500 dark:text-stone-400 shrink-0">
                   <Mail size={14} />
                   {t("profile.email", "Email")}
                 </span>
-                <span className="text-sm font-medium text-stone-900 dark:text-stone-100 truncate group-hover:text-amber-600 dark:group-hover:text-amber-400 transition-colors">
+                <span className="text-14 font-medium text-stone-900 dark:text-stone-100 truncate group-hover:text-amber-600 dark:group-hover:text-amber-400 transition-colors">
                   {adminEmail}
                 </span>
               </a>
@@ -343,11 +343,11 @@ export function ProfileInfoTab() {
                 rel="noopener noreferrer"
                 className="flex items-center justify-between py-3.5 gap-3 group"
               >
-                <span className="flex items-center gap-2 text-sm text-stone-500 dark:text-stone-400 shrink-0">
+                <span className="flex items-center gap-2 text-14 text-stone-500 dark:text-stone-400 shrink-0">
                   <ExternalLink size={14} />
                   {t("about.contactSupport", "Support")}
                 </span>
-                <span className="text-sm font-medium text-stone-400 dark:text-stone-500 group-hover:text-amber-600 dark:group-hover:text-amber-400 transition-colors">
+                <span className="text-14 font-medium text-stone-400 dark:text-stone-500 group-hover:text-amber-600 dark:group-hover:text-amber-400 transition-colors">
                   →
                 </span>
               </a>

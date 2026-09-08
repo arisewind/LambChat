@@ -42,23 +42,25 @@ test("section and tab switchers use font-serif like other panel tabs", () => {
 test("agent list item names use font-serif", () => {
   expect(globalAgentTabSource).toMatch(/gap-3 font-serif px-4 py-3\.5/);
   expect(agentSectionSource).toMatch(
-    /<h4 className="truncate text-sm font-medium font-serif/,
+    /<h4 className="truncate text-14 font-medium font-serif/,
   );
   expect(rolesAgentTabSource).toMatch(
-    /<div className="truncate text-sm font-medium font-serif/,
+    /<div className="truncate text-14 font-medium font-serif/,
   );
 });
 
 test("model list item names use font-serif", () => {
   expect(rolesModelTabSource).toMatch(
-    /<div className="truncate text-sm font-medium font-serif/,
+    /<div className="truncate text-14 font-medium font-serif/,
   );
   expect(modelConfigTabSource).toMatch(
-    /<h4 className="text-sm font-semibold font-serif/,
+    /<h4 className="text-14 font-semibold font-serif/,
   );
 });
 
 test("roles agent tab section header row uses font-serif like roles model tab", () => {
   expect(rolesModelTabSource).toMatch(/justify-between gap-3 font-serif/);
-  expect(rolesAgentTabSource).toMatch(/glass-bg-subtle\)\] px-4 py-2\.5 font-serif/);
+  expect(rolesAgentTabSource).toMatch(
+    /glass-bg-subtle\)\] px-4 py-2\.5 font-serif/,
+  );
 });

@@ -3,6 +3,7 @@ import { FileText } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { CollapsiblePill } from "../../../common";
 import { DeferredCodeMirrorViewer } from "../../../common/DeferredCodeMirrorViewer";
+import { useToolStreamingLabel } from "./useToolStreamingLabel";
 import {
   stripLineNumbers,
   readFileStartLine,
@@ -173,6 +174,13 @@ const ReadFileItem = memo(function ReadFileItem({
         ? "success"
         : "error";
 
+  // 进行中：标签学「思考中」，平滑流出正在生成的参数尾部
+  const { label, isStreamingLabel } = useToolStreamingLabel(
+    `${t("chat.message.toolRead")} ${filePath || ""}`,
+    args,
+    { isPending, result },
+  );
+
   const detailContent = canOpenPanel && (
     <ReadFileDetail
       args={args}
@@ -190,7 +198,8 @@ const ReadFileItem = memo(function ReadFileItem({
       <CollapsiblePill
         status={status}
         icon={<FileText size={12} className="shrink-0 opacity-50" />}
-        label={`${t("chat.message.toolRead")} ${filePath || ""}`}
+        label={label}
+        animatedDots={isStreamingLabel}
         suffix={
           lineRange ? (
             <span className="shrink-0 font-mono font-medium opacity-60 leading-none">
@@ -205,7 +214,9 @@ const ReadFileItem = memo(function ReadFileItem({
           if (!canOpenPanel) return;
           openToolLivePanel({
             id,
-            title: `${t("chat.message.toolRead")} ${fileName || filePath}${lineRange}`,
+            title: `${t("chat.message.toolRead")} ${
+              fileName || filePath
+            }${lineRange}`,
             icon: <FileText size={16} />,
             status,
             subtitle: filePath,

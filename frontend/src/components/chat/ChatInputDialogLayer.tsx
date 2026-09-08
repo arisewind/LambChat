@@ -57,7 +57,7 @@ export function ChatInputDialogLayer({
               onConfirmStop();
               toast.custom(() => (
                 <div
-                  className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium"
+                  className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-14 font-medium"
                   style={{
                     background:
                       "color-mix(in srgb, var(--theme-primary) 10%, transparent)",

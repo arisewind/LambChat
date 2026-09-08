@@ -70,14 +70,14 @@ export function ProfilePasswordTab() {
   return (
     <div className="space-y-4">
       {passwordSuccess && (
-        <div className="flex items-center gap-2 p-3 rounded-xl bg-green-50 dark:bg-green-900/30 text-green-600 dark:text-green-400 text-sm">
+        <div className="flex items-center gap-2 p-3 rounded-xl bg-green-50 dark:bg-green-900/30 text-green-600 dark:text-green-400 text-14">
           <Check size={16} className="shrink-0" />
           {t("profile.passwordChanged")}
         </div>
       )}
 
       {passwordError && (
-        <div className="flex items-center gap-2 p-3 rounded-xl bg-red-50 dark:bg-red-900/30 text-red-600 dark:text-red-400 text-sm">
+        <div className="flex items-center gap-2 p-3 rounded-xl bg-red-50 dark:bg-red-900/30 text-red-600 dark:text-red-400 text-14">
           <AlertCircle size={16} className="shrink-0" />
           {passwordError}
         </div>
@@ -85,7 +85,7 @@ export function ProfilePasswordTab() {
 
       {/* Old Password */}
       <div>
-        <label className="block text-sm font-medium text-stone-700 dark:text-stone-300 mb-1.5">
+        <label className="block text-14 font-medium text-stone-700 dark:text-stone-300 mb-1.5">
           {t("profile.oldPassword")}
         </label>
         <Input
@@ -99,7 +99,7 @@ export function ProfilePasswordTab() {
 
       {/* New Password */}
       <div>
-        <label className="block text-sm font-medium text-stone-700 dark:text-stone-300 mb-1.5">
+        <label className="block text-14 font-medium text-stone-700 dark:text-stone-300 mb-1.5">
           {t("profile.newPassword")}
         </label>
         <Input
@@ -113,7 +113,7 @@ export function ProfilePasswordTab() {
 
       {/* Confirm Password */}
       <div>
-        <label className="block text-sm font-medium text-stone-700 dark:text-stone-300 mb-1.5">
+        <label className="block text-14 font-medium text-stone-700 dark:text-stone-300 mb-1.5">
           {t("profile.confirmPassword")}
         </label>
         <Input
