@@ -122,7 +122,7 @@ export function ProfileModal({
   const renderCloseButton = (className?: string) => (
     <button
       onClick={onCloseProfileModal}
-      className={`p-1.5 rounded-lg text-stone-400 hover:text-stone-600 hover:bg-stone-100 dark:text-stone-500 dark:hover:text-stone-300 dark:hover:bg-stone-700/60 transition-all ${
+      className={`p-1.5 rounded-lg text-theme-text-tertiary hover:text-theme-text-secondary hover:bg-theme-bg-subtle dark:text-stone-500 dark:hover:text-stone-300 dark:hover:bg-stone-700/60 transition-all ${
         className ?? ""
       }`}
     >
@@ -132,7 +132,7 @@ export function ProfileModal({
 
   const renderFooter = (className?: string) => (
     <div
-      className={`px-4 sm:px-5 py-2.5 sm:py-3 border-t border-stone-100 dark:border-stone-700/50 flex items-center justify-between bg-stone-50/50 dark:bg-stone-900/30 whitespace-nowrap ${
+      className={`px-4 sm:px-5 py-2.5 sm:py-3 border-t border-theme-border-subtle dark:border-stone-700/50 flex items-center justify-between bg-theme-bg-subtle dark:bg-stone-900/30 whitespace-nowrap ${
         className ?? ""
       }`}
     >
@@ -141,11 +141,11 @@ export function ProfileModal({
         target="_blank"
         rel="noopener noreferrer"
         onClick={(e) => e.stopPropagation()}
-        className="text-11 text-stone-400 dark:text-stone-500 tabular-nums hover:text-stone-600 dark:hover:text-stone-300 transition-colors"
+        className="text-11 text-theme-text-tertiary dark:text-stone-500 tabular-nums hover:text-theme-text-secondary dark:hover:text-stone-300 transition-colors"
       >
         <BrandWordmark
           decorative
-          className="inline-block h-4 w-auto align-[-0.2em] text-stone-500 dark:text-stone-400"
+          className="inline-block h-4 w-auto align-[-0.2em] text-theme-text-secondary dark:text-stone-400"
         />
         {versionInfo?.app_version && (
           <span className="ml-1 opacity-70 font-serif">
@@ -158,7 +158,7 @@ export function ProfileModal({
         target="_blank"
         rel="noopener noreferrer"
         onClick={(e) => e.stopPropagation()}
-        className="px-1.5 sm:px-2 text-11 font-medium text-stone-400 dark:text-stone-500 hover:text-stone-600 dark:hover:text-stone-300 transition-colors py-1 rounded-md hover:bg-stone-100 dark:hover:bg-stone-700/60 shrink-0 font-serif"
+        className="px-1.5 sm:px-2 text-11 font-medium text-theme-text-tertiary dark:text-stone-500 hover:text-theme-text-secondary dark:hover:text-stone-300 transition-colors py-1 rounded-md hover:bg-theme-bg-subtle dark:hover:bg-stone-700/60 shrink-0 font-serif"
       >
         {t("common.poweredBy")}
       </a>
@@ -177,17 +177,17 @@ export function ProfileModal({
       {/* ===== Mobile: bottom sheet ===== */}
       <div
         ref={swipeRef as React.RefObject<HTMLDivElement>}
-        className="sm:hidden relative z-10 w-full bg-white dark:bg-stone-800 rounded-t-2xl shadow-2xl shadow-black/20 dark:shadow-black/50 border-x border-t border-stone-200/80 dark:border-stone-700/60 overflow-hidden max-h-[90dvh] flex flex-col animate-slide-up-sheet"
+        className="sm:hidden relative z-10 w-full bg-theme-bg-card dark:bg-stone-800 rounded-t-2xl shadow-2xl shadow-black/20 dark:shadow-black/50 border-x border-t border-theme-border dark:border-stone-700/60 overflow-hidden max-h-[90dvh] flex flex-col animate-slide-up-sheet"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Drag handle */}
         <div className="flex justify-center pt-3 pb-1">
-          <div className="w-9 h-1 bg-stone-300 dark:bg-stone-600 rounded-full" />
+          <div className="w-9 h-1 bg-theme-border-hover dark:bg-stone-600 rounded-full" />
         </div>
 
         {/* Header */}
         <div className="px-4 py-2.5 flex items-center justify-between">
-          <h3 className="text-15 font-semibold text-stone-900 dark:text-stone-100 tracking-tight font-serif">
+          <h3 className="text-15 font-semibold text-theme-text dark:text-stone-100 tracking-tight font-serif">
             {t("profile.title")}
           </h3>
           {renderCloseButton()}
@@ -212,7 +212,7 @@ export function ProfileModal({
                   className={`relative shrink-0 flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-medium transition-all whitespace-nowrap ${
                     isActive
                       ? "bg-stone-900 text-white dark:bg-stone-100 dark:text-stone-900"
-                      : "text-stone-500 dark:text-stone-400 hover:bg-stone-100 dark:hover:bg-stone-700/50"
+                      : "text-theme-text-secondary dark:text-stone-400 hover:bg-theme-bg-subtle dark:hover:bg-stone-700/50"
                   }`}
                 >
                   {Icon && <Icon size={14} />}
@@ -244,16 +244,16 @@ export function ProfileModal({
 
       {/* ===== Desktop: centered with sidebar ===== */}
       <div
-        className="hidden sm:flex relative z-10 w-[80vw] max-w-[680px] h-[75dvh] max-h-[640px] bg-white dark:bg-stone-800 rounded-2xl shadow-2xl shadow-stone-900/10 dark:shadow-black/40 border border-stone-200/80 dark:border-stone-700/50 overflow-hidden flex-col animate-scale-in"
+        className="hidden sm:flex relative z-10 w-[80vw] max-w-[680px] h-[75dvh] max-h-[640px] bg-theme-bg-card dark:bg-stone-800 rounded-2xl shadow-2xl shadow-stone-900/10 dark:shadow-black/40 border border-theme-border dark:border-stone-700/50 overflow-hidden flex-col animate-scale-in"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
-        <div className="px-5 py-4 flex items-center justify-between border-b border-stone-100 dark:border-stone-700/50">
+        <div className="px-5 py-4 flex items-center justify-between border-b border-theme-border-subtle dark:border-stone-700/50">
           <div>
-            <h3 className="text-sm font-semibold font-serif text-stone-900 dark:text-stone-100 tracking-tight">
+            <h3 className="text-sm font-semibold font-serif text-theme-text dark:text-stone-100 tracking-tight">
               {t("profile.title")}
             </h3>
-            <p className="text-11 text-stone-400 dark:text-stone-500 mt-0.5">
+            <p className="text-11 text-theme-text-tertiary dark:text-stone-500 mt-0.5">
               {t("profile.title")}
             </p>
           </div>
@@ -263,7 +263,7 @@ export function ProfileModal({
         {/* Body: left sidebar tabs + right content */}
         <div className="flex flex-1 min-h-0">
           {/* Left sidebar tabs */}
-          <div className="w-[152px] shrink-0 border-r border-stone-100 dark:border-stone-700/50 py-2 px-2 space-y-0.5 bg-stone-50/50 dark:bg-stone-900/20">
+          <div className="w-[152px] shrink-0 border-r border-theme-border-subtle dark:border-stone-700/50 py-2 px-2 space-y-0.5 bg-theme-bg-subtle dark:bg-stone-900/20">
             {tabs.map((tab) => {
               const Icon = TAB_ICONS[tab.key];
               const isActive = activeTab === tab.key;
@@ -273,8 +273,8 @@ export function ProfileModal({
                   onClick={() => setActiveTab(tab.key)}
                   className={`w-full text-left flex items-center gap-2.5 px-3 py-2.5 rounded-lg text-xs font-medium transition-all ${
                     isActive
-                      ? "bg-white dark:bg-stone-800 text-stone-900 dark:text-stone-100 shadow-sm border border-stone-200/80 dark:border-stone-700/60"
-                      : "text-stone-500 dark:text-stone-400 hover:text-stone-700 dark:hover:text-stone-200 hover:bg-white/60 dark:hover:bg-stone-800/60 border border-transparent"
+                      ? "bg-theme-bg-card dark:bg-stone-800 text-theme-text dark:text-stone-100 shadow-sm border border-theme-border dark:border-stone-700/60"
+                      : "text-theme-text-secondary dark:text-stone-400 hover:text-theme-text dark:hover:text-stone-200 hover:bg-theme-bg-card dark:hover:bg-stone-800/60 border border-transparent"
                   }`}
                 >
                   {Icon && (
@@ -291,7 +291,7 @@ export function ProfileModal({
                 </button>
               );
             })}
-            <div className="!mt-3 pt-3 border-t border-stone-200/80 dark:border-stone-700/50">
+            <div className="!mt-3 pt-3 border-t border-theme-border dark:border-stone-700/50">
               <button
                 onClick={() => {
                   logout();
