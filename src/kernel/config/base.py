@@ -148,6 +148,9 @@ class Settings(BaseSettings):
     ARQ_QUEUE_NAME: str = "lambchat:arq"
     ARQ_WORKER_MAX_JOBS: int = 128
     ARQ_JOB_TIMEOUT_SECONDS: int = 86400
+    # arq 取任务轮询间隔（秒）：arq 默认 0.5s 轮询 sorted-set（非阻塞弹出），
+    # 平均吃掉 ~0.25s 派发延迟；缩短以压低 HITL resume 等即时任务的拾取时延。
+    ARQ_POLL_DELAY_SECONDS: float = 0.1
     TASK_STARTUP_CLEANUP_CONCURRENCY: int = 16
     # 周期孤儿接管间隔：缩短实例死亡后对话自动恢复的停顿（心跳按龄判死 + 扫描间隔）
     TASK_ORPHAN_RECOVERY_INTERVAL_SECONDS: int = 15
@@ -468,17 +471,47 @@ class Settings(BaseSettings):
     AUDIO_TRANSCRIPTION_MODEL: str = "gpt-4o-mini-transcribe"
     AUDIO_TRANSCRIPTION_MAX_DOWNLOAD_BYTES: int = 50 * 1024 * 1024
 
+    # Web search tool settings（多 key 用英文逗号分隔，round-robin 轮询）。
+    # 默认挂载为系统内置工具：未配置任何 provider 时工具返回
+    # web_search_no_provider_configured 引导配置，而不是不挂载
+    ENABLE_WEB_SEARCH: bool = True
+    WEB_SEARCH_PROVIDER: str = "auto"
+    TAVILY_API_KEYS: str = ""
+    BRAVE_API_KEYS: str = ""
+    SEARXNG_BASE_URL: str = ""
+    SEARXNG_API_KEY: str = ""
+
+    # Web fetch tool settings（各家 key 英文逗号分隔轮询；direct 无需 key）。
+    # 默认挂载：direct 供应商零 key 可用
+    ENABLE_WEB_FETCH: bool = True
+    WEB_FETCH_PROVIDER: str = "auto"
+    JINA_API_KEYS: str = ""
+    FIRECRAWL_BASE_URL: str = ""
+    FIRECRAWL_API_KEYS: str = ""
+    EXA_API_KEYS: str = ""
+    WEB_FETCH_MAX_CHARS: int = 32768
+
     # Image analysis tool settings
     ENABLE_IMAGE_ANALYSIS: bool = False
     IMAGE_ANALYSIS_MODEL_ID: str = ""
     IMAGE_ANALYSIS_MAX_ATTEMPTS: int = 3
     IMAGE_ANALYSIS_RETRY_DELAY: float = 1.0
 
+    # Video analysis tool settings（与图片分析同开关挂载；未配模型回落
+    # IMAGE_ANALYSIS_MODEL_ID。字节上限硬限：base64 ×4/3 不打爆请求体）
+    VIDEO_ANALYSIS_MODEL_ID: str = ""
+    VIDEO_ANALYSIS_MAX_ATTEMPTS: int = 3
+    VIDEO_ANALYSIS_RETRY_DELAY: float = 1.0
+    VIDEO_ANALYSIS_MAX_BYTES: int = 50 * 1024 * 1024
+
     # Image generation tool settings
     ENABLE_IMAGE_GENERATION: bool = False
     IMAGE_GENERATION_API_KEY: str = ""
     IMAGE_GENERATION_BASE_URL: str = "https://api.openai.com/v1"
     IMAGE_GENERATION_MODEL: str = "gpt-image-2"
+    # 多模型可选清单（[{name, description}]，首个为默认）；为空时回落单模型
+    # IMAGE_GENERATION_MODEL。设置热更新 + 工具按请求重建 schema，改配置即生效。
+    IMAGE_GENERATION_MODELS: Any = Field(default_factory=list)
     IMAGE_GENERATION_TIMEOUT: int = 120  # 生图 API read timeout（两次数据读取间最大空闲间隔）
     # 生图 HTTP 超时细粒度控制（秒）。带宽差时可调大 write/download 相关值。
     IMAGE_API_CONNECT_TIMEOUT: float = 15.0  # TCP 连接建立超时

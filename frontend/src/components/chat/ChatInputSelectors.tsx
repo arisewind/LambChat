@@ -1,21 +1,27 @@
 import { useNavigate } from "react-router-dom";
+import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { toast } from "react-hot-toast";
-import { Download } from "lucide-react";
+import { Download, Laptop, Monitor, Terminal } from "lucide-react";
 import { ToolSelector } from "../selectors/ToolSelector";
 import { SkillSelector } from "../selectors/SkillSelector";
 import { AgentModeSelector } from "../selectors/AgentModeSelector";
 import { PersonaPresetSelector } from "../persona/PersonaPresetSelector";
 import { TeamPickerModal } from "../team/TeamPickerModal";
 import { AgentOptionButton } from "./AgentOptionButton";
-import { useSandboxStatus } from "../../hooks/useSandboxStatus";
-import { isShellAvailable } from "../../services/tauri/sandboxShell";
+import { isShellAvailable, writeConfirmPolicy } from "../../services/tauri/sandboxShell";
+import {
+  notifySandboxStatusRefresh,
+  useSandboxStatus,
+} from "../../hooks/useSandboxStatus";
+import { sandboxApiMachines } from "../../services/api/sandbox";
 import {
   SANDBOX_AGENT_OPTION_KEY,
+  SANDBOX_LOCAL_VALUE,
   SANDBOX_MACHINE_AGENT_OPTION_KEY,
   adaptSandboxAgentOption,
-  buildSandboxMachineOption,
-  shouldShowSandboxMachineOption,
+  buildSandboxMachineRows,
+  type SandboxMachineRow,
 } from "./sandboxOption";
 import type { FeaturePanel } from "../selectors/FeatureMenu";
 import type {
@@ -141,19 +147,136 @@ export function ChatInputSelectors({
     online: sandboxOnline,
     machines,
     defaultMachineId,
+    currentMachineId,
   } = useSandboxStatus();
   const sandboxShell = isShellAvailable();
-  // 多机 daemon：本地档时动态注入机器选择器（sandbox_machine_id 会话级选机）
+  const [policyOverride, setPolicyOverride] = useState<string | null>(null);
   const sandboxValue = agentOptionValues[SANDBOX_AGENT_OPTION_KEY] ?? "cloud";
-  const machineOption = shouldShowSandboxMachineOption(sandboxValue, machines)
-    ? buildSandboxMachineOption(machines, defaultMachineId, t)
-    : null;
-  const enrichedAgentOptions = machineOption
-    ? {
-        ...(agentOptions ?? {}),
-        [SANDBOX_MACHINE_AGENT_OPTION_KEY]: machineOption,
+  // 统一面板设备行：存在任一在线机即展示（云端档点设备 = 一键切本地档），
+  // 当前设备（壳内 read_machine_id 比对命中）带标识
+  const machineRows = machines.some((m) => m.online !== false)
+    ? buildSandboxMachineRows(machines, defaultMachineId, currentMachineId, t)
+    : [];
+  const machineValue =
+    typeof agentOptionValues[SANDBOX_MACHINE_AGENT_OPTION_KEY] === "string"
+      ? (agentOptionValues[SANDBOX_MACHINE_AGENT_OPTION_KEY] as string)
+      : "";
+  const selectedMachine =
+    machines.find((m) => m.machine_id === (machineValue || defaultMachineId)) ??
+    machines.find((m) => m.online !== false);
+  const executionPolicy = policyOverride ?? selectedMachine?.confirm_policy ?? "all";
+  const handlePolicyChange = async (policy: string) => {
+    if (!selectedMachine || selectedMachine.online === false) return;
+    try {
+      await sandboxApiMachines.updateConfirmPolicy(selectedMachine.machine_id, policy);
+      if (selectedMachine.machine_id === currentMachineId && sandboxShell) {
+        await writeConfirmPolicy(policy);
       }
-    : agentOptions ?? {};
+      setPolicyOverride(policy);
+      // 与偏好设置页同款对账：machines 走 presence 秒推，但 profile 页依赖的
+      // status（daemon_confirm_policy）要等 60s 对账轮询——不发本事件会出现
+      // 「chat input 已新、偏好设置还旧」的双显不同步
+      notifySandboxStatusRefresh();
+      toast.success(t("agentOptions.sandboxPolicy.updated"));
+    } catch {
+      toast.error(t("agentOptions.sandboxPolicy.updateFailed"));
+    }
+  };
+  const handleSelectMachineRow = (row: SandboxMachineRow) => {
+    if (row.disabled) {
+      // 离线机置灰保留展示仅为告知存在：点击提示不落选为目标
+      toast.error(t("agentOptions.sandboxMachine.offlineHint"));
+      return;
+    }
+    // 云端档点设备：一并切本地（档位与执行目标一次到位）
+    if (sandboxValue !== SANDBOX_LOCAL_VALUE) {
+      onToggleAgentOption?.(SANDBOX_AGENT_OPTION_KEY, SANDBOX_LOCAL_VALUE);
+    }
+    onToggleAgentOption?.(SANDBOX_MACHINE_AGENT_OPTION_KEY, row.value);
+  };
+  const machineSection =
+    machineRows.length > 0 ? (
+      <>
+      <div
+        className="mt-1 pt-1.5 border-t"
+        style={{ borderColor: "var(--theme-border)" }}
+        data-sandbox-machine-section
+      >
+        <div
+          className="px-3 pt-1 pb-1.5 text-12 font-medium"
+          style={{ color: "var(--theme-text-secondary)" }}
+        >
+          {t("agentOptions.sandboxMachine.section")}
+        </div>
+        <div className="flex flex-col gap-1">
+          {machineRows.map((row) => {
+            const active =
+              sandboxValue === SANDBOX_LOCAL_VALUE && row.value === machineValue;
+            const PlatformIcon = machinePlatformIcon(row.platform);
+            return (
+              <button
+                key={row.value || "auto"}
+                type="button"
+                data-sandbox-machine-row
+                onClick={() => handleSelectMachineRow(row)}
+                className={`flex items-center gap-2.5 px-3 py-2 rounded-xl text-14 transition-colors text-left cursor-pointer active:scale-[0.98]${
+                  row.disabled ? " opacity-50" : ""
+                }`}
+                style={{
+                  background: active
+                    ? "color-mix(in srgb, var(--theme-primary) 12%, transparent)"
+                    : "transparent",
+                  color: active ? "var(--theme-primary)" : "var(--theme-text)",
+                }}
+              >
+                <PlatformIcon size={14} className="shrink-0 opacity-60" />
+                <span className="truncate">{row.label}</span>
+                {row.isCurrent && (
+                  <span
+                    data-current-device-badge
+                    className="ml-1 shrink-0 px-1.5 py-0.5 rounded-full text-12"
+                    style={{
+                      color: "var(--theme-primary)",
+                      background:
+                        "color-mix(in srgb, var(--theme-primary) 12%, transparent)",
+                    }}
+                  >
+                    {t("agentOptions.sandboxMachine.currentDevice")}
+                  </span>
+                )}
+                {active && (
+                  <span
+                    className="ml-auto text-12"
+                    style={{ color: "var(--theme-primary)" }}
+                  >
+                    ✓
+                  </span>
+                )}
+              </button>
+            );
+          })}
+        </div>
+      </div>
+      {selectedMachine && (
+        <div className="mt-1 pt-1.5 border-t" style={{ borderColor: "var(--theme-border)" }} data-sandbox-policy-section>
+          <div className="px-3 pt-1 pb-1.5 text-12 font-medium" style={{ color: "var(--theme-text-secondary)" }}>
+            {t("agentOptions.sandboxPolicy.section")}
+          </div>
+          <div className="flex flex-col gap-1">
+            {(["all", "commands", "none"] as const).map((policy) => (
+              <button key={policy} type="button" onClick={() => void handlePolicyChange(policy)}
+                className="flex items-center gap-3 px-3 py-2 rounded-xl text-14 transition-colors text-left cursor-pointer active:scale-[0.98]"
+                style={{ background: executionPolicy === policy ? "color-mix(in srgb, var(--theme-primary) 12%, transparent)" : "transparent", color: executionPolicy === policy ? "var(--theme-primary)" : "var(--theme-text)" }}>
+                <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ background: executionPolicy === policy ? "var(--theme-primary)" : "var(--theme-border)" }} />
+                {t(`agentOptions.sandboxPolicy.${policy}`)}
+                {executionPolicy === policy && <span className="ml-auto text-12" style={{ color: "var(--theme-primary)" }}>✓</span>}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+      </>
+    ) : undefined;
 
   return (
     <>
@@ -239,7 +362,7 @@ export function ChatInputSelectors({
       {agentOptions &&
         onToggleAgentOption &&
         Object.keys(agentOptions).length > 0 &&
-        Object.entries(enrichedAgentOptions)
+        Object.entries(agentOptions)
           .filter(
             ([key, opt]) =>
               opt.options &&
@@ -250,7 +373,6 @@ export function ChatInputSelectors({
           .map(([key, option]) => {
             const storedValue = agentOptionValues[key] ?? option.default;
             const isSandbox = key === SANDBOX_AGENT_OPTION_KEY;
-            const isMachine = key === SANDBOX_MACHINE_AGENT_OPTION_KEY;
 
             // 沙箱选项：按壳/在线状态裁剪档位并回退显示值（不篡改已存会话值）
             const adapted = isSandbox
@@ -265,15 +387,6 @@ export function ChatInputSelectors({
               if (isSandbox && value === "local" && !sandboxOnline) {
                 // 离线选本地档：五语提示，但选择仍然生效（不拦截用户意图）
                 toast.error(t("agentOptions.sandbox.offlineHint"));
-              }
-              if (
-                isMachine &&
-                typeof value === "string" &&
-                machines.some((m) => m.machine_id === value && m.online === false)
-              ) {
-                // 离线机不可选为目标：置灰保留展示仅为告知存在，点击提示不落选
-                toast.error(t("agentOptions.sandboxMachine.offlineHint"));
-                return;
               }
               onToggleAgentOption(key, value);
             };
@@ -296,7 +409,8 @@ export function ChatInputSelectors({
                 </button>
               ) : undefined;
               // 独立 panel key：与思考档模态互斥，同帧只开一个选项模态；
-              // 触发入口在 RunModePopover 的"沙箱"条目（含 daemon 状态点）。
+              // 触发入口在工具栏沙箱 chip 与 RunModePopover 的"沙箱"条目。
+              // 统一面板：档位下方注入执行设备列表（选设备 = 定档 + 定目标）。
               return (
                 <AgentOptionButton
                   key={key}
@@ -305,28 +419,11 @@ export function ChatInputSelectors({
                   value={adapted.value}
                   onChange={handleChange}
                   note={note}
+                  belowOptions={machineSection}
                   footer={downloadFooter}
                   isOpen={activePanel === "sandbox"}
                   onOpenChange={(open) =>
                     onActivePanelChange(open ? "sandbox" : null)
-                  }
-                />
-              );
-            }
-
-            if (isMachine) {
-              // 机器选择器同样独立 panel key（不与思考档共用）；
-              // 触发入口在 RunModePopover 沙箱条目下的"机器"子条目。
-              return (
-                <AgentOptionButton
-                  key={key}
-                  optionKey={key}
-                  option={option}
-                  value={storedValue}
-                  onChange={handleChange}
-                  isOpen={activePanel === "machine"}
-                  onOpenChange={(open) =>
-                    onActivePanelChange(open ? "machine" : null)
                   }
                 />
               );
@@ -348,4 +445,16 @@ export function ChatInputSelectors({
           })}
     </>
   );
+}
+
+/** 设备行平台图标：darwin/未知=Laptop，win32=Monitor，linux=Terminal。 */
+function machinePlatformIcon(platform?: string) {
+  switch (platform) {
+    case "win32":
+      return Monitor;
+    case "linux":
+      return Terminal;
+    default:
+      return Laptop;
+  }
 }

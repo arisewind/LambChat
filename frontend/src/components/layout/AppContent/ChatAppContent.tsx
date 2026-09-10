@@ -48,7 +48,6 @@ const CHAT_SKILL_LIST_PARAMS = { limit: 100 };
 export function ChatAppContent({
   showProfileModal,
   onCloseProfileModal,
-  versionInfo,
   sidebarCollapsed,
   setSidebarCollapsed,
   mobileSidebarOpen,
@@ -71,6 +70,7 @@ export function ChatAppContent({
     refresh: refreshApprovals,
     respondToApproval,
     addApproval,
+    removeApproval,
     clearApprovals,
     isLoading: approvalLoading,
   } = useApprovals({
@@ -216,6 +216,9 @@ export function ChatAppContent({
     },
     onClearApprovals: (approvalSessionId) => {
       clearApprovals(approvalSessionId);
+    },
+    onApprovalResolved: (approvalId) => {
+      removeApproval(approvalId);
     },
     getEnabledTools: getDisabledToolNames,
     getDisabledSkills: () => sessionConfigRef.current.disabledSkills,
@@ -746,7 +749,6 @@ export function ChatAppContent({
       activeTab="chat"
       showProfileModal={showProfileModal}
       onCloseProfileModal={onCloseProfileModal}
-      versionInfo={versionInfo}
       setMobileSidebarOpen={setMobileSidebarOpen}
       currentProjectId={currentProjectId}
       projectManager={projectManager}

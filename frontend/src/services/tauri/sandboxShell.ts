@@ -43,7 +43,8 @@ export function isShellAvailable(): boolean {
   return protocol === "tauri:" || hostname === "tauri.localhost";
 }
 
-async function invokeInShell<T>(
+/** 壳内 invoke（linuxUpdate 等其他 Tauri 桥共用；非壳环境抛错由调用方降级）。 */
+export async function invokeInShell<T>(
   command: string,
   args?: Record<string, unknown>,
 ): Promise<T> {
@@ -101,6 +102,14 @@ export function clearPairing(): Promise<void> {
 /** 读回配对 PAT（未配对时 null）。 */
 export function readPairingPat(): Promise<string | null> {
   return invokeInShell<string | null>("read_pairing_pat");
+}
+
+/**
+ * 读本机机器身份 machine_id（~/.lambchat/sandbox.json，daemon 首启生成持久化）。
+ * 未配对 / daemon 未写过时 null；用于机器列表上的"当前设备"标识。
+ */
+export function readMachineId(): Promise<string | null> {
+  return invokeInShell<string | null>("read_machine_id");
 }
 
 /** 重启托管的 daemon（stop → start）。 */

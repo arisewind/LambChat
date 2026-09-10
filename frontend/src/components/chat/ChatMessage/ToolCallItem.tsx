@@ -112,6 +112,7 @@ export { FileRevealItem } from "./items/FileRevealItem";
 export { ProjectRevealItem } from "./items/ProjectRevealItem";
 export { ImageGenerateItem } from "./items/ImageGenerateItem";
 export { ImageAnalyzeItem } from "./items/ImageAnalyzeItem";
+export { VideoAnalyzeItem } from "./items/VideoAnalyzeItem";
 export { AudioTranscribeItem } from "./items/AudioTranscribeItem";
 export { UploadUrlToSandboxItem } from "./items/UploadUrlToSandboxItem";
 export { TransferItem } from "./items/TransferItem";
@@ -126,6 +127,8 @@ export { ToolSearchItem } from "./items/ToolSearchItem";
 export { EvalItem } from "./items/EvalItem";
 export { ConversationHistoryItem } from "./items/ConversationHistoryItem";
 export { SkillSearchItem } from "./items/SkillSearchItem";
+export { WebFetchItem } from "./items/WebFetchItem";
+export { WebSearchItem } from "./items/WebSearchItem";
 
 /** Derive status from tool props */
 function deriveStatus(props: {

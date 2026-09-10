@@ -56,6 +56,8 @@ export interface EventData {
   agent_avatar?: string;
   tool?: string;
   tool_call_id?: string;
+  /** 沙箱确认门整批复批：全部受控执行卡的 tool_call_id 集合 */
+  tool_call_ids?: string[];
   args?: Record<string, unknown>;
   result?: string | Record<string, unknown>;
   artifact?: Record<string, unknown>;
@@ -175,6 +177,9 @@ export interface UseAgentOptions {
     timeout?: number;
     metadata?: Record<string, unknown>;
   }) => void;
+  /** 审批终态（approval_resolved）出队：与 onApprovalRequired 成对，
+   *  使审批队列对 SSE 整段重放幂等（刷新中 run 不再重现已答复卡片）。 */
+  onApprovalResolved?: (approvalId: string) => void;
   onClearApprovals?: (sessionId?: string | null) => void;
   getEnabledTools?: () => string[];
   getDisabledSkills?: () => string[];

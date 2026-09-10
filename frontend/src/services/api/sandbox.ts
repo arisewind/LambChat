@@ -50,8 +50,12 @@ export const sandboxApi = {
   /**
    * 查询当前用户的本地沙箱 daemon 在线状态（PAT/JWT 双通道）
    */
-  async getStatus(): Promise<SandboxStatus> {
-    return authFetch<SandboxStatus>(`${API_BASE}/api/sandbox/status`);
+  async getStatus(machineId?: string | null): Promise<SandboxStatus> {
+    const query =
+      machineId ? `?machine_id=${encodeURIComponent(machineId)}` : "";
+    return authFetch<SandboxStatus>(
+      `${API_BASE}/api/sandbox/status${query}`,
+    );
   },
 
   /**
@@ -176,6 +180,13 @@ export const sandboxApiMachines = {
       {
         method: "PUT",
       },
+    );
+  },
+
+  async updateConfirmPolicy(machineId: string, policy: string): Promise<void> {
+    await authFetch(
+      `${API_BASE}/api/sandbox/machines/${encodeURIComponent(machineId)}/confirm-policy`,
+      { method: "PUT", body: JSON.stringify({ policy }), headers: { "Content-Type": "application/json" } },
     );
   },
 

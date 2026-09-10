@@ -149,3 +149,93 @@ test("tauri updater keeps proxy fallback endpoint for manifest fetch", () => {
     /lambchat\.com\/api\/version\/assets\/latest\.json\/download/,
   );
 });
+
+test("linux package update flow routes deb/rpm through the package manager path", () => {
+  const hook = readRepoFile("frontend/src/hooks/useAutoUpdate.ts");
+  // 来源检测 → 分流：deb/rpm 走「下载 + pkexec 安装」而非 updater
+  expect(hook).toMatch(/getLinuxInstallInfo/);
+  expect(hook).toMatch(/installLinuxPackage\(/);
+  expect(hook).toMatch(/buildLinuxPackageAssetName/);
+  expect(hook).toMatch(/buildLinuxPackageDownloadUrl/);
+  // deb/rpm 不进 updater 后台静默下载——它只会拉 AppImage 且装不上系统包
+  expect(hook).toMatch(/linuxSource !== "deb" && linuxSource !== "rpm"/);
+  // unknown 来源不盲装，回落下载页
+  expect(hook).toMatch(/buildApiUrl\("\/download"\)/);
+});
+
+test("linux update service bridges the rust commands and progress event", () => {
+  const service = readRepoFile("frontend/src/services/tauri/linuxUpdate.ts");
+  expect(service).toMatch(/get_linux_install_source/);
+  expect(service).toMatch(/install_linux_package/);
+  expect(service).toMatch(/linux-update-progress/);
+});
+
+test("rust side detects install source and installs deb/rpm via pkexec", () => {
+  const rust = readRepoFile("frontend/src-tauri/src/linux_update.rs");
+  // 检测序：AppImage 扩展名 → dpkg/rpm 包归属反查 → 系统前缀启发式
+  expect(rust).toMatch(/is_appimage_path/);
+  expect(rust).toMatch(/"dpkg", "-S"/);
+  expect(rust).toMatch(/"rpm", "-qf"/);
+  expect(rust).toMatch(/fallback_install_source/);
+  // deb → apt、rpm → dnf，pkexec 提权
+  expect(rust).toMatch(/"apt"/);
+  expect(rust).toMatch(/"dnf"/);
+  expect(rust).toMatch(/"pkexec"/);
+  // 命令注册进 invoke handler（缺注册前端 invoke 直接挂）
+  const lib = readRepoFile("frontend/src-tauri/src/lib.rs");
+  expect(lib).toMatch(/linux_update::get_linux_install_source/);
+  expect(lib).toMatch(/linux_update::install_linux_package/);
+});
+
+test("download-and-install copy exists in all five locales", () => {
+  for (const locale of ["zh", "en", "ja", "ko", "ru"]) {
+    const data = JSON.parse(
+      readRepoFile(`frontend/src/i18n/locales/${locale}.json`),
+    ) as Record<string, string>;
+    expect(data.updateDownloadAndInstall, locale).toBeTruthy();
+  }
+});
+
+test("release workflow asset naming keeps the deb/rpm contract", () => {
+  // CI 收集产物名 LambChat-${RELEASE_TAG}-Linux-${arch}.deb|.rpm 必须与
+  // buildLinuxPackageAssetName 拼出的名字一致（数值用例见 linuxUpdateAssets.test.ts）
+  const wf = readRepoFile(".github/workflows/app-release.yml");
+  expect(wf).toMatch(/LambChat-\$\{RELEASE_TAG\}-Linux-\$\{arch\}\.deb/);
+  expect(wf).toMatch(/LambChat-\$\{RELEASE_TAG\}-Linux-\$\{arch\}\.rpm/);
+});
+
+test("update flow is single-flight: downloads guarded by in-flight flag, re-checks preserve progress", () => {
+  const hook = readRepoFile("frontend/src/hooks/useAutoUpdate.ts");
+  // 在飞标志存在且三条下载路径（后台/AppImage 前台/Linux 包管理器）都先查它
+  expect(hook).toMatch(/const downloadInFlightRef = useRef\(false\)/);
+  const guards = hook.match(/if \(downloadInFlightRef\.current\) return/g) ?? [];
+  expect(guards.length).toBe(2); // installTauriUpdate + installLinuxPackageUpdate
+  // 后台下载卫兵 = pending(已完成) + inFlight(进行中) 双查——单查完成标志
+  // 会在下载中放行第二条下载（多进度条/并发下载根因）
+  expect(hook).toMatch(
+    /if \(pendingUpdateRef\.current \|\| downloadInFlightRef\.current\) return/,
+  );
+  // 失败路径必须复位在飞标志（否则一次失败永久卡死后续下载）
+  const resets = hook.match(/downloadInFlightRef\.current = false/g) ?? [];
+  expect(resets.length).toBeGreaterThanOrEqual(4);
+  // 复检不能清掉进行中下载/待安装态（进度条中途消失重来的来源）
+  expect(hook).toMatch(/const preserve =\n\s+downloadInFlightRef\.current \|\| pendingUpdateRef\.current !== null/);
+  // 迟到的 Linux 进度事件不污染非下载态
+  expect(hook).toMatch(/if \(!prev\.downloading\) return prev/);
+});
+
+test("manual update check distinguishes failure from up-to-date", () => {
+  const hook = readRepoFile("frontend/src/hooks/useAutoUpdate.ts");
+  // 检查失败不得伪装成「已是最新」；两条检查路径都返回成败
+  expect(hook).toMatch(/updateCheckFailed/);
+  expect(hook).toMatch(/ok = await checkTauriUpdate\(background, manual\)/);
+  expect(hook).toMatch(/ok = await checkBackendUpdate\(background, manual\)/);
+
+  // 失败文案五语齐
+  for (const locale of ["zh", "en", "ja", "ko", "ru"]) {
+    const data = JSON.parse(
+      readRepoFile(`frontend/src/i18n/locales/${locale}.json`),
+    ) as Record<string, string>;
+    expect(data.updateCheckFailed, locale).toBeTruthy();
+  }
+});

@@ -19,8 +19,13 @@ import type {
   SubagentStackItem,
   UseAgentOptions,
 } from "./types";
-import { clearAllLoadingStates, createToolPart } from "./messageParts";
+import {
+  clearAllLoadingStates,
+  createToolPart,
+  isSandboxConfirmApprovalEvent,
+} from "./messageParts";
 import { splitAssistantTurn } from "./steerTurnSplit";
+import { settleAssistantMessage } from "./settleStream";
 import { convertAttachments, processMessageEvent } from "./eventProcessor";
 import { dispatchToolMutationRefresh } from "../../components/chat/ChatMessage/items/toolMutationEvents";
 
@@ -48,6 +53,9 @@ export interface EventHandlerContext {
   setGoalsByRunId: React.Dispatch<
     React.SetStateAction<Record<string, import("./types").ActiveGoalSpec>>
   >;
+  /** 运行已在服务端终结、而本地流式目标从未收到正文（空壳）时触发，
+   *  用于拉起一次历史重载恢复存储端已有的内容。 */
+  onStaleRunStateDetected?: (runId: string) => void;
 }
 
 /**
@@ -346,19 +354,9 @@ export function handleStreamEvent(
 
     case "complete":
     case "done": {
-      ctx.setMessages((prev) =>
-        prev.map((m) =>
-          m.id === messageId
-            ? {
-                ...m,
-                isStreaming: false,
-                parts: clearAllLoadingStates(m.parts || [], {
-                  preserveAskHuman: true,
-                }),
-              }
-            : m,
-        ),
-      );
+      // 落定：清 loading；若目标从未收到任何正文（重放未挂上/只挂了推荐），
+      // 直接移除，避免留下只有头像和操作栏的孤儿气泡。
+      ctx.setMessages((prev) => settleAssistantMessage(prev, messageId));
       ctx.setConnectionStatus("disconnected");
       // AI 回复完成，用户正在查看当前 session，立即标记为已读
       const activeSessionId = ctx.sessionIdRef.current;
@@ -383,6 +381,16 @@ export function handleStreamEvent(
       appendAskHumanToolPart(data, messageId, eventTimestamp, ctx);
       handleApprovalRequired(data, ctx);
       return;
+    }
+
+    case "approval_resolved": {
+      // 审批出队与 approval_required 成对（直播/整段重放同一条流）：
+      // 中 run 刷新后 SSE 从头重放全部事件，已答复审批若只入队不出队，
+      // 会以可交互表单的形式整批重现。break 落回部件收尾（pill 转终态）。
+      if (typeof data.id === "string" && data.id) {
+        ctx.options?.onApprovalResolved?.(data.id);
+      }
+      break;
     }
 
     case "skills:changed": {
@@ -708,6 +716,11 @@ function appendAskHumanToolPart(
   eventTimestamp: string | undefined,
   ctx: EventHandlerContext,
 ): void {
+  // 沙箱确认门：执行卡（等待确认→结果）+ 审批面板已完整表达，不合成
+  // ask_human 工具卡，与历史回放共用判定（避免一次执行双卡）
+  if (isSandboxConfirmApprovalEvent(data)) {
+    return;
+  }
   const toolCallId = data.tool_call_id || data.id;
   const args = {
     message: data.message || "",

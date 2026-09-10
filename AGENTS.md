@@ -4,13 +4,23 @@
 
 优先响应当前请求；当请求未提供特殊说明时，遵循以下项目约定。
 
+## Impeccable 前端设计规范
+
+所有前端开发、UI 修改和视觉走查都必须先阅读仓库根目录的 `DESIGN.md` 与 `PRODUCT.md`。这两份文件记录 LambChat 的视觉系统、产品上下文和交互约束，是 Impeccable 项目级设计指导在本仓库的落地文件。
+
+- 新增或修改 UI 前，先复用现有组件、主题 token、布局和 i18n 结构；不得另起一套颜色、字体、间距或圆角体系。
+- 优先保证信息层级、可读性、响应式、键盘操作、无障碍、深浅色主题和加载/空/错状态；避免 AI 常见的无意义渐变、嵌套卡片、过度圆角、侧边标签、装饰性 emoji 和无目的动效。
+- 面向用户的文案同步更新 zh / en / ja / ko / ru 五个 locale；动效尊重 `prefers-reduced-motion`。
+- 修改后运行 `DESIGN.md` 的交付检查，并在环境允许时运行 `npx impeccable update` 或 Impeccable 检查器；检查器不可用时，按同一清单完成人工检查。
+- 前端变更仍必须通过仓库既有的测试、lint、build 和类型检查，Impeccable 不能替代这些门禁。
+
 ## 项目概览
 
 LambChat 是全栈 AI Agent 平台：
 
 - **后端**: Python 3.12+, FastAPI, LangGraph/deepagents, MongoDB, Redis, arq。
 - **前端**: React 19, TypeScript, Vite, TailwindCSS, PWA。
-- **客户端**: Capacitor 移动端 App + Tauri 桌面 App。
+- **客户端**: Capacitor 移动端 App + Tauri 桌面 App，开发规范见根目录 `CLIENT.md`（含本地沙箱 daemon sidecar，为本文件在客户端领域的专项细化）。
 - **文档**: VitePress，位于 `docs/`。
 
 主要目录：
@@ -161,7 +171,7 @@ Conventional Commits + 中文描述：`类型(范围): 摘要`。
 
 **规矩：发版 tag 一律打在 `main` 的合并提交上——hotfix 或 develop 晋升合入 `main`、CI 全绿后再打 tag；禁止在 feature 分支或未晋升到 `main` 的提交上发版。**
 
-1. 打 tag 前先 bump 六处版本文件并保持一致：`frontend/package.json`、`frontend/src-tauri/tauri.conf.json`、android `versionName`/`versionCode`（数字串 = 版本去点）、iOS `MARKETING_VERSION`、`pyproject.toml`（服务端 `/api/version` 运行时读它，漏 bump 网页端版本号就不同步）、`client/lambchat_sandbox/__init__.py` 的 `__version__`（daemon 自更新比版本，漏 bump daemon 永不更新）——app-release.yml 的 preflight 会校验 tag 与版本一致，漂移直接红。
+1. 打 tag 前先 bump 七处版本文件并保持一致：`frontend/package.json`、`frontend/src-tauri/tauri.conf.json`、`frontend/src-tauri/Cargo.toml`（编译期进 `CARGO_PKG_VERSION`，`clean_on_version_upgrade` 依赖它判断升级，漏 bump 该逻辑静默失效）、android `versionName`/`versionCode`（数字串 = 版本去点）、iOS `MARKETING_VERSION`、`pyproject.toml`（服务端 `/api/version` 运行时读它，漏 bump 网页端版本号就不同步）、`client/lambchat_sandbox/__init__.py` 的 `__version__`（daemon 自更新比版本，漏 bump daemon 永不更新）——app-release.yml 的 preflight 会校验 tag 与版本一致，漂移直接红。
 2. 在 `main` 合并提交上打 tag 并推送，触发 `app-release.yml`：六端矩阵构建（Linux x86_64/arm64、Windows、macOS Apple Silicon/Intel）+ Android/iOS，即发即传上传 GitHub Release。
 3. 出包默认**烘焙态**：资产全部上 Release、CI 打包产物冒烟（mac 直接跑 .app 内 daemon、Linux 解包 deb 跑、Windows 跑 sidecar）须绿，但 `latest.json` **不上传**——桌面端自更新不感知。真机抽检（mac/windows）通过后，到 Actions 手动跑 **Desktop Updater Publish**（输入 tag）才把 latest.json 推给桌面端；此时发版完成的判据是 latest.json 五个桌面平台条目齐全（含 `darwin-x86_64`）。仓库变量 `DESKTOP_UPDATER_AUTO_PUBLISH=true` 可恢复随包直发（不建议）。
 4. 重打同一 tag：先删远端 tag 与旧 run，再在新提交上重推；资产同名 `--clobber` 原地替换。
@@ -426,6 +436,7 @@ LLM 模型通过 **Model Config UI** 配置，无需在环境变量中设置 API
 | 后端格式/类型 | `make lint` + `make typecheck` |
 | 跨栈变更 | `make check-all` |
 | 本地沙箱/daemon/传输链路 | `uv run python scripts/e2e_local_sandbox.py`（详见下方规矩） |
+| 桌面端 Linux 更新链路 | `uv run python scripts/e2e_linux_update.py`（Rust 检测/下载单测 + 本机检测冒烟 + 前端契约） |
 | 文档变更 | 确认 Markdown 链接、命令和路径正确 |
 
 如果验证因缺少服务、依赖或环境变量无法完成，明确说明。
@@ -435,12 +446,12 @@ LLM 模型通过 **Model Config UI** 配置，无需在环境变量中设置 API
 **规矩：凡涉及本地沙箱链路的开发——`src/infra/sandbox/`、`client/lambchat_sandbox/`、`src/api/routes/sandbox.py`、请求体门限/传输相关中间件、桌面端 daemon 托管（`frontend/src-tauri/src/daemon.rs`）——合并前必须在本机跑通全量 E2E：**
 
 ```bash
-uv run python scripts/e2e_local_sandbox.py             # 功能链路（15 项，须全 PASS）
+uv run python scripts/e2e_local_sandbox.py             # 功能链路（全项须 PASS）
 uv run python scripts/e2e_local_sandbox.py --stress    # 发版前/大改动追加压测段
 ```
 
-- 脚本自举环境：后端未起会自动拉起、注册一次性测试用户并铸 PAT、拉起 daemon，结束自动回收（测试用户/PAT/工作目录），只要求本机 MongoDB/Redis 可达（凭据读 `.env`）。
-- 覆盖面：SSE 握手与多机注册表、exec 往返、机器绑定防冒答（409）、双向流式大文件传输（10/50/100MB sha256 校验）、结构化 fs op、分块 base64 兜底、优雅下线秒级翻转；`--stress` 追加并发扫描与持续负载。
+- 脚本自举环境：后端未起会自动拉起（8000 被占时可用 `E2E_SANDBOX_SERVER` 指向自备实例）、注册一次性测试用户并铸 PAT、拉起 daemon，结束自动回收（测试用户/PAT/工作目录），只要求本机 MongoDB/Redis 可达（凭据读 `.env`）。
+- 覆盖面：SSE 握手与多机注册表、exec 往返、机器绑定防冒答（409）、双向流式大文件传输（10/50/100MB sha256 校验）、结构化 fs op、分块 base64 兜底、优雅下线秒级翻转、skills 虚拟挂载 glob 递归契约（真实 MongoDB）、transfer_path 大批量整树搬运（真实 daemon）；`--stress` 追加并发扫描与持续负载。
 - 这条门禁的由来：`fs_upload_stream` 分发漏注册（上传快路径整条失效）与请求体门限误伤流式回传（>8MiB 下载全灭）两个生产级 bug，都是单测/seam 全绿下只有该 E2E 抓到的。
 
 ## 本地开发地址

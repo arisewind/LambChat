@@ -15,6 +15,8 @@ interface AgentOptionButtonProps {
   note?: string;
   /** 面板底部操作区（如沙箱离线时的下载引导），渲染在档位列表下方。 */
   footer?: ReactNode;
+  /** 档位列表下方、footer 上方的扩展区（如沙箱统一面板的执行设备列表）。 */
+  belowOptions?: ReactNode;
   isOpen?: boolean;
   onOpenChange?: (open: boolean) => void;
 }
@@ -71,6 +73,7 @@ export const AgentOptionButton = memo(function AgentOptionButton({
   onChange,
   note,
   footer,
+  belowOptions,
   isOpen: externalIsOpen,
   onOpenChange: externalOnOpenChange,
 }: AgentOptionButtonProps) {
@@ -148,6 +151,10 @@ export const AgentOptionButton = memo(function AgentOptionButton({
                   style={{
                     background: "var(--theme-bg-card)",
                     maxHeight: "60dvh",
+                    // 内容超高（沙箱设备+策略两段）可滚：否则移动端 sheet 底部
+                    // 条目被裁掉点不到（仅命令确认截半、无需确认不可达）
+                    overflowY: "auto",
+                    overscrollBehavior: "contain",
                   }}
                   onClick={(e) => e.stopPropagation()}
                 >
@@ -186,6 +193,7 @@ export const AgentOptionButton = memo(function AgentOptionButton({
                       />
                     ))}
                   </div>
+                  {belowOptions}
                   {footer && (
                     <div
                       className="mt-2 pt-1 border-t"
@@ -255,6 +263,9 @@ export const AgentOptionButton = memo(function AgentOptionButton({
                   style={{
                     background: "var(--theme-bg-card)",
                     maxHeight: "60dvh",
+                    // 同上：超高内容可滚，防止移动端 sheet 底部条目不可达
+                    overflowY: "auto",
+                    overscrollBehavior: "contain",
                   }}
                   onClick={(e) => e.stopPropagation()}
                 >
@@ -293,6 +304,7 @@ export const AgentOptionButton = memo(function AgentOptionButton({
                       />
                     ))}
                   </div>
+                  {belowOptions}
                   {footer && (
                     <div
                       className="mt-2 pt-1.5 border-t"
@@ -312,6 +324,10 @@ export const AgentOptionButton = memo(function AgentOptionButton({
                   ...dropdownStyle,
                   background: "var(--theme-bg-card)",
                   borderColor: "var(--theme-border)",
+                  // 桌面下拉靠近视口底时超高可滚（机器多 + 策略段展开时）
+                  maxHeight: "calc(100dvh - 8rem)",
+                  overflowY: "auto",
+                  overscrollBehavior: "contain",
                 }}
               >
                 <div
@@ -341,6 +357,7 @@ export const AgentOptionButton = memo(function AgentOptionButton({
                     />
                   ))}
                 </div>
+                {belowOptions}
                 {footer && (
                   <div
                     className="mt-2 pt-1.5 border-t"

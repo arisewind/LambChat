@@ -17,6 +17,7 @@ import {
   EvalItem,
   ImageGenerateItem,
   ImageAnalyzeItem,
+  VideoAnalyzeItem,
   AudioTranscribeItem,
   UploadUrlToSandboxItem,
   TransferItem,
@@ -30,6 +31,8 @@ import {
   ToolSearchItem,
   ConversationHistoryItem,
   SkillSearchItem,
+  WebFetchItem,
+  WebSearchItem,
 } from "./ToolCallItem";
 import { ThinkingBlock, SubagentBlock, SandboxItem } from "./SubagentBlocks";
 import { MemoryStatusItem } from "./MemoryStatusItem";
@@ -306,6 +309,20 @@ export function MessagePartRenderer({
         />
       );
     }
+    if (part.name === "video_analyze") {
+      return (
+        <VideoAnalyzeItem
+          id={part.id}
+          args={toolArgs}
+          result={part.result}
+          success={part.success}
+          isPending={part.isPending}
+          cancelled={part.cancelled}
+          startedAt={part.startedAt}
+          completedAt={part.completedAt}
+        />
+      );
+    }
     if (part.name === "upload_url_to_sandbox") {
       return (
         <UploadUrlToSandboxItem
@@ -511,6 +528,36 @@ export function MessagePartRenderer({
     if (part.name === "search_skills") {
       return (
         <SkillSearchItem
+          id={part.id}
+          args={toolArgs}
+          result={part.result}
+          success={part.success}
+          isPending={part.isPending}
+          cancelled={part.cancelled}
+          startedAt={part.startedAt}
+          completedAt={part.completedAt}
+        />
+      );
+    }
+    // Detect web search, use dedicated component (shows result cards + image grid)
+    if (part.name === "web_search") {
+      return (
+        <WebSearchItem
+          id={part.id}
+          args={toolArgs}
+          result={part.result}
+          success={part.success}
+          isPending={part.isPending}
+          cancelled={part.cancelled}
+          startedAt={part.startedAt}
+          completedAt={part.completedAt}
+        />
+      );
+    }
+    // Detect web fetch, use dedicated component (shows page content reader)
+    if (part.name === "web_fetch") {
+      return (
+        <WebFetchItem
           id={part.id}
           args={toolArgs}
           result={part.result}

@@ -18,6 +18,7 @@ import {
   type SandboxMachine,
   type SandboxStatus,
 } from "../services/api/sandbox";
+import { readMachineId } from "../services/tauri/sandboxShell";
 
 export const SANDBOX_STATUS_REFRESH_EVENT = "sandbox-status-refresh";
 
@@ -39,6 +40,8 @@ export interface SandboxStatusStoreState {
   statusError: SandboxStatusError;
   machines: SandboxMachine[];
   defaultMachineId: string | null;
+  /** 本机 machine_id（壳内读 ~/.lambchat/sandbox.json）；web 端/未配对为 null。 */
+  currentMachineId: string | null;
   wsHealthy: boolean;
   lastSyncedAt: number | null;
 }
@@ -48,6 +51,7 @@ const store = createSingletonStore<SandboxStatusStoreState>({
   statusError: null,
   machines: [],
   defaultMachineId: null,
+  currentMachineId: null,
   wsHealthy: false,
   lastSyncedAt: null,
 });
@@ -90,8 +94,11 @@ export async function refreshSandboxStatus(): Promise<void> {
   }
   inFlight = true;
   try {
+    // 已知本机 machine_id 时显式指定：默认机失效+多机在线时缺省解析
+    // 返回 None，daemon_confirm_policy 会恒为 null（偏好设置不再跟随）
+    const currentMachine = store.get().currentMachineId;
     const [statusResult, machinesResult] = await Promise.allSettled([
-      sandboxApi.getStatus(),
+      sandboxApi.getStatus(currentMachine),
       sandboxApiMachines.listMachines(),
     ]);
     const next: Partial<SandboxStatusStoreState> = {};
@@ -119,12 +126,30 @@ export async function refreshSandboxStatus(): Promise<void> {
     next.lastSyncedAt = Date.now();
     store.set({ ...store.get(), ...next });
     emitOnlineTransition();
+    // 本机身份对账（壳内本地文件读，随刷新节拍自愈：daemon 首启落盘后下一轮带上）
+    void syncCurrentMachineId();
   } finally {
     inFlight = false;
     if (pendingRefresh) {
       pendingRefresh = false;
       void refreshSandboxStatus();
     }
+  }
+}
+
+/**
+ * 读本机 machine_id（read_machine_id invoke 读 ~/.lambchat/sandbox.json）：
+ * 非壳环境/命令缺失/未配对均静默降级为无当前设备标识；值未变化不写 store，
+ * 避免 60s 对账节拍引起订阅方无谓重渲染。
+ */
+async function syncCurrentMachineId(): Promise<void> {
+  try {
+    const id = await readMachineId();
+    if (id && id !== store.get().currentMachineId) {
+      store.set({ ...store.get(), currentMachineId: id });
+    }
+  } catch {
+    // 非壳 / 旧壳未实现该命令 / 文件不可读：无当前设备标识，不阻塞刷新
   }
 }
 
@@ -273,6 +298,7 @@ export function _resetSandboxStatusStoreForTests(): void {
     statusError: null,
     machines: [],
     defaultMachineId: null,
+    currentMachineId: null,
     wsHealthy: false,
     lastSyncedAt: null,
   });

@@ -1,6 +1,17 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import i18n from "i18next";
 import { versionApi, buildReleaseAssetDownloadUrl } from "../services/api";
+import { buildApiUrl } from "../services/api/config";
+import {
+  getLinuxInstallInfo,
+  installLinuxPackage,
+  subscribeLinuxUpdateProgress,
+  type LinuxInstallSource,
+} from "../services/tauri/linuxUpdate";
+import {
+  buildLinuxPackageAssetName,
+  buildLinuxPackageDownloadUrl,
+} from "../utils/linuxUpdateAssets";
 import { APP_VERSION } from "../utils/appVersion";
 import { bytesToBase64 } from "../utils/bytesToBase64";
 import type { UpdateState, ReleaseAsset } from "../types";
@@ -37,6 +48,8 @@ export interface UseAutoUpdateReturn {
   setShowDialog: (v: boolean) => void;
   startUpdate: () => Promise<void>;
   skipUpdate: () => void;
+  /** 跳过此版本：该版本不再自动提醒（手动检查仍会显示） */
+  skipThisVersion: () => void;
   /** 手动检查（设置页事件触发）：无更新时提示「已是最新」 */
   checkNow: () => Promise<void>;
 }
@@ -54,7 +67,30 @@ const INITIAL_STATE: UpdateState = {
   downloaded: 0,
   readyToInstall: false,
   error: null,
+  linuxInstallSource: null,
 };
+
+/** 当前 runtime 是否是 Linux 桌面（deb/rpm/AppImage 分流只在这类设备生效） */
+export function isLinuxDesktopEnvironment(
+  nav: { userAgent?: string; platform?: string } = typeof navigator !== "undefined"
+    ? navigator
+    : {},
+): boolean {
+  const ua = nav.userAgent ?? "";
+  const platform = nav.platform ?? "";
+  // Android WebView UA 含 "Linux; Android"——排除移动端
+  const uaIsLinux = /linux/i.test(ua) && !/android/i.test(ua);
+  return uaIsLinux || /linux/i.test(platform);
+}
+
+export function formatUpdateError(error: unknown, platform: string): string {
+  const raw = error instanceof Error ? error.message : String(error ?? "");
+  const detail = raw.trim() || "更新失败";
+  if (platform === "tauri" && /permission|access denied|拒绝访问|权限|replace|rename/i.test(detail)) {
+    return `${detail}。Linux 请确认 AppImage 所在目录可写，并从用户目录运行；如果安装的是 .deb/.rpm，请手动安装新版安装包。`;
+  }
+  return detail;
+}
 
 /** Debounce delay (ms) before checking for updates on startup */
 const CHECK_DELAY_MS = 5000;
@@ -70,6 +106,54 @@ export function shouldCheckNow(
   minIntervalMs: number,
 ): boolean {
   return now - lastCheckedAt >= minIntervalMs;
+}
+
+/** 「跳过此版本」持久化（标准更新器行为：该版本不再自动打扰） */
+export const SKIPPED_UPDATE_VERSIONS_KEY = "lambchat:skipped-update-versions";
+
+export function readSkippedUpdateVersions(
+  storage: Pick<Storage, "getItem">,
+): string[] {
+  try {
+    const raw = storage.getItem(SKIPPED_UPDATE_VERSIONS_KEY);
+    if (!raw) return [];
+    const parsed: unknown = JSON.parse(raw);
+    if (!Array.isArray(parsed)) return [];
+    return parsed.filter((v): v is string => typeof v === "string");
+  } catch {
+    return [];
+  }
+}
+
+export function isVersionSkipped(
+  version: string | null,
+  skipped: string[],
+): boolean {
+  if (!version) return false;
+  return skipped.includes(version);
+}
+
+/** 是否弹更新提示：跳过过的版本静默（手动「检查更新」除外——主动要看） */
+export function shouldPromptUpdate(
+  version: string | null,
+  skipped: string[],
+  opts: { manual: boolean },
+): boolean {
+  if (!version) return false;
+  if (opts.manual) return true;
+  return !isVersionSkipped(version, skipped);
+}
+
+function persistSkippedVersion(
+  storage: Pick<Storage, "setItem" | "getItem">,
+  version: string,
+): void {
+  const next = [...readSkippedUpdateVersions(storage), version];
+  try {
+    storage.setItem(SKIPPED_UPDATE_VERSIONS_KEY, JSON.stringify(next));
+  } catch {
+    // 存储写失败（隐私模式等）：本次会话内仍生效（调用方关闭弹窗）
+  }
 }
 
 /** 后台发现新版本时的系统通知（每版本一次；桌面托盘/系统通知） */
@@ -104,39 +188,118 @@ export function useAutoUpdate(): UseAutoUpdateReturn {
   const pendingUpdateRef = useRef<{
     install: () => Promise<void>;
   } | null>(null);
+  /** Linux 安装来源（Rust 检测；null=非 Linux 桌面或检测未完成） */
+  const linuxSourceRef = useRef<LinuxInstallSource | null>(null);
+  /** 资产命名的 arch 段（Rust 上报；拼 deb/rpm 资产名用） */
+  const linuxArchRef = useRef<string | null>(null);
+  /** 检测 promise 缓存：更新检查与安装分流共用一次检测结果 */
+  const linuxDetectPromiseRef = useRef<Promise<LinuxInstallSource | null> | null>(
+    null,
+  );
+  /** 下载/安装「在飞」标志：pendingUpdateRef 只在下载完成时置位，卫兵只查它
+   * 会漏掉下载中——复检再触发即起第二条下载（进度条跳变/多进度的根因） */
+  const downloadInFlightRef = useRef(false);
 
   const platform = platformRef.current;
 
-  /** Check for updates. background=true 时不打断用户：弹窗 + 系统通知（每版本一次） */
+  /**
+   * 确保 Linux 安装来源已检测（一次）：更新检查时决定是否后台静默下载、
+   * 安装时决定走 updater 还是 deb/rpm 包管理器路径。非 Linux 桌面返回 null。
+   */
+  const ensureLinuxSource = useCallback(
+    async (): Promise<LinuxInstallSource | null> => {
+      if (platform !== "tauri" || !isLinuxDesktopEnvironment()) return null;
+      if (!linuxDetectPromiseRef.current) {
+        linuxDetectPromiseRef.current = (async () => {
+          const info = await getLinuxInstallInfo();
+          const source: LinuxInstallSource = info?.source ?? "unknown";
+          linuxSourceRef.current = source;
+          linuxArchRef.current = info?.arch ?? null;
+          setState((prev) => ({ ...prev, linuxInstallSource: source }));
+          return source;
+        })();
+      }
+      return linuxDetectPromiseRef.current;
+    },
+    [platform],
+  );
+
+  // Linux 桌面：启动即检测安装来源 + 订阅 deb/rpm 下载进度事件
+  useEffect(() => {
+    if (platform !== "tauri" || !isLinuxDesktopEnvironment()) return;
+    void ensureLinuxSource();
+    let unsub: (() => void) | null = null;
+    let disposed = false;
+    void subscribeLinuxUpdateProgress((p) => {
+      setState((prev) => {
+        if (!prev.downloading) return prev; // 迟到事件不污染非下载态
+        return {
+          ...prev,
+          downloaded: p.downloaded,
+          contentLength: p.contentLength,
+          progress:
+            p.contentLength > 0
+              ? (p.downloaded / p.contentLength) * 100
+              : prev.progress,
+        };
+      });
+    }).then((fn) => {
+      if (disposed) {
+        fn?.();
+      } else {
+        unsub = fn;
+      }
+    });
+    return () => {
+      disposed = true;
+      unsub?.();
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [platform]);
+
+  /** Check for updates. background=true 时不打断用户：弹窗 + 系统通知（每版本一次）；
+   * manual=true（设置页手动检查）无视「跳过此版本」列表 */
   const checkForUpdate = useCallback(
-    async (options?: { background?: boolean }) => {
+    async (options?: { background?: boolean; manual?: boolean }) => {
       const background = options?.background === true;
+      const manual = options?.manual === true;
+      let ok = true;
       if (platform === "tauri") {
-        await checkTauriUpdate(background);
+        ok = await checkTauriUpdate(background, manual);
       } else if (platform === "android" || platform === "ios") {
-        await checkBackendUpdate(background);
+        ok = await checkBackendUpdate(background, manual);
       }
       lastCheckedAtRef.current = Date.now();
-      // web: no-op
+      return ok;
+      // web: no-op（恒 true）
     },
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [platform],
   );
 
-  /** 手动「检查更新」（设置页事件触发）：无更新给「已是最新」提示 */
+  /** 手动「检查更新」（设置页事件触发）：无更新给「已是最新」、失败明确报错——
+   * 此前检查失败也弹「已是最新」，把网络/清单故障伪装成最新态 */
   const checkNow = useCallback(async () => {
     if (platform === "web") return;
     const before = stateRef.current.available;
-    await checkForUpdate();
+    const ok = await checkForUpdate({ manual: true });
+    const { toast } = await import("react-hot-toast");
+    if (!ok) {
+      toast.error(i18n.t("updateCheckFailed", "检查更新失败，请稍后重试"));
+      return;
+    }
     if (!stateRef.current.available && !before) {
-      const { toast } = await import("react-hot-toast");
       toast.success(i18n.t("update.upToDate", "已是最新版本"));
     }
   }, [platform, checkForUpdate]);
 
   /** 后台静默下载更新（发现即触发）：进度进 state，完成置 readyToInstall */
   const startBackgroundDownload = useCallback(async (update: any) => {
-    if (pendingUpdateRef.current) return; // 已下载或下载中
+    // 卫兵必须含「在飞」标志：pendingUpdateRef 只在下载完成时置位，下载中
+    // 它是空的——复检（设置页手动检查/聚焦）会再起第二条下载，两条流交错
+    // 写 progress 表现为进度条跳变/多进度（v2.10.3 实测并发下载）
+    if (pendingUpdateRef.current || downloadInFlightRef.current) return;
+    downloadInFlightRef.current = true;
     setState((prev) =>
       prev.available ? { ...prev, downloading: true, error: null } : prev,
     );
@@ -162,6 +325,7 @@ export function useAutoUpdate(): UseAutoUpdateReturn {
         }
       });
       pendingUpdateRef.current = { install: () => update.install() };
+      downloadInFlightRef.current = false;
       setState((prev) => ({
         ...prev,
         downloading: false,
@@ -170,68 +334,111 @@ export function useAutoUpdate(): UseAutoUpdateReturn {
     } catch {
       // 后台下载失败不弹错：用户点「立即升级」时走前台 downloadAndInstall 兜底
       pendingUpdateRef.current = null;
+      downloadInFlightRef.current = false;
       setState((prev) => ({ ...prev, downloading: false }));
     }
   }, []);
 
-  /** Check via Tauri updater plugin */
+  /** Check via Tauri updater plugin（返回检查是否成功，失败供手动检查提示区分） */
   const checkTauriUpdate = useCallback(
-    async (background = false) => {
+    async (background = false, manual = false): Promise<boolean> => {
       try {
         const { check } = await import("@tauri-apps/plugin-updater");
         const update = await check();
         if (update?.available) {
-          setState({
-            ...INITIAL_STATE,
+          const prompt = shouldPromptUpdate(
+            update.version,
+            readSkippedUpdateVersions(window.localStorage),
+            { manual },
+          );
+          const linuxSource = await ensureLinuxSource();
+          // 复检（手动/聚焦/周期）不能清掉进行中的下载进度或待安装态：
+          // 否则进度条中途消失重来、readyToInstall 错乱
+          const preserve =
+            downloadInFlightRef.current || pendingUpdateRef.current !== null;
+          setState((prev) => ({
+            ...(preserve ? prev : INITIAL_STATE),
             available: true,
             version: update.version,
-            releaseNotes: update.body ?? null,
+            releaseNotes:
+              update.body ?? (preserve ? prev.releaseNotes : null),
             releaseUrl: null,
             releaseAssets: [],
-          });
-          setShowDialog(true);
-          // 自动下载：发现更新即后台静默下载（不阻塞用户），完成后一键重启安装
-          void startBackgroundDownload(update);
-          if (background && notifiedVersionRef.current !== update.version) {
-            notifiedVersionRef.current = update.version;
-            void notifyUpdateAvailable(update.version);
+            linuxInstallSource: linuxSourceRef.current,
+          }));
+          if (prompt) {
+            setShowDialog(true);
+            // 自动下载：发现更新即后台静默下载（不阻塞用户），完成后一键重启安装。
+            // deb/rpm 除外——updater 只会拉 AppImage 且装不上系统包，改为点击时
+            // 走「下载 deb/rpm + pkexec 安装」
+            if (linuxSource !== "deb" && linuxSource !== "rpm") {
+              void startBackgroundDownload(update);
+            }
+            if (background && notifiedVersionRef.current !== update.version) {
+              notifiedVersionRef.current = update.version;
+              void notifyUpdateAvailable(update.version);
+            }
           }
         }
       } catch {
         // Silently fail — updater may not be available in dev
+        return false;
       }
+      return true;
     },
-    [startBackgroundDownload],
+    [startBackgroundDownload, ensureLinuxSource],
   );
 
-  /** Check via backend /api/version endpoint（上报客户端版本，has_update 按它判断） */
-  const checkBackendUpdate = useCallback(async (background = false) => {
+  /** Check via backend /api/version endpoint（上报客户端版本，has_update 按它判断；
+   * 返回检查是否成功，与 Tauri 路径同供手动检查提示区分） */
+  const checkBackendUpdate = useCallback(
+    async (background = false, manual = false): Promise<boolean> => {
     try {
       const info = await versionApi.checkForUpdates(APP_VERSION);
       if (info.has_update) {
+        const v = info.latest_version ?? null;
+        const prompt = shouldPromptUpdate(
+          v,
+          readSkippedUpdateVersions(window.localStorage),
+          { manual },
+        );
         setState({
           ...INITIAL_STATE,
           available: true,
-          version: info.latest_version ?? null,
+          version: v,
           releaseNotes: info.release_notes ?? null,
           releaseUrl: info.release_url ?? null,
           releaseAssets: info.release_assets ?? [],
         });
-        setShowDialog(true);
-        const v = info.latest_version ?? null;
-        if (background && v && notifiedVersionRef.current !== v) {
-          notifiedVersionRef.current = v;
-          void notifyUpdateAvailable(v);
+        if (prompt) {
+          setShowDialog(true);
+          if (background && v && notifiedVersionRef.current !== v) {
+            notifiedVersionRef.current = v;
+            void notifyUpdateAvailable(v);
+          }
         }
       }
     } catch {
       // Silently fail
+      return false;
     }
+    return true;
   }, []);
 
   /** Start the update process */
   const startUpdate = useCallback(async () => {
     if (platform === "tauri") {
+      // Linux 安装来源分流：deb/rpm 走包管理器安装；unknown 回落下载页；
+      // appimage / 非 Linux 走 updater 替换重启（含后台已下载的 pending）
+      const linuxSource = await ensureLinuxSource();
+      if (linuxSource === "deb" || linuxSource === "rpm") {
+        await installLinuxPackageUpdate(linuxSource);
+        return;
+      }
+      if (linuxSource === "unknown") {
+        openDownloadPage();
+        return;
+      }
       const pending = pendingUpdateRef.current;
       if (pending) {
         // 后台已下载完成：直接安装 + 重启
@@ -242,10 +449,7 @@ export function useAutoUpdate(): UseAutoUpdateReturn {
         } catch (err) {
           setState((prev) => ({
             ...prev,
-            error:
-              err instanceof Error
-                ? err.message
-                : i18n.t("updateError", "更新失败"),
+            error: formatUpdateError(err, platform),
           }));
         }
         return;
@@ -259,8 +463,56 @@ export function useAutoUpdate(): UseAutoUpdateReturn {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [platform, state]);
 
+  /**
+   * Linux deb/rpm 安装：同源反代下载对应安装包 → Rust 侧 pkexec
+   * `apt|dnf install` 提权安装（进度经 linux-update-progress 事件）→ 成功后
+   * relaunch 进新版。系统包归 root 所有，不能也不该由 updater 直接覆盖。
+   */
+  const installLinuxPackageUpdate = useCallback(
+    async (source: "deb" | "rpm") => {
+      if (downloadInFlightRef.current) return; // 双击/在飞互斥：两次 invoke=两次 pkexec 下载
+      downloadInFlightRef.current = true;
+      setState((prev) => ({
+        ...prev,
+        downloading: true,
+        error: null,
+        progress: 0,
+        downloaded: 0,
+      }));
+      try {
+        const version = stateRef.current.version;
+        const arch = linuxArchRef.current;
+        if (!version) throw new Error("No update version known");
+        if (!arch) {
+          throw new Error("Unsupported Linux architecture for package update");
+        }
+        const assetName = buildLinuxPackageAssetName(version, arch, source);
+        const url = buildLinuxPackageDownloadUrl(assetName, version);
+        await installLinuxPackage(url, source);
+        setState((prev) => ({ ...prev, downloading: false, progress: 100 }));
+        const { relaunch } = await import("@tauri-apps/plugin-process");
+        await relaunch();
+      } catch (err) {
+        downloadInFlightRef.current = false;
+        setState((prev) => ({
+          ...prev,
+          downloading: false,
+          error: formatUpdateError(err, platform),
+        }));
+      }
+    },
+    [platform],
+  );
+
+  /** 打开下载页（Linux unknown 来源兜底：无法判定安装方式时不盲装） */
+  const openDownloadPage = useCallback(() => {
+    window.open(buildApiUrl("/download"), "_blank", "noopener");
+  }, []);
+
   /** Install via Tauri updater (download + install + relaunch) */
   const installTauriUpdate = useCallback(async () => {
+    if (downloadInFlightRef.current) return; // 与后台下载/另一前台安装互斥
+    downloadInFlightRef.current = true;
     setState((prev) => ({
       ...prev,
       downloading: true,
@@ -302,13 +554,11 @@ export function useAutoUpdate(): UseAutoUpdateReturn {
       // Download and install complete, relaunch
       await relaunch();
     } catch (err) {
+      downloadInFlightRef.current = false;
       setState((prev) => ({
         ...prev,
         downloading: false,
-        error:
-          err instanceof Error
-            ? err.message
-            : i18n.t("updateError", "更新失败"),
+        error: formatUpdateError(err, platform),
       }));
     }
   }, []);
@@ -487,6 +737,15 @@ export function useAutoUpdate(): UseAutoUpdateReturn {
     setShowDialog(false);
   }, []);
 
+  /** 跳过此版本：持久化后该版本不再自动提醒（手动检查仍会显示） */
+  const skipThisVersion = useCallback(() => {
+    const version = stateRef.current.version;
+    if (version) {
+      persistSkippedVersion(window.localStorage, version);
+    }
+    setShowDialog(false);
+  }, []);
+
   // 最新 state 供 checkNow 读取（避免闭包旧值）
   const stateRef = useRef(state);
   stateRef.current = state;
@@ -554,6 +813,7 @@ export function useAutoUpdate(): UseAutoUpdateReturn {
     setShowDialog,
     startUpdate,
     skipUpdate,
+    skipThisVersion,
     checkNow,
   };
 }

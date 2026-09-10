@@ -23,15 +23,19 @@ test("sandbox selector opens on its own panel key, never the thinking panel", ()
   expect(source).toMatch(/activePanel === "sandbox"/);
 });
 
-test("machine selector opens on its own panel key, never the thinking panel", () => {
-  // 机器选择器独立 panel key：注入机器选项后不得再挂 thinking 面板同帧双开
-  expect(source).toMatch(/activePanel === "machine"/);
+test("unified sandbox panel hosts the machine rows, no separate machine panel", () => {
+  // 统一面板：设备行注入 sandbox 面板（belowOptions），独立 machine 面板已移除
+  expect(source).toMatch(/belowOptions=\{machineSection\}/);
+  expect(source).toMatch(/data-sandbox-machine-row/);
+  expect(source).not.toMatch(/activePanel === "machine"/);
+  expect(runModePopoverSource).not.toMatch(/data-machine-entry/);
 });
 
-test("popover offers a machine sub-entry under the sandbox entry for the local tier", () => {
-  // 多机选机入口：沙箱条目下的"机器"子条目（本地档 + 在线机器时显示）
-  expect(runModePopoverSource).toMatch(/data-machine-entry/);
-  expect(runModePopoverSource).toMatch(/SANDBOX_LOCAL_VALUE/);
+test("unified sandbox panel marks the current device and switches tier on tap", () => {
+  // 当前设备标识 + 云端档点设备一键切本地
+  expect(source).toMatch(/data-current-device-badge/);
+  expect(source).toMatch(/agentOptions\.sandboxMachine\.currentDevice/);
+  expect(source).toMatch(/handleSelectMachineRow/);
 });
 
 test("offline local selection warns without blocking the change", () => {
@@ -64,4 +68,15 @@ test("popover gates sandbox status polling on its open state; the selector stays
   // 选择器实例不传参数（缺省 enabled=true 的常驻轮询）
   expect(source).toMatch(/useSandboxStatus\(\)/);
   expect(source).not.toMatch(/useSandboxStatus\(\{/);
+});
+
+test("policy change notifies the sandbox status store to resync status", () => {
+  // 双显不同步根因：machines 走 presence 秒推、profile 页依赖的 status 只有
+  // 60s 对账轮询——chat input 切换成功后必须发 SANDBOX_STATUS_REFRESH 事件
+  expect(source).toMatch(/notifySandboxStatusRefresh\(\);/);
+  const successIdx = source.indexOf("agentOptions.sandboxPolicy.updated");
+  const notifyIdx = source.indexOf("notifySandboxStatusRefresh();");
+  expect(successIdx).toBeGreaterThan(-1);
+  expect(notifyIdx).toBeGreaterThan(-1);
+  expect(notifyIdx).toBeLessThan(successIdx);
 });

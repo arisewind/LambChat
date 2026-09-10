@@ -21,6 +21,9 @@ from src.infra.tool.mcp_client import MCPToolWithRetry
 from src.infra.tool.persona_preset_tool import get_persona_preset_tools
 from src.infra.tool.scheduled_task import get_scheduled_task_tools
 from src.infra.tool.team_tool import get_team_tools
+from src.infra.tool.video_analysis_tool import get_video_analysis_tool
+from src.infra.tool.web_fetch_tool import get_web_fetch_tool
+from src.infra.tool.web_search_tool import get_web_search_tool
 from src.kernel.config import settings
 from src.kernel.schemas.mcp import (
     MCPServerResponse,
@@ -49,6 +52,8 @@ def build_internal_tools() -> list[BaseTool]:
 
     if settings.ENABLE_IMAGE_ANALYSIS:
         tools.append(get_image_analysis_tool())
+        # 视频分析同一 VLM 能力族（video_url 块），同一开关门控
+        tools.append(get_video_analysis_tool())
 
     if settings.ENABLE_IMAGE_GENERATION:
         tools.append(get_image_generation_tool())
@@ -56,6 +61,12 @@ def build_internal_tools() -> list[BaseTool]:
 
     if settings.ENABLE_AUDIO_TRANSCRIPTION:
         tools.append(get_audio_transcribe_tool())
+
+    if settings.ENABLE_WEB_SEARCH:
+        tools.append(get_web_search_tool())
+
+    if settings.ENABLE_WEB_FETCH:
+        tools.append(get_web_fetch_tool())
 
     if settings.ENABLE_SCHEDULED_TASK:
         try:
@@ -230,6 +241,28 @@ async def get_internal_tool_policies() -> dict[str, MCPToolPolicy]:
         return {}
 
 
+# 默认 inline 直挂的内置工具：能力型系统工具（网页检索/阅读、图像生成/
+# 图片与视频分析、语音转写）是通用基础能力，不该藏在 tool_search 元工具
+# 后面（模型要先「搜工具」才能发现它们，等于默认不可用）。管理员在 MCP
+# 面板对工具显式设置过策略的，一律以显式值为准。
+_DEFAULT_INLINE_TOOL_NAMES = frozenset(
+    {
+        "web_search",
+        "web_fetch",
+        "image_generate",
+        "image_analyze",
+        "video_analyze",
+        "audio_transcribe",
+    }
+)
+
+
+def _default_inline_exposure(policy: MCPToolPolicy | None, tool_name: str) -> bool:
+    if policy is not None:
+        return bool(policy.inline_exposure)
+    return tool_name in _DEFAULT_INLINE_TOOL_NAMES
+
+
 async def get_internal_tools_for_user(
     *,
     user_id: str | None,
@@ -279,7 +312,7 @@ async def get_internal_tools_by_exposure_for_user(
             role_quotas=(policy.role_quotas if policy else None),
             quota_tool_name=tool.name,
         )
-        target = direct if policy is not None and policy.inline_exposure else deferred
+        target = direct if _default_inline_exposure(policy, tool.name) else deferred
         target.append(wrapped)
     return direct, deferred
 
@@ -317,7 +350,7 @@ async def get_internal_tool_infos(
                 allowed_roles=list(policy.allowed_roles) if policy else [],
                 role_quotas=dict(policy.role_quotas) if policy else {},
                 policy_configured=policy is not None,
-                inline_exposure=bool(policy.inline_exposure) if policy else False,
+                inline_exposure=_default_inline_exposure(policy, tool.name),
             )
         )
     return infos

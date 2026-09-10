@@ -8,7 +8,7 @@ import time
 import uuid
 from typing import Any, AsyncIterator, Optional
 
-from fastapi import APIRouter, Depends, Request
+from fastapi import APIRouter, Depends, Query, Request
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, field_validator
 
@@ -94,11 +94,12 @@ async def channel_frames(
 ) -> AsyncIterator[str]:
     """SSE 帧生成器：hello -> (tool_call | 心跳) 循环；连接期心跳注册表。
 
-    心跳前校验属主：新连接 register 清空注册表后，旧流在此退场（后连踢前连），
-    踢旧窗口收敛到一个心跳周期（15s）。旧流结束时 finally 的 unregister 只
-    hdel 自己的字段，不会破坏新连接的注册。心跳带同一 ``version``/``platform``
-    /``confirm_policy`` 重写——不带会把注册值降级回纯 node_id，daemon
-    版本/平台/策略 15s 后丢失。
+    心跳先发射、后校验属主：keepalive 只依赖事件循环本身，注册表三连写走
+    共享池，池被重任务占满时心跳会跟着停发（2026-09-09 生产断联）。属主
+    校验（后连踢前连）因此后移一拍，踢旧窗口收敛到一两个心跳周期。旧流结
+    束时 finally 的 unregister 只 hdel 自己的字段，不会破坏新连接的注册。心
+    跳带同一 ``version``/``platform``/``confirm_policy`` 重写——不带会把注册
+    值降级回纯 node_id，daemon 版本/平台/策略 15s 后丢失。
 
     多机（``machine_id`` 非空）：属主校验按机器属主键（同机重连换属主踢旧流），
     下发队列按 ``registry.queue_key`` 分机器；legacy 路径语义零变化。
@@ -121,6 +122,12 @@ async def channel_frames(
     while not stop.is_set():
         now = loop.time()
         if now - last_beat >= _HEARTBEAT_SECONDS:
+            # 心跳先发射、后写注册表：keepalive 依赖的只是事件循环本身——
+            # 注册表三连写走共享池，池被重任务占满时 await 会长时间挂起，
+            # 心跳跟着停发、daemon 侧 45s 读超时误判断联（2026-09-09 生产）。
+            # 属主校验后移一个节拍，旧流多活一个心跳周期（repush 兜底误吃帧）。
+            last_beat = now
+            yield ": heartbeat\n\n"
             if machine_id:
                 # 多机属主校验：同机新连接已改写属主键时，旧流退场
                 owner = await redis.get(_owner_key(user_id, machine_id))
@@ -142,8 +149,6 @@ async def channel_frames(
             )
             if machine_id:
                 await redis.set(_owner_key(user_id, machine_id), client_id, ex=35)
-            last_beat = now
-            yield ": heartbeat\n\n"
         # 阻塞读下发队列：超时切片返回 None → 回到心跳检查；Redis 异常上抛
         # 终结本流，daemon 走既有退避重连（与旧轮询模型同语义）
         item = await blocking.blpop(req_key, timeout=timeout_slice)
@@ -495,6 +500,17 @@ class MachineRenameRequest(BaseModel):
         return value
 
 
+class MachineConfirmPolicyRequest(BaseModel):
+    policy: str
+
+    @field_validator("policy")
+    @classmethod
+    def _policy_allowed(cls, value: str) -> str:
+        if value not in {"all", "commands", "none"}:
+            raise ValueError("policy must be one of all/commands/none")
+        return value
+
+
 @router.patch("/machines/{machine_id}")
 async def sandbox_machine_rename(
     machine_id: str,
@@ -523,6 +539,20 @@ async def sandbox_machine_set_default(
     return {"status": "ok", "default_machine_id": machine_id}
 
 
+@router.put("/machines/{machine_id}/confirm-policy")
+async def sandbox_machine_update_confirm_policy(
+    machine_id: str,
+    body: MachineConfirmPolicyRequest,
+    user: TokenPayload = Depends(get_current_user_pat_or_jwt),
+):
+    """热更新在线 daemon 的确认策略，下一次执行立即生效。"""
+    updated = await _registry().update_confirm_policy(user.sub, machine_id, body.policy)
+    if not updated:
+        raise AppError(ErrorCode.SANDBOX_MACHINE_NOT_FOUND, args={"machine": machine_id})
+    await publish_presence(user.sub)
+    return {"status": "ok", "machine_id": machine_id, "confirm_policy": body.policy}
+
+
 @router.delete("/machines/{machine_id}")
 async def sandbox_machine_forget(
     machine_id: str,
@@ -540,15 +570,20 @@ async def sandbox_machine_forget(
 
 
 @router.get("/status")
-async def sandbox_status(user: TokenPayload = Depends(get_current_user_pat_or_jwt)):
+async def sandbox_status(
+    machine_id: str = Query("", description="指定机器；缺省走默认机解析"),
+    user: TokenPayload = Depends(get_current_user_pat_or_jwt),
+):
     """daemon 在线状态。
 
     legacy 活跃连接优先（带 ``client_id``）；多机 daemon（0.3.0+ 带
     machine_id）不落 legacy hash，在线判定走 :meth:`is_online`（任一机器
-    在线即在线，与机器列表一致），版本/平台/策略取缺省目标机的注册 value
-    （默认机→唯一在线机，与 dispatch 解析同规则；无缺省目标时这些字段为
-    null）。value 可能是 node_id|version|platform|confirm_policy（新
-    daemon）、node_id|version|platform（M4）、node_id|version（M2）或纯
+    在线即在线，与机器列表一致），版本/平台/策略取目标机的注册 value。
+    目标机解析：显式 ``machine_id``（桌面壳已知本机 id 时直查，避免
+    默认机失效+多机在线时 resolve 返回 None、策略恒为 null 的双显不同步）
+    → 默认机 → 唯一在线机，与 dispatch 解析同规则。value 可能是
+    node_id|version|platform|confirm_policy（新 daemon）、
+    node_id|version|platform（M4）、node_id|version（M2）或纯
     node_id（M1 旧格式），解析不出的字段为 null。
     """
     registry = _registry()
@@ -558,7 +593,7 @@ async def sandbox_status(user: TokenPayload = Depends(get_current_user_pat_or_jw
     else:
         if not await registry.is_online(user.sub):
             return {"online": False}
-        target = await registry.resolve_target(user.sub)
+        target = await registry.resolve_target(user.sub, machine_id.strip() or None)
         client_id = None
         value = await registry.machine_value(user.sub, target) if target else ""
     status = {

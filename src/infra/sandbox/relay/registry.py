@@ -52,6 +52,11 @@ def _machname_key(user_id: str) -> str:
     return f"sandbox:machname:{user_id}"
 
 
+def _machpolicy_key(user_id: str) -> str:
+    """每机器确认策略耐久层（hash、无 TTL）：网页/对话内切换的持久化真源。"""
+    return f"sandbox:machpolicy:{user_id}"
+
+
 def _machdefault_key(user_id: str) -> str:
     return f"sandbox:machdefault:{user_id}"
 
@@ -144,6 +149,21 @@ class SandboxClientRegistry:
     def _redis(self):
         return get_redis_client()
 
+    async def _effective_confirm_policy(
+        self, redis, user_id: str, machine_id: str, reported: str
+    ) -> str:
+        """耐久层策略优先于 daemon 上报值。
+
+        daemon 上报的 confirm_policy 是 sandbox.json 的启动快照；网页/对话内
+        热更只写服务端。若注册/心跳直接采用上报值，会把热更结果打回旧值
+        （v2.10.3 实测：切换后刷新即回退）。machpolicy 耐久层无记录时（首连）
+        才用上报值播种。
+        """
+        durable = await redis.hget(_machpolicy_key(user_id), machine_id)
+        if durable in {"all", "commands", "none"}:
+            return durable
+        return reported
+
     async def register(
         self,
         user_id: str,
@@ -158,9 +178,12 @@ class SandboxClientRegistry:
     ) -> None:
         """注册连接。带 machine_id 走多机路径（同机重连只替换自身字段，其他
         机器不受影响）；缺 machine_id 走 legacy 路径（清空旧 hash 后连踢前连）。"""
-        value = encode_node_value(node_id, version, platform, confirm_policy, machine_name)
         redis = self._redis()
         if machine_id:
+            effective_policy = await self._effective_confirm_policy(
+                redis, user_id, machine_id, confirm_policy
+            )
+            value = encode_node_value(node_id, version, platform, effective_policy, machine_name)
             await redis.sadd(_machset_key(user_id), machine_id)
             await redis.set(_machine_key(user_id, machine_id), value, ex=_TTL_SECONDS)
             await redis.hset(
@@ -170,10 +193,11 @@ class SandboxClientRegistry:
                     machine_name=machine_name,
                     platform=platform,
                     version=version,
-                    confirm_policy=confirm_policy,
+                    confirm_policy=effective_policy,
                 ),
             )
             return
+        value = encode_node_value(node_id, version, platform, confirm_policy, machine_name)
         await redis.delete(_key(user_id))  # 后连踢前连（legacy 单机语义）
         await redis.hset(_key(user_id), client_id, value)
         await redis.expire(_key(user_id), _TTL_SECONDS)
@@ -190,9 +214,12 @@ class SandboxClientRegistry:
         machine_id: str = "",
         machine_name: str = "",
     ) -> None:
-        value = encode_node_value(node_id, version, platform, confirm_policy, machine_name)
         redis = self._redis()
         if machine_id:
+            effective_policy = await self._effective_confirm_policy(
+                redis, user_id, machine_id, confirm_policy
+            )
+            value = encode_node_value(node_id, version, platform, effective_policy, machine_name)
             await redis.sadd(_machset_key(user_id), machine_id)
             await redis.set(_machine_key(user_id, machine_id), value, ex=_TTL_SECONDS)
             await redis.hset(
@@ -202,10 +229,11 @@ class SandboxClientRegistry:
                     machine_name=machine_name,
                     platform=platform,
                     version=version,
-                    confirm_policy=confirm_policy,
+                    confirm_policy=effective_policy,
                 ),
             )
             return
+        value = encode_node_value(node_id, version, platform, confirm_policy, machine_name)
         await redis.hset(_key(user_id), client_id, value)
         await redis.expire(_key(user_id), _TTL_SECONDS)
 
@@ -316,6 +344,40 @@ class SandboxClientRegistry:
     async def rename_machine(self, user_id: str, machine_id: str, name: str) -> None:
         await self._redis().hset(_machname_key(user_id), machine_id, name)
 
+    async def update_confirm_policy(self, user_id: str, machine_id: str, policy: str) -> bool:
+        """热更新并持久化机器确认策略（全局语义，无需重连 daemon）。
+
+        三处同步写入：machpolicy 耐久层（真源——daemon 心跳/重连/重启上报
+        旧快照时由它压制，见 _effective_confirm_policy）、在线条目（执行门
+        实时读它，下一次执行立即生效）、machseen 记忆层（离线展示一致性，
+        保留原 ts/name/platform/version）。机器在线或有记忆记录即接受。
+        """
+        if policy not in {"all", "commands", "none"}:
+            return False
+        redis = self._redis()
+        key = _machine_key(user_id, machine_id)
+        value = await redis.get(key)
+        seen_raw = await redis.hget(_machseen_key(user_id), machine_id)
+        if value is None and seen_raw is None:
+            return False
+        await redis.hset(_machpolicy_key(user_id), machine_id, policy)
+        if value is not None:
+            parts = value.split("|", 4)
+            node_id = parts[0]
+            version = parts[1] if len(parts) > 1 else ""
+            platform = parts[2] if len(parts) > 2 else ""
+            machine_name = parts[4] if len(parts) > 4 else ""
+            await redis.set(
+                key,
+                encode_node_value(node_id, version, platform, policy, machine_name),
+                ex=_TTL_SECONDS,
+            )
+        seen = _decode_seen_record(seen_raw)
+        if seen is not None:
+            seen["confirm_policy"] = policy
+            await redis.hset(_machseen_key(user_id), machine_id, json.dumps(seen))
+        return True
+
     async def forget_machine(self, user_id: str, machine_id: str) -> bool:
         """移除机器（仅离线可移除——在线机器先断连）。清默认机指向。"""
         if machine_id == LEGACY_MACHINE_ID:
@@ -326,6 +388,8 @@ class SandboxClientRegistry:
         await redis.srem(_machset_key(user_id), machine_id)
         await redis.hdel(_machname_key(user_id), machine_id)
         await redis.hdel(_machseen_key(user_id), machine_id)
+        # 耐久策略随机器一并清理：forget 后重新注册恢复 daemon 上报语义
+        await redis.hdel(_machpolicy_key(user_id), machine_id)
         if await redis.get(_machdefault_key(user_id)) == machine_id:
             await redis.delete(_machdefault_key(user_id))
         return True
@@ -382,6 +446,20 @@ class SandboxClientRegistry:
         if target is None:
             return ""
         return parse_daemon_platform(await self.machine_value(user_id, target))
+
+    async def get_machine_identity(
+        self, user_id: str, machine_id: str | None = None
+    ) -> tuple[str, str]:
+        """目标机的（上报平台, 机器展示名），一次解析共用 machine_value。
+
+        离线或旧格式 value（对应段缺失）返回空串成员——调用方（search agent
+        机器绑定段注入）缺什么就不注入什么，与 get_platform 同语义容错。
+        """
+        target = await self.resolve_target(user_id, machine_id)
+        if target is None:
+            return "", ""
+        value = await self.machine_value(user_id, target)
+        return parse_daemon_platform(value), parse_machine_name(value)
 
     async def get_confirm_policy(self, user_id: str, machine_id: str | None = None) -> str:
         """目标机的上报确认策略（all/commands/none）。

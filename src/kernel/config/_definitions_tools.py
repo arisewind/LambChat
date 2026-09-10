@@ -2,7 +2,12 @@
 
 from __future__ import annotations
 
-from src.kernel.schemas.setting import SettingCategory, SettingType
+from src.kernel.schemas.setting import (
+    JsonSchema,
+    JsonSchemaField,
+    SettingCategory,
+    SettingType,
+)
 
 TOOLS_SETTING_DEFINITIONS: dict[str, dict] = {
     # ============================================
@@ -223,6 +228,45 @@ TOOLS_SETTING_DEFINITIONS: dict[str, dict] = {
         "default": 3,
         "depends_on": "ENABLE_IMAGE_ANALYSIS",
     },
+    # ============================================
+    # Video Analysis Settings（与图片分析同开关挂载；未配模型回落 IMAGE_ANALYSIS_MODEL_ID）
+    # ============================================
+    "VIDEO_ANALYSIS_MODEL_ID": {
+        "type": SettingType.STRING,
+        "category": SettingCategory.TOOLS,
+        "subcategory": "video_analysis",
+        "description": "settingDesc.VIDEO_ANALYSIS_MODEL_ID",
+        "default": "",
+        "depends_on": "ENABLE_IMAGE_ANALYSIS",
+        "frontend_visible": True,
+    },
+    "VIDEO_ANALYSIS_MAX_ATTEMPTS": {
+        "type": SettingType.NUMBER,
+        "category": SettingCategory.TOOLS,
+        "subcategory": "video_analysis",
+        "description": "settingDesc.VIDEO_ANALYSIS_MAX_ATTEMPTS",
+        "default": 3,
+        "depends_on": "ENABLE_IMAGE_ANALYSIS",
+    },
+    "VIDEO_ANALYSIS_RETRY_DELAY": {
+        "type": SettingType.NUMBER,
+        "category": SettingCategory.TOOLS,
+        "subcategory": "video_analysis",
+        "description": "settingDesc.VIDEO_ANALYSIS_RETRY_DELAY",
+        "default": 1.0,
+        "depends_on": "ENABLE_IMAGE_ANALYSIS",
+    },
+    "VIDEO_ANALYSIS_MAX_BYTES": {
+        "type": SettingType.NUMBER,
+        "category": SettingCategory.TOOLS,
+        "subcategory": "video_analysis",
+        "description": "settingDesc.VIDEO_ANALYSIS_MAX_BYTES",
+        "default": 52428800,
+        "min_value": 1048576,
+        "max_value": 209715200,
+        "depends_on": "ENABLE_IMAGE_ANALYSIS",
+        "frontend_visible": True,
+    },
     "IMAGE_ANALYSIS_RETRY_DELAY": {
         "type": SettingType.NUMBER,
         "category": SettingCategory.TOOLS,
@@ -267,6 +311,33 @@ TOOLS_SETTING_DEFINITIONS: dict[str, dict] = {
         "default": "gpt-image-2",
         "depends_on": "ENABLE_IMAGE_GENERATION",
     },
+    "IMAGE_GENERATION_MODELS": {
+        "type": SettingType.JSON,
+        "category": SettingCategory.TOOLS,
+        "subcategory": "image_generation",
+        "description": "settingDesc.IMAGE_GENERATION_MODELS",
+        "default": [],
+        "depends_on": "ENABLE_IMAGE_GENERATION",
+        "json_schema": JsonSchema(
+            type="array",
+            item_label="settingDesc.IMAGE_GENERATION_MODEL_ITEM",
+            fields=[
+                JsonSchemaField(
+                    name="name",
+                    type="text",
+                    label="settingDesc.IMAGE_GENERATION_MODEL_NAME",
+                    placeholder="gpt-image-2.5-sunburst",
+                    required=True,
+                ),
+                JsonSchemaField(
+                    name="description",
+                    type="text",
+                    label="settingDesc.IMAGE_GENERATION_MODEL_DESCRIPTION",
+                    placeholder="precision model for editing-focused premium work",
+                ),
+            ],
+        ),
+    },
     "IMAGE_GENERATION_TIMEOUT": {
         "type": SettingType.NUMBER,
         "category": SettingCategory.TOOLS,
@@ -284,6 +355,137 @@ TOOLS_SETTING_DEFINITIONS: dict[str, dict] = {
         "subcategory": "general",
         "description": "settingDesc.ENABLE_SCHEDULED_TASK",
         "default": False,
+        "frontend_visible": True,
+    },
+    # ============================================
+    # Web Search Settings
+    # ============================================
+    "ENABLE_WEB_SEARCH": {
+        "type": SettingType.BOOLEAN,
+        "category": SettingCategory.TOOLS,
+        "subcategory": "web_search",
+        "description": "settingDesc.ENABLE_WEB_SEARCH",
+        "default": True,
+        "frontend_visible": True,
+    },
+    "WEB_SEARCH_PROVIDER": {
+        "type": SettingType.SELECT,
+        "category": SettingCategory.TOOLS,
+        "subcategory": "web_search",
+        "description": "settingDesc.WEB_SEARCH_PROVIDER",
+        "default": "auto",
+        "depends_on": "ENABLE_WEB_SEARCH",
+        "frontend_visible": True,
+        "options": ["auto", "tavily", "brave", "searxng"],
+    },
+    "TAVILY_API_KEYS": {
+        "type": SettingType.STRING,
+        "category": SettingCategory.TOOLS,
+        "subcategory": "web_search",
+        "description": "settingDesc.TAVILY_API_KEYS",
+        "default": "",
+        "is_sensitive": True,
+        "depends_on": "ENABLE_WEB_SEARCH",
+        "frontend_visible": True,
+    },
+    "BRAVE_API_KEYS": {
+        "type": SettingType.STRING,
+        "category": SettingCategory.TOOLS,
+        "subcategory": "web_search",
+        "description": "settingDesc.BRAVE_API_KEYS",
+        "default": "",
+        "is_sensitive": True,
+        "depends_on": "ENABLE_WEB_SEARCH",
+        "frontend_visible": True,
+    },
+    "SEARXNG_BASE_URL": {
+        "type": SettingType.STRING,
+        "category": SettingCategory.TOOLS,
+        "subcategory": "web_search",
+        "description": "settingDesc.SEARXNG_BASE_URL",
+        "default": "",
+        "depends_on": "ENABLE_WEB_SEARCH",
+        "frontend_visible": True,
+    },
+    "SEARXNG_API_KEY": {
+        "type": SettingType.STRING,
+        "category": SettingCategory.TOOLS,
+        "subcategory": "web_search",
+        "description": "settingDesc.SEARXNG_API_KEY",
+        "default": "",
+        "is_sensitive": True,
+        "depends_on": "ENABLE_WEB_SEARCH",
+        "frontend_visible": True,
+    },
+    # ============================================
+    # Web Fetch Settings
+    # ============================================
+    "ENABLE_WEB_FETCH": {
+        "type": SettingType.BOOLEAN,
+        "category": SettingCategory.TOOLS,
+        "subcategory": "web_fetch",
+        "description": "settingDesc.ENABLE_WEB_FETCH",
+        "default": True,
+        "frontend_visible": True,
+    },
+    "WEB_FETCH_PROVIDER": {
+        "type": SettingType.SELECT,
+        "category": SettingCategory.TOOLS,
+        "subcategory": "web_fetch",
+        "description": "settingDesc.WEB_FETCH_PROVIDER",
+        "default": "auto",
+        "depends_on": "ENABLE_WEB_FETCH",
+        "frontend_visible": True,
+        "options": ["auto", "direct", "tavily", "firecrawl", "exa", "jina"],
+    },
+    "JINA_API_KEYS": {
+        "type": SettingType.STRING,
+        "category": SettingCategory.TOOLS,
+        "subcategory": "web_fetch",
+        "description": "settingDesc.JINA_API_KEYS",
+        "default": "",
+        "is_sensitive": True,
+        "depends_on": "ENABLE_WEB_FETCH",
+        "frontend_visible": True,
+    },
+    "FIRECRAWL_BASE_URL": {
+        "type": SettingType.STRING,
+        "category": SettingCategory.TOOLS,
+        "subcategory": "web_fetch",
+        "description": "settingDesc.FIRECRAWL_BASE_URL",
+        "default": "",
+        "depends_on": "ENABLE_WEB_FETCH",
+        "frontend_visible": True,
+    },
+    "FIRECRAWL_API_KEYS": {
+        "type": SettingType.STRING,
+        "category": SettingCategory.TOOLS,
+        "subcategory": "web_fetch",
+        "description": "settingDesc.FIRECRAWL_API_KEYS",
+        "default": "",
+        "is_sensitive": True,
+        "depends_on": "ENABLE_WEB_FETCH",
+        "frontend_visible": True,
+    },
+    "EXA_API_KEYS": {
+        "type": SettingType.STRING,
+        "category": SettingCategory.TOOLS,
+        "subcategory": "web_fetch",
+        "description": "settingDesc.EXA_API_KEYS",
+        "default": "",
+        "is_sensitive": True,
+        "depends_on": "ENABLE_WEB_FETCH",
+        "frontend_visible": True,
+    },
+    "WEB_FETCH_MAX_CHARS": {
+        "type": SettingType.NUMBER,
+        "category": SettingCategory.TOOLS,
+        "subcategory": "web_fetch",
+        "description": "settingDesc.WEB_FETCH_MAX_CHARS",
+        "default": 32768,
+        "min_value": 1024,
+        "max_value": 262144,
+        "depends_on": "ENABLE_WEB_FETCH",
         "frontend_visible": True,
     },
 }

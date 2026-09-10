@@ -39,6 +39,15 @@ def test_spec_bundles_daemon_entry_as_onefile_named_lambchat_daemon() -> None:
     assert 'codesign_identity="-" if __import__("sys").platform == "darwin" else None' in spec
 
 
+def test_build_script_resigns_and_verifies_macos_sidecar() -> None:
+    script = _source("client/scripts/build-daemon.sh")
+
+    assert 'case "$TRIPLE" in' in script
+    assert "*-apple-darwin)" in script
+    assert 'codesign --force --sign "-"' in script
+    assert "codesign --verify --strict --verbose=2" in script
+
+
 def test_build_script_detects_host_triple_and_targets_sidecar_path() -> None:
     script = _source("client/scripts/build-daemon.sh")
 
@@ -223,7 +232,12 @@ def test_release_workflow_publishes_assets_immediately_per_platform() -> None:
         for s in _desktop_job()["steps"]
         if s["name"] == "Merge updater platform entry into latest.json"
     )
-    assert merge_step["if"] == "matrix.updater_key != ''"
+    # 烘焙门控：即发即传的增量合并必须与汇总 job 同受
+    # DESKTOP_UPDATER_AUTO_PUBLISH 门控，否则平台 job 直传击穿烘焙态
+    # （v2.10.3 实测泄漏，#539 修复）
+    assert merge_step["if"] == (
+        "matrix.updater_key != '' && vars.DESKTOP_UPDATER_AUTO_PUBLISH == 'true'"
+    )
     # node 合并（三平台镜像都有 Node；Windows 无 python3）
     assert "node -e" in merge_step["run"]
 
@@ -292,6 +306,30 @@ def test_release_workflow_guards_version_drift_and_manifest_version_from_tag() -
         'REQUIRED_PLATFORMS = ("darwin-aarch64", "darwin-x86_64", "linux-x86_64", "windows-x86_64")'
         in generator
     )
+
+
+def test_updater_manifest_download_urls_go_through_self_hosted_proxy() -> None:
+    """国内用户直连 GitHub 下载安装包必挂：latest.json 的平台下载 URL 必须
+    走 lambchat.com 自托管反代（/api/version/assets/<name>/download）并锁
+    ``?tag=``（发新版瞬间 latest 前移不 404）。生成器与 workflow 增量合并
+    两条写入路径同一契约；检查端点反代在前、GitHub 直连兜底。"""
+    generator = _source("scripts/generate_updater_manifest.py")
+    assert "https://lambchat.com/api/version/assets" in generator
+    assert "?tag=" in generator
+    assert "https://github.com" not in generator
+
+    merge_step = next(
+        s
+        for s in _desktop_job()["steps"]
+        if s["name"] == "Merge updater platform entry into latest.json"
+    )
+    assert "https://lambchat.com/api/version/assets" in merge_step["run"]
+    assert "?tag=" in merge_step["run"]
+    assert "releases/download" not in merge_step["run"]
+
+    tauri = _source("frontend/src-tauri/tauri.conf.json")
+    endpoints = tauri.split('"endpoints"', 1)[1]
+    assert endpoints.index("lambchat.com") < endpoints.index("github.com")
 
 
 def test_release_workflow_macos_collect_requires_app_tar_gz() -> None:

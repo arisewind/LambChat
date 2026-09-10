@@ -20,7 +20,12 @@ import type {
   ActiveGoalSpec,
 } from "./types";
 import { convertAttachments, processMessageEvent } from "./eventProcessor";
-import { clearAllLoadingStates, createToolPart } from "./messageParts";
+import {
+  clearAllLoadingStates,
+  createToolPart,
+  isSandboxConfirmApprovalEvent,
+} from "./messageParts";
+import { assistantMessageHasContent } from "./settleStream";
 import { markInterruptedBySteer } from "./steerTurnSplit";
 import { parseDate } from "../../utils/datetime";
 
@@ -196,18 +201,13 @@ function processHistoryEvent(
     }
     // 沙箱确认门（origin=sandbox_confirm）：执行卡（等待确认→结果）+
     // 审批面板已完整表达，不合成 ask_human 工具卡（避免一次执行双卡）；
-    // 常规审批（ask_human/定时任务）保持合成，历史回放与直播对齐。
+    // 常规审批（ask_human/定时任务）保持合成，历史回放与直播共用判定。
     // approval_required.id is the persisted approval id; resolution events
     // identify the tool part by tool_call_id. Keep the tool part keyed by the
     // latter so historical approvals resolve exactly like live events.
     const toolCallId = approvalData.tool_call_id || approvalData.id;
-    // 旧数据兜底：origin 标记上线前落库的沙箱确认事件，按确认门固定文案
-    // 前缀识别（后端 local.py 硬编码中文，稳定）
-    const isSandboxConfirm =
-      approvalData.origin === "sandbox_confirm" ||
-      /^确认(在本机|上传)/.test(approvalData.message || "");
     if (
-      !isSandboxConfirm &&
+      !isSandboxConfirmApprovalEvent(approvalData) &&
       toolCallId &&
       !currentAssistantMessage.parts?.some(
         (part) => part.type === "tool" && part.id === toolCallId,
@@ -664,16 +664,14 @@ export function reconstructMessagesFromEvents(
   // producing assistant content. They still create a placeholder while the
   // event stream is being folded, which leaves an empty assistant bubble in
   // history between two real turns. Keep meaningful terminal/tool states, but
-  // remove content-less placeholders before the list reaches the UI.
+  // remove content-less placeholders before the list reaches the UI. A turn
+  // whose only payload is recommend questions counts as empty: suggestions
+  // render under the last message, never as a standalone empty bubble (this
+  // happens when an active-run snapshot synthesizes a recommend event next to
+  // a withheld content stream).
   return reconstructedMessages.filter((message) => {
     if (message.role !== "assistant") return true;
-    return Boolean(
-      message.content?.trim() ||
-        message.parts?.length ||
-        message.toolCalls?.length ||
-        message.toolResults?.length ||
-        message.cancelled,
-    );
+    return assistantMessageHasContent(message);
   });
 }
 

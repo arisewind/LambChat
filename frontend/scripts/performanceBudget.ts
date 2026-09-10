@@ -155,10 +155,10 @@ export function combinePrecacheBudgetEntries(
   });
 }
 
-// 514KB：512KB + daemon 连接优化（sandboxStatusStore 单例 store 随
-// AppContent/useSandboxStatus 进入 eager 路径：WS presence 推送消费 +
-// 默认本地档判定需要在应用启动即绪）沿 2KB 阶梯惯例抬一档。
-export const EAGER_JAVASCRIPT_BUDGET_BYTES = 514 * 1024;
+// 524KB：522KB + #552 孤儿助手空壳修复与 #553 生图多模型的 locale 文案
+// 叠加把 eager JS 顶到 534.6KB（91 字节越线挂镜像构建），沿 2KB 阶梯
+// 惯例累加抬档。
+export const EAGER_JAVASCRIPT_BUDGET_BYTES = 524 * 1024;
 export const PRECACHE_BUDGET_BYTES = 5 * 1024 * 1024;
 export const PRECACHE_ADDITIONAL_ENTRIES: PrecacheEntry[] = [];
 
