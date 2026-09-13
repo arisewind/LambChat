@@ -108,6 +108,7 @@ class TaskExecutor:
         enabled_skills: Optional[List[str]] = None,
         persona_system_prompt: Optional[str] = None,
         disabled_mcp_tools: Optional[List[str]] = None,
+        enabled_mcp_servers: Optional[List[str]] = None,
         display_message: Optional[str] = None,
         recommendation_input: Optional[str] = None,
         team_id: Optional[str] = None,
@@ -220,6 +221,8 @@ class TaskExecutor:
                 )
 
             if hitl_resume is not None:
+                # HITL 恢复：清除挂起标记（挂起期间它让全局僵尸清扫豁免本 trace）
+                await self._set_trace_waiting_human(presenter.trace_id, waiting=False)
                 resolved = hitl_resume.get("approval_resolved")
                 if isinstance(resolved, dict):
                     await presenter.save_event({"event": "approval_resolved", "data": resolved})
@@ -257,6 +260,7 @@ class TaskExecutor:
                     enabled_skills=enabled_skills,
                     persona_system_prompt=persona_system_prompt,
                     disabled_mcp_tools=disabled_mcp_tools,
+                    enabled_mcp_servers=enabled_mcp_servers,
                     recommendation_input=recommendation_input,
                     team_id=team_id,
                     active_goal=active_goal,
@@ -265,6 +269,9 @@ class TaskExecutor:
                     base_url=base_url,
                 ),
                 timeout=_run_stall_timeout_seconds(),
+                # 直连路径（emit→save_event）的进展也证明流未挂死：
+                # 深跑时生成器可静默超过 deadline，全靠探针续命
+                progress_probe=getattr(presenter, "last_progress_monotonic", None),
             ):
                 await presenter.save_event(event)
                 if not produced_main_text and _is_main_agent_text_event(event):
@@ -272,6 +279,9 @@ class TaskExecutor:
 
             # interrupt 模式挂起（issue #218）：保留 checkpoint，标记 WAITING_HUMAN
             if presenter is not None and getattr(presenter, "hitl_suspended", False):
+                # 等人工输入期间事件停流、updated_at 不刷新；打 waiting_human 标记
+                # 让全局僵尸清扫豁免（#583：挂起 10 分钟被误终态为 error）
+                await self._set_trace_waiting_human(presenter.trace_id, waiting=True)
                 if dual_writer is not None:
                     try:
                         await dual_writer.flush_mongo_buffer(require_empty=True)
@@ -334,6 +344,15 @@ class TaskExecutor:
             # 清除请求上下文，防止 contextvars 泄漏到后续任务
             TraceContext.clear_request_context()
             TraceContext.clear()
+
+    async def _set_trace_waiting_human(self, trace_id: str, *, waiting: bool) -> None:
+        """HITL 挂起标记（#583）：失败只降级为日志，不影响挂起/恢复主流程。"""
+        try:
+            from src.infra.session.trace_storage import get_trace_storage
+
+            await get_trace_storage().set_trace_waiting_human(trace_id, waiting=waiting)
+        except Exception as e:
+            logger.warning("Failed to mark trace %s waiting_human=%s: %s", trace_id, waiting, e)
 
     async def _handle_cancelled_error(
         self,

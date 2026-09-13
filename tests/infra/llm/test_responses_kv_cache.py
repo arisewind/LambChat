@@ -189,9 +189,10 @@ def test_overlong_session_id_is_truncated() -> None:
 def test_base_graph_agent_binds_session_key_around_graph_execution() -> None:
     # fast/search/team 各自重写 _stream，绑定必须放在未被重写的公共入口：
     # stream() → _stream_with_cache_key() → self._stream(...)
+    # 热修（跨 context 安全）：每轮事件幂等 set（看门狗把每个 __anext__ 包成
+    # 独立 Task/context 副本，入口 set + finally reset 会跨 context 崩溃）。
     assert "return self._stream_with_cache_key(" in AGENTS_BASE_SOURCE
     assert "set_responses_prompt_cache_key(session_id)" in AGENTS_BASE_SOURCE
-    assert "reset_responses_prompt_cache_key(cache_key_token)" in AGENTS_BASE_SOURCE
     assert "async for event in self._stream(message, session_id" in AGENTS_BASE_SOURCE
     assert "session_prompt_cache_key(session_id)" in AGENTS_BASE_SOURCE
 
@@ -232,3 +233,79 @@ def test_context_helpers_accept_mock_session_ids() -> None:
         assert current_responses_prompt_cache_key() is None
     finally:
         reset_responses_prompt_cache_key(token)
+
+
+# ── 风险审查工单 2：prompt_cache_key 仅对官方端点注入 ─────────────────────
+
+
+def _model_with_base_url(base_url: str | None):
+    return LLMClient._create_model(
+        "openai",
+        "gpt-5.2",
+        temperature=0.7,
+        api_key="sk-test",
+        api_base=base_url,
+    )
+
+
+def test_third_party_gateway_payload_has_no_prompt_cache_key() -> None:
+    # 严格校验未知字段的第三方 OpenAI 兼容网关可能因 prompt_cache_key 4xx
+    model = _model_with_base_url("https://gateway.example.com/v1")
+    token = set_responses_prompt_cache_key("session-42")
+    try:
+        payload = model._get_request_payload([HumanMessage(content="hi")])
+    finally:
+        reset_responses_prompt_cache_key(token)
+    assert "prompt_cache_key" not in payload
+
+
+def test_official_openai_base_url_still_gets_prompt_cache_key() -> None:
+    model = _model_with_base_url("https://api.openai.com/v1")
+    token = set_responses_prompt_cache_key("session-42")
+    try:
+        payload = model._get_request_payload([HumanMessage(content="hi")])
+    finally:
+        reset_responses_prompt_cache_key(token)
+    assert payload["prompt_cache_key"] == "session-42"
+
+
+def test_official_host_without_scheme_still_gets_prompt_cache_key() -> None:
+    # Model Config 里常见仅填域名的写法
+    model = _model_with_base_url("api.openai.com/v1")
+    token = set_responses_prompt_cache_key("session-42")
+    try:
+        payload = model._get_request_payload([HumanMessage(content="hi")])
+    finally:
+        reset_responses_prompt_cache_key(token)
+    assert payload["prompt_cache_key"] == "session-42"
+
+
+def test_default_base_url_official_gets_prompt_cache_key() -> None:
+    # base_url 为空 = SDK 默认官方端点，回归保护
+    model = _model_with_base_url(None)
+    token = set_responses_prompt_cache_key("session-42")
+    try:
+        payload = model._get_request_payload([HumanMessage(content="hi")])
+    finally:
+        reset_responses_prompt_cache_key(token)
+    assert payload["prompt_cache_key"] == "session-42"
+
+
+def test_third_party_gateway_gets_no_responses_cache_defaults() -> None:
+    # include/store 同属非标字段：严格校验的网关会同样拒绝
+    model = _model_with_base_url("https://gateway.example.com/v1")
+    assert model.include is None
+    assert model.store is None
+
+
+def test_official_base_url_keeps_responses_cache_defaults() -> None:
+    model = LLMClient._create_model(
+        "openai",
+        "gpt-5.2",
+        temperature=0.7,
+        api_key="sk-test",
+        api_format="responses",
+        api_base="https://api.openai.com/v1",
+    )
+    assert model.include == ["reasoning.encrypted_content"]
+    assert model.store is False
