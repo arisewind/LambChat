@@ -93,6 +93,9 @@ class Settings(BaseSettings):
         "chat_completions"  # OpenAI 协议线格式默认值（chat_completions | responses）
     )
     LLM_MODEL_CACHE_SIZE: int = 50  # 模型实例缓存大小，防止内存泄漏
+    LLM_MODEL_WARMUP_ON_STARTUP: bool = (
+        True  # worker 启动后台预创建已启用模型客户端，消首个请求冷启动
+    )
     LLM_KV_CACHE: bool = (
         True  # OpenAI 协议携带 KV 缓存参数（会话级 prompt_cache_key；responses 另含 include/store）
     )
@@ -187,7 +190,7 @@ class Settings(BaseSettings):
     MONGODB_POOL_MIN_SIZE: int = 2
     MONGODB_POOL_MAX_SIZE: int = 20
     # Checkpointer independent MongoDB connection pool (physically isolated from
-    # the motor business pool so checkpoint writes cannot starve business ops).
+    # the PyMongo Async business pool so checkpoint writes cannot starve business ops).
     # Defaults align with CHECKPOINT_PG_POOL_*.
     CHECKPOINT_MONGO_POOL_MIN_SIZE: int = 2
     CHECKPOINT_MONGO_POOL_MAX_SIZE: int = 10
@@ -241,6 +244,8 @@ class Settings(BaseSettings):
     # Sandbox Settings
     ENABLE_SANDBOX: bool = True
     SANDBOX_PLATFORM: str = "daytona"
+    # 对话轮终态后无进行中对话需要沙箱时自动暂停云端沙箱（e2b/cubesandbox）
+    SANDBOX_PAUSE_WHEN_IDLE: bool = True
     SANDBOX_LOCAL_ACK_TIMEOUT: int = 30  # 本地沙箱 daemon ACK 超时（秒）
     SANDBOX_LOCAL_EXEC_TIMEOUT: int = 120  # 本地沙箱执行总超时（秒）
     # 本地沙箱流式传输（fs_download_stream）总超时（秒）：单个 chunked POST
@@ -283,6 +288,8 @@ class Settings(BaseSettings):
 
     # Code Interpreter Settings
     ENABLE_CODE_INTERPRETER: bool = False
+    CODE_INTERPRETER_PTC_TOOLS: str = "web_search,web_fetch"
+    CODE_INTERPRETER_SNAPSHOT_KEY: str = ""
 
     # Model Pricing Settings（models.dev 价格同步 + USD 汇率换算）
     PRICING_MODELS_DEV_URL: str = "https://models.dev/api.json"
@@ -414,13 +421,16 @@ class Settings(BaseSettings):
     NATIVE_MEMORY_EMBEDDING_MODEL: str = "text-embedding-3-small"
     NATIVE_MEMORY_EMBEDDING_DIMENSIONS: int = 1536
     NATIVE_MEMORY_STALENESS_DAYS: int = 30
-    NATIVE_MEMORY_PRUNE_THRESHOLD: int = 90
     NATIVE_MEMORY_INDEX_ENABLED: bool = True
     NATIVE_MEMORY_INDEX_CACHE_TTL: int = 300
+    # Optional write-time injection of top relevant memories into the model
+    # message. Disabled by default; the memory_recall tool remains the source
+    # of detailed evidence.
+    NATIVE_MEMORY_QUERY_CONTEXT_ENABLED: bool = False
+    NATIVE_MEMORY_QUERY_CONTEXT_TOP_K: int = 3
+    NATIVE_MEMORY_QUERY_CONTEXT_MAX_CHARS: int = 1200
     NATIVE_MEMORY_MODEL: str = ""
     NATIVE_MEMORY_COMPACTION_MODEL_ID: str = ""
-    NATIVE_MEMORY_API_BASE: str = ""
-    NATIVE_MEMORY_API_KEY: str = ""
     NATIVE_MEMORY_RERANK_MODEL: str = ""
     NATIVE_MEMORY_RERANK_API_BASE: str = ""
     NATIVE_MEMORY_RERANK_API_KEY: str = ""
@@ -431,29 +441,21 @@ class Settings(BaseSettings):
     NATIVE_MEMORY_IMPORT_TOTAL_CONTENT_MAX_CHARS: int = 2_000_000
     NATIVE_MEMORY_COMPACTION_CONTENT_MAX_CHARS: int = 4000
     NATIVE_MEMORY_STORE_NAMESPACE: str = "memories"
-    NATIVE_MEMORY_APPEND_MAX_DETAILS: int = 8
     NATIVE_MEMORY_RECALL_MIN_SCORE: float = 0.3
     NATIVE_MEMORY_HYDRATE_CONCURRENCY: int = 4
-    NATIVE_MEMORY_CONTENT_DELETE_CONCURRENCY: int = 4
     NATIVE_MEMORY_AUTO_COMPACT_ENABLED: bool = True
     NATIVE_MEMORY_AUTO_COMPACT_THRESHOLD: int = 40
     NATIVE_MEMORY_AUTO_COMPACT_INTERVAL_SECONDS: int = 43200
     NATIVE_MEMORY_AUTO_COMPACT_MIN_INTERVAL_SECONDS: int = 900
-    NATIVE_MEMORY_AUTO_CAPTURE_INPUT_MAX_CHARS: int = 8000
-    NATIVE_MEMORY_AUTO_CAPTURE_MAX_TASKS: int = 8
     NATIVE_MEMORY_MAX_AUTO_RETAIN_PER_DAY: int = 20
     # Legacy automatic query-context injection. Memory is recalled explicitly through
     # memory_recall; the compact index is controlled by NATIVE_MEMORY_INDEX_ENABLED.
-    NATIVE_MEMORY_QUERY_CONTEXT_ENABLED: bool = False
-    NATIVE_MEMORY_QUERY_CONTEXT_TIMEOUT_SECONDS: float = 5.0
     NATIVE_MEMORY_SELF_EVOLVE_ENABLED: bool = False
     NATIVE_MEMORY_SELF_EVOLVE_MAX_PER_NIGHT: int = 3
     NATIVE_MEMORY_SELF_EVOLVE_INTERVAL_SECONDS: int = 43200
     NATIVE_MEMORY_VECTOR_BACKEND: str = "mongo"
     NATIVE_MEMORY_QDRANT_URL: str = "http://127.0.0.1:6333"
     NATIVE_MEMORY_QDRANT_API_KEY: str = ""
-    NATIVE_MEMORY_QUERY_CONTEXT_TOP_K: int = 3
-    NATIVE_MEMORY_QUERY_CONTEXT_MAX_CHARS: int = 1200
     # Codex 式 Phase 1 会话提取（extraction.py）：空闲会话全量转录 → 结构化
     # raw_memory；认领租约 + 退避 + 每日限额控制成本。
     MEMORY_EXTRACTION_ENABLED: bool = True
@@ -470,6 +472,28 @@ class Settings(BaseSettings):
     AUDIO_TRANSCRIPTION_BASE_URL: str = ""
     AUDIO_TRANSCRIPTION_MODEL: str = "gpt-4o-mini-transcribe"
     AUDIO_TRANSCRIPTION_MAX_DOWNLOAD_BYTES: int = 50 * 1024 * 1024
+
+    # Document parse tool settings（多提供商：Mistral OCR / MinerU / Azure DI /
+    # docling-serve / PaddleOCR-VL / Tika，形态对齐 web_search）
+    ENABLE_DOCUMENT_PARSE: bool = False
+    DOCUMENT_PARSE_PROVIDER: str = "auto"
+    DOCUMENT_PARSE_MISTRAL_API_KEY: str = ""
+    DOCUMENT_PARSE_MISTRAL_BASE_URL: str = "https://api.mistral.ai"
+    DOCUMENT_PARSE_MISTRAL_MODEL: str = "mistral-ocr-latest"
+    DOCUMENT_PARSE_MINERU_API_MODE: str = "cloud"
+    DOCUMENT_PARSE_MINERU_API_URL: str = ""
+    DOCUMENT_PARSE_MINERU_API_KEY: str = ""
+    DOCUMENT_PARSE_AZURE_ENDPOINT: str = ""
+    DOCUMENT_PARSE_AZURE_KEY: str = ""
+    DOCUMENT_PARSE_AZURE_MODEL: str = "prebuilt-read"
+    DOCUMENT_PARSE_DOCLING_URL: str = ""
+    DOCUMENT_PARSE_DOCLING_API_KEY: str = ""
+    DOCUMENT_PARSE_PADDLEOCR_URL: str = ""
+    DOCUMENT_PARSE_PADDLEOCR_TOKEN: str = ""
+    DOCUMENT_PARSE_TIKA_URL: str = ""
+    DOCUMENT_PARSE_MAX_DOWNLOAD_BYTES: int = 50 * 1024 * 1024
+    DOCUMENT_PARSE_MAX_OUTPUT_CHARS: int = 200_000
+    DOCUMENT_PARSE_MAX_IMAGES: int = 20
 
     # Web search tool settings（多 key 用英文逗号分隔，round-robin 轮询）。
     # 默认挂载为系统内置工具：未配置任何 provider 时工具返回

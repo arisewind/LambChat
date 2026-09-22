@@ -8,6 +8,7 @@ import pytest
 from src.infra.channel import pubsub as channel_pubsub
 from src.infra.llm import pubsub as llm_pubsub
 from src.infra.memory import distributed as memory_distributed
+from src.infra.pubsub_hub import namespaced_channel
 from src.infra.settings import pubsub as settings_pubsub
 from src.infra.settings.service import SettingsService
 from src.infra.task.constants import MODEL_CONFIG_CHANNEL, SETTINGS_CHANNEL
@@ -41,11 +42,11 @@ async def test_pubsub_handlers_offload_json_parsing(
 ) -> None:
     calls: list[Callable[..., Any]] = []
 
-    async def fake_run_blocking_io(func: Callable[..., Any], *args: Any, **kwargs: Any) -> Any:
+    async def fake_run_long_blocking_io(func: Callable[..., Any], *args: Any, **kwargs: Any) -> Any:
         calls.append(func)
         return func(*args, **kwargs)
 
-    monkeypatch.setattr(module, "run_blocking_io", fake_run_blocking_io)
+    monkeypatch.setattr(module, "run_long_blocking_io", fake_run_long_blocking_io)
 
     pubsub = pubsub_cls()
     pubsub._instance_id = "instance-a"
@@ -59,11 +60,11 @@ async def test_pubsub_handlers_offload_json_parsing(
 async def test_memory_pubsub_offloads_json_parsing(monkeypatch: pytest.MonkeyPatch) -> None:
     calls: list[Callable[..., Any]] = []
 
-    async def fake_run_blocking_io(func: Callable[..., Any], *args: Any, **kwargs: Any) -> Any:
+    async def fake_run_long_blocking_io(func: Callable[..., Any], *args: Any, **kwargs: Any) -> Any:
         calls.append(func)
         return func(*args, **kwargs)
 
-    monkeypatch.setattr(memory_distributed, "run_blocking_io", fake_run_blocking_io)
+    monkeypatch.setattr(memory_distributed, "run_long_blocking_io", fake_run_long_blocking_io)
 
     pubsub = memory_distributed.MemoryPubSub()
 
@@ -118,11 +119,13 @@ async def test_pubsub_publishers_offload_json_serialization(
     calls: list[Callable[..., Any]] = []
     fake_redis = _FakeRedisClient()
 
-    async def fake_run_blocking_io(func: Callable[..., Any], *args: Any, **call_kwargs: Any) -> Any:
+    async def fake_run_long_blocking_io(
+        func: Callable[..., Any], *args: Any, **call_kwargs: Any
+    ) -> Any:
         calls.append(func)
         return func(*args, **call_kwargs)
 
-    monkeypatch.setattr(module, "run_blocking_io", fake_run_blocking_io)
+    monkeypatch.setattr(module, "run_long_blocking_io", fake_run_long_blocking_io)
     monkeypatch.setattr(module, "get_redis_client", lambda: fake_redis)
 
     if module is llm_pubsub:
@@ -149,7 +152,7 @@ async def test_pubsub_publishers_offload_json_serialization(
         await publish_func(kwargs["user_id"])
 
     assert calls == [json.dumps]
-    assert fake_redis.published[0][0] == channel
+    assert fake_redis.published[0][0] == namespaced_channel(channel)
 
 
 @pytest.mark.asyncio
@@ -159,14 +162,14 @@ async def test_settings_service_publish_change_offloads_json_serialization(
     calls: list[Callable[..., Any]] = []
     fake_redis = _FakeRedisClient()
 
-    async def fake_run_blocking_io(func: Callable[..., Any], *args: Any, **kwargs: Any) -> Any:
+    async def fake_run_long_blocking_io(func: Callable[..., Any], *args: Any, **kwargs: Any) -> Any:
         calls.append(func)
         return func(*args, **kwargs)
 
     class _FakeSettingsPubSub:
         instance_id = "instance-a"
 
-    monkeypatch.setattr("src.infra.settings.service.run_blocking_io", fake_run_blocking_io)
+    monkeypatch.setattr("src.infra.settings.service.run_blocking_io", fake_run_long_blocking_io)
     monkeypatch.setattr("src.infra.storage.redis.get_redis_client", lambda: fake_redis)
     monkeypatch.setattr(
         "src.infra.settings.pubsub.get_settings_pubsub",
@@ -176,4 +179,4 @@ async def test_settings_service_publish_change_offloads_json_serialization(
     await SettingsService._publish_change("APP_NAME", "LambChat")
 
     assert calls == [json.dumps]
-    assert fake_redis.published[0][0] == SETTINGS_CHANNEL
+    assert fake_redis.published[0][0] == namespaced_channel(SETTINGS_CHANNEL)

@@ -7,7 +7,7 @@
  * and React state updates (side effects).
  */
 
-import type { Message, MessagePart } from "../../types";
+import type { Message } from "../../types";
 import { uuid } from "../../utils/uuid";
 import { sessionApi } from "../../services/api/session";
 import i18n from "../../i18n";
@@ -26,7 +26,12 @@ import {
 } from "./messageParts";
 import { splitAssistantTurn } from "./steerTurnSplit";
 import { settleAssistantMessage } from "./settleStream";
-import { convertAttachments, processMessageEvent } from "./eventProcessor";
+import {
+  appendCancelledPart,
+  convertAttachments,
+  isCancelledErrorType,
+  processMessageEvent,
+} from "./eventProcessor";
 import { dispatchToolMutationRefresh } from "../../components/chat/ChatMessage/items/toolMutationEvents";
 
 /**
@@ -318,8 +323,8 @@ export function handleStreamEvent(
     }
 
     case "run:resumed": {
-      // 系统中断后同 run 无缝续跑：清空气泡里的半截输出/错误/取消状态，
-      // 回到流式空态接收重新生成的完整回答（模型会重跑这一轮）。
+      // 同 run 恢复只重置运行状态，保留中断前的正文和工具记录。
+      // checkpoint 续跑不会重放所有已完成步骤，清空气泡会导致内容丢失。
       // 中断瞬间可能卡住的全局态一并复位：子代理栈残留（agent:call 无配对
       // agent:result）、沙箱初始化中/错误（sandbox:starting 无 ready/error）。
       ctx.activeSubagentStackRef.current.length = 0;
@@ -335,7 +340,16 @@ export function handleStreamEvent(
         };
         if (prev.some((message) => message.id === messageId)) {
           return prev.map((message) =>
-            message.id === messageId ? { ...message, ...reset } : message,
+            message.id === messageId
+              ? {
+                  ...message,
+                  parts: clearAllLoadingStates(message.parts || []).filter(
+                    (part) => part.type !== "cancelled",
+                  ),
+                  cancelled: false,
+                  isStreaming: true,
+                }
+              : message,
           );
         }
         return [
@@ -672,7 +686,7 @@ function handleError(
   const errorMsg = data.error
     ? translateApiError(data.code, data.error, undefined, i18n.t.bind(i18n))
     : i18n.t("chat.unknownError");
-  const isCancelled = forceCancelled || data.type === "CancelledError";
+  const isCancelled = forceCancelled || isCancelledErrorType(data.type);
 
   ctx.setMessages((prev) =>
     prev.map((m) => {
@@ -701,13 +715,6 @@ function handleError(
     ctx.setIsInitializingSandbox(false);
   }
   ctx.options?.onClearApprovals?.(ctx.sessionIdRef.current);
-}
-
-function appendCancelledPart(parts: MessagePart[]): MessagePart[] {
-  if (parts.some((part) => part.type === "cancelled")) {
-    return parts;
-  }
-  return [...parts, { type: "cancelled" }];
 }
 
 function appendAskHumanToolPart(

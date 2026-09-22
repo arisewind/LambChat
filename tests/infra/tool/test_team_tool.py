@@ -59,14 +59,11 @@ def test_team_tool_descriptions_guide_llm_team_creation() -> None:
     assert "Pass `team_id` to update an existing team" in normalized_create_description
     assert "Optional existing Team id to update" in create_fields["team_id"].description
     assert "Always provide an emoji or avatar image URL" in create_fields["avatar"].description
-    assert "Do not invent persona_preset_id values" in create_fields["members"].description
+    assert "Never invent persona_preset_id" in create_fields["members"].description
     assert "agent_id" in create_fields["members"].description
-    assert "do not use 'team'" in create_fields["members"].description
+    assert "(not 'team')" in create_fields["members"].description
     assert "role_avatar" in create_fields["members"].description
-    assert "emoji or avatar image URL" in create_fields["members"].description
-    assert "Never use placeholder ids such as 'general-purpose'" in (
-        create_fields["members"].description
-    )
+    assert "placeholders like 'general-purpose'" in create_fields["members"].description
     assert "Researcher gathers evidence first" in create_fields["team_instructions"].description
     starter_description = create_fields["starter_prompts"].description
     assert (
@@ -117,7 +114,7 @@ async def test_search_persona_presets_offloads_result_json(
         return_value=[_preset(f"preset-{index}", f"Persona {index}") for index in range(5)]
     )
 
-    async def fake_run_blocking_io(func, *args, **kwargs):
+    async def fake_run_long_blocking_io(func, *args, **kwargs):
         calls.append(func)
         return func(*args, **kwargs)
 
@@ -127,7 +124,7 @@ async def test_search_persona_presets_offloads_result_json(
         "_resolve_user",
         AsyncMock(return_value=SimpleNamespace(permissions=["team:read"])),
     )
-    monkeypatch.setattr(team_tool, "run_blocking_io", fake_run_blocking_io, raising=False)
+    monkeypatch.setattr(team_tool, "run_long_blocking_io", fake_run_long_blocking_io, raising=False)
 
     result = json.loads(
         await team_tool.search_persona_presets.coroutine(
@@ -149,11 +146,11 @@ async def test_search_persona_presets_offloads_error_result_json(
 
     calls: list[object] = []
 
-    async def fake_run_blocking_io(func, *args, **kwargs):
+    async def fake_run_long_blocking_io(func, *args, **kwargs):
         calls.append(func)
         return func(*args, **kwargs)
 
-    monkeypatch.setattr(team_tool, "run_blocking_io", fake_run_blocking_io, raising=False)
+    monkeypatch.setattr(team_tool, "run_long_blocking_io", fake_run_long_blocking_io, raising=False)
 
     result = json.loads(
         await team_tool.search_persona_presets.coroutine(

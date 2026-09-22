@@ -9,6 +9,7 @@ import os
 from typing import Any, Optional
 
 from src.infra.async_utils import run_blocking_io
+from src.infra.pubsub_hub import namespaced_channel
 from src.infra.settings.storage import (
     RESTART_REQUIRED_SETTINGS,
     SETTING_DEFINITIONS,
@@ -107,6 +108,21 @@ class SettingsService:
 
         # Return default
         return SETTING_DEFINITIONS[key]["default"]
+
+    async def get_item(self, key: str) -> Optional[SettingItem]:
+        """Get a single masked SettingItem for API responses.
+
+        Served from the shared get_all cache (admin + masked), so single-key
+        lookups (GET /settings/{key}) don't hit MongoDB on every request.
+        """
+        if key not in SETTING_DEFINITIONS:
+            return None
+        grouped = await self.get_all(admin_mode=True, mask_sensitive=True)
+        for items in grouped.values():
+            for item in items:
+                if item.key == key:
+                    return item
+        return None
 
     async def get_all(
         self, admin_mode: bool = False, mask_sensitive: bool = True
@@ -326,7 +342,7 @@ class SettingsService:
             instance_id = get_settings_pubsub().instance_id
             payload = await run_blocking_io(json.dumps, {"key": key, "instance_id": instance_id})
             await redis_client.publish(
-                SETTINGS_CHANNEL,
+                namespaced_channel(SETTINGS_CHANNEL),
                 payload,
             )
         except Exception as e:

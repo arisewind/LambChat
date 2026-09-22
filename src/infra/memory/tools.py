@@ -13,7 +13,7 @@ from typing import Annotated, Any, Optional
 from langchain.tools import ToolRuntime, tool
 from langchain_core.tools import BaseTool
 
-from src.infra.async_utils import run_blocking_io
+from src.infra.async_utils import run_long_blocking_io
 from src.infra.logging import get_logger
 from src.infra.memory.client.base import (
     MemoryBackend,
@@ -34,7 +34,7 @@ logger = get_logger(__name__)
 
 
 async def _json_dumps_result(data: dict[str, Any]) -> str:
-    return await run_blocking_io(json.dumps, data, ensure_ascii=False)
+    return await run_long_blocking_io(json.dumps, data, ensure_ascii=False)
 
 
 # Module-level cached backend (initialized lazily)
@@ -107,11 +107,10 @@ async def memory_retain(
     ] = None,
     scope: Annotated[
         Optional[str],
-        "Ownership scope: 'user' (cross-project personal preference, default), "
-        "'project' (bound to the current session's project), or 'reference' "
-        "(external docs/links). Project ownership is inherited from the current "
-        "session; when the session has no project, project-scoped content is "
-        "automatically stored as 'user' scope (see result note).",
+        "Ownership scope: 'user' (cross-project personal preference), 'project' "
+        "(bound to the current session's project), or 'reference' (external "
+        "docs/links). Default: 'project' for project-* context when the session "
+        "has a project, otherwise 'user'.",
     ] = None,
     source_refs: Annotated[
         Optional[list[ConversationSourceRef]],
@@ -146,6 +145,11 @@ async def memory_retain(
         from src.infra.memory.scope import resolve_session_project_id
 
         project_id = await resolve_session_project_id(get_session_id_from_runtime(runtime))
+        # agent 常省略 scope（生产实测 329/330 条 project 类内容落进 user
+        # 作用域，跨话题互相污染召回）。context 表明是项目内容且会话有归属
+        # 时，默认绑定项目；显式传了 scope 则完全尊重。
+        if scope is None and project_id and context and str(context).startswith("project"):
+            scope = "project"
         # 无项目会话里 LLM 显式要 scope='project'：backend 会硬拒绝（生产上
         # 表现为前端红色报错 + agent 重试一轮）。工具层先降级为自动推导
         # （无归属 → user），不丢数据；结果里带 note 告知实际归属。
@@ -192,15 +196,15 @@ async def memory_recall(
     """
     Search and retrieve relevant memories from cross-session storage.
 
-    Memories are not injected into user messages. When prior facts, preferences,
-    project state, decisions, or corrections may matter, call this tool with a
-    focused query instead of guessing from the compact index.
+    A bounded hint may be injected when query-context memory is enabled; it is
+    untrusted and incomplete. When prior facts, preferences, project state,
+    decisions, or corrections may matter, call this tool with a focused query
+    instead of trusting the injected hint.
     Scope isolation is automatic: results include user/reference memories plus
     the current session's project memories; other projects' memories are
     never returned — do not generalize a project constraint to other contexts.
-    Each result returns complete `text`: read it in full and do not omit
-    fine-grained facts. If `text_complete` is false, `preview` is truncated —
-    search the cited source instead of treating it as complete evidence.
+    Each result returns complete `text`; do not omit facts. If `text_complete`
+    is false, `preview` is truncated — search the cited source instead.
     With `source_refs`, call `get_conversation_detail` (`session_id`, `run_id`)
     for the original final answer: the memory is a locator, the conversation
     detail is the source of truth.
@@ -250,7 +254,14 @@ async def memory_delete(
         return await _json_dumps_result({"success": False, "error": "Memory service not available"})
 
     try:
-        result = await backend.delete(user_id, memory_id)
+        delete_scoped = getattr(backend, "delete_scoped", None)
+        if callable(delete_scoped):
+            from src.infra.memory.scope import resolve_session_project_id
+
+            project_id = await resolve_session_project_id(get_session_id_from_runtime(runtime))
+            result = await delete_scoped(user_id, memory_id, project_id=project_id)
+        else:
+            result = await backend.delete(user_id, memory_id)
         return await _json_dumps_result(result)
     except Exception as e:
         logger.error(f"[Memory] Failed to delete memory: {e}")

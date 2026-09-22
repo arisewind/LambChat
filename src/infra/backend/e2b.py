@@ -15,12 +15,22 @@ import asyncio
 import base64
 import os
 import shlex
-from typing import TYPE_CHECKING, Any, Callable
+import threading
+import time
+from typing import TYPE_CHECKING, Any, Callable, Literal, TypeVar
 
 from deepagents.backends.sandbox import BaseSandbox
 from deepagents.backends.utils import create_file_data, slice_read_response
 
-from src.infra.async_utils import run_blocking_io
+from src.infra.backend.e2b_async import (
+    _DEFAULT_COMMAND_TIMEOUT,
+    _KEEPALIVE_MIN_INTERVAL,
+    SANDBOX_BATCH_FILES_LIMIT,
+    SANDBOX_DOWNLOAD_MAX_BYTES,
+    SANDBOX_READ_MAX_BYTES,
+    SANDBOX_UPLOAD_MAX_BYTES,
+    E2BAsyncMixin,
+)
 from src.infra.backend.protocol_compat import (
     ExecuteResponse,
     FileDownloadResponse,
@@ -36,6 +46,7 @@ from src.infra.backend.protocol_compat import (
     file_download_response,
     file_upload_response,
 )
+from src.infra.backend.sandbox_heal import UNAVAILABLE_GUIDANCE, SandboxHeal
 from src.infra.logging import get_logger
 from src.infra.sandbox_grep import (
     build_grep_command,
@@ -49,12 +60,11 @@ if TYPE_CHECKING:
 
 logger = get_logger(__name__)
 
+_T = TypeVar("_T")
+
+
 # 默认超时 30 分钟（秒）
 _DEFAULT_TIMEOUT = 30 * 60
-SANDBOX_READ_MAX_BYTES = 2 * 1024 * 1024
-SANDBOX_DOWNLOAD_MAX_BYTES = 50 * 1024 * 1024
-SANDBOX_UPLOAD_MAX_BYTES = 50 * 1024 * 1024
-SANDBOX_BATCH_FILES_LIMIT = 100
 SANDBOX_GLOB_MAX_MATCHES = 1000
 SANDBOX_GLOB_TIMEOUT_SECONDS = 15
 
@@ -67,7 +77,7 @@ def _grep_result(parsed: list[GrepMatch] | str, max_count: int | None) -> GrepRe
     return GrepResult(matches=matches, truncated=truncated)
 
 
-class E2BBackend(BaseSandbox):
+class E2BBackend(E2BAsyncMixin, BaseSandbox):
     """E2B 沙箱后端
 
     使用 e2b Python SDK 执行命令和操作文件。
@@ -76,6 +86,10 @@ class E2BBackend(BaseSandbox):
     文件操作 (ls, read, write, glob) 使用 E2B 原生 Filesystem API，
     绕过 shell 命令，性能更好且更安全。
     """
+
+    # e2b 有官方 async SDK：异步命令走原生协程（零线程占用）。
+    # 子类若无 async SDK（如 CubeSandboxBackend）置 False，回落线程慢道。
+    supports_async_sdk = True
 
     def __init__(
         self,
@@ -90,6 +104,17 @@ class E2BBackend(BaseSandbox):
         self._timeout = (
             timeout or settings.E2B_TIMEOUT or int(os.environ.get("E2B_TIMEOUT", _DEFAULT_TIMEOUT))
         )
+        self._heal = SandboxHeal(wake=self._wake_sandbox, sandbox_id=lambda: self.id)
+        self._last_timeout_extend = float("-inf")
+        # 沙箱被平台回收后 manager 重建新沙箱时挂载的一次性提示，
+        # 由 aexecute 消费并前缀到首个命令输出，让模型知道旧文件已丢失。
+        self.sandbox_startup_notice: str | None = None
+        # e2b 官方 async 客户端（懒连接）：异步路径零线程占用。
+        # Cube 等 e2b 兼容平台共用；不兼容时 aexecute 自动回落线程慢道。
+        self._async_client: Any = None
+        self._async_init_lock = asyncio.Lock()
+        self._async_init_failures = 0
+        self._async_disabled = False
 
     @property
     def id(self) -> str:
@@ -98,6 +123,90 @@ class E2BBackend(BaseSandbox):
     @property
     def work_dir(self) -> str:
         return self._work_dir
+
+    def _wake_sandbox(self) -> None:
+        """唤醒被超时暂停的沙箱；connect 会自动恢复 paused 沙箱并刷新 timeout。"""
+        self._sandbox.connect(timeout=self._timeout)
+
+    def _maybe_extend_timeout(self) -> None:
+        """周期性重置沙箱 timeout，防止长任务 run 中途到点被平台暂停。
+
+        E2B 的 timeout 是绝对倒计时（距上次 set_timeout 的秒数），run 内若从不
+        续期，跑满 E2B_TIMEOUT 必然中途暂停；按 1/3 间隔续期把窗口兜住。
+        """
+        interval = max(60.0, self._timeout / 3)
+        now = time.monotonic()
+        if now - self._last_timeout_extend < interval:
+            return
+        try:
+            self._sandbox.set_timeout(self._timeout)
+        except AttributeError:
+            # 测试替身或 SDK 差异；不阻塞命令本身
+            return
+        except Exception as e:
+            # 续期失败不阻塞当前命令；若沙箱已暂停，交给唤醒重试路径自愈
+            logger.warning("sandbox keepalive set_timeout failed for %s: %s", self.id, e)
+            return
+        self._last_timeout_extend = now
+
+    def _sdk(self, op: str, fn: Callable[[], _T]) -> _T:
+        """执行一次 provider SDK 调用，附带暂停唤醒 + 单次重试。"""
+        return self._heal.run(op, fn)
+
+    def _files_list(self, path: str) -> Any:
+        return self._sdk("files.list", lambda: self._sandbox.files.list(path=path))
+
+    def _files_read(self, path: str, format: Literal["text", "bytes"]) -> Any:
+        return self._sdk("files.read", lambda: self._sandbox.files.read(path=path, format=format))
+
+    def _files_write(self, path: str, data: Any) -> None:
+        self._sdk("files.write", lambda: self._sandbox.files.write(path=path, data=data))
+
+    def _consume_startup_notice(self) -> str | None:
+        notice = self.sandbox_startup_notice
+        self.sandbox_startup_notice = None
+        return notice
+
+    # =========================================================================
+    # e2b async 原生路径（零线程占用）
+    # =========================================================================
+
+    def _command_timeout(self, timeout: int | None) -> int:
+        """单条命令超时：显式值原样透传，默认保持 15 分钟下限。
+
+        沙箱 timeout 只是空闲回收节奏（keepalive 会持续续期），不应钳住
+        命令时长——此前 min(命令超时, 沙箱超时) 会把长命令一起杀掉。
+        """
+        if timeout is not None and timeout > 0:
+            return timeout
+        return max(self._timeout, _DEFAULT_COMMAND_TIMEOUT)
+
+    def _run_command_with_keepalive(self, fn: Callable[[], _T], effective_timeout: int) -> _T:
+        """长命令期间后台线程持续续期沙箱 timeout。
+
+        命令开始前 _maybe_extend_timeout 已把死限重置为整个沙箱 timeout，
+        因此短于沙箱 timeout 的命令不可能越限、无需续期线程；接近或超过
+        沙箱 timeout 的命令由 keeper 周期 set_timeout，跑多久都不暂停。
+        """
+        if effective_timeout < self._timeout:
+            return fn()
+        interval = max(_KEEPALIVE_MIN_INTERVAL, self._timeout / 4)
+        stop = threading.Event()
+
+        def _keeper() -> None:
+            while not stop.wait(interval):
+                try:
+                    self._sandbox.set_timeout(self._timeout)
+                except Exception as e:  # noqa: BLE001
+                    logger.debug("midflight keepalive set_timeout failed: %s", e)
+
+        thread = threading.Thread(target=_keeper, name="sandbox-cmd-keepalive", daemon=True)
+        thread.start()
+        try:
+            return fn()
+        finally:
+            stop.set()
+            thread.join(timeout=_KEEPALIVE_MIN_INTERVAL)
 
     def _with_work_dir(self, command: str) -> str:
         if command.lstrip().startswith("cd "):
@@ -131,13 +240,19 @@ class E2BBackend(BaseSandbox):
     # =========================================================================
 
     def execute(self, command: str, *, timeout: int | None = None) -> ExecuteResponse:
-        effective_timeout = min(timeout or self._timeout, self._timeout)
+        effective_timeout = self._command_timeout(timeout)
+        self._maybe_extend_timeout()
 
         try:
             kwargs: dict = {"cmd": self._with_work_dir(command), "timeout": effective_timeout}
             if self.env_vars:
                 kwargs["envs"] = self.env_vars
-            result = self._sandbox.commands.run(**kwargs)
+            result = self._sdk(
+                "commands.run",
+                lambda: self._run_command_with_keepalive(
+                    lambda: self._sandbox.commands.run(**kwargs), effective_timeout
+                ),
+            )
             output = result.stdout or ""
             if result.stderr:
                 output = f"{output}\n{result.stderr}" if output else result.stderr
@@ -147,44 +262,40 @@ class E2BBackend(BaseSandbox):
                 truncated=False,
             )
         except Exception as e:
-            error_msg = str(e)
-            if "timeout" in error_msg.lower():
-                logger.warning(f"Command timed out after {effective_timeout}s: {command[:100]}...")
-                return ExecuteResponse(
-                    output=f"Command timed out after {effective_timeout} seconds",
-                    exit_code=-1,
-                    truncated=False,
-                )
-            # Surface the full captured output from SDK command exceptions so
-            # failures stay diagnosable. Previously only str(e) was used, which
-            # for preflight failures produced an empty "error: " in the logs
-            # (issue #195 diagnostics).
-            detail = error_msg
-            for attr in ("stderr", "stdout"):
-                val = getattr(e, attr, None)
-                if val:
-                    detail = f"{detail} | {attr}: {val}" if detail else val
-            logger.error(f"Command failed: {detail}")
-            return ExecuteResponse(
-                output=f"Command failed: {detail}",
-                exit_code=-1,
-                truncated=False,
-            )
+            return self._command_error_response(e, effective_timeout, command)
 
-    async def aexecute(self, command: str, *, timeout: int | None = None) -> ExecuteResponse:
-        effective_timeout = min(timeout or self._timeout, self._timeout)
-        try:
-            return await run_blocking_io(
-                lambda: self.execute(command, timeout=timeout),
-                timeout=effective_timeout,
-            )
-        except asyncio.TimeoutError:
-            logger.warning(f"Client-side timeout after {effective_timeout}s: {command[:100]}...")
+    def _command_error_response(
+        self,
+        e: Exception,
+        effective_timeout: int,
+        command: str,
+    ) -> ExecuteResponse:
+        error_msg = str(e)
+        if "timeout" in error_msg.lower():
+            logger.warning(f"Command timed out after {effective_timeout}s: {command[:100]}...")
             return ExecuteResponse(
                 output=f"Command timed out after {effective_timeout} seconds",
                 exit_code=-1,
                 truncated=False,
             )
+        # Surface the full captured output from SDK command exceptions so
+        # failures stay diagnosable. Previously only str(e) was used, which
+        # for preflight failures produced an empty "error: " in the logs
+        # (issue #195 diagnostics).
+        detail = error_msg
+        for attr in ("stderr", "stdout"):
+            val = getattr(e, attr, None)
+            if val:
+                detail = f"{detail} | {attr}: {val}" if detail else val
+        logger.error(f"Command failed: {detail}")
+        output = f"Command failed: {detail}"
+        if self._heal.exhausted:
+            output = f"{output}\n{UNAVAILABLE_GUIDANCE}"
+        return ExecuteResponse(
+            output=output,
+            exit_code=-1,
+            truncated=False,
+        )
 
     def grep(
         self,
@@ -231,7 +342,8 @@ class E2BBackend(BaseSandbox):
         Returns:
             ExecuteResponse（包含完整输出）
         """
-        effective_timeout = min(timeout or self._timeout, self._timeout)
+        effective_timeout = self._command_timeout(timeout)
+        self._maybe_extend_timeout()
         stdout_parts: list[str] = []
         stderr_parts: list[str] = []
 
@@ -254,7 +366,12 @@ class E2BBackend(BaseSandbox):
             }
             if self.env_vars:
                 kwargs["envs"] = self.env_vars
-            result = self._sandbox.commands.run(**kwargs)
+            result = self._sdk(
+                "commands.run",
+                lambda: self._run_command_with_keepalive(
+                    lambda: self._sandbox.commands.run(**kwargs), effective_timeout
+                ),
+            )
             output = "\n".join(stdout_parts)
             if stderr_parts:
                 output = (
@@ -301,7 +418,7 @@ class E2BBackend(BaseSandbox):
         """使用 E2B 原生 files.list() 列出目录"""
         path = self._resolve_path(path)
         try:
-            entries = self._sandbox.files.list(path=path)
+            entries = self._files_list(path)
             result: list[FileInfo] = []
             for entry in entries:
                 info: FileInfo = {"path": entry.path}
@@ -314,18 +431,6 @@ class E2BBackend(BaseSandbox):
         except Exception as e:
             logger.warning(f"E2B files.list({path}) failed: {e}, falling back to execute()")
             return BaseSandbox.ls(self, path)
-
-    async def als(self, path: str) -> LsResult:
-        return await run_blocking_io(self.ls, path)
-
-    # magic bytes → MIME
-    _MAGIC: list[tuple[bytes, str]] = [
-        (b"\x89PNG", "image/png"),
-        (b"\xff\xd8", "image/jpeg"),
-        (b"GIF8", "image/gif"),
-        (b"RIFFWEBP", "image/webp"),
-        (b"%PDF-", "application/pdf"),
-    ]
 
     @staticmethod
     def _guess_mime_type(path: str, data: bytes) -> str:
@@ -363,11 +468,11 @@ class E2BBackend(BaseSandbox):
                     )
                 )
             # 先尝试文本读取
-            content = self._sandbox.files.read(path=file_path, format="text")
+            content = self._files_read(file_path, "text")
 
             # 二进制检测：null bytes 或高比例不可打印字符
             if "\x00" in content:
-                raw = self._sandbox.files.read(path=file_path, format="bytes")
+                raw = self._files_read(file_path, "bytes")
                 return self._read_as_base64(bytes(raw))
 
             # 长文本且几乎全是 base64 字符 → 可能是裸 base64 的二进制文件
@@ -376,7 +481,7 @@ class E2BBackend(BaseSandbox):
                 sample = stripped[:4096]
                 non_text = sum(1 for c in sample if ord(c) < 32 and c not in "\t\n\r")
                 if non_text / len(sample) > 0.3:
-                    raw = self._sandbox.files.read(path=file_path, format="bytes")
+                    raw = self._files_read(file_path, "bytes")
                     return self._read_as_base64(bytes(raw))
 
             return slice_read_response(create_file_data(content), offset, limit)
@@ -389,7 +494,7 @@ class E2BBackend(BaseSandbox):
         file_path = self._resolve_path(file_path)
         try:
             self._ensure_parent_dir(file_path)
-            self._sandbox.files.write(path=file_path, data=content)
+            self._files_write(file_path, content)
             return WriteResult(path=file_path)
         except Exception as e:
             error_msg = str(e).lower()
@@ -486,7 +591,7 @@ class E2BBackend(BaseSandbox):
             if command_result is not None:
                 return command_result
 
-            entries = self._sandbox.files.list(path=search_path)
+            entries = self._files_list(search_path)
             result: list[FileInfo] = []
 
             visited: set[str] = set()
@@ -536,8 +641,7 @@ class E2BBackend(BaseSandbox):
             logger.warning(f"E2B glob({pattern}) failed: {e}, falling back to execute()")
             return BaseSandbox.glob(self, pattern, requested_path)
 
-    async def aglob(self, pattern: str, path: str | None = None) -> GlobResult:
-        return await run_blocking_io(self.glob, pattern, path)
+    # aglob 不覆写：BaseSandbox 默认走 aexecute（原生 async，自带超时约束）
 
     # =========================================================================
     # File upload / download (already native, no change needed to logic)
@@ -557,16 +661,13 @@ class E2BBackend(BaseSandbox):
                 continue
             try:
                 self._ensure_parent_dir(path)
-                self._sandbox.files.write(path=path, data=content)
+                self._files_write(path, content)
                 responses.append(FileUploadResponse(path=path, error=None))
             except Exception as e:
                 error_type = classify_upload_error(str(e))
                 logger.error(f"Failed to upload {path}: {e}")
                 responses.append(FileUploadResponse(path=path, error=error_type))
         return responses
-
-    async def aupload_files(self, files: list[tuple[str, bytes]]) -> list[FileUploadResponse]:
-        return await run_blocking_io(self.upload_files, files)
 
     def download_files(self, paths: list[str]) -> list[FileDownloadResponse]:
         if len(paths) > SANDBOX_BATCH_FILES_LIMIT:
@@ -591,7 +692,7 @@ class E2BBackend(BaseSandbox):
                         FileDownloadResponse(path=path, content=None, error="file_not_found")
                     )
                     continue
-                content = self._sandbox.files.read(path, format="bytes")
+                content = self._files_read(path, "bytes")
                 responses.append(
                     FileDownloadResponse(path=path, content=bytes(content), error=None)
                 )
@@ -621,9 +722,6 @@ class E2BBackend(BaseSandbox):
                 except (TypeError, ValueError):
                     return None
         return None
-
-    async def adownload_files(self, paths: list[str]) -> list[FileDownloadResponse]:
-        return await run_blocking_io(self.download_files, paths)
 
     # =========================================================================
     # Sandbox lifecycle helpers

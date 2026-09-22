@@ -11,7 +11,7 @@ from typing import TYPE_CHECKING, Annotated, Any
 
 from langchain_core.tools import BaseTool, InjectedToolArg
 
-from src.infra.async_utils import run_blocking_io
+from src.infra.async_utils import run_long_blocking_io
 from src.infra.envvar.storage import EnvVarStorage
 from src.infra.envvar.sync import sync_envvar_change
 from src.infra.tool.backend_utils import get_backend_from_runtime, get_user_id_from_runtime
@@ -33,7 +33,7 @@ _ENV_KEY_PATTERN = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
 
 
 async def _json_dumps_result(data: dict[str, Any]) -> str:
-    return await run_blocking_io(json.dumps, data, ensure_ascii=False, default=str)
+    return await run_long_blocking_io(json.dumps, data, ensure_ascii=False, default=str)
 
 
 def _get_user_id(runtime: ToolRuntime) -> str | None:
@@ -158,5 +158,9 @@ async def env_var_delete_all(
 
 
 def get_env_var_tools() -> list[BaseTool]:
-    """Return safe environment variable CRUD tools for the current user."""
-    return [env_var_list, env_var_set, env_var_delete]
+    """Return safe environment variable CRUD tools for the current user.
+
+    env_var_delete_all 随组返回但不在 internal_registry 的 inline 白名单，
+    自动落入 deferred 通道（经 search_tools 发现），与破坏性定位匹配。
+    """
+    return [env_var_list, env_var_set, env_var_delete, env_var_delete_all]

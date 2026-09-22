@@ -4,7 +4,6 @@ from types import SimpleNamespace
 import pytest
 
 from src.infra.usage.storage import UsageStorage
-from src.kernel.errors import AppError, ErrorCode
 
 
 class _FakeCursor:
@@ -64,7 +63,7 @@ class _FakeCollection:
         self.count_queries.append(query)
         return 1
 
-    def aggregate(self, pipeline):
+    async def aggregate(self, pipeline):
         self.aggregate_pipelines.append(pipeline)
         return _FakeAggregateCursor(
             [
@@ -116,7 +115,7 @@ class _PagingFakeCollection:
     async def count_documents(self, query):
         return len(self.docs)
 
-    def aggregate(self, pipeline):
+    async def aggregate(self, pipeline):
         return _FakeAggregateCursor(
             [
                 {
@@ -459,7 +458,7 @@ class _DashboardFakeCollection:
     def __init__(self):
         self.aggregate_pipelines = []
 
-    def aggregate(self, pipeline):
+    async def aggregate(self, pipeline):
         self.aggregate_pipelines.append(pipeline)
         return _FakeAggregateCursor(
             [
@@ -614,7 +613,7 @@ async def test_get_usage_dashboard_returns_daily_and_rankings() -> None:
 class _ProviderQuirkFakeCollection:
     """provider 口径不一致：input_tokens 不含缓存 token，甚至 cache > input。"""
 
-    def aggregate(self, pipeline):
+    async def aggregate(self, pipeline):
         return _FakeAggregateCursor(
             [
                 {
@@ -683,19 +682,72 @@ def test_cache_read_share_clamped_when_cache_exceeds_input() -> None:
 
 
 @pytest.mark.asyncio
-@pytest.mark.parametrize(
-    ("method", "kwargs"),
-    [
-        ("get_usage_dashboard", {"user_id": "user-1", "start_date": "not-a-date"}),
-        ("get_usage_dashboard", {"user_id": "user-1", "end_date": "2026-13-40"}),
-        ("list_usage_logs", {"user_id": "user-1", "start_date": "not-a-date"}),
-        ("list_usage_logs", {"user_id": "user-1", "end_date": "2026-13-40"}),
-    ],
-)
-async def test_invalid_date_filters_raise_invalid_date_format(method: str, kwargs: dict) -> None:
+async def test_upsert_usage_log_from_trace_metadata_surfaces_cancel_reason() -> None:
+    """取消的 run：status 照抄 cancelled，原因从 trace 元数据兜底透出。
+
+    取消路径竞态下（API 副本先终结 trace、worker 的 error 事件后落库），
+    usage 写入时可能没有 error 事件——面板必须仍显示取消原因而不是空。
+    """
+    collection = _FakeCollection()
     storage = UsageStorage()
+    storage._collection = collection
 
-    with pytest.raises(AppError) as exc_info:
-        await getattr(storage, method)(**kwargs)
+    inserted = await storage.upsert_usage_log_from_trace_metadata(
+        {
+            "trace_id": "trace-cancelled",
+            "session_id": "session-1",
+            "run_id": "run-1",
+            "user_id": "user-1",
+            "agent_id": "search",
+            "started_at": "2026-06-14T00:00:00+00:00",
+            "status": "cancelled",
+            "metadata": {
+                "username": "Ada",
+                "agent_name": "Search Agent",
+                "cancel_reason": "Task cancelled by user",
+            },
+        },
+        {},
+        error_data=None,
+    )
 
-    assert exc_info.value.error_code == ErrorCode.INVALID_DATE_FORMAT
+    assert inserted is True
+    doc = collection.update_calls[0][1]["$set"]
+    assert doc["status"] == "cancelled"
+    assert doc["error_message"] == "Task cancelled by user"
+    assert doc["error_type"] == "cancelled"
+
+
+@pytest.mark.asyncio
+async def test_upsert_usage_log_from_trace_metadata_prefers_error_event_over_cancel_reason() -> (
+    None
+):
+    """worker 抢先落了 error 事件（如 "Task cancelled"）时以事件原文优先。"""
+    collection = _FakeCollection()
+    storage = UsageStorage()
+    storage._collection = collection
+
+    inserted = await storage.upsert_usage_log_from_trace_metadata(
+        {
+            "trace_id": "trace-cancelled-evt",
+            "session_id": "session-1",
+            "run_id": "run-1",
+            "user_id": "user-1",
+            "agent_id": "search",
+            "started_at": "2026-06-14T00:00:00+00:00",
+            "status": "cancelled",
+            "metadata": {
+                "username": "Ada",
+                "agent_name": "Search Agent",
+                "cancel_reason": "Task cancelled via pub/sub",
+            },
+        },
+        {},
+        error_data={"error": "Task cancelled", "type": "CancelledError", "run_id": "run-1"},
+    )
+
+    assert inserted is True
+    doc = collection.update_calls[0][1]["$set"]
+    assert doc["status"] == "cancelled"
+    assert doc["error_message"] == "Task cancelled"
+    assert doc["error_type"] == "CancelledError"

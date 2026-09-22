@@ -30,7 +30,7 @@ from langgraph.checkpoint.base import (
     empty_checkpoint,
 )
 
-from src.infra.async_utils import run_blocking_io
+from src.infra.async_utils import run_long_blocking_io
 from src.infra.logging import get_logger
 from src.kernel.config import settings
 
@@ -50,7 +50,7 @@ _DISABLED_CHECKPOINT_BACKENDS = {"", "0", "false", "none", "off", "disabled"}
 
 # MongoDB Checkpointer 单例
 _mongo_checkpointer: Optional[BaseCheckpointSaver[Any]] = None
-# 独立同步 MongoClient（与业务 motor 池物理隔离）。checkpointer 持有它。
+# 独立同步 MongoClient（与业务 PyMongo Async 池物理隔离）。checkpointer 持有它。
 _mongo_checkpoint_client: Any = None
 
 # PostgreSQL Checkpointer 单例
@@ -164,9 +164,9 @@ def get_mongo_checkpointer(collection_name: str = "checkpoints") -> BaseCheckpoi
     获取 MongoDB checkpointer 单例
 
     使用一个**独立的同步 pymongo MongoClient**（独立 maxPoolSize/minPoolSize），
-    与业务请求的 motor 连接池物理隔离——checkpoint 写入不再抢占业务连接。
+    与业务请求的 PyMongo Async 连接池物理隔离——checkpoint 写入不再抢占业务连接。
 
-    连接串构造与超时/时区/认证参数与 motor 客户端保持一致（复用
+    连接串构造与超时/时区/认证参数与 AsyncMongoClient 保持一致（复用
     build_mongo_connection_string），仅池大小可独立配置。
 
     Args:
@@ -294,6 +294,10 @@ async def _create_pg_checkpointer() -> BaseCheckpointSaver[Any] | None:
                 "prepare_threshold": 0,
                 "row_factory": dict_row,
             },
+            # 借出前 liveness 检查（本机 ~0.1ms）：PG 重启/漂移后池内死连接
+            # 会被静默换掉，而不是把 "terminating connection" 抛给在途 run
+            # （2026-09-21 生产 PG 重启曾致 4 个 run 报错）。
+            check=AsyncConnectionPool.check_connection,
             open=False,
         )
         try:
@@ -368,14 +372,14 @@ async def get_async_checkpointer(thread_id: str | None = None) -> BaseCheckpoint
     backend = getattr(settings, "CHECKPOINT_BACKEND", "mongodb")
 
     if backend == "postgres":
-        logger.info("Using PostgreSQL checkpointer")
+        logger.debug("Using PostgreSQL checkpointer")
         checkpointer = await get_pg_checkpointer()
         if checkpointer is not None:
             return checkpointer
         logger.warning("PostgreSQL checkpointer unavailable, falling back")
 
     # MongoDB (default)
-    logger.info("Using MongoDB checkpointer")
+    logger.debug("Using MongoDB checkpointer")
     checkpointer = get_mongo_checkpointer()
     if checkpointer is None:
         logger.warning("MongoDB checkpointer unavailable, falling back")
@@ -528,7 +532,7 @@ async def clone_checkpoints_for_fork(
             "checkpoint_ns": cfg.get("checkpoint_ns", ""),
         }
     }
-    checkpoint, metadata, channel_versions = await run_blocking_io(
+    checkpoint, metadata, channel_versions = await run_long_blocking_io(
         _copy_checkpoint_put_payload,
         boundary_tuple,
     )
@@ -551,7 +555,7 @@ async def seed_checkpoint_from_messages(
 
     target_saver = await get_async_checkpointer(thread_id=target_thread_id)
     checkpoint = empty_checkpoint()
-    copied_messages = await run_blocking_io(copy.deepcopy, messages)
+    copied_messages = await run_long_blocking_io(copy.deepcopy, messages)
     checkpoint["channel_values"] = {"messages": copied_messages}
     checkpoint["channel_versions"] = {"messages": "1"}
     checkpoint["versions_seen"] = {}
@@ -579,7 +583,7 @@ async def delete_checkpoints_for_thread(thread_id: str) -> None:
 
     sync_delete = getattr(saver, "delete_thread", None)
     if callable(sync_delete):
-        result = await run_blocking_io(sync_delete, thread_id)
+        result = await run_long_blocking_io(sync_delete, thread_id)
         if inspect.isawaitable(result):
             await result
         return
@@ -589,6 +593,10 @@ async def delete_checkpoints_for_thread(thread_id: str) -> None:
 
 def build_messages_from_trace_events(traces: list[dict]) -> list[object]:
     """Build a minimal chat message list from persisted trace events."""
+    # Lazy import avoids checkpoint → memory → session → checkpoint import
+    # recursion during application startup.
+    from src.infra.memory.control_frames import escape_control_frame_tags
+
     messages: list[object] = []
     for trace in traces:
         assistant_chunks: list[str] = []
@@ -598,7 +606,7 @@ def build_messages_from_trace_events(traces: list[dict]) -> list[object]:
             if event_type == "user:message":
                 content = str(data.get("content") or data.get("message") or "")
                 if content:
-                    messages.append(HumanMessage(content=content))
+                    messages.append(HumanMessage(content=escape_control_frame_tags(content)))
             elif event_type == "message:chunk":
                 content = str(data.get("content") or "")
                 if content:

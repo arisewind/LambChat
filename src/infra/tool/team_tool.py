@@ -8,7 +8,7 @@ from typing import TYPE_CHECKING, Annotated, Any
 
 from langchain_core.tools import BaseTool, InjectedToolArg
 
-from src.infra.async_utils import run_blocking_io
+from src.infra.async_utils import run_long_blocking_io
 from src.infra.persona_preset.manager import PersonaPresetManager
 from src.infra.role.storage import RoleStorage
 from src.infra.team.manager import TeamManager
@@ -32,7 +32,7 @@ from langchain.tools import tool  # noqa: E402
 
 
 async def _json_dumps_result(data: dict[str, Any]) -> str:
-    return await run_blocking_io(json.dumps, data, ensure_ascii=False, default=str)
+    return await run_long_blocking_io(json.dumps, data, ensure_ascii=False, default=str)
 
 
 async def _resolve_user(user_id: str) -> TokenPayload | None:
@@ -162,12 +162,12 @@ async def create_agent_team(
     ],
     members: Annotated[
         list[dict[str, Any]],
-        "Members from search_persona_presets/save_persona_preset. Each needs "
-        "persona_preset_id and role_name; optional agent_id (do not use 'team'), model_id, "
-        "role_avatar (emoji or avatar image URL), role_instructions, member_id, position, "
-        "enabled. Do not invent persona_preset_id values. Never use placeholder ids such "
-        "as 'general-purpose'. Use 2-5 members for complex work or 1 member for a narrow "
-        "task; include role_instructions and role_avatar.",
+        "Members from search_persona_presets/save_persona_preset; each needs "
+        "persona_preset_id and role_name. Optional: agent_id (not 'team'), "
+        "model_id, role_avatar, role_instructions, member_id, position, enabled. "
+        "Never invent persona_preset_id or use placeholders like "
+        "'general-purpose'. Use 2-5 members for complex work or 1 member for a "
+        "narrow task; include role_instructions and role_avatar.",
     ],
     team_id: Annotated[
         str | None,

@@ -11,6 +11,7 @@ from typing import Any, Callable, Dict, List, Optional
 
 from src.agents.core import resolve_agent_name
 from src.infra.logging import get_logger
+from src.infra.sandbox.idle_pause import IDLE_PAUSE_TRIGGER_STATUSES, schedule_idle_pause
 from src.infra.session.dual_writer import get_dual_writer
 from src.infra.session.favorites import is_session_favorite
 from src.infra.session.storage import SessionStorage
@@ -422,7 +423,8 @@ class TaskExecutor:
             except Exception:
                 pass
         if presenter is not None:
-            await presenter.complete("error")
+            # 用户取消是独立终态，不能写成 error（用量面板按 trace status 展示）
+            await presenter.complete("cancelled")
         logger.warning(f"Task cancelled: session={session_id}, run_id={run_id}")
         # 发送任务取消通知
         await self._send_task_notification(
@@ -550,7 +552,8 @@ class TaskExecutor:
             except Exception:
                 pass
         if presenter is not None:
-            await presenter.complete("error")
+            # TaskInterruptedError 即用户取消路径，同样以 cancelled 终结
+            await presenter.complete("cancelled")
         logger.info(f"Task interrupted: session={session_id}, run_id={run_id}")
         # 发送任务中断通知
         await self._send_task_notification(
@@ -800,6 +803,11 @@ class TaskExecutor:
                 SessionUpdate(metadata=metadata),
             )
 
+            # 对话轮终态后安排沙箱空闲暂停检查（省成本）；fire-and-forget，
+            # 任何失败只记日志，绝不影响状态更新主流程。
+            if status.value in IDLE_PAUSE_TRIGGER_STATUSES:
+                self._schedule_idle_pause_check(session_id)
+
             # Send real-time task status update to sidebar
             try:
                 uid = getattr(self, "_user_id", None)
@@ -821,6 +829,30 @@ class TaskExecutor:
                 logger.debug("Failed to send task status WebSocket notification")
         except Exception as e:
             logger.warning(f"Failed to update session status: {e}")
+
+    def _schedule_idle_pause_check(self, session_id: str) -> None:
+        """终态后解析 user 并调度空闲暂停检查（含宽限期）。
+
+        user 优先取本 run 上下文的 _user_id（恢复/清扫等旁路调用没有时，
+        回退查 session 归属）；解析失败静默放弃，空闲超时兜底。
+        """
+
+        async def _resolve_and_schedule() -> None:
+            user_id = getattr(self, "_user_id", None)
+            if not user_id:
+                try:
+                    session = await self._storage.get_by_session_id(session_id)
+                except Exception:
+                    return
+                user_id = getattr(session, "user_id", None)
+            if user_id:
+                schedule_idle_pause(str(user_id))
+
+        try:
+            task = asyncio.create_task(_resolve_and_schedule())
+            task.add_done_callback(lambda t: t.exception() if not t.cancelled() else None)
+        except RuntimeError:
+            logger.debug("No running loop for idle pause check: session=%s", session_id)
 
     async def _is_stale_run_status_update(
         self,

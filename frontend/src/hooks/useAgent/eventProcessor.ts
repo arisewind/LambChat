@@ -89,6 +89,12 @@ export interface ProcessMessageEventResult {
   cancelled?: boolean;
 }
 
+/** 用户取消的 SSE error 事件类型：executor 侧写 CancelledError，
+ * chat_stream_terminal 重连合成 task_cancelled——两者同属取消，不是失败。 */
+export function isCancelledErrorType(type: unknown): boolean {
+  return type === "CancelledError" || type === "task_cancelled";
+}
+
 /**
  * Unified message event processor.
  */
@@ -452,7 +458,7 @@ export function processMessageEvent(
           messageId,
         );
       } else {
-        result.parts = [...parts, artifactPart];
+        result.parts = upsertArtifactPart(parts, artifactPart);
       }
       break;
     }
@@ -641,8 +647,14 @@ export function processMessageEvent(
         result.parts = parts;
         break;
       }
-      const isCancelled = data.type === "CancelledError";
-      result.parts = isStreaming ? clearAllLoadingStates(parts) : parts;
+      const isCancelled = isCancelledErrorType(data.type);
+      let nextParts = isStreaming ? clearAllLoadingStates(parts) : parts;
+      if (isCancelled) {
+        // 重连合成路径只有 error 事件、没有 user:cancel，胶囊在这里补
+        // （appendCancelledPart 自带去重，正常执行器路径不会重复追加）
+        nextParts = appendCancelledPart(nextParts);
+      }
+      result.parts = nextParts;
       result.cancelled = isCancelled;
       if (!isCancelled) {
         result.content = i18n.t("chat.errorPrefix", { error: errorMsg });
@@ -652,6 +664,14 @@ export function processMessageEvent(
   }
 
   return result;
+}
+
+/** 追加「已中断」胶囊（存在则原样返回）——用户取消与普通失败的可视区分。 */
+export function appendCancelledPart(parts: MessagePart[]): MessagePart[] {
+  if (parts.some((part) => part.type === "cancelled")) {
+    return parts;
+  }
+  return [...parts, { type: "cancelled" }];
 }
 
 function hasToolCallId(parts: MessagePart[], toolCallId: string): boolean {
@@ -716,6 +736,30 @@ function isTransientAskHumanCancellation(text: string): boolean {
 /** Replace existing sandbox part or append if none exists.
  *  Preserves `startedAt` from the previous part so the original
  *  starting timestamp survives across status transitions. */
+/** Stable identity for an artifact part: the source path (workspace path or
+ *  remote URL) survives re-uploads, unlike id/previewKey which change with
+ *  every storage key. */
+function artifactStableKey(artifact: ArtifactPartArtifact): string {
+  if ("path" in artifact && artifact.path) return artifact.path;
+  return artifact.preview?.previewKey ?? artifact.id ?? "";
+}
+
+/** Upsert an artifact part by stable key: the same file re-delivered within
+ *  one message (edit race, re-reveal) replaces its card instead of stacking
+ *  duplicates. Different paths append normally. */
+function upsertArtifactPart(parts: MessagePart[], artifactPart: MessagePart): MessagePart[] {
+  if (artifactPart.type !== "artifact") return [...parts, artifactPart];
+  const stableKey = artifactStableKey(artifactPart.artifact);
+  if (!stableKey) return [...parts, artifactPart];
+  const existingIndex = parts.findIndex(
+    (p) => p.type === "artifact" && artifactStableKey(p.artifact) === stableKey,
+  );
+  if (existingIndex === -1) return [...parts, artifactPart];
+  const next = [...parts];
+  next[existingIndex] = artifactPart;
+  return next;
+}
+
 /** Replace existing memory-status part or append if none exists. */
 function upsertMemoryStatusPart(
   parts: MessagePart[],

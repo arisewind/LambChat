@@ -22,6 +22,7 @@ from src.infra.session.search_index import (
     build_search_query_terms,
     compose_session_search_index,
     merge_search_state,
+    session_list_projection,
 )
 from src.infra.session.session_attachment_operations import (
     SessionAttachmentOperationsMixin,
@@ -32,6 +33,36 @@ from src.kernel.schemas.session import Session, SessionCreate, SessionUpdate
 
 SESSION_BATCH_LOOKUP_LIMIT = 100
 SESSION_LIST_LOOKUP_LIMIT = 100
+
+
+# 会话集合索引清单（单一定义点）：(keys, name, 额外 kwargs)
+_SESSION_INDEX_SPEC: list[tuple[list[tuple[str, int]], str, dict[str, Any]]] = [
+    # 列表排序 (is_pinned desc, updated_at desc)：等值前缀 + 排序后缀，避免大列表内存排序
+    (
+        [("user_id", 1), ("is_active", 1), ("metadata.is_pinned", -1), ("updated_at", -1)],
+        "user_status_pinned_updated_idx",
+        {},
+    ),
+    ([("user_id", 1), ("is_active", 1), ("updated_at", -1)], "user_status_updated_idx", {}),
+    (
+        [("user_id", 1), ("metadata.project_id", 1), ("updated_at", -1)],
+        "user_project_updated_idx",
+        {},
+    ),
+    ([("session_id", 1)], "session_id_idx", {"sparse": True}),
+    (
+        [("user_id", 1), ("search_terms", 1), ("updated_at", -1)],
+        "user_search_terms_updated_idx",
+        {},
+    ),
+    ([("search_index_version", 1), ("updated_at", -1)], "search_index_version_updated_idx", {}),
+    ([("search_index_updated_at", 1)], "search_index_updated_at_idx", {"sparse": True}),
+    (
+        [("metadata.scheduled_task_id", 1), ("updated_at", -1)],
+        "scheduled_task_sessions_idx",
+        {"sparse": True},
+    ),
+]
 
 
 class SessionStorage(SessionAttachmentOperationsMixin):
@@ -91,44 +122,9 @@ class SessionStorage(SessionAttachmentOperationsMixin):
     async def _ensure_indexes(self) -> bool:
         try:
             collection = self.collection
-            await collection.create_index(
-                [("user_id", 1), ("is_active", 1), ("updated_at", -1)],
-                name="user_status_updated_idx",
-                background=True,
-            )
-            await collection.create_index(
-                [("user_id", 1), ("metadata.project_id", 1), ("updated_at", -1)],
-                name="user_project_updated_idx",
-                background=True,
-            )
-            await collection.create_index(
-                [("session_id", 1)],
-                name="session_id_idx",
-                background=True,
-                sparse=True,
-            )
-            await collection.create_index(
-                [("user_id", 1), ("search_terms", 1), ("updated_at", -1)],
-                name="user_search_terms_updated_idx",
-                background=True,
-            )
-            await collection.create_index(
-                [("search_index_version", 1), ("updated_at", -1)],
-                name="search_index_version_updated_idx",
-                background=True,
-            )
-            await collection.create_index(
-                [("search_index_updated_at", 1)],
-                name="search_index_updated_at_idx",
-                background=True,
-                sparse=True,
-            )
-            await collection.create_index(
-                [("metadata.scheduled_task_id", 1), ("updated_at", -1)],
-                name="scheduled_task_sessions_idx",
-                background=True,
-                sparse=True,
-            )
+
+            for keys, name, extra in _SESSION_INDEX_SPEC:
+                await collection.create_index(keys, name=name, background=True, **extra)
             return True
         except Exception:
             # Search index creation is best-effort and should not block the app.
@@ -434,7 +430,12 @@ class SessionStorage(SessionAttachmentOperationsMixin):
                 query["$or"] = favorite_query
 
         cursor = (
-            self.collection.find(query)
+            self.collection.find(
+                query,
+                # 搜索索引/预览字段可达数十 KB/会话且 Session 模型不声明,
+                # 列表读取一律投影掉;搜索路径保留 search_text 生成命中预览
+                session_list_projection(keep_search_text=bool(search)),
+            )
             .skip(skip)
             .limit(limit)
             .sort([("metadata.is_pinned", -1), ("updated_at", -1)])
@@ -485,7 +486,12 @@ class SessionStorage(SessionAttachmentOperationsMixin):
             "metadata.scheduled_task_id": scheduled_task_id,
         }
         total = await self.collection.count_documents(query)
-        cursor = self.collection.find(query).skip(skip).limit(limit).sort("updated_at", -1)
+        cursor = (
+            self.collection.find(query, session_list_projection())
+            .skip(skip)
+            .limit(limit)
+            .sort("updated_at", -1)
+        )
         sessions = []
         for session_dict in await cursor.to_list(length=limit):
             session = self._build_session(session_dict)
@@ -519,7 +525,7 @@ class SessionStorage(SessionAttachmentOperationsMixin):
         ]
 
         counts: dict[str, int] = {}
-        async for item in self.collection.aggregate(pipeline):
+        async for item in await self.collection.aggregate(pipeline):
             task_id = item.get("_id")
             if isinstance(task_id, str):
                 counts[task_id] = int(item.get("unread_count") or 0)
@@ -531,7 +537,6 @@ class SessionStorage(SessionAttachmentOperationsMixin):
 
     async def clear_project_id(self, project_id: str, user_id: str) -> int:
         """Clear project_id for all sessions in a project (when project is deleted).
-
         Args:
             project_id: The project ID to clear
             user_id: The user ID to filter sessions
@@ -544,6 +549,10 @@ class SessionStorage(SessionAttachmentOperationsMixin):
             {"user_id": user_id, "metadata.project_id": project_id},
             {"$set": {"metadata.project_id": None, "updated_at": utc_now()}},
         )
+        if result.modified_count:
+            from src.infra.session.memory_scope import invalidate_memory_scope_caches
+
+            invalidate_memory_scope_caches(user_id=user_id, all_sessions=True)
         return result.modified_count
 
     async def increment_unread_count(self, session_id: str) -> bool:
@@ -673,6 +682,11 @@ class SessionStorage(SessionAttachmentOperationsMixin):
         if not result:
             return None
 
+        from src.infra.session.memory_scope import invalidate_memory_scope_caches
+
+        invalidate_memory_scope_caches(
+            user_id=user_id, session_id=str(result.get("session_id") or session_id)
+        )
         return self._build_session(result)
 
     async def append_user_message_search_content(self, session_id: str, content: str) -> bool:

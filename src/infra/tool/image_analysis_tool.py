@@ -21,13 +21,14 @@ from src.agents.core.node_utils import (
     get_image_download_max_bytes,
     inline_image_attachments_as_data_urls,
 )
-from src.infra.async_utils import run_blocking_io
+from src.infra.agent.middleware.image_url import _append_proxy_direct_param
+from src.infra.async_utils import run_long_blocking_io
 from src.infra.image_utils import compress_image_bytes_if_needed
 from src.infra.llm.client import LLMClient
 from src.infra.logging import get_logger
 from src.infra.tool.backend_utils import get_backend_from_runtime, get_base_url_from_runtime
 from src.kernel.config import settings
-from src.kernel.schemas.model import ModelConfig
+from src.kernel.schemas.model import ModelConfig, effective_image_url_mode
 
 try:
     from langchain.tools import ToolRuntime  # type: ignore[assignment]
@@ -102,7 +103,7 @@ def _validate_attachment_data_urls(attachments: list[dict[str, Any]]) -> None:
 
 
 async def _json_dumps_result(data: dict[str, Any]) -> str:
-    return await run_blocking_io(json.dumps, data, ensure_ascii=False)
+    return await run_long_blocking_io(json.dumps, data, ensure_ascii=False)
 
 
 async def _resolve_model_config(reference: str) -> ModelConfig | None:
@@ -191,7 +192,7 @@ async def _download_file_from_backend(backend: Any, file_path: str) -> bytes | N
 
     if hasattr(backend, "download_files"):
         try:
-            responses = await run_blocking_io(backend.download_files, [file_path])
+            responses = await run_long_blocking_io(backend.download_files, [file_path])
             if responses:
                 resp = responses[0]
                 if resp.content:
@@ -244,12 +245,12 @@ async def _inline_backend_image_paths(
             resolved.append(attachment)
             continue
 
-        compressed_content, compressed_mime_type = await run_blocking_io(
+        compressed_content, compressed_mime_type = await run_long_blocking_io(
             compress_image_bytes_if_needed,
             content,
             mime_type,
         )
-        encoded = await run_blocking_io(base64.b64encode, compressed_content)
+        encoded = await run_long_blocking_io(base64.b64encode, compressed_content)
         data_url = f"data:{compressed_mime_type};base64,{encoded.decode('ascii')}"
         resolved.append(
             {
@@ -320,7 +321,8 @@ async def image_analyze(
     ] = DEFAULT_IMAGE_ANALYSIS_PROMPT,
     runtime: Annotated[ToolRuntime | None, InjectedToolArg] = None,
 ) -> str:
-    """Analyze one or more images with the configured vision-language model."""
+    """Analyze one or more images with the configured vision-language model.
+    Returns JSON {success, analysis, model_id}."""
     try:
         model_reference = str(getattr(settings, "IMAGE_ANALYSIS_MODEL_ID", "") or "").strip()
         if not model_reference:
@@ -341,12 +343,19 @@ async def image_analyze(
             return await _json_dumps_result({"error": "image_urls must include at least one image"})
 
         attachments = await _inline_backend_image_paths(attachments, runtime)
-        force_data_url = bool(model_config.profile.image_url_to_base64)
+        # 本工具直连 LLM,不经 agent 中间件链:base64 模式只能在此临场内联;
+        # proxy_direct 模式给 URL 加直出参数,不增加请求体体积。
+        image_url_mode = effective_image_url_mode(model_config.profile)
         attachments = await inline_image_attachments_as_data_urls(
             attachments,
             base_url=get_base_url_from_runtime(runtime),
-            force_data_url=force_data_url,
+            force_data_url=image_url_mode == "base64",
         )
+        if image_url_mode == "proxy_direct":
+            attachments = [
+                ({**att, "url": _append_proxy_direct_param(att["url"])} if att.get("url") else att)
+                for att in attachments
+            ]
         try:
             _validate_attachment_data_urls(attachments)
         except ValueError:

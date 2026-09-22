@@ -17,11 +17,10 @@ def test_reveal_project_tool_description_mentions_folder_reveal() -> None:
         "description"
     ]
 
-    assert "文件夹" in description
-    assert "非前端" in description
     assert "folder" in description
+    assert "folder tree" in description
     assert "index.html 或 package.json" not in project_path_description
-    assert "文件夹" in project_path_description
+    assert "folder" in project_path_description
 
 
 def test_subagent_workflow_allows_folder_reveal() -> None:
@@ -168,12 +167,12 @@ async def test_reveal_project_backend_unavailable_offloads_result_json(
     async def _get_storage():
         return _FakeStorage()
 
-    async def fake_run_blocking_io(func, *args, **kwargs):
+    async def fake_run_long_blocking_io(func, *args, **kwargs):
         calls.append(func)
         return func(*args, **kwargs)
 
     monkeypatch.setattr(reveal_project_tool, "_get_storage", _get_storage)
-    monkeypatch.setattr(reveal_project_tool, "run_blocking_io", fake_run_blocking_io)
+    monkeypatch.setattr(reveal_project_tool, "run_long_blocking_io", fake_run_long_blocking_io)
 
     result = json.loads(
         await reveal_project_tool.reveal_project.coroutine(
@@ -260,7 +259,7 @@ async def test_reveal_project_offloads_final_manifest_json(
     _install_common_patches(monkeypatch, files=files, contents=contents)
     calls: list[object] = []
 
-    async def fake_run_blocking_io(func, *args, **kwargs):
+    async def fake_run_long_blocking_io(func, *args, **kwargs):
         calls.append(func)
         return func(*args, **kwargs)
 
@@ -281,7 +280,7 @@ async def test_reveal_project_offloads_final_manifest_json(
             )
         ]
 
-    monkeypatch.setattr(reveal_project_tool, "run_blocking_io", fake_run_blocking_io)
+    monkeypatch.setattr(reveal_project_tool, "run_long_blocking_io", fake_run_long_blocking_io)
     monkeypatch.setattr(
         reveal_project_tool,
         "_upload_project_files_bounded",
@@ -575,7 +574,7 @@ async def test_reveal_project_offloads_template_detection(
             ),
         ]
 
-    async def fake_run_blocking_io(func, *args, **kwargs):
+    async def fake_run_long_blocking_io(func, *args, **kwargs):
         calls.append(func)
         return func(*args, **kwargs)
 
@@ -595,7 +594,7 @@ async def test_reveal_project_offloads_template_detection(
         "get_revealed_file_storage",
         lambda: _FakeRevealedFileStorage(),
     )
-    monkeypatch.setattr(reveal_project_tool, "run_blocking_io", fake_run_blocking_io)
+    monkeypatch.setattr(reveal_project_tool, "run_long_blocking_io", fake_run_long_blocking_io)
 
     result = json.loads(
         await reveal_project_tool.reveal_project.coroutine(
@@ -650,7 +649,7 @@ async def test_upload_file_releases_download_buffer_before_upload_await(
     monkeypatch.setattr(reveal_project_tool, "_download_file_from_backend", _wrapped_download)
     monkeypatch.setattr(reveal_project_tool, "SpooledTemporaryFile", _BlockingOnlySpooledFile)
 
-    async def fake_run_blocking_io(func, *args, **kwargs):
+    async def fake_run_long_blocking_io(func, *args, **kwargs):
         blocking_calls.append(func.__name__)
         monkeypatch.setattr(reveal_project_tool, "_inside_fake_blocking_io", True, raising=False)
         try:
@@ -660,7 +659,7 @@ async def test_upload_file_releases_download_buffer_before_upload_await(
                 reveal_project_tool, "_inside_fake_blocking_io", False, raising=False
             )
 
-    monkeypatch.setattr(reveal_project_tool, "run_blocking_io", fake_run_blocking_io)
+    monkeypatch.setattr(reveal_project_tool, "run_long_blocking_io", fake_run_long_blocking_io)
     monkeypatch.setattr(reveal_project_tool, "_inside_fake_blocking_io", False, raising=False)
 
     result = await reveal_project_tool._upload_file(

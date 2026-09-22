@@ -15,13 +15,14 @@ from langchain_core.runnables import RunnableConfig
 
 from src.agents.core.base import get_presenter
 from src.agents.core.node_utils import (
+    append_memory_recall_middleware,
     build_human_message,
     build_nested_graph_configurable,
     emit_token_usage,
     inline_image_attachments_as_data_urls,
     isolated_nested_graph_run,
     resolve_fallback_model,
-    resolve_model_image_url_to_base64,
+    resolve_model_image_url_mode,
     resolve_model_supports_vision,
     resolve_run_usage_carry,
 )
@@ -41,6 +42,7 @@ from src.agents.core.subagent_prompts import (
     get_memory_guide,
 )
 from src.agents.core.thinking import build_thinking_config
+from src.agents.core.todo_middleware import create_todo_middleware
 from src.agents.fast_agent.prompt import FAST_SYSTEM_PROMPT
 from src.agents.search_agent.prompt import (
     DEFAULT_SYSTEM_PROMPT as SEARCH_DEFAULT_SYSTEM_PROMPT,
@@ -63,7 +65,6 @@ from src.infra.agent import AgentEventProcessor
 from src.infra.agent.middleware import (
     ArtifactDeliveryMiddleware,
     EnvVarPromptMiddleware,
-    ImageUrlToBase64Middleware,
     MainAgentContextMiddleware,
     MemoryRecallIndexMiddleware,
     SectionPromptMiddleware,
@@ -73,6 +74,7 @@ from src.infra.agent.middleware import (
     ToolResultBinaryMiddleware,
     create_code_interpreter_middleware,
     create_retry_middleware,
+    image_url_middleware_for_mode,
     summarization_fallback_patch,
 )
 from src.infra.backend import (
@@ -89,7 +91,7 @@ from src.infra.sandbox.session_manager import get_session_sandbox_manager
 from src.infra.storage.checkpoint import get_async_checkpointer
 from src.infra.storage.mongodb_store import acreate_store
 from src.kernel.config import settings
-from src.kernel.schemas.model import ModelConfig
+from src.kernel.schemas.model import ModelConfig, effective_image_url_mode
 
 logger = get_logger(__name__)
 
@@ -315,7 +317,7 @@ async def team_router_node(state: Dict[str, Any], config: RunnableConfig) -> Dic
         [] if team else build_persona_prompt_sections(configurable.get("persona_system_prompt"))
     )
 
-    async def _load_model_bundle() -> tuple[Any, Any, bool, bool]:
+    async def _load_model_bundle() -> tuple[Any, Any, bool, str]:
         llm_start = time.time()
         model = await LLMClient.get_model(
             model=selected_model,
@@ -334,12 +336,12 @@ async def team_router_node(state: Dict[str, Any], config: RunnableConfig) -> Dic
             vision = await resolve_model_supports_vision(
                 model_id, selected_model, log_prefix="[TeamAgent]"
             )
-        convert_images = agent_options.get("_resolved_image_url_to_base64")
-        if convert_images is None:
-            convert_images = await resolve_model_image_url_to_base64(
+        image_url_mode = agent_options.get("_resolved_image_url_mode")
+        if image_url_mode is None:
+            image_url_mode = await resolve_model_image_url_mode(
                 model_id, selected_model, log_prefix="[TeamAgent]"
             )
-        return model, fallback, bool(vision), bool(convert_images)
+        return model, fallback, bool(vision), image_url_mode
 
     async def _load_backend_bundle() -> tuple[Any, Any, Any, str | None]:
         backend_start = time.time()
@@ -418,7 +420,7 @@ async def team_router_node(state: Dict[str, Any], config: RunnableConfig) -> Dic
         tools=_load_context_tools(),
         checkpointer=get_async_checkpointer(thread_id=state.get("session_id")),
     )
-    llm, fallback_model_value, supports_vision, image_url_to_base64 = prepared.model
+    llm, fallback_model_value, supports_vision, image_url_mode = prepared.model
     backend, store, sandbox_backend, sandbox_work_dir = prepared.backend
     filtered_tool_list = prepared.tools
     inner_checkpointer = prepared.checkpointer
@@ -505,22 +507,26 @@ async def team_router_node(state: Dict[str, Any], config: RunnableConfig) -> Dic
 
     # ── 子代理配置 ──
     subagent_base_url = configurable.get("base_url", "")
+    session_id = state.get("session_id")
+    active_goal = configurable.get("active_goal")
 
     def _build_subagent_middleware(
         subagent_type: str = "general-purpose",
         prompt_sections: list[str] | None = None,
         fallback_model: str | None = fallback_model_value,
-        should_convert_image_url_to_base64: bool = image_url_to_base64,
+        member_image_url_mode: str = image_url_mode,
     ) -> list:
         """Build the middleware stack for a single subagent."""
         mw = [
             *create_retry_middleware(fallback_model=fallback_model, thinking=thinking_config),
+            create_todo_middleware(),
             ToolResultBinaryMiddleware(base_url=subagent_base_url),
             ArtifactDeliveryMiddleware(workspace_path=sandbox_work_dir),
             SubagentActivityMiddleware(backend=backend),
         ]
-        if should_convert_image_url_to_base64:
-            mw.append(ImageUrlToBase64Middleware())
+        _image_mw = image_url_middleware_for_mode(member_image_url_mode)
+        if _image_mw:
+            mw.append(_image_mw)
         if prompt_sections:
             mw.append(SectionPromptMiddleware(sections=prompt_sections))
         if sandbox_backend:
@@ -529,6 +535,9 @@ async def team_router_node(state: Dict[str, Any], config: RunnableConfig) -> Dic
                 from src.infra.agent.middleware import SandboxWorkspaceMiddleware
 
                 mw.append(SandboxWorkspaceMiddleware(policy_text=subagent_runtime_section))
+        append_memory_recall_middleware(
+            mw, settings.ENABLE_MEMORY, context.user_id, session_id, active_goal
+        )
         if context.deferred_manager is not None:
             from src.infra.agent.middleware import ToolSearchMiddleware
 
@@ -572,7 +581,7 @@ async def team_router_node(state: Dict[str, Any], config: RunnableConfig) -> Dic
                 )
                 member_model = None
                 member_fallback_model = fallback_model_value
-                member_image_url_to_base64 = image_url_to_base64
+                member_image_url_mode = image_url_mode
                 if member_model_config is not None:
                     member_model = await LLMClient.get_model(
                         model=member_model_config.value,
@@ -585,11 +594,7 @@ async def team_router_node(state: Dict[str, Any], config: RunnableConfig) -> Dic
                         member_model_config.value,
                         log_prefix=f"[TeamAgent:{subagent_type}]",
                     )
-                    member_image_url_to_base64 = bool(
-                        getattr(member_model_config.profile, "image_url_to_base64", False)
-                        if member_model_config.profile
-                        else False
-                    )
+                    member_image_url_mode = effective_image_url_mode(member_model_config.profile)
                     logger.info(
                         "[TeamAgent] Role subagent model override: type=%s role=%s model_id=%s model=%s",
                         subagent_type,
@@ -650,7 +655,7 @@ async def team_router_node(state: Dict[str, Any], config: RunnableConfig) -> Dic
                         subagent_type,
                         prompt_sections=role_prompt_sections,
                         fallback_model=member_fallback_model,
-                        should_convert_image_url_to_base64=member_image_url_to_base64,
+                        member_image_url_mode=member_image_url_mode,
                     ),
                 }
                 if filtered_tools is not None:
@@ -753,14 +758,15 @@ async def team_router_node(state: Dict[str, Any], config: RunnableConfig) -> Dic
     user_middleware = create_retry_middleware(
         fallback_model=fallback_model_value, thinking=thinking_config
     )
+    user_middleware.append(create_todo_middleware())
     user_middleware.insert(
         0, SteerMiddleware(session_id=str(state.get("session_id") or ""), presenter=presenter)
     )
     user_middleware.append(ToolResultBinaryMiddleware(base_url=subagent_base_url))
     user_middleware.append(ArtifactDeliveryMiddleware(workspace_path=sandbox_work_dir))
-    if image_url_to_base64:
-        user_middleware.append(ImageUrlToBase64Middleware())
-    active_goal = configurable.get("active_goal")
+    _image_mw = image_url_middleware_for_mode(image_url_mode)
+    if _image_mw:
+        user_middleware.append(_image_mw)
     _prompt_sections = [
         s
         for s in (
@@ -778,6 +784,7 @@ async def team_router_node(state: Dict[str, Any], config: RunnableConfig) -> Dic
             MemoryRecallIndexMiddleware(
                 user_id=context.user_id,
                 session_id=str(state.get("session_id") or "") or None,
+                active_goal=active_goal,
             )
         )
     if sandbox_backend:
@@ -869,7 +876,6 @@ async def team_router_node(state: Dict[str, Any], config: RunnableConfig) -> Dic
             attachments = await inline_image_attachments_as_data_urls(
                 attachments,
                 base_url=configurable.get("base_url", ""),
-                force_data_url=image_url_to_base64,
             )
         new_message = build_human_message(user_input, attachments, supports_vision=supports_vision)
         graph_input = build_goal_input(
@@ -961,7 +967,6 @@ async def team_router_node(state: Dict[str, Any], config: RunnableConfig) -> Dic
 
         schedule_memory_extraction(context.user_id)
 
-    session_id = state.get("session_id")
     if (
         context.deferred_manager is not None
         and session_id

@@ -11,7 +11,7 @@ import ipaddress
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 from tempfile import SpooledTemporaryFile
-from typing import Any
+from typing import Any, Literal
 from urllib.parse import quote, unquote, urlsplit
 
 from langchain_core.messages import HumanMessage
@@ -19,14 +19,36 @@ from langchain_core.runnables.config import var_child_runnable_config
 from langgraph.constants import CONFIG_KEY_CHECKPOINTER
 
 from src.infra.agent import AgentEventProcessor
-from src.infra.async_utils import run_blocking_io
+from src.infra.async_utils import run_long_blocking_io
 from src.infra.image_utils import compress_image_bytes_if_needed
 from src.infra.logging import get_logger
+from src.infra.memory.control_frames import escape_control_frame_tags
 
 logger = get_logger(__name__)
 DEFAULT_IMAGE_DOWNLOAD_MAX_BYTES = 25 * 1024 * 1024
 IMAGE_DATA_URL_SPOOL_MAX_MEMORY_BYTES = 256 * 1024
 IMAGE_DATA_URL_ENCODE_CHUNK_BYTES = 192 * 1024
+
+
+def append_memory_recall_middleware(
+    middleware: list[Any],
+    enabled: bool,
+    user_id: str | None,
+    session_id: Any,
+    active_goal: Any,
+) -> None:
+    """Give an Agent or sub-agent the same scoped recall context."""
+    if not enabled or not user_id:
+        return
+    from src.infra.agent.middleware import MemoryRecallIndexMiddleware
+
+    middleware.append(
+        MemoryRecallIndexMiddleware(
+            user_id=user_id,
+            session_id=str(session_id or "") or None,
+            active_goal=active_goal,
+        )
+    )
 
 
 def get_image_download_max_bytes() -> int:
@@ -206,16 +228,39 @@ async def resolve_model_supports_vision(
     )
 
 
-async def resolve_model_image_url_to_base64(
+async def resolve_model_image_url_mode(
     model_id: str | None,
     selected_model: str | None,
     *,
     log_prefix: str = "",
-) -> bool:
-    """Resolve whether image_url blocks should be converted to base64 data URLs."""
-    return await _resolve_model_profile_bool(
-        "image_url_to_base64", model_id, selected_model, log_prefix=log_prefix
-    )
+) -> Literal["url", "base64", "proxy_direct"]:
+    """Resolve how image URLs should be handed to the selected model.
+
+    兼容旧配置：profile 只写了 image_url_to_base64=true 时按 "base64" 处理。
+    """
+    from src.kernel.schemas.model import effective_image_url_mode
+
+    if not model_id and not selected_model:
+        return "url"
+
+    from src.infra.agent.model_storage import get_model_storage
+
+    storage = get_model_storage()
+    db_model = None
+
+    try:
+        if model_id:
+            db_model = await storage.get(model_id)
+        elif selected_model:
+            db_model = await storage.get_by_value(selected_model)
+    except Exception as e:
+        logger.warning("%s Failed to lookup model profile (image_url_mode): %s", log_prefix, e)
+        return "url"
+
+    if not db_model:
+        return "url"
+
+    return effective_image_url_mode(getattr(db_model, "profile", None))
 
 
 def _is_image_attachment(attachment: dict) -> bool:
@@ -318,14 +363,16 @@ async def _download_image_as_data_url(
         downloaded_size = await storage.download_to_file(str(key), spooled)
         if isinstance(downloaded_size, int) and downloaded_size > max_bytes:
             return None
-        await run_blocking_io(spooled.seek, 0)
-        content = await run_blocking_io(_read_binary_file, spooled)
+        await run_long_blocking_io(spooled.seek, 0)
+        content = await run_long_blocking_io(_read_binary_file, spooled)
         if len(content) > max_bytes:
             return None
     finally:
-        await run_blocking_io(spooled.close)
-    content, mime_type = await run_blocking_io(compress_image_bytes_if_needed, content, mime_type)
-    encoded = await run_blocking_io(_base64_encode_bytes, content)
+        await run_long_blocking_io(spooled.close)
+    content, mime_type = await run_long_blocking_io(
+        compress_image_bytes_if_needed, content, mime_type
+    )
+    encoded = await run_long_blocking_io(_base64_encode_bytes, content)
     return f"data:{mime_type};base64,{encoded}"
 
 
@@ -371,15 +418,17 @@ async def _download_image_url_as_data_url(
                     downloaded_size += len(chunk)
                     if downloaded_size > max_bytes:
                         return None
-                    await run_blocking_io(spooled.write, chunk)
-        await run_blocking_io(spooled.seek, 0)
-        content = await run_blocking_io(_read_binary_file, spooled)
+                    await run_long_blocking_io(spooled.write, chunk)
+        await run_long_blocking_io(spooled.seek, 0)
+        content = await run_long_blocking_io(_read_binary_file, spooled)
         if len(content) > max_bytes:
             return None
     finally:
-        await run_blocking_io(spooled.close)
-    content, mime_type = await run_blocking_io(compress_image_bytes_if_needed, content, mime_type)
-    encoded = await run_blocking_io(_base64_encode_bytes, content)
+        await run_long_blocking_io(spooled.close)
+    content, mime_type = await run_long_blocking_io(
+        compress_image_bytes_if_needed, content, mime_type
+    )
+    encoded = await run_long_blocking_io(_base64_encode_bytes, content)
     return f"data:{mime_type};base64,{encoded}"
 
 
@@ -548,8 +597,9 @@ def build_human_message(
     Returns:
         HumanMessage: 包含文本和附件信息的消息
     """
+    safe_text = escape_control_frame_tags(text)
     if not attachments:
-        return HumanMessage(content=text)
+        return HumanMessage(content=safe_text)
 
     multimodal_images: list[dict] = []
     multimodal_videos: list[dict] = []
@@ -585,7 +635,9 @@ def build_human_message(
         elif url:
             text_summary_attachments.append(attachment)
 
-    enhanced_text = _format_attachment_summary(text, text_summary_attachments)
+    enhanced_text = escape_control_frame_tags(
+        _format_attachment_summary(safe_text, text_summary_attachments)
+    )
     if not multimodal_images and not multimodal_videos:
         return HumanMessage(content=enhanced_text)
 

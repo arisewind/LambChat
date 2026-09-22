@@ -37,7 +37,7 @@ from typing import Annotated, Any, Optional
 from langchain.tools import ToolRuntime, tool
 from langchain_core.tools import BaseTool
 
-from src.infra.async_utils import run_blocking_io
+from src.infra.async_utils import run_long_blocking_io
 from src.infra.async_utils.background_tasks import BestEffortTaskLimiter
 from src.infra.logging import get_logger
 from src.infra.logging.context import TraceContext
@@ -75,7 +75,7 @@ async def drain_project_cleanup_tasks() -> None:
 
 
 async def _json_dumps_result(data: dict[str, Any]) -> str:
-    return await run_blocking_io(json.dumps, data, ensure_ascii=False)
+    return await run_long_blocking_io(json.dumps, data, ensure_ascii=False)
 
 
 logger = get_logger(__name__)
@@ -119,14 +119,14 @@ async def _get_backend_file_size(backend: Any, file_path: str) -> int | None:
     sync_method = getattr(backend, "get_file_size", None)
     if callable(sync_method):
         try:
-            return _coerce_file_size(await run_blocking_io(sync_method, file_path))
+            return _coerce_file_size(await run_long_blocking_io(sync_method, file_path))
         except Exception as e:
             logger.debug(f"[reveal_project] get_file_size failed for {file_path}: {e}")
 
     private_method = getattr(backend, "_file_size", None)
     if callable(private_method):
         try:
-            return _coerce_file_size(await run_blocking_io(private_method, file_path))
+            return _coerce_file_size(await run_long_blocking_io(private_method, file_path))
         except Exception as e:
             logger.debug(f"[reveal_project] _file_size failed for {file_path}: {e}")
 
@@ -182,7 +182,7 @@ async def _download_file_from_backend(backend: Any, file_path: str) -> Optional[
 
     if hasattr(backend, "download_files"):
         try:
-            responses = await run_blocking_io(backend.download_files, [file_path])
+            responses = await run_long_blocking_io(backend.download_files, [file_path])
             if responses and responses[0].content is not None:
                 return responses[0].content
         except Exception as e:
@@ -206,7 +206,7 @@ async def _execute_command(backend: Any, command: str) -> Optional[str]:
 
     if hasattr(backend, "execute"):
         try:
-            result = await run_blocking_io(backend.execute, command)
+            result = await run_long_blocking_io(backend.execute, command)
             if hasattr(result, "output"):
                 return result.output
             if isinstance(result, str):
@@ -246,7 +246,7 @@ async def _list_project_files_via_glob(backend: Any, project_path: str) -> list[
 
     if hasattr(backend, "glob"):
         try:
-            result = await run_blocking_io(backend.glob, pattern, project_path)
+            result = await run_long_blocking_io(backend.glob, pattern, project_path)
             if result.error:
                 errors.append(str(result.error))
             else:
@@ -301,7 +301,7 @@ async def _list_project_files_via_backend_api(
                 continue
         elif hasattr(backend, "ls"):
             try:
-                result = await run_blocking_io(backend.ls, current)
+                result = await run_long_blocking_io(backend.ls, current)
                 if getattr(result, "error", None):
                     logger.debug("ls failed for %s: %s", current, result.error)
                     had_errors = True
@@ -469,9 +469,9 @@ async def _upload_file(
             max_size=PROJECT_UPLOAD_SPOOL_MEMORY_LIMIT,
             mode="w+b",
         ) as spooled:
-            await run_blocking_io(spooled.write, content_bytes)
+            await run_long_blocking_io(spooled.write, content_bytes)
             del content_bytes
-            await run_blocking_io(spooled.seek, 0)
+            await run_long_blocking_io(spooled.seek, 0)
             upload_result = await storage.upload_file(
                 file=spooled,
                 folder=folder_name,
@@ -538,18 +538,19 @@ async def _upload_project_files_bounded(
 async def reveal_project(
     project_path: Annotated[
         str,
-        "项目/文件夹路径；单个文件用 reveal_file",
+        "Project or folder path; use reveal_file for a single file",
     ],
-    name: Annotated[Optional[str], "项目名；默认目录名"] = None,
-    description: Annotated[Optional[str], "可选项目说明"] = None,
+    name: Annotated[Optional[str], "Project name; defaults to the directory name"] = None,
+    description: Annotated[Optional[str], "Optional project caption"] = None,
     template: Annotated[
         Optional[ProjectTemplate],
-        "可选模板；默认自动检测",
+        "Optional template; auto-detected by default",
     ] = None,
     runtime: ToolRuntime = None,  # type: ignore[assignment]
 ) -> str:
-    """向用户展示整个项目或文件夹。前端目录返回 project 预览，非前端文件夹
-    返回 folder 文件树；单个文件使用 reveal_file。"""
+    """Show the user a whole project or folder. Frontend directories return a
+    project preview; other folders return a folder tree. Use reveal_file for a
+    single file."""
     storage = await _get_storage()
 
     backend = get_backend_from_runtime(runtime)
@@ -648,7 +649,7 @@ async def reveal_project(
         file_keys = set(files_manifest.keys())
         detected_template = template
         if not detected_template:
-            detected_template = await run_blocking_io(
+            detected_template = await run_long_blocking_io(
                 detect_template,
                 package_json_content or "{}",
                 file_keys,

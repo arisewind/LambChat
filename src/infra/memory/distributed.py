@@ -13,9 +13,9 @@ import uuid
 from datetime import datetime, timezone
 from typing import Any, Dict, Optional
 
-from src.infra.async_utils import run_blocking_io
+from src.infra.async_utils import run_long_blocking_io
 from src.infra.logging import get_logger
-from src.infra.pubsub_hub import get_pubsub_hub
+from src.infra.pubsub_hub import get_pubsub_hub, namespaced_channel
 from src.infra.storage.redis import get_redis_client
 
 logger = get_logger(__name__)
@@ -54,9 +54,9 @@ async def publish_memory_invalidation(user_id: str) -> None:
     """
     try:
         redis_client = get_redis_client()
-        payload = await run_blocking_io(json.dumps, {"user_id": user_id})
+        payload = await run_long_blocking_io(json.dumps, {"user_id": user_id})
         await redis_client.publish(
-            MEMORY_INVALIDATION_CHANNEL,
+            namespaced_channel(MEMORY_INVALIDATION_CHANNEL),
             payload,
         )
     except Exception as e:
@@ -264,7 +264,7 @@ class MemoryPubSub:
     async def _handle_message(self, message: Dict[str, Any]) -> None:
         """Invalidate local index cache for the user mentioned in the message."""
         try:
-            data = await run_blocking_io(json.loads, message["data"])
+            data = await run_long_blocking_io(json.loads, message["data"])
             user_id = data.get("user_id")
             if not user_id:
                 return
@@ -279,9 +279,20 @@ class MemoryPubSub:
 
             if not isinstance(backend, NativeMemoryBackend):
                 return
-            # Invalidate the index cache for this user
-            backend._index_cache.pop(user_id, None)
-            logger.debug("[MemoryPubSub] Invalidated index cache for user %s", user_id)
+            # Cache entries are keyed by (user_id, project_id). Clear every
+            # project variant so a write in one instance cannot leave a stale
+            # project index on another instance.
+            for cache_key in [key for key in backend._index_cache if key[0] == user_id]:
+                backend._index_cache.pop(cache_key, None)
+            # The prompt middleware maintains a separate process-local cache
+            # for the same navigation index; invalidate it without publishing
+            # another Redis event (which would create a feedback loop).
+            from src.infra.agent.middleware.prompt_injection import (
+                invalidate_memory_index_snapshot,
+            )
+
+            invalidate_memory_index_snapshot(user_id)
+            logger.debug("[MemoryPubSub] Invalidated index caches for user %s", user_id)
 
         except Exception as e:
             logger.debug("[MemoryPubSub] Error handling message: %s", e)

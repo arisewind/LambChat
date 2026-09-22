@@ -18,6 +18,7 @@ from starlette.types import ASGIApp, Message, Receive, Scope, Send
 
 from src.api.error_handlers import register_error_handlers
 from src.api.middleware.auth import AuthMiddleware
+from src.api.middleware.compression import add_compression_middleware
 from src.api.middleware.tracing import TracingMiddleware
 from src.api.middleware.user_context import UserContextMiddleware
 from src.api.routes import (
@@ -574,6 +575,11 @@ async def lifespan(app: FastAPI):
         # 再统一取消 lifespan 后台任务，让各任务自己的 finally 在依赖关闭前完成。
         await _cancel_lifespan_background_tasks_for_shutdown(app)
 
+        # 等待会话配置后台写落库，避免退出丢数据
+        from src.api.routes.chat import drain_session_config_tasks
+
+        await drain_session_config_tasks()
+
         # 关闭生图工具复用的 httpx client
         from src.infra.tool.image_generation_tool import close_image_clients
 
@@ -713,6 +719,9 @@ def create_app() -> FastAPI:
     app.add_middleware(AuthMiddleware)
     app.add_middleware(TracingMiddleware)
     app.add_middleware(RequestBodyLimitMiddleware)
+
+    # gzip 压缩（最外层，压缩最终响应体；SSE 与已压缩二进制在模块内排除）
+    add_compression_middleware(app)
 
     # 全局异常处理器：统一 {"detail": {code, message, args}} 错误契约
     register_error_handlers(app)

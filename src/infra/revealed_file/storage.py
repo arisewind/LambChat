@@ -134,7 +134,7 @@ class RevealedFileStorage:
                 },
                 {"$match": {"count": {"$gt": 1}}},
             ]
-            async for group in c.aggregate(pipeline):
+            async for group in await c.aggregate(pipeline):
                 duplicate_key = group["_id"]
                 result = await c.delete_many(
                     {
@@ -174,6 +174,42 @@ class RevealedFileStorage:
     # - _id / user_id: identity / ownership
     # - is_favorite: user's explicit bookmark, must survive re-reveals
     _PROTECTED_FIELDS = frozenset({"_id", "user_id", "is_favorite"})
+
+    async def find_by_original(
+        self, user_id: str, original_path: str, source: str
+    ) -> Optional[Dict[str, Any]]:
+        """Find one record by its originating path (same dedupe key upsert uses).
+
+        Used by reveal_file's content-hash reuse: an unchanged re-reveal of the
+        same path reuses the existing storage object instead of re-uploading.
+        """
+        await self.ensure_indexes_if_needed()
+        try:
+            dedupe_key = _build_dedupe_key(original_path, source, {"original_path": original_path})
+            return await self.collection.find_one(
+                {"user_id": user_id, "dedupe_key": dedupe_key, "source": source}
+            )
+        except Exception as e:
+            logger.warning(f"Failed to find revealed file by original path: {e}")
+            return None
+
+    async def find_by_file_key(
+        self, user_id: str, file_key: str, source: Optional[str] = None
+    ) -> Optional[Dict[str, Any]]:
+        """Find the latest record stored under a storage key (created_at desc).
+
+        Used to reverse-map a self-upload proxy URL back to the original reveal
+        row so URL echoes merge into it instead of creating a second entry.
+        """
+        await self.ensure_indexes_if_needed()
+        try:
+            query: Dict[str, Any] = {"user_id": user_id, "file_key": file_key}
+            if source:
+                query["source"] = source
+            return await self.collection.find_one(query, sort=[("created_at", -1)])
+        except Exception as e:
+            logger.warning(f"Failed to find revealed file by file key: {e}")
+            return None
 
     async def upsert_by_name(
         self,
@@ -367,7 +403,7 @@ class RevealedFileStorage:
             {"$match": {"user_id": user_id}},
             {"$group": {"_id": "$file_type", "count": {"$sum": 1}}},
         ]
-        results = await self.collection.aggregate(pipeline).to_list(length=20)
+        results = await (await self.collection.aggregate(pipeline)).to_list(length=20)
         stats = {}
         for r in results:
             stats[r["_id"]] = r["count"]
@@ -495,14 +531,14 @@ class RevealedFileStorage:
         # Count distinct sessions (before skip/limit)
         count_pipeline = pipeline.copy()
         count_pipeline.append({"$count": "total"})
-        count_result = await self.collection.aggregate(count_pipeline).to_list(length=1)
+        count_result = await (await self.collection.aggregate(count_pipeline)).to_list(length=1)
         total_sessions = count_result[0]["total"] if count_result else 0
 
         # Paginate sessions
         pipeline.append({"$skip": skip})
         pipeline.append({"$limit": limit})
 
-        session_results = await self.collection.aggregate(pipeline).to_list(length=limit)
+        session_results = await (await self.collection.aggregate(pipeline)).to_list(length=limit)
         session_ids = [r["_id"] for r in session_results]
 
         if not session_ids:
@@ -607,7 +643,7 @@ class RevealedFileStorage:
             {"$sort": {"count": -1}},
             {"$limit": REVEALED_FILE_SESSION_LIST_LIMIT},
         ]
-        results = await self.collection.aggregate(pipeline).to_list(
+        results = await (await self.collection.aggregate(pipeline)).to_list(
             length=REVEALED_FILE_SESSION_LIST_LIMIT
         )
         session_ids = [r["_id"] for r in results]

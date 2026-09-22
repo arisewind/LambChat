@@ -9,7 +9,7 @@ from typing import Any, Optional
 import redis.asyncio as redis
 from redis.asyncio import Redis
 
-from src.infra.async_utils import run_blocking_io
+from src.infra.async_utils import run_long_blocking_io
 from src.infra.logging import get_logger
 from src.infra.storage.base import StorageBase
 from src.kernel.config import settings
@@ -140,14 +140,16 @@ class RedisStorage(StorageBase):
         if value is None:
             return None
         try:
-            return await run_blocking_io(json.loads, value)
+            # json.loads 是微秒级纯 CPU 调用，走线程池的开销远大于收益，直接内联
+            return json.loads(value)
         except json.JSONDecodeError:
             return value
 
     async def set(self, key: str, value: Any, ttl: Optional[int] = None) -> None:
         """设置数据"""
         if isinstance(value, (dict, list)):
-            value = await run_blocking_io(json.dumps, value)
+            # 微秒级纯 CPU 序列化，内联执行避免线程池往返
+            value = json.dumps(value)
         await self.client.set(key, value, ex=ttl)
 
     async def delete(self, key: str) -> bool:
@@ -209,7 +211,8 @@ class RedisStorage(StorageBase):
         serialized = {}
         for k, v in fields.items():
             if isinstance(v, dict):
-                serialized[k] = await run_blocking_io(json.dumps, v)
+                # 微秒级纯 CPU 序列化，内联执行避免线程池往返
+                serialized[k] = json.dumps(v)
             else:
                 serialized[k] = str(v)
 
@@ -248,7 +251,7 @@ class RedisStorage(StorageBase):
         entries = await self.client.xrange(
             stream_key, min=actual_start, max=actual_end, count=count
         )
-        return await run_blocking_io(_parse_stream_entries_sync, entries)
+        return await run_long_blocking_io(_parse_stream_entries_sync, entries)
 
     async def xread(
         self,
@@ -291,7 +294,7 @@ class RedisStorage(StorageBase):
                 return []
             raise
 
-        return await run_blocking_io(_parse_stream_read_result_sync, result or [])
+        return await run_long_blocking_io(_parse_stream_read_result_sync, result or [])
 
     async def xdel(self, stream_key: str, entry_id: str) -> int:
         """Delete entry from stream"""

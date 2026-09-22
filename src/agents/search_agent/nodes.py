@@ -16,13 +16,14 @@ from langchain_core.runnables import RunnableConfig
 
 from src.agents.core.base import get_presenter
 from src.agents.core.node_utils import (
+    append_memory_recall_middleware,
     build_human_message,
     build_nested_graph_configurable,
     emit_token_usage,
     inline_image_attachments_as_data_urls,
     isolated_nested_graph_run,
     resolve_fallback_model,
-    resolve_model_image_url_to_base64,
+    resolve_model_image_url_mode,
     resolve_model_supports_vision,
     resolve_run_usage_carry,
 )
@@ -42,6 +43,7 @@ from src.agents.core.subagent_prompts import (
     get_memory_guide,
 )
 from src.agents.core.thinking import build_thinking_config
+from src.agents.core.todo_middleware import create_todo_middleware
 from src.agents.search_agent.context import SearchAgentContext
 from src.agents.search_agent.prompt import (
     DEFAULT_SYSTEM_PROMPT,
@@ -52,7 +54,6 @@ from src.infra.agent import AgentEventProcessor
 from src.infra.agent.middleware import (
     ArtifactDeliveryMiddleware,
     EnvVarPromptMiddleware,
-    ImageUrlToBase64Middleware,
     MainAgentContextMiddleware,
     MemoryRecallIndexMiddleware,
     SectionPromptMiddleware,
@@ -62,6 +63,7 @@ from src.infra.agent.middleware import (
     ToolResultBinaryMiddleware,
     create_code_interpreter_middleware,
     create_retry_middleware,
+    image_url_middleware_for_mode,
     summarization_fallback_patch,
 )
 from src.infra.backend import (
@@ -154,7 +156,7 @@ async def agent_node(state: Dict[str, Any], config: RunnableConfig) -> Dict[str,
     # 构建记忆系统提示
     memory_guide = get_memory_guide() if settings.ENABLE_MEMORY else ""
 
-    async def _load_model_bundle() -> tuple[Any, Any, bool, bool]:
+    async def _load_model_bundle() -> tuple[Any, Any, bool, str]:
         llm_start = time.time()
         model = await LLMClient.get_model(
             model=selected_model,
@@ -172,12 +174,12 @@ async def agent_node(state: Dict[str, Any], config: RunnableConfig) -> Dict[str,
             vision = await resolve_model_supports_vision(
                 model_id, selected_model, log_prefix="[Agent]"
             )
-        convert_images = agent_options.get("_resolved_image_url_to_base64")
-        if convert_images is None:
-            convert_images = await resolve_model_image_url_to_base64(
+        image_url_mode = agent_options.get("_resolved_image_url_mode")
+        if image_url_mode is None:
+            image_url_mode = await resolve_model_image_url_mode(
                 model_id, selected_model, log_prefix="[Agent]"
             )
-        return model, fallback, bool(vision), bool(convert_images)
+        return model, fallback, bool(vision), image_url_mode
 
     async def _load_backend_bundle() -> tuple[Any, str, Any, Any, str | None]:
         backend_start = time.time()
@@ -206,7 +208,7 @@ async def agent_node(state: Dict[str, Any], config: RunnableConfig) -> Dict[str,
         tools=_load_context_tools(),
         checkpointer=get_async_checkpointer(thread_id=state.get("session_id")),
     )
-    llm, fallback_model_value, supports_vision, image_url_to_base64 = prepared.model
+    llm, fallback_model_value, supports_vision, image_url_mode = prepared.model
     backend, system_prompt, store, sandbox_backend, sandbox_work_dir = prepared.backend
     filtered_tool_list = prepared.tools
     inner_checkpointer = prepared.checkpointer
@@ -230,6 +232,8 @@ async def agent_node(state: Dict[str, Any], config: RunnableConfig) -> Dict[str,
     # 自定义子代理配置 - 强制将所有中间信息保存到文件
     search_base_url = configurable.get("base_url", "")
     subagent_prompt_sections = [s for s in (*persona_sections, memory_guide) if s]
+    session_id = state.get("session_id", "")
+    active_goal = configurable.get("active_goal")
     sandbox_runtime_policy = await _build_sandbox_runtime_policy(
         sandbox_backend, sandbox_work_dir, user_id=context.user_id or "default"
     )
@@ -237,12 +241,14 @@ async def agent_node(state: Dict[str, Any], config: RunnableConfig) -> Dict[str,
     def _build_subagent_middleware(subagent_type: str) -> list:
         mw = [
             *create_retry_middleware(fallback_model=fallback_model_value, thinking=thinking_config),
+            create_todo_middleware(),
             ToolResultBinaryMiddleware(base_url=search_base_url),
             ArtifactDeliveryMiddleware(workspace_path=sandbox_work_dir),
             SubagentActivityMiddleware(backend=backend),
         ]
-        if image_url_to_base64:
-            mw.append(ImageUrlToBase64Middleware())
+        _image_mw = image_url_middleware_for_mode(image_url_mode)
+        if _image_mw:
+            mw.append(_image_mw)
         if subagent_prompt_sections:
             mw.append(SectionPromptMiddleware(sections=subagent_prompt_sections))
         if sandbox_backend:
@@ -251,6 +257,9 @@ async def agent_node(state: Dict[str, Any], config: RunnableConfig) -> Dict[str,
             from src.infra.agent.middleware import SandboxWorkspaceMiddleware
 
             mw.append(SandboxWorkspaceMiddleware(policy_text=sandbox_runtime_policy))
+        append_memory_recall_middleware(
+            mw, settings.ENABLE_MEMORY, context.user_id, session_id, active_goal
+        )
         if context.deferred_manager is not None:
             from src.infra.agent.middleware import ToolSearchMiddleware
 
@@ -312,14 +321,15 @@ async def agent_node(state: Dict[str, Any], config: RunnableConfig) -> Dict[str,
     user_middleware = create_retry_middleware(
         fallback_model=fallback_model_value, thinking=thinking_config
     )
+    user_middleware.append(create_todo_middleware())
     user_middleware.insert(
         0, SteerMiddleware(session_id=str(state.get("session_id") or ""), presenter=presenter)
     )
     user_middleware.append(ToolResultBinaryMiddleware(base_url=search_base_url))
     user_middleware.append(ArtifactDeliveryMiddleware(workspace_path=sandbox_work_dir))
-    if image_url_to_base64:
-        user_middleware.append(ImageUrlToBase64Middleware())
-    active_goal = configurable.get("active_goal")
+    _image_mw = image_url_middleware_for_mode(image_url_mode)
+    if _image_mw:
+        user_middleware.append(_image_mw)
     # Prompt sections use one SectionPromptMiddleware instance.
     # Duplicate middleware classes are rejected by langchain's agent factory.
     _prompt_sections = [
@@ -339,6 +349,7 @@ async def agent_node(state: Dict[str, Any], config: RunnableConfig) -> Dict[str,
             MemoryRecallIndexMiddleware(
                 user_id=context.user_id,
                 session_id=str(state.get("session_id") or "") or None,
+                active_goal=active_goal,
             )
         )
     if sandbox_backend:
@@ -408,7 +419,7 @@ async def agent_node(state: Dict[str, Any], config: RunnableConfig) -> Dict[str,
             tools=filtered_tools,
             checkpointer=inner_checkpointer,
             store=store,  # 传递 PostgresStore
-            skills=None,  # 禁用 SkillsMiddleware，使用 build_skills_prompt 代替
+            skills=None,  # 技能清单由 SkillSearchTool 描述携带，不在 system prompt 注入
             subagents=custom_subagents,
             middleware=user_middleware,
         )
@@ -463,7 +474,6 @@ async def agent_node(state: Dict[str, Any], config: RunnableConfig) -> Dict[str,
             attachments = await inline_image_attachments_as_data_urls(
                 attachments,
                 base_url=configurable.get("base_url", ""),
-                force_data_url=image_url_to_base64,
             )
         new_message = build_human_message(user_input, attachments, supports_vision=supports_vision)
         graph_input = build_goal_input(
@@ -558,7 +568,6 @@ async def agent_node(state: Dict[str, Any], config: RunnableConfig) -> Dict[str,
         schedule_memory_extraction(context.user_id)
 
     # 持久化已发现的延迟工具名（跨 turn 恢复，分布式安全）
-    session_id = state.get("session_id", "")
     if context.deferred_manager is not None and context.deferred_manager.discovered_count > 0:
         try:
             from src.infra.tool.deferred_manager import persist_discovered_tools

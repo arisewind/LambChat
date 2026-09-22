@@ -174,7 +174,8 @@ export function ChatAppContent({
     activeGoal,
     goalsByRunId,
     sendMessage,
-    steerMessage,
+    queueFollowUp,
+    supplementFollowUp,
     steerMessages,
     cancelSteer,
     applyRecommendQuestions,
@@ -194,6 +195,7 @@ export function ChatAppContent({
     clearAutoExpandProjectId,
     currentProjectId,
     reconnectSSE,
+    reconcileActiveRun,
   } = useAgent({
     onApprovalRequired: (approval) => {
       void appNotificationService.notify({
@@ -582,6 +584,9 @@ export function ChatAppContent({
         task_status: data.task_status,
       });
     },
+    onCurrentSessionTaskComplete: () => {
+      void reconcileActiveRun();
+    },
   });
 
   const externalNavigation = useExternalNavigationTarget({
@@ -890,7 +895,8 @@ export function ChatAppContent({
             );
           }}
           onStopGeneration={stopGeneration}
-          onSteerMessage={steerMessage}
+          onSupplementFollowUpMessage={supplementFollowUp}
+          onQueueFollowUpMessage={queueFollowUp}
           steerMessages={steerMessages}
           onCancelSteer={cancelSteer}
           activeGoal={activeGoal}

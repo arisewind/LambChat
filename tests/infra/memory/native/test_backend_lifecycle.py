@@ -55,6 +55,79 @@ async def test_delete_removes_store_payload_for_long_memory():
 
 
 @pytest.mark.asyncio
+async def test_delete_scoped_adds_current_project_visibility_clause():
+    seen: dict[str, object] = {}
+
+    class FakeCollection:
+        async def find_one(self, query, _projection=None):
+            seen["find_query"] = query
+            return {"content_storage_mode": "inline"}
+
+        async def delete_one(self, query):
+            seen["delete_query"] = query
+
+            class Result:
+                deleted_count = 1
+
+            return Result()
+
+    backend = NativeMemoryBackend()
+    backend._collection = FakeCollection()
+
+    async def fake_invalidate(_user_id):
+        seen["invalidated"] = True
+
+    backend._invalidate_cache = fake_invalidate  # type: ignore[method-assign]
+
+    result = await backend.delete_scoped("u1", "m1", project_id="proj-1")
+
+    expected_scope = {
+        "$or": [
+            {"scope": {"$in": [None, "user", "reference"]}},
+            {"scope": "project", "project_id": "proj-1"},
+        ]
+    }
+    assert result["success"] is True
+    assert seen["find_query"] == {
+        "user_id": "u1",
+        "memory_id": "m1",
+        **expected_scope,
+    }
+    assert seen["delete_query"] == seen["find_query"]
+    assert seen["invalidated"] is True
+
+
+@pytest.mark.asyncio
+async def test_invalidate_cache_clears_prompt_recall_index(monkeypatch: pytest.MonkeyPatch) -> None:
+    invalidated: list[str] = []
+    published: list[str] = []
+    backend = NativeMemoryBackend()
+    backend._index_cache = {
+        ("u1", "project-1"): (0.0, "old"),
+        ("u2", "project-2"): (0.0, "keep"),
+    }
+
+    async def fake_publish(user_id: str) -> None:
+        published.append(user_id)
+
+    monkeypatch.setattr(
+        "src.infra.agent.middleware.prompt_injection.invalidate_memory_index_snapshot",
+        invalidated.append,
+    )
+    monkeypatch.setattr(
+        "src.infra.memory.distributed.publish_memory_invalidation",
+        fake_publish,
+    )
+
+    await backend._invalidate_cache("u1")
+
+    assert invalidated == ["u1"]
+    assert published == ["u1"]
+    assert ("u1", "project-1") not in backend._index_cache
+    assert ("u2", "project-2") in backend._index_cache
+
+
+@pytest.mark.asyncio
 async def test_maybe_embed_offloads_sync_embedding_function(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -120,8 +193,6 @@ async def test_get_memory_model_uses_native_model_id(monkeypatch: pytest.MonkeyP
     monkeypatch.setattr(backend_module.settings, "NATIVE_MEMORY_MODEL", "memory-model-id")
     # 钉住 max_tokens——测试不得依赖开发者本地 .env 的覆盖值
     monkeypatch.setattr(backend_module.settings, "NATIVE_MEMORY_MAX_TOKENS", 2000)
-    monkeypatch.setattr(backend_module.settings, "NATIVE_MEMORY_API_BASE", "https://unused.test/v1")
-    monkeypatch.setattr(backend_module.settings, "NATIVE_MEMORY_API_KEY", "unused-key")
 
     await NativeMemoryBackend._get_memory_model()
 
@@ -209,19 +280,16 @@ class _FakeVectorCollection:
             raise RuntimeError("mongot unavailable")
 
 
-def _fake_mongo_delegate(col):
+def _fake_mongo_sync_client(col):
     class _Db(dict):
         def __getitem__(self, name):
             return col
 
-    class _Delegate:
+    class _SyncClient:
         def __getitem__(self, name):
             return _Db()
 
-    class _Client:
-        delegate = _Delegate()
-
-    return _Client()
+    return _SyncClient()
 
 
 @pytest.mark.asyncio
@@ -231,7 +299,9 @@ async def test_vector_index_created_when_embedding_configured(
     col = _FakeVectorCollection(existing_names=[])
     backend = NativeMemoryBackend()
     backend._embedding_fn = lambda _text: [0.0]
-    monkeypatch.setattr(backend_module, "get_mongo_client", lambda: _fake_mongo_delegate(col))
+    monkeypatch.setattr(
+        backend_module, "get_mongo_sync_client", lambda: _fake_mongo_sync_client(col)
+    )
     monkeypatch.setattr(backend_module.settings, "NATIVE_MEMORY_EMBEDDING_DIMENSIONS", 1536)
 
     async def direct(func, *args, **kwargs):
@@ -258,7 +328,9 @@ async def test_vector_index_skipped_when_already_present(
     col = _FakeVectorCollection(existing_names=["native_mem_vector_idx"])
     backend = NativeMemoryBackend()
     backend._embedding_fn = lambda _text: [0.0]
-    monkeypatch.setattr(backend_module, "get_mongo_client", lambda: _fake_mongo_delegate(col))
+    monkeypatch.setattr(
+        backend_module, "get_mongo_sync_client", lambda: _fake_mongo_sync_client(col)
+    )
 
     async def direct(func, *args, **kwargs):
         return func(*args, **kwargs)
@@ -277,7 +349,9 @@ async def test_vector_index_skipped_without_embedding_fn(
     col = _FakeVectorCollection(existing_names=[])
     backend = NativeMemoryBackend()
     backend._embedding_fn = None
-    monkeypatch.setattr(backend_module, "get_mongo_client", lambda: _fake_mongo_delegate(col))
+    monkeypatch.setattr(
+        backend_module, "get_mongo_sync_client", lambda: _fake_mongo_sync_client(col)
+    )
 
     await backend._maybe_create_vector_index()
 
@@ -291,7 +365,9 @@ async def test_vector_index_failure_is_non_fatal(
     col = _FakeVectorCollection(existing_names=[], fail_create=True)
     backend = NativeMemoryBackend()
     backend._embedding_fn = lambda _text: [0.0]
-    monkeypatch.setattr(backend_module, "get_mongo_client", lambda: _fake_mongo_delegate(col))
+    monkeypatch.setattr(
+        backend_module, "get_mongo_sync_client", lambda: _fake_mongo_sync_client(col)
+    )
 
     async def direct(func, *args, **kwargs):
         return func(*args, **kwargs)

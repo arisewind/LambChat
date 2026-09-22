@@ -11,6 +11,7 @@ from typing import TYPE_CHECKING, Any, Optional, cast
 from deepagents.backends import CompositeBackend
 
 from src.infra.async_utils import run_blocking_io as _run_blocking_io
+from src.infra.backend.sandbox_heal import SANDBOX_REPLACED_NOTICE
 from src.infra.backend.skills_store import create_skills_backend
 from src.infra.envvar.sync import sync_sandbox_env_vars
 from src.infra.logging import get_logger
@@ -108,6 +109,9 @@ class _CubeSandboxMixin:
 
             binding = await self._get_binding(user_id)
             metadata_sandbox_id = binding.get("sandbox_id") if binding else None
+            # 绑定沙箱没能重连上（已被回收）；若后面也找不到可复用的沙箱，
+            # 重建的新沙箱需要挂一次性提示。
+            replaced_previous = bool(metadata_sandbox_id)
             if metadata_sandbox_id:
                 provider_obj = await run_blocking_io(
                     self._cube_adapter.get_sandbox, metadata_sandbox_id
@@ -155,9 +159,12 @@ class _CubeSandboxMixin:
                 exclude_ids=unusable_sandbox_ids,
             )
             if existing is not None:
+                # 复用同用户的其他沙箱，数据保留，不算重建
                 return existing
 
-            return await self._create_and_bind_cubesandbox(session_id, user_id)
+            return await self._create_and_bind_cubesandbox(
+                session_id, user_id, replaced_previous=replaced_previous
+            )
 
     async def _find_existing_cubesandbox_for_user(
         self,
@@ -263,7 +270,11 @@ class _CubeSandboxMixin:
         task.add_done_callback(_log_cleanup_failure)
 
     async def _create_and_bind_cubesandbox(
-        self, session_id: str, user_id: str
+        self,
+        session_id: str,
+        user_id: str,
+        *,
+        replaced_previous: bool = False,
     ) -> tuple[CompositeBackend, str]:
         assert self._cube_adapter is not None
         adapter = self._cube_adapter
@@ -301,6 +312,15 @@ class _CubeSandboxMixin:
         scoped_backend = self._scope_cube_backend(provider_obj, user_id, scoped_work_dir)
         await self._ensure_work_dir(scoped_backend, scoped_work_dir)
         await sync_sandbox_env_vars(scoped_backend, user_id)
+        if replaced_previous:
+            # 旧沙箱被平台回收：挂一次性提示，首个命令输出会前缀告知模型。
+            logger.warning(
+                f"[CubeSandbox] Previous sandbox for user {user_id} was recycled by provider; "
+                f"created replacement {sandbox_id} (files not carried over)"
+            )
+            cast(
+                CubeSandboxBackend, scoped_backend.default
+            ).sandbox_startup_notice = SANDBOX_REPLACED_NOTICE
         return scoped_backend, scoped_work_dir
 
     def _build_cube_composite_backend(self, provider_obj: object, user_id: str) -> CompositeBackend:
@@ -315,18 +335,28 @@ class _CubeSandboxMixin:
         assert self._cube_adapter is not None
         lock = self._get_user_lock(user_id)
         async with lock:
+            # 本进程缓存优先；跨 pod 场景（对话在别的 pod 跑）回退按 binding
+            # 重连沙箱再暂停，空闲自动暂停才能在任意 pod 生效。
+            sandbox_id: str | None = None
+            provider_obj: object | None = None
             if user_id in self._cache:
                 sandbox_id, _, provider_obj = self._cache[user_id]
-                try:
-                    await run_blocking_io(self._cube_adapter.stop_sandbox, provider_obj)
-                    self._cache.pop(user_id, None)
-                    await self._save_binding(user_id, sandbox_id, "paused")
-                    logger.info(f"[CubeSandbox] Paused sandbox {sandbox_id} for user {user_id}")
-                    return True
-                except Exception as e:
-                    logger.error(f"[CubeSandbox] Failed to stop sandbox: {e}")
-                    return False
-            return False
+            else:
+                binding = await self._get_binding(user_id)
+                sandbox_id = binding.get("sandbox_id") if binding else None
+                if sandbox_id:
+                    provider_obj = await run_blocking_io(self._cube_adapter.get_sandbox, sandbox_id)
+            if not sandbox_id or provider_obj is None:
+                return False
+            try:
+                await run_blocking_io(self._cube_adapter.stop_sandbox, provider_obj)
+                self._cache.pop(user_id, None)
+                await self._save_binding(user_id, sandbox_id, "paused")
+                logger.info(f"[CubeSandbox] Paused sandbox {sandbox_id} for user {user_id}")
+                return True
+            except Exception as e:
+                logger.error(f"[CubeSandbox] Failed to stop sandbox: {e}")
+                return False
 
     def _get_cube_timeout(self) -> int:
         """Read CUBE_TIMEOUT from settings (lazy import)."""

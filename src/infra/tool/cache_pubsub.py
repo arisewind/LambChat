@@ -6,9 +6,9 @@ import json
 import uuid
 from typing import Any, Optional
 
-from src.infra.async_utils import run_blocking_io
+from src.infra.async_utils import run_long_blocking_io
 from src.infra.logging import get_logger
-from src.infra.pubsub_hub import get_pubsub_hub
+from src.infra.pubsub_hub import get_pubsub_hub, namespaced_channel
 from src.infra.storage.redis import get_redis_client
 from src.infra.tool.env_var_prompt import invalidate_env_var_prompt_cache
 
@@ -55,7 +55,7 @@ class ToolCachePubSub:
 
     async def _handle_message(self, message: dict[str, Any]) -> None:
         try:
-            data = await run_blocking_io(json.loads, message["data"])
+            data = await run_long_blocking_io(json.loads, message["data"])
             if data.get("instance_id") == self._instance_id:
                 return
 
@@ -102,7 +102,7 @@ async def publish_tool_cache_invalidation(cache: str, *, user_id: str | None = N
     try:
         redis_client = get_redis_client()
         pubsub = get_tool_cache_pubsub()
-        payload = await run_blocking_io(
+        payload = await run_long_blocking_io(
             json.dumps,
             {
                 "instance_id": pubsub.instance_id,
@@ -110,6 +110,6 @@ async def publish_tool_cache_invalidation(cache: str, *, user_id: str | None = N
                 "user_id": user_id,
             },
         )
-        await redis_client.publish(TOOL_CACHE_INVALIDATION_CHANNEL, payload)
+        await redis_client.publish(namespaced_channel(TOOL_CACHE_INVALIDATION_CHANNEL), payload)
     except Exception as e:
         logger.warning("Failed to publish tool cache invalidation: %s", e)

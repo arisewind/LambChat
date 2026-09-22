@@ -75,7 +75,7 @@ export function UpdateDialog({
             : isLinuxPackage
               ? t("updateDownloadAndInstall", "下载并安装")
               : state.readyToInstall
-                ? t("updateRelaunchInstall", "重启并安装")
+                ? t("update.updateRelaunchInstall", "重启并安装")
                 : t("updateDownload", "立即升级")}
       </button>
     </>
@@ -88,7 +88,9 @@ export function UpdateDialog({
       dismissible={!state.downloading}
       size="md"
       title={t("update.availableTitle", "发现新版本")}
-      icon={<Download size={18} className="shrink-0 text-[var(--theme-primary)]" />}
+      icon={
+        <Download size={18} className="shrink-0 text-[var(--theme-primary)]" />
+      }
       footer={footer}
     >
       <div className="space-y-3">

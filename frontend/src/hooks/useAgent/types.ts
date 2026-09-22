@@ -313,6 +313,13 @@ export interface UseAgentReturn {
     content: string,
     attachments?: MessageAttachment[],
   ) => Promise<void>;
+  /** 追加提问：不打断当前 run，本轮结束后自动作为新消息发送 */
+  queueFollowUp: (content: string, attachments?: MessageAttachment[]) => void;
+  /** 补充当前问题：打断当前 run，把新内容并入这轮思考重新生成 */
+  supplementFollowUp: (
+    content: string,
+    attachments?: MessageAttachment[],
+  ) => Promise<void>;
   cancelSteer: (content: string, messageId?: string) => void;
   steerMessages: import("../../utils/mergeSteers").SteerItem[];
   markSteerDelivered: (content: string, messageId?: string) => void;
@@ -336,6 +343,9 @@ export interface UseAgentReturn {
   /** 加载更早一页历史（trace 窗口游标翻页），完成后前插重建消息 */
   loadOlderHistory: () => Promise<void>;
   reconnectSSE: (runId?: string | null) => Promise<void>;
+  /** 回前台/网络恢复/看门狗触发的对流对账（落定远端已终结的 run、
+   *  强制重连死亡传输层、发现其他端推进过的会话时重载历史） */
+  reconcileActiveRun: () => Promise<void>;
   setPendingProjectId: (id: string | null) => void;
   autoExpandProjectId: string | null;
   clearAutoExpandProjectId: (id?: string | null) => void;

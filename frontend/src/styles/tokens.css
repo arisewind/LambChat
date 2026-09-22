@@ -190,15 +190,15 @@
   --sidebar-width: 16rem;
   --sidebar-rail-width: 3.25rem;
   --sidebar-transition-duration: 150ms;
+  /* 桌面自绘标题栏高度（Tauri 壳运行时覆写为 40px；网页/移动端恒 0） */
+  --titlebar-inset: 0px;
   /* env() 在 Android WebView 恒为 0，原生注入的 --app-native-safe-area-* 兜底，二者取大 */
   --app-safe-area-top: max(
     env(safe-area-inset-top, 0px),
     var(--app-native-safe-area-top, 0px)
   );
-  --app-safe-area-bottom: max(
-    env(safe-area-inset-bottom, 0px),
-    var(--app-native-safe-area-bottom, 0px)
-  );
+  /* 底部不预留安全区：内容铺满到屏幕底边（产品决策），顶部/横向仍需避让系统栏 */
+  --app-safe-area-bottom: 0px;
   --app-safe-area-left: max(
     env(safe-area-inset-left, 0px),
     var(--app-native-safe-area-left, 0px)
@@ -224,7 +224,6 @@
 @media (display-mode: standalone), (display-mode: fullscreen) {
   :root {
     --app-fullscreen-safe-area-top: 12px;
-    --app-fullscreen-safe-area-bottom: 12px;
   }
 }
 

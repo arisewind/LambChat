@@ -227,6 +227,13 @@ class UsageStorage:
         error_data = error_data or {}
         error_message = _as_str(error_data.get("error"))[:300]
         error_type = _as_str(error_data.get("type"))
+        status = trace_doc.get("status", "unknown")
+        if status == "cancelled" and not error_message:
+            # 取消路径竞态：API 副本先终结 trace、worker 的 error 事件后落库时
+            # 没有 error 事件可读——从 trace 元数据兜底，面板才不会显示空原因
+            cancel_reason = _as_str(metadata.get("cancel_reason"))
+            error_message = (cancel_reason or "Task cancelled")[:300]
+            error_type = error_type or "cancelled"
 
         doc = {
             "trace_id": trace_id,
@@ -266,7 +273,7 @@ class UsageStorage:
             "duration": _as_float(usage_data.get("duration", 0.0)),
             "started_at": _as_datetime(trace_doc.get("started_at")),
             "completed_at": _as_datetime(trace_doc.get("completed_at")),
-            "status": trace_doc.get("status", "unknown"),
+            "status": status,
             "error_message": error_message,
             "error_type": error_type,
             "step_count": _as_int(metadata.get("step_count", 0)),
@@ -339,6 +346,28 @@ class UsageStorage:
             logger.error(f"Failed to list usage logs: {e}")
             return [], 0, _empty_stats()
 
+    async def get_usage_stats_only(
+        self,
+        *,
+        user_id: Optional[str] = None,
+        start_date: Optional[str] = None,
+    ) -> Dict[str, Any]:
+        """Stats-only 查询路径：跳过 items 分页 find，只做计数 + 聚合。
+
+        /stats 路由只需要聚合统计；走 list_usage_logs 全链路会白做一次
+        items 查询。返回结构与 _empty_stats()/stats_dict 完全一致。
+        """
+        query = self._build_query(user_id=user_id, start_date=start_date)
+        try:
+            _, stats = await self._count_and_stats(query)
+            return stats
+        except AppError:
+            # 入参校验错误（如非法日期格式）必须冒泡为 400
+            raise
+        except Exception as e:
+            logger.error(f"Failed to aggregate usage stats (stats-only): {e}")
+            return _empty_stats()
+
     def _build_query(
         self,
         *,
@@ -409,8 +438,23 @@ class UsageStorage:
                                 "successful_requests": {
                                     "$sum": {"$cond": [{"$eq": ["$status", "completed"]}, 1, 0]}
                                 },
+                                "cancelled_requests": {
+                                    "$sum": {"$cond": [{"$eq": ["$status", "cancelled"]}, 1, 0]}
+                                },
+                                # 用户取消不算失败：failed 只统计 error 等真异常
                                 "failed_requests": {
-                                    "$sum": {"$cond": [{"$ne": ["$status", "completed"]}, 1, 0]}
+                                    "$sum": {
+                                        "$cond": [
+                                            {
+                                                "$and": [
+                                                    {"$ne": ["$status", "completed"]},
+                                                    {"$ne": ["$status", "cancelled"]},
+                                                ]
+                                            },
+                                            1,
+                                            0,
+                                        ]
+                                    }
                                 },
                             }
                         }
@@ -434,8 +478,22 @@ class UsageStorage:
                                 "scheduled_runs": {
                                     "$sum": {"$cond": [SCHEDULED_USAGE_CONDITION, 1, 0]}
                                 },
+                                "cancelled_requests": {
+                                    "$sum": {"$cond": [{"$eq": ["$status", "cancelled"]}, 1, 0]}
+                                },
                                 "failed_requests": {
-                                    "$sum": {"$cond": [{"$ne": ["$status", "completed"]}, 1, 0]}
+                                    "$sum": {
+                                        "$cond": [
+                                            {
+                                                "$and": [
+                                                    {"$ne": ["$status", "completed"]},
+                                                    {"$ne": ["$status", "cancelled"]},
+                                                ]
+                                            },
+                                            1,
+                                            0,
+                                        ]
+                                    }
                                 },
                                 "tool_calls": {"$sum": "$tool_calls"},
                             }
@@ -460,7 +518,7 @@ class UsageStorage:
         ]
 
         try:
-            async for doc in self.collection.aggregate(pipeline):
+            async for doc in await self.collection.aggregate(pipeline):
                 return _format_dashboard(doc)
         except Exception as e:
             logger.error(f"Failed to aggregate usage dashboard: {e}")
@@ -555,7 +613,7 @@ class UsageStorage:
         stats["total_requests"] = total
 
         try:
-            async for doc in self.collection.aggregate(pipeline):
+            async for doc in await self.collection.aggregate(pipeline):
                 stats.update(
                     {
                         "total_input_tokens": doc.get("total_input_tokens", 0),
@@ -638,7 +696,7 @@ class UsageStorage:
 
         summary: Dict[str, Any] = {"total_requests": total}
         try:
-            async for doc in self.collection.aggregate(pipeline):
+            async for doc in await self.collection.aggregate(pipeline):
                 summary.update(
                     {
                         "total_input_tokens": doc.get("total_input_tokens", 0),
@@ -716,6 +774,7 @@ def _format_dashboard(doc: Dict[str, Any]) -> Dict[str, Any]:
     scheduled_runs = _as_int(summary_doc.get("scheduled_runs"))
     total_tool_calls = _as_int(summary_doc.get("total_tool_calls"))
     failed_requests = _as_int(summary_doc.get("failed_requests"))
+    cancelled_requests = _as_int(summary_doc.get("cancelled_requests"))
     daily_items = [
         {
             "date": str(item.get("_id") or ""),
@@ -724,6 +783,7 @@ def _format_dashboard(doc: Dict[str, Any]) -> Dict[str, Any]:
             "duration": _as_float(item.get("duration")),
             "cost_usd": _as_float(item.get("cost_usd")),
             "scheduled_runs": _as_int(item.get("scheduled_runs")),
+            "cancelled_requests": _as_int(item.get("cancelled_requests")),
             "failed_requests": _as_int(item.get("failed_requests")),
             "tool_calls": _as_int(item.get("tool_calls")),
             "input_tokens": _as_int(item.get("input_tokens")),
@@ -755,6 +815,7 @@ def _format_dashboard(doc: Dict[str, Any]) -> Dict[str, Any]:
         "unpriced_requests": _as_int(summary_doc.get("unpriced_requests")),
         "scheduled_runs": scheduled_runs,
         "failed_requests": failed_requests,
+        "cancelled_requests": cancelled_requests,
         "success_rate": (successful_requests / total_requests) if total_requests else 0.0,
         "avg_tokens_per_request": (total_tokens / total_requests) if total_requests else 0.0,
         "avg_duration_per_request": (total_duration / total_requests) if total_requests else 0.0,
@@ -793,6 +854,7 @@ def _empty_dashboard() -> Dict[str, Any]:
             "unpriced_requests": 0,
             "scheduled_runs": 0,
             "failed_requests": 0,
+            "cancelled_requests": 0,
             "success_rate": 0.0,
             "avg_tokens_per_request": 0.0,
             "avg_duration_per_request": 0.0,

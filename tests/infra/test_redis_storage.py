@@ -272,7 +272,7 @@ async def test_redis_storage_keys_limits_scan_results_by_default() -> None:
 
 
 @pytest.mark.asyncio
-async def test_redis_storage_set_offloads_json_serialization_for_structured_values(
+async def test_redis_storage_set_serializes_json_inline_for_structured_values(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     storage = redis_storage.RedisStorage()
@@ -280,40 +280,44 @@ async def test_redis_storage_set_offloads_json_serialization_for_structured_valu
     storage._client = client
     calls = []
 
-    async def _fake_run_blocking_io(func, *args, **kwargs):
+    async def _fake_run_long_blocking_io(func, *args, **kwargs):
         calls.append(func)
         return func(*args, **kwargs)
 
-    monkeypatch.setattr(redis_storage, "run_blocking_io", _fake_run_blocking_io, raising=False)
+    monkeypatch.setattr(
+        redis_storage, "run_long_blocking_io", _fake_run_long_blocking_io, raising=False
+    )
 
     await storage.set("cache:large", {"items": ["x" * 20_000]}, ttl=60)
 
-    assert calls == [json.dumps]
+    assert calls == []
     assert client.set_calls == [("cache:large", '{"items": ["' + ("x" * 20_000) + '"]}', 60)]
 
 
 @pytest.mark.asyncio
-async def test_redis_storage_get_offloads_json_parsing_for_structured_values(
+async def test_redis_storage_get_parses_json_inline_for_structured_values(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     storage = redis_storage.RedisStorage()
     storage._client = _FakeGetRedisClient()
     calls = []
 
-    async def _fake_run_blocking_io(func, *args, **kwargs):
+    async def _fake_run_long_blocking_io(func, *args, **kwargs):
         calls.append(func)
         return func(*args, **kwargs)
 
-    monkeypatch.setattr(redis_storage, "run_blocking_io", _fake_run_blocking_io, raising=False)
+    monkeypatch.setattr(
+        redis_storage, "run_long_blocking_io", _fake_run_long_blocking_io, raising=False
+    )
 
     value = await storage.get("cache:large")
 
     assert value == {"items": ["x" * 20_000]}
-    assert calls == [json.loads]
+    assert calls == []
 
 
 @pytest.mark.asyncio
-async def test_redis_storage_xadd_offloads_json_serialization_for_dict_fields(
+async def test_redis_storage_xadd_serializes_json_inline_for_dict_fields(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     storage = redis_storage.RedisStorage()
@@ -321,11 +325,11 @@ async def test_redis_storage_xadd_offloads_json_serialization_for_dict_fields(
     storage._client = client
     calls = []
 
-    async def _fake_run_blocking_io(func, *args, **kwargs):
+    async def _fake_run_long_blocking_io(func, *args, **kwargs):
         calls.append(func)
         return func(*args, **kwargs)
 
-    monkeypatch.setattr(redis_storage, "run_blocking_io", _fake_run_blocking_io)
+    monkeypatch.setattr(redis_storage, "run_long_blocking_io", _fake_run_long_blocking_io)
 
     entry_id = await storage.xadd(
         "stream:events",
@@ -334,7 +338,7 @@ async def test_redis_storage_xadd_offloads_json_serialization_for_dict_fields(
     )
 
     assert entry_id == "1-0"
-    assert calls == [json.dumps]
+    assert calls == []
     assert client.xadd_calls == [
         (
             "stream:events",
@@ -352,11 +356,11 @@ async def test_redis_storage_xrange_offloads_stream_field_json_parsing(
     storage._client = _FakeStreamReadRedisClient()
     calls = []
 
-    async def _fake_run_blocking_io(func, *args, **kwargs):
+    async def _fake_run_long_blocking_io(func, *args, **kwargs):
         calls.append(func.__name__)
         return func(*args, **kwargs)
 
-    monkeypatch.setattr(redis_storage, "run_blocking_io", _fake_run_blocking_io)
+    monkeypatch.setattr(redis_storage, "run_long_blocking_io", _fake_run_long_blocking_io)
 
     entries = await storage.xrange("stream:events", count=10)
 
@@ -372,13 +376,90 @@ async def test_redis_storage_xread_offloads_stream_field_json_parsing(
     storage._client = _FakeStreamReadRedisClient()
     calls = []
 
-    async def _fake_run_blocking_io(func, *args, **kwargs):
+    async def _fake_run_long_blocking_io(func, *args, **kwargs):
         calls.append(func.__name__)
         return func(*args, **kwargs)
 
-    monkeypatch.setattr(redis_storage, "run_blocking_io", _fake_run_blocking_io)
+    monkeypatch.setattr(redis_storage, "run_long_blocking_io", _fake_run_long_blocking_io)
 
     entries = await storage.xread({"stream:events": "0"}, count=10, block=100)
 
     assert calls == ["_parse_stream_read_result_sync"]
     assert entries == [("stream:events", [("1-0", {"data": {"content": "x" * 20_000}})])]
+
+
+class _FakeJsonRedisClient:
+    """Redis client stub for get/set/xadd JSON round-trip checks."""
+
+    def __init__(self) -> None:
+        self.store: dict[str, str] = {}
+        self.xadd_calls: list[tuple[str, dict]] = []
+
+    async def get(self, key: str):
+        return self.store.get(key)
+
+    async def set(self, key: str, value, ex=None):
+        self.store[key] = value
+        return True
+
+    async def xadd(self, stream_key: str, fields: dict, maxlen=None):
+        self.xadd_calls.append((stream_key, fields))
+        return "1-0"
+
+
+def _recording_run_blocking_io(calls: list[str]):
+    async def _fake_run_long_blocking_io(func, *args, **kwargs):
+        calls.append(func.__name__)
+        return func(*args, **kwargs)
+
+    return _fake_run_long_blocking_io
+
+
+@pytest.mark.asyncio
+async def test_redis_storage_get_parses_json_inline(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    storage = redis_storage.RedisStorage()
+    client = _FakeJsonRedisClient()
+    client.store["k"] = json.dumps({"a": 1})
+    storage._client = client
+    calls: list[str] = []
+    monkeypatch.setattr(redis_storage, "run_long_blocking_io", _recording_run_blocking_io(calls))
+
+    assert await storage.get("k") == {"a": 1}
+    # json.loads is a microsecond pure-CPU call and must not hit the thread pool
+    assert calls == []
+
+
+@pytest.mark.asyncio
+async def test_redis_storage_set_serializes_json_inline(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    storage = redis_storage.RedisStorage()
+    client = _FakeJsonRedisClient()
+    storage._client = client
+    calls: list[str] = []
+    monkeypatch.setattr(redis_storage, "run_long_blocking_io", _recording_run_blocking_io(calls))
+
+    await storage.set("k", {"b": [1, 2]})
+    assert json.loads(client.store["k"]) == {"b": [1, 2]}
+    assert calls == []
+
+
+@pytest.mark.asyncio
+async def test_redis_storage_xadd_serializes_dict_fields_inline(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    storage = redis_storage.RedisStorage()
+    client = _FakeJsonRedisClient()
+    storage._client = client
+    calls: list[str] = []
+    monkeypatch.setattr(redis_storage, "run_long_blocking_io", _recording_run_blocking_io(calls))
+
+    entry_id = await storage.xadd("stream:events", {"data": {"x": 1}, "n": 5})
+    assert entry_id == "1-0"
+    stream_key, fields = client.xadd_calls[0]
+    assert stream_key == "stream:events"
+    assert json.loads(fields["data"]) == {"x": 1}
+    assert fields["n"] == "5"
+    assert calls == []

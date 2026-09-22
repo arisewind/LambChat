@@ -13,6 +13,7 @@ from typing import Any, Dict, Optional
 
 from src.infra.async_utils.blocking import run_blocking_io
 from src.infra.logging import get_logger
+from src.infra.pubsub_hub import namespaced_channel
 from src.infra.session.storage import SessionStorage
 from src.infra.session.trace_storage import get_trace_storage
 from src.infra.storage.redis import get_redis_client
@@ -156,7 +157,9 @@ class TaskCancellation:
                     trace_storage = get_trace_storage()
                     success = await trace_storage.complete_trace(
                         trace_id,
-                        status="error",
+                        # 用户取消是独立终态：写成 error 会让用量面板把主动
+                        # 停止误读为服务故障（cancel_reason 供面板透出原因）
+                        status="cancelled",
                         metadata={"cancel_reason": "Task cancelled by user"},
                         ensure_token_usage=False,
                     )
@@ -218,7 +221,7 @@ class TaskCancellation:
                 )
 
                 await redis_client.publish(
-                    CANCEL_CHANNEL,
+                    namespaced_channel(CANCEL_CHANNEL),
                     payload,
                 )
                 logger.info(

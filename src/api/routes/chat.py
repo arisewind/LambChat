@@ -33,7 +33,7 @@ from src.api.routes.chat_stream_terminal import (
 )
 from src.api.routes.chat_validation import validate_team_agent_request
 from src.api.routes.session import verify_session_ownership
-from src.infra.async_utils import run_blocking_io
+from src.infra.chat.memory_context import append_memory_context, build_memory_query
 from src.infra.chat.session_baseline import (
     _time_report_due,
     _turn_context_signature,
@@ -54,11 +54,18 @@ from src.kernel.config import settings
 from src.kernel.errors import AppError, ErrorCode
 from src.kernel.exceptions import AuthorizationError, NotFoundError
 from src.kernel.schemas.agent import AgentRequest, AttachmentSchema
-from src.kernel.schemas.model import ModelConfig
+from src.kernel.schemas.model import ModelConfig, effective_image_url_mode
 from src.kernel.schemas.user import TokenPayload
 
 router = APIRouter()
 logger = get_logger(__name__)
+
+from src.api.routes.chat_session_config import (  # noqa: E402
+    _SESSION_CONFIG_MAX_TASKS,  # noqa: F401  # 测试经 chat 模块访问
+    _schedule_session_config_update,
+    _session_config_tasks,  # noqa: F401
+    drain_session_config_tasks,  # noqa: F401
+)
 
 
 def resolve_default_agent_id(agent_id: str | None) -> str:
@@ -91,9 +98,7 @@ async def _attach_resolved_model_options(agent_options: dict, model: ModelConfig
     agent_options["_resolved_supports_vision"] = bool(
         getattr(model.profile, "supports_vision", False)
     )
-    agent_options["_resolved_image_url_to_base64"] = bool(
-        getattr(model.profile, "image_url_to_base64", False)
-    )
+    agent_options["_resolved_image_url_mode"] = effective_image_url_mode(model.profile)
     if model.api_key:
         from src.infra.llm.models_service import set_cached_api_key
 
@@ -134,10 +139,12 @@ async def validate_agent_model_access(
     if not model_id and not selected_model:
         if allowed_model_ids is None:
             return
+        # 批量解析 allowed 模型（一次 $in 查询），逐个 get/get_by_value 是 N+1
+        by_id, by_value = await storage.get_many_by_ids_and_values(allowed_model_ids)
         for allowed_model_id in allowed_model_ids:
-            model = await storage.get(allowed_model_id)
-            if not model:
-                model = await storage.get_by_value(allowed_model_id)
+            model = by_id.get(allowed_model_id)
+            if model is None:
+                model = by_value.get(allowed_model_id)
             if model and model.enabled:
                 await _attach_resolved_model_options(agent_options, model)
                 return
@@ -362,10 +369,7 @@ async def chat_stream(
     # submit / submit_arq / scheduler 均携带 agent_options）
     apply_response_language(request.agent_options, http_request.headers.get("accept-language"))
 
-    # 模型侧消息只包含本轮上下文，不注入记忆；记忆索引归属 memory_recall
-    # 工具描述，详细内容由模型按需调用工具获取。
-    # - 报时漂移：首轮或超阈值才带时间戳
-    # - goal/自动模式签名去重：目标未变不重复注入
+    # Model-facing assembly includes turn context and optional bounded memory hints.
     time_due = _time_report_due(existing_metadata)
     tc_signature = _turn_context_signature(active_goal, request.auto_mode)
 
@@ -379,6 +383,16 @@ async def chat_stream(
         include_timestamp=time_due,
         last_tc_signature=(existing_metadata or {}).get("prompt_turn_context_signature"),
     )
+    # Existing sessions resolve project scope from persisted metadata; only a
+    # brand-new session may use the request's project assignment.
+    memory_project_id = request.project_id if not request.session_id else None
+    formatted_message = await append_memory_context(
+        formatted_message,
+        user.sub,
+        raw_query=build_memory_query(request.message, active_goal),
+        project_id=memory_project_id,
+        session_id=session_id,
+    )
 
     # 本轮注入状态写回会话元数据（供后续轮次判定）
     prompt_state = {"prompt_turn_context_signature": tc_signature}
@@ -390,30 +404,17 @@ async def chat_stream(
     # 生成 run_id（不管是否排队都需要唯一 ID）
     run_id = _generate_run_id()
 
-    # base_url：生成文件 URL（reveal/产物投递）的前缀。排队执行器脱离请求上下文，
-    # 必须在入队时捕获；优先 APP_BASE_URL，回退 request.base_url
+    # Capture the base URL before queueing so artifact links survive worker dispatch.
     base_url = getattr(settings, "APP_BASE_URL", "").rstrip("/")
     if not base_url:
         base_url = str(getattr(http_request, "base_url", "") or "").rstrip("/")
         if base_url == "http://None":
             base_url = ""
 
-    # 残留插话随旧 run 结束已失效（前端会补发为普通消息），清空后端
-    # 队列避免新 run 首次模型调用重复注入；HITL 恢复不经过这里
+    # Drop stale steer items so a new run does not repeat them.
     from src.infra.task.steer import purge_stale_steers
 
-    await purge_stale_steers(session_id)
-
-    # Prepare attachments (needed for both queued and direct paths)
-    attachments_data = (
-        [a.model_dump() for a in request.attachments] if request.attachments else None
-    )
-    attachment_keys = _extract_attachment_keys(attachments_data, limit=None)
-    attachment_references_claimed = bool(attachment_keys)
-    file_records: FileRecordStorage | None = None
-
-    # Build task context for queued dispatch (stored in Redis, multi-worker safe)
-    # trace_id is generated early so it can be passed to the executor for trace reuse
+    # Build queued task context; trace_id is generated early for executor reuse.
     from src.infra.writer.present import Presenter, PresenterConfig
 
     _pre_presenter = Presenter(
@@ -428,6 +429,48 @@ async def chat_stream(
     )
     trace_id = _pre_presenter.trace_id
 
+    # Prepare attachments (needed for both queued and direct paths)
+    attachments_data = (
+        [a.model_dump() for a in request.attachments] if request.attachments else None
+    )
+    attachment_keys = _extract_attachment_keys(attachments_data, limit=None)
+    attachment_references_claimed = bool(attachment_keys)
+    file_records: FileRecordStorage | None = None
+
+    async def _claim_attachments() -> None:
+        nonlocal file_records
+        if not attachment_keys:
+            return
+        records = FileRecordStorage()
+        file_records = records
+        try:
+            await records.claim_owned_references(attachment_keys, user.sub)
+        except AttachmentClaimError:
+            raise AppError(ErrorCode.INVALID_ATTACHMENTS) from None
+
+    # purge 与附件 claim 互不依赖，并行执行；异常优先级与原串行一致（purge 错误优先）
+    purge_exc, claim_exc = await asyncio.gather(
+        purge_stale_steers(session_id), _claim_attachments(), return_exceptions=True
+    )
+    if isinstance(purge_exc, BaseException) or isinstance(claim_exc, BaseException):
+        # 仅当 claim 成功（claim_exc 为空）而 purge 失败时才由路由释放：
+        # claim 自身失败（含取消）时其实现内部已回滚部分成功的前缀，
+        # 这里再全量释放会把其他消息仍在引用的附件计数误减、触发 GC 误删
+        if claim_exc is None and file_records is not None and attachment_keys:
+            try:
+                await file_records.release_owned_references(attachment_keys, user.sub)
+            except Exception:
+                logger.warning(
+                    "Failed to release claimed attachments on submit failure",
+                    exc_info=True,
+                )
+        if isinstance(purge_exc, BaseException):
+            raise purge_exc
+        if isinstance(claim_exc, BaseException):
+            raise claim_exc
+        return
+
+    # Build task context for queued dispatch (stored in Redis, multi-worker safe)
     task_context = {
         "executor_key": "agent_stream",
         "agent_id": agent_id,
@@ -450,13 +493,6 @@ async def chat_stream(
         "auto_mode": request.auto_mode,
         "base_url": base_url,
     }
-
-    if attachment_keys:
-        file_records = FileRecordStorage()
-        try:
-            await file_records.claim_owned_references(attachment_keys, user.sub)
-        except AttachmentClaimError:
-            raise AppError(ErrorCode.INVALID_ATTACHMENTS) from None
 
     # 检查并发限制
     limiter = get_concurrency_limiter()
@@ -532,8 +568,8 @@ async def chat_stream(
                 "attachment_references_claimed": attachment_references_claimed,
             }
 
-            # 更新 session metadata，存储完整的对话配置（排队状态）
-            await _update_session_config(
+            # 更新 session metadata，存储完整的对话配置（排队状态；后台执行）
+            await _schedule_session_config_update(
                 session_id,
                 run_id,
                 agent_id,
@@ -622,8 +658,8 @@ async def chat_stream(
             await limiter.release(user.sub, run_id)
             raise
 
-    # 更新 session metadata，存储完整的对话配置
-    await _update_session_config(
+    # 更新 session metadata，存储完整的对话配置（后台执行，不阻塞响应）
+    await _schedule_session_config_update(
         session_id,
         run_id,
         agent_id,
@@ -685,7 +721,7 @@ async def session_stream(
                         terminal,
                         event["event_type"],
                     )
-                    yield await run_blocking_io(_format_sse_event, event)
+                    yield _format_sse_event(event)
                     return
 
             # 使用 run_id 读取特定轮次的事件
@@ -694,14 +730,14 @@ async def session_stream(
                 session_id,
                 run_id=run_id,
             ):
-                # 心跳事件：发送 SSE 注释（: 开头的行被 EventSource 忽略）
-                # 这样能检测到客户端断开，同时不干扰前端逻辑
+                # 心跳事件：具名 ping（空数据）。客户端以其为存活信号判定
+                # 半开死连接；旧客户端跳过未知事件，不受影响。
                 if event["event_type"] == "heartbeat":
-                    yield ": heartbeat\n\n"
+                    yield "event: ping\ndata: {}\n\n"
                     continue
 
                 event_count += 1
-                yield await run_blocking_io(_format_sse_event, event)
+                yield _format_sse_event(event)
 
             logger.info(f"[SSE] Stream ended after {event_count} events")
 
@@ -900,8 +936,7 @@ async def steer_running_agent(
         SteerItem(id=message_id, content=message, attachments=attachments),
     )
     return {
-        # Keep `status=queued` for existing clients; `outcome` is the
-        # unambiguous protocol field for newer clients.
+        # Keep status=queued for existing clients; outcome is newer protocol field.
         "status": "queued",
         "outcome": "accepted",
         "session_id": session_id,

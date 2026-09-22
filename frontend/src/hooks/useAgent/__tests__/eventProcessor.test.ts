@@ -86,7 +86,8 @@ test("keeps cancelled ask-human tool results pending while HITL resumes", () => 
   });
 });
 
-test("resolves the exact ask-human tool from a durable approval event", () => {  const first = processMessageEvent(
+test("resolves the exact ask-human tool from a durable approval event", () => {
+  const first = processMessageEvent(
     "tool:start",
     { tool: "ask_human", tool_call_id: "ask-1", args: { message: "first" } },
     [],
@@ -795,4 +796,101 @@ test("summary stats event lands inside the subagent like its text", () => {
     content: "sub summary",
     freed_tokens: 777,
   });
+});
+
+test("synthesized reconnect cancel (type task_cancelled) is treated as cancelled, not failure", () => {
+  const result = processMessageEvent(
+    "error",
+    {
+      error: "Task cancelled by user.",
+      type: "task_cancelled",
+      run_id: "run-1",
+      code: "run_cancelled",
+    },
+    [{ type: "text", content: "partial" }],
+    "partial",
+    [],
+    0,
+    [],
+    true,
+    "message-1",
+  );
+
+  // chat_stream_terminal 合成的重连取消事件：与 CancelledError 同属用户取消，
+  // 不得渲染成错误气泡（content 保持原文，不打错误前缀）
+  expect(result.cancelled).toBe(true);
+  expect(result.content).toBe("partial");
+});
+
+test("upserts artifact parts by path so one file shows once per message", () => {
+  const baseArtifact = {
+    kind: "file" as const,
+    id: "file:revealed_files/v1_report.png",
+    name: "report.png",
+    path: "/workspace/report.png",
+    preview: {
+      kind: "file" as const,
+      previewKey: "revealed_files/v1_report.png",
+      filePath: "/workspace/report.png",
+      signedUrl: "/api/upload/file/revealed_files/v1_report.png",
+    },
+  };
+
+  const first = processMessageEvent(
+    "artifact:result",
+    { artifact: baseArtifact, success: true },
+    [],
+    "",
+    [],
+    0,
+    [],
+    true,
+    "message-1",
+  );
+
+  // 同一文件换 key 重发（编辑后重传/竞态二次事件）：同 path 只保留最新一张卡
+  const updated = processMessageEvent(
+    "artifact:result",
+    {
+      artifact: {
+        ...baseArtifact,
+        id: "file:revealed_files/v2_report.png",
+        preview: {
+          ...baseArtifact.preview,
+          previewKey: "revealed_files/v2_report.png",
+          signedUrl: "/api/upload/file/revealed_files/v2_report.png",
+        },
+      },
+      success: true,
+    },
+    first.parts,
+    "",
+    [],
+    0,
+    [],
+    true,
+    "message-1",
+  );
+
+  const artifactParts = updated.parts.filter((part) => part.type === "artifact");
+  expect(artifactParts).toHaveLength(1);
+  if (artifactParts[0].type !== "artifact") return;
+  expect(artifactParts[0].artifact.id).toBe("file:revealed_files/v2_report.png");
+
+  // 不同 path 的产物正常追加，互不挤掉
+  const other = processMessageEvent(
+    "artifact:result",
+    {
+      artifact: { ...baseArtifact, id: "file:chart", path: "/workspace/chart.png" },
+      success: true,
+    },
+    updated.parts,
+    "",
+    [],
+    0,
+    [],
+    true,
+    "message-1",
+  );
+  expect(other.parts.filter((part) => part.type === "artifact")).toHaveLength(2);
 });

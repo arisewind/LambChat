@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import asyncio
-import json
 from datetime import datetime
 
 import pytest
@@ -37,7 +36,9 @@ def test_dual_writer_live_stream_read_timeout_is_24_hours() -> None:
 
 
 def test_dual_writer_idle_xread_block_matches_heartbeat_interval() -> None:
-    assert dual_writer._SSE_HEARTBEAT_INTERVAL_SECONDS == 15
+    # 心跳 5s 与 xread block 5s 同频：空闲流每唤醒一次即发一次 ping，
+    # 客户端 15s 静默阈值（3 个周期）据此判定半开死连接
+    assert dual_writer._SSE_HEARTBEAT_INTERVAL_SECONDS == 5
     assert dual_writer._REDIS_XREAD_BLOCK_MS == 5_000
 
 
@@ -114,19 +115,17 @@ async def test_dual_writer_shortens_terminal_stream_ttl() -> None:
 
 
 @pytest.mark.asyncio
-async def test_write_event_offloads_redis_json_serialization_for_dict_data(
+async def test_write_event_inlines_redis_json_serialization_for_dict_data(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     fake_redis = _FakeRedis()
     writer = dual_writer.DualEventWriter()
     writer._redis = fake_redis
-    calls = []
 
-    async def _fake_run_blocking_io(func, *args, **kwargs):
-        calls.append(func)
-        return func(*args, **kwargs)
+    async def _fail_run_blocking_io(func, *args, **kwargs):
+        raise AssertionError("json.dumps should run inline, not via run_blocking_io")
 
-    monkeypatch.setattr(dual_writer, "run_blocking_io", _fake_run_blocking_io, raising=False)
+    monkeypatch.setattr(dual_writer, "run_blocking_io", _fail_run_blocking_io, raising=False)
 
     await writer.write_event(
         session_id="s1",
@@ -135,15 +134,13 @@ async def test_write_event_offloads_redis_json_serialization_for_dict_data(
         run_id="r1",
     )
 
-    assert calls == [json.dumps]
     assert fake_redis.xadd_calls[0][1]["data"].startswith('{"content":')
 
 
 @pytest.mark.asyncio
-async def test_read_from_redis_offloads_replayed_event_json_parse(
+async def test_read_from_redis_inlines_replayed_event_json_parse(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    calls = []
 
     class _ReplayRedis:
         async def xrange(
@@ -168,11 +165,10 @@ async def test_read_from_redis_offloads_replayed_event_json_parse(
         async def xread(self, streams: dict[str, str], block: int | None = None) -> list:
             raise AssertionError("terminal replay event should stop before xread")
 
-    async def _fake_run_blocking_io(func, *args, **kwargs):
-        calls.append(func)
-        return func(*args, **kwargs)
+    async def _fail_run_blocking_io(func, *args, **kwargs):
+        raise AssertionError("json.loads should run inline, not via run_blocking_io")
 
-    monkeypatch.setattr(dual_writer, "run_blocking_io", _fake_run_blocking_io, raising=False)
+    monkeypatch.setattr(dual_writer, "run_blocking_io", _fail_run_blocking_io, raising=False)
 
     writer = dual_writer.DualEventWriter()
     writer._redis = _ReplayRedis()
@@ -187,7 +183,6 @@ async def test_read_from_redis_offloads_replayed_event_json_parse(
     ]
 
     assert events[0]["data"]["content"] == "x" * 20_000
-    assert calls == [json.loads]
 
 
 @pytest.mark.asyncio

@@ -13,12 +13,26 @@ from collections import OrderedDict
 from functools import lru_cache
 from typing import Any, Optional
 
+import httpx
 from langchain_core.language_models.chat_models import BaseChatModel
 from langchain_core.language_models.model_profile import ModelProfile as LangChainModelProfile
 from pydantic import SecretStr
 
 from src.infra.llm.anthropic_chat import LambChatAnthropicChatModel as ChatAnthropic
+from src.infra.llm.budget import (
+    ANTHROPIC_DEFAULT_MAX_TOKENS,
+    warn_if_input_budget_strangled,
+)
 from src.infra.llm.google_chat import LambChatGoogleChatModel as ChatGoogleGenerativeAI
+from src.infra.llm.httpx_pool import (
+    _acquire_pooled_http_async_client,
+    _close_tasks,
+    _evict_model_instance,
+    _model_pool_keys,
+    _pool_key,
+    _release_pool_client,
+    release_all_pooled_clients,
+)
 from src.infra.llm.openai_chat import (
     LambChatOpenAIChatModel as ChatOpenAI,
 )
@@ -31,7 +45,6 @@ from src.kernel.exceptions import AuthorizationError
 from src.kernel.schemas.model import ModelConfig
 
 logger = get_logger(__name__)
-_close_tasks: set[asyncio.Future[None]] = set()
 
 # ── Provider 注册表 ──
 # 每个条目: provider_slug → (协议类型, 模型名前缀列表)
@@ -473,28 +486,6 @@ def _has_env_provider_auth(protocol: str) -> bool:
     return False
 
 
-def _safe_close_client(model_instance: BaseChatModel) -> None:
-    """Safely close HTTP client with error logging."""
-    try:
-        _client = getattr(model_instance, "async_client", None) or getattr(
-            model_instance, "client", None
-        )
-        if _client and hasattr(_client, "aclose"):
-
-            def _on_close_done(t: asyncio.Future[None]) -> None:
-                _close_tasks.discard(t)
-                if not t.cancelled():
-                    exc = t.exception()
-                    if exc:
-                        logger.debug(f"Failed to close LLM client connections: {exc}")
-
-            task = asyncio.ensure_future(_client.aclose())
-            _close_tasks.add(task)
-            task.add_done_callback(_on_close_done)
-    except Exception as e:
-        logger.debug(f"Failed to close LLM client connections: {e}")
-
-
 class LLMClient:
     """LLM 客户端工厂，支持 LRU 实例缓存和 fallback。"""
 
@@ -518,6 +509,7 @@ class LLMClient:
         profile: Optional[dict] = None,
         api_format: Optional[str] = None,
         request_headers: Optional[dict[str, str]] = None,
+        pooled_http_async_client: Optional[httpx.AsyncClient] = None,
         **kwargs: Any,
     ) -> BaseChatModel:
         """根据 provider 创建对应的 LangChain 模型。
@@ -544,12 +536,18 @@ class LLMClient:
             anthropic_thinking, effort, temperature_override = _resolve_anthropic_thinking(
                 model_name, thinking
             )
+            # 未配置 max_tokens 时注入显式默认：langchain-anthropic 会把 None
+            # 静默换成 4096（见 budget.ANTHROPIC_DEFAULT_MAX_TOKENS 注释）。
+            effective_max_tokens = (
+                max_tokens if max_tokens is not None else ANTHROPIC_DEFAULT_MAX_TOKENS
+            )
+            warn_if_input_budget_strangled(profile, effective_max_tokens, model_name)
             anthropic_kwargs: dict[str, Any] = {
                 "model_name": model_name,
                 "temperature": (
                     temperature_override if temperature_override is not None else temperature
                 ),
-                "max_tokens": max_tokens,  # type: ignore[arg-type]
+                "max_tokens": effective_max_tokens,
                 "thinking": anthropic_thinking,
                 "effort": effort,
                 "base_url": api_base or None,
@@ -591,6 +589,11 @@ class LLMClient:
         openai_kwargs: dict[str, Any] = {
             "model": model_name,
             "temperature": temperature,
+            # 配置了才发送：None 不进 payload（provider 默认接管）。历史上该
+            # 分支漏传 max_tokens，配置值被静默丢弃（"死配置"），现对齐
+            # 「配了就传、不配不传」语义；生产 openai 协议模型当前均为 null，
+            # 此修复不改变现有请求。
+            "max_tokens": max_tokens,
             "streaming": True,
             "api_key": api_key or "sk-placeholder",
             "base_url": api_base or None,
@@ -601,6 +604,10 @@ class LLMClient:
             "non_streaming_timeout": _effective_timeout(settings.LLM_REQUEST_TIMEOUT),
             "stream_idle_timeout": _effective_timeout(settings.LLM_STREAM_IDLE_TIMEOUT),
         }
+        # Share one httpx connection pool across parameter variants of the
+        # same endpoint (see _acquire_pooled_http_async_client).
+        if pooled_http_async_client is not None:
+            openai_kwargs["http_async_client"] = pooled_http_async_client
         # /v1/responses 线格式开关（模型级 api_format > 全局默认）。
         # 显式传 bool：None 会让 langchain-openai 自动探测，不满足确定性。
         openai_kwargs["use_responses_api"] = _resolve_use_responses(protocol, api_format)
@@ -876,27 +883,35 @@ class LLMClient:
         # LRU 淘汰：如果缓存满了，删除最久未使用的
         max_cache_size = LLMClient._get_max_cache_size()
         if len(LLMClient._model_cache) >= max_cache_size:
-            oldest_key, oldest_model = LLMClient._model_cache.popitem(last=False)
-
-            # 尝试关闭 HTTP 客户端连接池，防止连接泄漏
-            _safe_close_client(oldest_model)
-
+            _, oldest_model = LLMClient._model_cache.popitem(last=False)
+            _evict_model_instance(oldest_model)
             logger.info(f"LLM cache full ({max_cache_size}), evicted oldest model")
 
         logger.info(f"Creating {provider} model: {model_name}")
-        instance = LLMClient._create_model(
-            provider,
-            model_name,
-            temperature=temperature,
-            max_tokens=max_tokens,
-            api_key=api_key,
-            api_base=api_base,
-            thinking=thinking,
-            profile=profile,
-            api_format=api_format,
-            request_headers=model_request_headers,
-            **kwargs,
-        )
+        pooled_client: Optional[httpx.AsyncClient] = None
+        if protocol == "openai":
+            pooled_client = _acquire_pooled_http_async_client(api_key, api_base)
+        try:
+            instance = LLMClient._create_model(
+                provider,
+                model_name,
+                temperature=temperature,
+                max_tokens=max_tokens,
+                api_key=api_key,
+                api_base=api_base,
+                thinking=thinking,
+                profile=profile,
+                api_format=api_format,
+                request_headers=model_request_headers,
+                pooled_http_async_client=pooled_client,
+                **kwargs,
+            )
+        except Exception:
+            if pooled_client is not None:
+                _release_pool_client(_pool_key(api_key, api_base))
+            raise
+        if pooled_client is not None:
+            _model_pool_keys[id(instance)] = _pool_key(api_key, api_base)
         LLMClient._model_cache[cache_key] = instance
         return instance
 
@@ -930,7 +945,7 @@ class LLMClient:
         for key in to_delete:
             evicted = LLMClient._model_cache.pop(key, None)
             if evicted:
-                _safe_close_client(evicted)
+                _evict_model_instance(evicted)
 
         return len(to_delete)
 
@@ -940,7 +955,11 @@ class LLMClient:
         cached_models = list(LLMClient._model_cache.values())
         LLMClient._model_cache.clear()
         for model in cached_models:
-            _safe_close_client(model)
+            _evict_model_instance(model)
+        # Any pool entries left (references from instances outside the cache)
+        # are closed too on full shutdown.
+        _model_pool_keys.clear()
+        release_all_pooled_clients()
         return len(cached_models)
 
     @staticmethod

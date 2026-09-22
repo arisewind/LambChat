@@ -3,6 +3,7 @@ import type { SettingCategory, SettingType } from "../../types";
 export const CATEGORY_ORDER: SettingCategory[] = [
   "frontend",
   "agent",
+  "scheduled_task",
   "llm",
   "session",
   "mongodb",
@@ -22,6 +23,7 @@ export const CATEGORY_ORDER: SettingCategory[] = [
   "skills",
   "tools",
   "audio_transcription",
+  "document_parse",
   "tracing",
   "user",
   "oauth",
@@ -41,6 +43,7 @@ export const TYPE_COLORS: Record<SettingType, string> = {
 export const MODEL_CONFIG_SETTING_KEYS = new Set([
   "DEFAULT_MODEL_ID",
   "IMAGE_ANALYSIS_MODEL_ID",
+  "VIDEO_ANALYSIS_MODEL_ID",
   "SESSION_TITLE_MODEL",
   "NATIVE_MEMORY_MODEL",
   "NATIVE_MEMORY_COMPACTION_MODEL_ID",
