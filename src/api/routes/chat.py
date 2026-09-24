@@ -40,7 +40,6 @@ from src.infra.chat.session_baseline import (
     assemble_first_turn_message,
 )
 from src.infra.goal import GoalSpec, coerce_goal_spec
-from src.infra.llm.streaming import aiter_with_first_event_timeout
 from src.infra.logging import get_logger
 from src.infra.session.manager import SessionManager
 from src.infra.task.cancellation import _close_agent_safely
@@ -247,32 +246,27 @@ async def _execute_agent_stream(
 
     try:
         agent = await AgentFactory.get(agent_id)
-        # 首事件超时兜底（issue #293）：上游 LLM 挂起时避免 run 永久停留在 running
-        event_stream = aiter_with_first_event_timeout(
-            agent.stream(
-                message,
-                session_id,
-                user_id=user_id,
-                presenter=presenter,
-                disabled_tools=disabled_tools,
-                agent_options=agent_options,
-                attachments=attachments,
-                disabled_skills=disabled_skills,
-                enabled_skills=enabled_skills,
-                persona_system_prompt=persona_system_prompt,
-                disabled_mcp_tools=disabled_mcp_tools,
-                enabled_mcp_servers=enabled_mcp_servers,
-                team_id=team_id,
-                active_goal=active_goal,
-                auto_mode=auto_mode,
-                goal_started_at=started_at,
-                recommendation_input=recommendation_input,
-                hitl_resume=hitl_resume,
-                base_url=base_url,
-            ),
-            timeout=settings.LLM_FIRST_EVENT_TIMEOUT,
-        )
-        async for event in event_stream:
+        async for event in agent.stream(
+            message,
+            session_id,
+            user_id=user_id,
+            presenter=presenter,
+            disabled_tools=disabled_tools,
+            agent_options=agent_options,
+            attachments=attachments,
+            disabled_skills=disabled_skills,
+            enabled_skills=enabled_skills,
+            persona_system_prompt=persona_system_prompt,
+            disabled_mcp_tools=disabled_mcp_tools,
+            enabled_mcp_servers=enabled_mcp_servers,
+            team_id=team_id,
+            active_goal=active_goal,
+            auto_mode=auto_mode,
+            goal_started_at=started_at,
+            recommendation_input=recommendation_input,
+            hitl_resume=hitl_resume,
+            base_url=base_url,
+        ):
             if event.get("event") == "goal:end":
                 goal_end_emitted = True
             yield event
