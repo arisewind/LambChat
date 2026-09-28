@@ -7,6 +7,7 @@ import {
   Wrench,
 } from "lucide-react";
 import { useTranslation } from "react-i18next";
+import { protoCls } from "../__proto__/protoSepiaSwap";
 import type { MCPServerResponse } from "../../types";
 import { IconButton } from "../common";
 import { nameToGradient } from "../common/cardUtils";
@@ -21,13 +22,18 @@ interface MCPServerCardProps {
 }
 
 const TRANSPORT_COLORS: Record<string, string> = {
-  sse: "bg-emerald-50 text-emerald-600 ring-1 ring-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-400 dark:ring-emerald-800/60",
+  sse: protoCls(
+    "bg-[color-mix(in_srgb,var(--theme-success)_12%,transparent)] text-theme-success ring-1 ring-[color-mix(in_srgb,var(--theme-success)_25%,transparent)] dark:bg-emerald-950/40 dark:text-emerald-400 dark:ring-emerald-800/60",
+    "bg-emerald-50 text-emerald-600 ring-1 ring-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-400 dark:ring-emerald-800/60",
+  ),
   streamable_http:
     "bg-violet-50 text-violet-600 ring-1 ring-violet-200 dark:bg-violet-950/40 dark:text-violet-400 dark:ring-violet-800/60",
 };
 
-const DEFAULT_TRANSPORT_COLOR =
-  "bg-stone-100 text-stone-500 ring-1 ring-stone-200 dark:bg-stone-800 dark:text-stone-400 dark:ring-stone-700";
+const DEFAULT_TRANSPORT_COLOR = protoCls(
+  "bg-theme-bg-subtle text-theme-text-secondary ring-1 ring-theme-border dark:bg-stone-800 dark:text-stone-400 dark:ring-stone-700",
+  "bg-stone-100 text-stone-500 ring-1 ring-stone-200 dark:bg-stone-800 dark:text-stone-400 dark:ring-stone-700",
+);
 
 export function MCPServerCard({
   server,
@@ -91,7 +97,7 @@ export function MCPServerCard({
       <div className="flex flex-1 flex-col p-4 pt-5">
         <div className="flex items-start gap-3">
           <div className="scb__icon-ring shrink-0">
-            <Server size={16} className="text-stone-500 dark:text-stone-400" />
+            <Server size={16} className={protoCls("text-theme-text-secondary dark:text-stone-400", "text-stone-500 dark:text-stone-400")} />
           </div>
           <div className="min-w-0 flex-1">
             <h3
@@ -118,7 +124,10 @@ export function MCPServerCard({
 
         {server.url && (
           <div
-            className="mt-2 text-12 font-mono text-stone-400 dark:text-stone-500 truncate"
+            className={protoCls(
+              "mt-2 text-12 font-mono text-theme-text-tertiary dark:text-stone-500 truncate",
+              "mt-2 text-12 font-mono text-stone-400 dark:text-stone-500 truncate",
+            )}
             title={server.url}
           >
             {server.url}
@@ -149,7 +158,10 @@ export function MCPServerCard({
                   e.stopPropagation();
                   onDelete(server.name, server.is_system);
                 }}
-                className="rounded-lg hover:bg-red-50 hover:text-red-500 dark:hover:bg-red-950/30 dark:hover:text-red-400"
+                className={protoCls(
+                  "rounded-lg hover:bg-[color-mix(in_srgb,var(--theme-error)_10%,transparent)] hover:text-theme-error dark:hover:bg-red-950/30 dark:hover:text-red-400",
+                  "rounded-lg hover:bg-red-50 hover:text-red-500 dark:hover:bg-red-950/30 dark:hover:text-red-400",
+                )}
                 title={t("mcp.card.delete")}
               />
             )}
@@ -168,7 +180,7 @@ export function MCPServerCard({
             {server.enabled ? (
               <ToggleRight
                 size={13}
-                className="text-emerald-500 dark:text-emerald-400"
+                className={protoCls("text-theme-success", "text-emerald-500 dark:text-emerald-400")}
               />
             ) : (
               <ToggleLeft size={13} />

@@ -1,7 +1,18 @@
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 function readSource(path: string): string {
-  return readFileSync(resolve(import.meta.dirname, path), "utf8");
+  // proto/sepia-blindspots 原型分支：protoCls("after","before") 评审包装
+  // 把类名挪进函数调用，先塌缩回 `className="after"` 再断言
+  //（正式分支无此包装，以下替换均为 no-op）
+  return readFileSync(resolve(import.meta.dirname, path), "utf8")
+    .replace(
+      /className=\{protoCls\(\s*"((?:[^"\\]|\\.)*)"\s*,\s*"(?:[^"\\]|\\.)*"\s*,?\s*\)\}/gs,
+      'className="$1"',
+    )
+    .replace(
+      /protoCls\(\s*"((?:[^"\\]|\\.)*)"\s*,\s*"(?:[^"\\]|\\.)*"\s*,?\s*\)/gs,
+      '"$1"',
+    );
 }
 
 test("safe-area utility classes map to native inset variables", () => {

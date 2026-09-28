@@ -2,6 +2,7 @@ import { useEffect, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import { X } from "lucide-react";
 import { useTranslation } from "react-i18next";
+import { protoCls } from "../__proto__/protoSepiaSwap";
 import { useBodyScrollLock } from "../../hooks/useBodyScrollLock";
 
 /**
@@ -74,20 +75,35 @@ export function Dialog({
       <div
         role="dialog"
         aria-modal="true"
-        className={`relative z-10 flex max-h-[92dvh] w-full flex-col overflow-hidden bg-white shadow-xl dark:bg-stone-800 sm:mx-4 sm:rounded-xl sm:border sm:border-stone-200 sm:dark:border-stone-700 ${SIZE_CLASSES[size]} rounded-t-2xl border-x border-t border-stone-200/80 dark:border-stone-700/60 animate-slide-up-sheet duration-200 sm:animate-in sm:fade-in sm:zoom-in-95`}
+        className={`relative z-10 flex max-h-[92dvh] w-full flex-col overflow-hidden ${protoCls(
+          "bg-theme-bg-elevated shadow-xl",
+          "bg-white shadow-xl",
+        )} dark:bg-stone-800 sm:mx-4 sm:rounded-xl sm:border ${protoCls(
+          "sm:border-theme-border",
+          "sm:border-stone-200",
+        )} sm:dark:border-stone-700 ${SIZE_CLASSES[size]} rounded-t-2xl border-x border-t ${protoCls(
+          "border-theme-border/80",
+          "border-stone-200/80",
+        )} dark:border-stone-700/60 animate-slide-up-sheet duration-200 sm:animate-in sm:fade-in sm:zoom-in-95`}
       >
         {title !== undefined && (
           <div className="flex items-center justify-between gap-2 px-5 pt-5 pb-3">
             <div className="flex min-w-0 items-center gap-2">
               {icon}
-              <h3 className="truncate text-16 font-semibold font-serif text-stone-900 dark:text-stone-100">
+              <h3 className={protoCls(
+                "truncate text-16 font-semibold font-serif text-theme-text dark:text-stone-100",
+                "truncate text-16 font-semibold font-serif text-stone-900 dark:text-stone-100",
+              )}>
                 {title}
               </h3>
             </div>
             {dismissible && (
               <button
                 onClick={onClose}
-                className="inline-flex size-7 shrink-0 items-center justify-center rounded-full text-stone-400 transition-colors hover:bg-stone-100 dark:hover:bg-stone-700"
+                className={protoCls(
+                  "inline-flex size-7 shrink-0 items-center justify-center rounded-full text-theme-text-tertiary transition-colors hover:bg-theme-bg-subtle dark:hover:bg-stone-700",
+                  "inline-flex size-7 shrink-0 items-center justify-center rounded-full text-stone-400 transition-colors hover:bg-stone-100 dark:hover:bg-stone-700",
+                )}
                 aria-label={t("common.dismiss", "关闭")}
               >
                 <X size={14} />
@@ -101,7 +117,10 @@ export function Dialog({
         </div>
 
         {footer !== undefined && (
-          <div className="safe-area-bottom flex items-center justify-end gap-2 border-t border-stone-100 bg-stone-50 px-5 py-3 dark:border-stone-700 dark:bg-stone-900/50">
+          <div className={protoCls(
+            "safe-area-bottom flex items-center justify-end gap-2 border-t border-theme-border-subtle bg-theme-bg-subtle px-5 py-3 dark:border-stone-700 dark:bg-stone-900/50",
+            "safe-area-bottom flex items-center justify-end gap-2 border-t border-stone-100 bg-stone-50 px-5 py-3 dark:border-stone-700 dark:bg-stone-900/50",
+          )}>
             {footer}
           </div>
         )}

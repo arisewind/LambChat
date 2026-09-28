@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { Check, Copy, Download, Code, Eye, X, Maximize2 } from "lucide-react";
 import { useTranslation } from "react-i18next";
+import { protoCls } from "../../__proto__/protoSepiaSwap";
 import {
   prepareFullscreenMermaidSvg,
   stripResponsiveWidthAttribute,
@@ -297,9 +298,9 @@ export function MermaidDiagram({
   // During streaming, show code block instead
   if (isStreaming) {
     return (
-      <div className="my-2 sm:my-3 max-w-full overflow-hidden rounded-xl border border-stone-200 dark:border-stone-700">
-        <div className="flex items-center justify-between px-3 sm:px-4 py-2 bg-stone-200/70 dark:bg-stone-800/50">
-          <span className="text-12 font-medium text-stone-500 dark:text-stone-400">
+      <div className="my-2 sm:my-3 max-w-full overflow-hidden rounded-xl border border-theme-border dark:border-stone-700">
+        <div className="flex items-center justify-between px-3 sm:px-4 py-2 bg-theme-border/70 dark:bg-stone-800/50">
+          <span className="text-12 font-medium text-theme-text-secondary dark:text-stone-400">
             mermaid
           </span>
           <button
@@ -310,9 +311,9 @@ export function MermaidDiagram({
               <>
                 <Check
                   size={14}
-                  className="text-green-600 dark:text-green-400"
+                  className={protoCls("text-theme-success", "text-green-600 dark:text-green-400")}
                 />
-                <span className="text-green-600 dark:text-green-400">
+                <span className={protoCls("text-theme-success", "text-green-600 dark:text-green-400")}>
                   {t("chat.message.copied")}
                 </span>
               </>
@@ -320,16 +321,16 @@ export function MermaidDiagram({
               <>
                 <Copy
                   size={14}
-                  className="text-stone-500 dark:text-stone-400"
+                  className={protoCls("text-theme-text-secondary dark:text-stone-400", "text-stone-500 dark:text-stone-400")}
                 />
-                <span className="text-stone-500 dark:text-stone-400">
+                <span className={protoCls("text-theme-text-secondary dark:text-stone-400", "text-stone-500 dark:text-stone-400")}>
                   {t("chat.message.copy")}
                 </span>
               </>
             )}
           </button>
         </div>
-        <pre className="p-3 bg-stone-50 dark:bg-stone-800 overflow-x-auto max-h-64 overflow-y-auto text-12 text-stone-700 dark:text-stone-300 font-mono">
+        <pre className="p-3 bg-theme-bg-subtle dark:bg-stone-800 overflow-x-auto max-h-64 overflow-y-auto text-12 text-theme-text-secondary dark:text-stone-300 font-mono">
           {chart}
         </pre>
       </div>
@@ -338,9 +339,9 @@ export function MermaidDiagram({
 
   if (error) {
     return (
-      <div className="my-2 sm:my-3 max-w-full overflow-hidden rounded-xl border border-stone-200 dark:border-stone-700">
-        <div className="flex items-center justify-between px-3 sm:px-4 py-2 bg-stone-200/70 dark:bg-stone-800/50">
-          <span className="text-12 font-medium text-stone-500 dark:text-stone-400">
+      <div className="my-2 sm:my-3 max-w-full overflow-hidden rounded-xl border border-theme-border dark:border-stone-700">
+        <div className="flex items-center justify-between px-3 sm:px-4 py-2 bg-theme-border/70 dark:bg-stone-800/50">
+          <span className="text-12 font-medium text-theme-text-secondary dark:text-stone-400">
             mermaid
           </span>
           <button
@@ -351,9 +352,9 @@ export function MermaidDiagram({
               <>
                 <Check
                   size={14}
-                  className="text-green-600 dark:text-green-400"
+                  className={protoCls("text-theme-success", "text-green-600 dark:text-green-400")}
                 />
-                <span className="text-green-600 dark:text-green-400">
+                <span className={protoCls("text-theme-success", "text-green-600 dark:text-green-400")}>
                   {t("chat.message.copied")}
                 </span>
               </>
@@ -365,7 +366,7 @@ export function MermaidDiagram({
             )}
           </button>
         </div>
-        <pre className="p-3 bg-stone-50 dark:bg-stone-800 overflow-x-auto max-h-64 overflow-y-auto text-12 text-stone-700 dark:text-stone-300 font-mono">
+        <pre className="p-3 bg-theme-bg-subtle dark:bg-stone-800 overflow-x-auto max-h-64 overflow-y-auto text-12 text-theme-text-secondary dark:text-stone-300 font-mono">
           {chart}
         </pre>
       </div>
@@ -374,8 +375,8 @@ export function MermaidDiagram({
 
   if (!svg) {
     return (
-      <div className="mermaid-diagram overflow-x-auto rounded-lg bg-stone-50 p-4 dark:bg-stone-800">
-        <div className="text-14 text-stone-500 dark:text-stone-400">
+      <div className="mermaid-diagram overflow-x-auto rounded-lg bg-theme-bg-subtle p-4 dark:bg-stone-800">
+        <div className="text-14 text-theme-text-secondary dark:text-stone-400">
           Loading diagram...
         </div>
       </div>
@@ -384,11 +385,11 @@ export function MermaidDiagram({
 
   return (
     <>
-      <div className="my-2 sm:my-3 max-w-full overflow-hidden rounded-xl border border-stone-200 dark:border-stone-700">
+      <div className="my-2 sm:my-3 max-w-full overflow-hidden rounded-xl border border-theme-border dark:border-stone-700">
         {/* Header bar with action buttons */}
-        <div className="flex items-center justify-between px-3 sm:px-4 py-2 bg-stone-200/70 dark:bg-stone-800/50">
+        <div className="flex items-center justify-between px-3 sm:px-4 py-2 bg-theme-border/70 dark:bg-stone-800/50">
           <div className="flex items-center gap-2 min-w-0">
-            <span className="text-12 font-medium text-stone-500 dark:text-stone-400">
+            <span className="text-12 font-medium text-theme-text-secondary dark:text-stone-400">
               mermaid
             </span>
           </div>
@@ -404,9 +405,9 @@ export function MermaidDiagram({
                 <>
                   <Check
                     size={14}
-                    className="text-green-600 dark:text-green-400"
+                    className={protoCls("text-theme-success", "text-green-600 dark:text-green-400")}
                   />
-                  <span className="hidden xs:inline text-green-600 dark:text-green-400">
+                  <span className={protoCls("hidden xs:inline text-theme-success", "hidden xs:inline text-green-600 dark:text-green-400")}>
                     {t("chat.message.copied")}
                   </span>
                 </>
@@ -414,9 +415,9 @@ export function MermaidDiagram({
                 <>
                   <Copy
                     size={14}
-                    className="text-stone-500 dark:text-stone-400"
+                    className={protoCls("text-theme-text-secondary dark:text-stone-400", "text-stone-500 dark:text-stone-400")}
                   />
-                  <span className="hidden xs:inline text-stone-500 dark:text-stone-400">
+                  <span className={protoCls("hidden xs:inline text-theme-text-secondary dark:text-stone-400", "hidden xs:inline text-stone-500 dark:text-stone-400")}>
                     {t("chat.message.copy")}
                   </span>
                 </>
@@ -429,16 +430,19 @@ export function MermaidDiagram({
                   e.stopPropagation();
                   setShowDownloadMenu(!showDownloadMenu);
                 }}
-                className="flex items-center gap-1 rounded-md px-2 py-1 text-12 font-medium transition-all hover:bg-stone-300/50 dark:hover:bg-stone-700/50 min-h-[32px] min-w-[32px] touch-manipulation"
+                className="flex items-center gap-1 rounded-md px-2 py-1 text-12 font-medium transition-all hover:bg-theme-border-hover/50 dark:hover:bg-stone-700/50 min-h-[32px] min-w-[32px] touch-manipulation"
                 title={t("documents.download")}
               >
                 <Download
                   size={14}
-                  className="text-stone-500 dark:text-stone-400"
+                  className={protoCls("text-theme-text-secondary dark:text-stone-400", "text-stone-500 dark:text-stone-400")}
                 />
               </button>
               {showDownloadMenu && (
-                <div className="absolute right-0 top-full mt-1 z-50 min-w-[100px] rounded-lg border border-stone-200 dark:border-stone-700 bg-theme-bg-card dark:bg-stone-800 shadow-lg overflow-hidden">
+                <div className={protoCls(
+                  "absolute right-0 top-full mt-1 z-50 min-w-[100px] rounded-lg border border-theme-border dark:border-stone-700 bg-theme-bg-card dark:bg-stone-800 shadow-lg overflow-hidden",
+                  "absolute right-0 top-full mt-1 z-50 min-w-[100px] rounded-lg border border-stone-200 dark:border-stone-700 bg-theme-bg-card dark:bg-stone-800 shadow-lg overflow-hidden",
+                )}>
                   <ViewerDropdownMenuItem
                     onClick={(e) => {
                       e.stopPropagation();
@@ -466,23 +470,23 @@ export function MermaidDiagram({
                 setShowCode(true);
                 setIsFullscreen(true);
               }}
-              className="flex items-center gap-1 rounded-md px-2 py-1 text-12 font-medium transition-all hover:bg-stone-300/50 dark:hover:bg-stone-700/50 min-h-[32px] min-w-[32px] touch-manipulation"
+              className="flex items-center gap-1 rounded-md px-2 py-1 text-12 font-medium transition-all hover:bg-theme-border-hover/50 dark:hover:bg-stone-700/50 min-h-[32px] min-w-[32px] touch-manipulation"
               title={t("mermaidViewer.showCode")}
             >
-              <Code size={14} className="text-stone-500 dark:text-stone-400" />
-              <span className="hidden xs:inline text-stone-500 dark:text-stone-400">
+              <Code size={14} className={protoCls("text-theme-text-secondary dark:text-stone-400", "text-stone-500 dark:text-stone-400")} />
+              <span className={protoCls("hidden xs:inline text-theme-text-secondary dark:text-stone-400", "hidden xs:inline text-stone-500 dark:text-stone-400")}>
                 {t("mermaidViewer.showCode")}
               </span>
             </button>
             {/* Fullscreen button */}
             <button
               onClick={() => setIsFullscreen(true)}
-              className="flex items-center gap-1 rounded-md px-2 py-1 text-12 font-medium transition-all hover:bg-stone-300/50 dark:hover:bg-stone-700/50 min-h-[32px] min-w-[32px] touch-manipulation"
+              className="flex items-center gap-1 rounded-md px-2 py-1 text-12 font-medium transition-all hover:bg-theme-border-hover/50 dark:hover:bg-stone-700/50 min-h-[32px] min-w-[32px] touch-manipulation"
               title={t("imageViewer.fullscreen", "Fullscreen")}
             >
               <Maximize2
                 size={14}
-                className="text-stone-500 dark:text-stone-400"
+                className={protoCls("text-theme-text-secondary dark:text-stone-400", "text-stone-500 dark:text-stone-400")}
               />
             </button>
           </div>
@@ -490,7 +494,7 @@ export function MermaidDiagram({
 
         {/* Diagram container - centered with zoom and drag */}
         <div
-          className={`mermaid-diagram overflow-hidden p-4 bg-stone-50 dark:bg-stone-800 flex items-center justify-center min-h-[200px] max-h-[500px] cursor-${
+          className={`mermaid-diagram overflow-hidden p-4 bg-theme-bg-subtle dark:bg-stone-800 flex items-center justify-center min-h-[200px] max-h-[500px] cursor-${
             isDragging ? "grabbing" : "grab"
           }`}
           onWheel={handleWheel}

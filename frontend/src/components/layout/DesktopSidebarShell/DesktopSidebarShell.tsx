@@ -20,6 +20,7 @@ import {
 } from "react";
 import { useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
+import { protoCls } from "../../__proto__/protoSepiaSwap";
 import {
   CalendarClock,
   FolderOpen,
@@ -82,8 +83,14 @@ function RailButton({ label, icon, active, disabled, onClick }: RailButtonProps)
         className={clsx(
           "flex size-9 items-center justify-center rounded-[10px] transition-colors",
           active
-            ? "bg-stone-200/80 text-stone-900 dark:bg-stone-700/60 dark:text-stone-100"
-            : "text-stone-500 hover:bg-stone-200/60 hover:text-stone-800 dark:text-stone-400 dark:hover:bg-stone-700/40 dark:hover:text-stone-100",
+            ? protoCls(
+                "bg-theme-border/80 text-theme-text dark:bg-stone-700/60 dark:text-stone-100",
+                "bg-stone-200/80 text-stone-900 dark:bg-stone-700/60 dark:text-stone-100",
+              )
+            : protoCls(
+                "text-theme-text-secondary hover:bg-theme-border/60 hover:text-theme-text dark:text-stone-400 dark:hover:bg-stone-700/40 dark:hover:text-stone-100",
+                "text-stone-500 hover:bg-stone-200/60 hover:text-stone-800 dark:text-stone-400 dark:hover:bg-stone-700/40 dark:hover:text-stone-100",
+              ),
           disabled && "opacity-40",
         )}
       >
@@ -160,7 +167,10 @@ export function DesktopSidebarShell({
   return (
     <div className="hidden sm:flex h-full shrink-0">
       {/* ActivityRail */}
-      <div className="flex h-full w-[3.25rem] flex-col items-center gap-1 border-r border-stone-300/70 py-2 dark:border-stone-800/60">
+      <div className={protoCls(
+        "flex h-full w-[3.25rem] flex-col items-center gap-1 border-r border-theme-border-hover/70 py-2 dark:border-stone-800/60",
+        "flex h-full w-[3.25rem] flex-col items-center gap-1 border-r border-stone-300/70 py-2 dark:border-stone-800/60",
+      )}>
         <RailButton
           label={t("workspacePanel.viewChats", { defaultValue: "会话" })}
           icon={<MessagesSquare size={19} />}
@@ -174,7 +184,10 @@ export function DesktopSidebarShell({
           onClick={() => (collapsed || view !== "files" ? switchView("files") : onToggleCollapsed(true))}
         />
 
-        <div className="my-1.5 h-px w-5 bg-stone-300/70 dark:bg-stone-700/70" />
+        <div className={protoCls(
+          "my-1.5 h-px w-5 bg-theme-border-hover/70 dark:bg-stone-700/70",
+          "my-1.5 h-px w-5 bg-stone-300/70 dark:bg-stone-700/70",
+        )} />
 
         <RailButton
           label={t("sidebar.newChat")}
@@ -211,7 +224,10 @@ export function DesktopSidebarShell({
           <button
             onClick={onShowProfile}
             aria-label={t("workspacePanel.account", { defaultValue: "账号" })}
-            className="mt-0.5 flex size-9 items-center justify-center overflow-hidden rounded-full transition-colors hover:bg-stone-200/60 dark:hover:bg-stone-700/40"
+            className={protoCls(
+              "mt-0.5 flex size-9 items-center justify-center overflow-hidden rounded-full transition-colors hover:bg-theme-border/60 dark:hover:bg-stone-700/40",
+              "mt-0.5 flex size-9 items-center justify-center overflow-hidden rounded-full transition-colors hover:bg-stone-200/60 dark:hover:bg-stone-700/40",
+            )}
           >
             {user?.avatar_url ? (
               <img
@@ -220,7 +236,10 @@ export function DesktopSidebarShell({
                 className="size-7 rounded-full object-cover"
               />
             ) : (
-              <span className="flex size-7 items-center justify-center rounded-full bg-stone-300 text-12 font-medium text-stone-700 dark:bg-stone-600 dark:text-stone-200">
+              <span className={protoCls(
+                "flex size-7 items-center justify-center rounded-full bg-theme-border-hover text-12 font-medium text-theme-text-secondary dark:bg-stone-600 dark:text-stone-200",
+                "flex size-7 items-center justify-center rounded-full bg-stone-300 text-12 font-medium text-stone-700 dark:bg-stone-600 dark:text-stone-200",
+              )}>
                 {(user?.username || "?").slice(0, 1).toUpperCase()}
               </span>
             )}
@@ -235,14 +254,23 @@ export function DesktopSidebarShell({
       >
         {/* 面板头：当前视图名 + 折叠开关 */}
         <div className="absolute inset-0 flex flex-col">
-          <div className="flex h-9 shrink-0 items-center justify-between border-b border-stone-300/60 px-2 dark:border-stone-800/50">
-            <span className="truncate px-1 text-12 font-medium text-stone-500 dark:text-stone-400">
+          <div className={protoCls(
+            "flex h-9 shrink-0 items-center justify-between border-b border-theme-border-hover/60 px-2 dark:border-stone-800/50",
+            "flex h-9 shrink-0 items-center justify-between border-b border-stone-300/60 px-2 dark:border-stone-800/50",
+          )}>
+            <span className={protoCls(
+              "truncate px-1 text-12 font-medium text-theme-text-secondary dark:text-stone-400",
+              "truncate px-1 text-12 font-medium text-stone-500 dark:text-stone-400",
+            )}>
               {title}
             </span>
             <Tooltip content={t("sidebar.collapseSidebar")}>
               <button
                 onClick={() => onToggleCollapsed(true)}
-                className="flex size-7 items-center justify-center rounded-lg text-stone-500 hover:bg-stone-200/60 dark:text-stone-400 dark:hover:bg-stone-700/40 transition-colors"
+                className={protoCls(
+                  "flex size-7 items-center justify-center rounded-lg text-theme-text-secondary hover:bg-theme-border/60 dark:text-stone-400 dark:hover:bg-stone-700/40 transition-colors",
+                  "flex size-7 items-center justify-center rounded-lg text-stone-500 hover:bg-stone-200/60 dark:text-stone-400 dark:hover:bg-stone-700/40 transition-colors",
+                )}
                 aria-label={t("sidebar.collapseSidebar")}
               >
                 <PanelLeftClose size={15} />
@@ -270,7 +298,10 @@ export function DesktopSidebarShell({
             <Tooltip content={t("sidebar.expandSidebar")} placement="right">
               <button
                 onClick={() => onToggleCollapsed(false)}
-                className="flex size-7 items-center justify-center rounded-lg text-stone-500 hover:bg-stone-200/60 dark:text-stone-400 dark:hover:bg-stone-700/40 transition-colors"
+                className={protoCls(
+                  "flex size-7 items-center justify-center rounded-lg text-theme-text-secondary hover:bg-theme-border/60 dark:text-stone-400 dark:hover:bg-stone-700/40 transition-colors",
+                  "flex size-7 items-center justify-center rounded-lg text-stone-500 hover:bg-stone-200/60 dark:text-stone-400 dark:hover:bg-stone-700/40 transition-colors",
+                )}
                 aria-label={t("sidebar.expandSidebar")}
               >
                 <PanelLeftOpen size={15} />

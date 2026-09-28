@@ -24,6 +24,13 @@ import {
 } from "./utils/sessionTitleEvents";
 import { APP_TOASTER_CLASS_NAME } from "./components/layout/AppContent/appToastLayout";
 import { PwaStatusToasts } from "./components/pwa/PwaStatusToasts";
+const ProtoSepiaSwitcher = import.meta.env.DEV
+  ? lazy(() =>
+      import(
+        "./components/__proto__/ProtoSepiaSwitcher"
+      ).then((m) => ({ default: m.ProtoSepiaSwitcher })),
+    )
+  : null;
 import { appNotificationService } from "./services/notifications/appNotificationService";
 import { needsServerSetup } from "./services/api/serverConfig";
 const ServerSetupScreen = lazy(() =>
@@ -415,6 +422,11 @@ function App() {
   return (
     <ThemeProvider>
       <ErrorBoundary>
+        {import.meta.env.DEV && ProtoSepiaSwitcher && (
+          <Suspense fallback={null}>
+            <ProtoSepiaSwitcher />
+          </Suspense>
+        )}
         <Toaster
           position="top-center"
           containerClassName={APP_TOASTER_CLASS_NAME}

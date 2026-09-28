@@ -15,6 +15,7 @@ import {
   X,
 } from "lucide-react";
 import { useTranslation } from "react-i18next";
+import { protoCls } from "../../__proto__/protoSepiaSwap";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../../../hooks/useAuth";
 import { Permission } from "../../../types/auth";
@@ -52,8 +53,10 @@ import {
   toggleSessionSelection,
 } from "../../sidebar/sessionSelection";
 
-const sectionActionIconClass =
-  "text-stone-400 transition-colors group-hover/section:text-stone-700 dark:text-stone-500 dark:group-hover/section:text-stone-200";
+const sectionActionIconClass = protoCls(
+  "text-theme-text-tertiary transition-colors group-hover/section:text-theme-text-secondary dark:text-stone-500 dark:group-hover/section:text-stone-200",
+  "text-stone-400 transition-colors group-hover/section:text-stone-700 dark:text-stone-500 dark:group-hover/section:text-stone-200",
+);
 
 export interface SessionActions {
   onDeleteSession: (id: string) => void;
@@ -351,7 +354,10 @@ export function SessionListContent({
             href={GITHUB_URL}
             target="_blank"
             rel="noopener noreferrer"
-            className="text-stone-800 dark:text-stone-100 hover:text-stone-900 dark:hover:text-stone-50 transition-colors"
+            className={protoCls(
+              "text-theme-text dark:text-stone-100 hover:opacity-80 dark:hover:text-stone-50 transition-colors",
+              "text-stone-800 dark:text-stone-100 hover:text-stone-900 dark:hover:text-stone-50 transition-colors",
+            )}
           >
             <BrandWordmark decorative className="size-7 w-auto mb-1" />
           </a>
@@ -359,14 +365,20 @@ export function SessionListContent({
         <Tooltip content={t("sidebar.collapseSidebar")}>
           <button
             onClick={onCollapse}
-            className="flex size-8 items-center justify-center rounded-lg text-stone-600 hover:bg-stone-100 dark:text-stone-400 dark:hover:bg-stone-800/60 transition-colors cursor-w-resize rtl:cursor-e-resize"
+            className={protoCls(
+              "flex size-8 items-center justify-center rounded-lg text-theme-text-secondary hover:bg-theme-bg-subtle dark:text-stone-400 dark:hover:bg-stone-800/60 transition-colors cursor-w-resize rtl:cursor-e-resize",
+              "flex size-8 items-center justify-center rounded-lg text-stone-600 hover:bg-stone-100 dark:text-stone-400 dark:hover:bg-stone-800/60 transition-colors cursor-w-resize rtl:cursor-e-resize",
+            )}
             aria-label={t("sidebar.collapseSidebar")}
           >
             <svg
               xmlns="http://www.w3.org/2000/svg"
               fill="none"
               viewBox="0 0 24 24"
-              className="size-5 text-stone-600 dark:text-stone-300"
+              className={protoCls(
+                "size-5 text-theme-text-secondary dark:text-stone-300",
+                "size-5 text-stone-600 dark:text-stone-300",
+              )}
             >
               <path
                 fillRule="evenodd"
@@ -390,7 +402,10 @@ export function SessionListContent({
         >
           <MessageSquarePlus size={20} />
           <span className="flex-1 text-left">{t("sidebar.newChat")}</span>
-          <kbd className="hidden sm:inline-flex items-center gap-0.5 px-1.5 py-0.5 text-10 font-medium text-stone-400 dark:text-stone-500 rounded opacity-0 group-hover:opacity-100 transition-opacity">
+          <kbd className={protoCls(
+            "hidden sm:inline-flex items-center gap-0.5 px-1.5 py-0.5 text-10 font-medium text-theme-text-tertiary dark:text-stone-500 rounded opacity-0 group-hover:opacity-100 transition-opacity",
+            "hidden sm:inline-flex items-center gap-0.5 px-1.5 py-0.5 text-10 font-medium text-stone-400 dark:text-stone-500 rounded opacity-0 group-hover:opacity-100 transition-opacity",
+          )}>
             {t("sidebar.newChatShortcut")}
           </kbd>
         </button>
@@ -456,7 +471,7 @@ export function SessionListContent({
             onClick={onToggleProjectsCollapsed}
             className="flex items-center justify-between px-[9px] h-9 cursor-pointer select-none group/section"
           >
-            <span className="text-13 font-medium text-stone-400 dark:text-stone-500 group-hover/section:text-stone-500 dark:group-hover/section:text-stone-400 transition-colors">
+            <span className="text-13 font-medium text-theme-text-tertiary dark:text-stone-500 group-hover/section:text-theme-text-secondary dark:group-hover/section:text-stone-400 transition-colors">
               {t("sidebar.projects")}
             </span>
             <ChevronDown
@@ -553,7 +568,10 @@ export function SessionListContent({
             ))}
 
           {!isProjectsCollapsed && (
-            <div className="h-px bg-stone-200/60 dark:bg-stone-700/40 mx-2 my-1" />
+            <div className={protoCls(
+              "h-px bg-theme-border/60 dark:bg-stone-700/40 mx-2 my-1",
+              "h-px bg-stone-200/60 dark:bg-stone-700/40 mx-2 my-1",
+            )} />
           )}
 
           {canReadScheduledTasks && (
@@ -564,7 +582,7 @@ export function SessionListContent({
                 className="flex items-center justify-between px-[9px] h-9 cursor-pointer select-none group/section"
               >
                 <div className="flex min-w-0 items-center gap-2">
-                  <span className="text-13 font-medium text-stone-400 dark:text-stone-500 group-hover/section:text-stone-500 dark:group-hover/section:text-stone-400 transition-colors">
+                  <span className="text-13 font-medium text-theme-text-tertiary dark:text-stone-500 group-hover/section:text-theme-text-secondary dark:group-hover/section:text-stone-400 transition-colors">
                     {t("nav.scheduled-tasks")}
                   </span>
                 </div>
@@ -624,7 +642,10 @@ export function SessionListContent({
                   {scheduledTaskTotal > scheduledTasks.length && (
                     <button
                       onClick={() => navigate("/scheduled-tasks")}
-                      className="w-full h-8 rounded-[10px] px-[9px] text-left text-13 text-stone-400 transition-colors hover:bg-stone-100 hover:text-stone-600 dark:text-stone-500 dark:hover:bg-stone-800/40 dark:hover:text-stone-300"
+                      className={protoCls(
+                        "w-full h-8 rounded-[10px] px-[9px] text-left text-13 text-theme-text-tertiary transition-colors hover:bg-theme-bg-subtle hover:text-theme-text-secondary dark:text-stone-500 dark:hover:bg-stone-800/40 dark:hover:text-stone-300",
+                        "w-full h-8 rounded-[10px] px-[9px] text-left text-13 text-stone-400 transition-colors hover:bg-stone-100 hover:text-stone-600 dark:text-stone-500 dark:hover:bg-stone-800/40 dark:hover:text-stone-300",
+                      )}
                     >
                       {t("nav.more", "更多")}
                     </button>
@@ -633,7 +654,10 @@ export function SessionListContent({
               )}
 
               {!isScheduledTasksCollapsed && (
-                <div className="h-px bg-stone-200/60 dark:bg-stone-700/40 mx-2 my-1" />
+                <div className={protoCls(
+              "h-px bg-theme-border/60 dark:bg-stone-700/40 mx-2 my-1",
+              "h-px bg-stone-200/60 dark:bg-stone-700/40 mx-2 my-1",
+            )} />
               )}
             </>
           )}
@@ -646,7 +670,7 @@ export function SessionListContent({
                 className="flex items-center justify-between px-[9px] h-9 cursor-pointer select-none group/section"
               >
                 <div className="flex min-w-0 items-center gap-2">
-                  <span className="text-13 font-medium text-stone-400 dark:text-stone-500 group-hover/section:text-stone-500 dark:group-hover/section:text-stone-400 transition-colors">
+                  <span className="text-13 font-medium text-theme-text-tertiary dark:text-stone-500 group-hover/section:text-theme-text-secondary dark:group-hover/section:text-stone-400 transition-colors">
                     {isSelectionMode
                       ? t("sidebar.selectedCount", {
                           count: selectedCount,
@@ -672,7 +696,10 @@ export function SessionListContent({
                         e.stopPropagation();
                         handleToggleAllVisible();
                       }}
-                      className="rounded-md px-2 py-1 text-12 font-medium text-stone-500 transition-colors hover:bg-stone-100 hover:text-stone-700 dark:text-stone-400 dark:hover:bg-stone-800/60 dark:hover:text-stone-200"
+                      className={protoCls(
+                        "rounded-md px-2 py-1 text-12 font-medium text-theme-text-secondary transition-colors hover:bg-theme-bg-subtle hover:text-theme-text dark:text-stone-400 dark:hover:bg-stone-800/60 dark:hover:text-stone-200",
+                        "rounded-md px-2 py-1 text-12 font-medium text-stone-500 transition-colors hover:bg-stone-100 hover:text-stone-700 dark:text-stone-400 dark:hover:bg-stone-800/60 dark:hover:text-stone-200",
+                      )}
                     >
                       {allVisibleSelected
                         ? t("sidebar.clearVisibleSelection")
@@ -685,7 +712,10 @@ export function SessionListContent({
                       e.stopPropagation();
                       handleToggleSelectionMode();
                     }}
-                    className={`inline-flex h-7 w-7 items-center justify-center rounded-md hover:bg-stone-100 dark:hover:bg-stone-800/60 ${sectionActionIconClass}`}
+                    className={`inline-flex h-7 w-7 items-center justify-center rounded-md ${protoCls(
+                      "hover:bg-theme-bg-subtle dark:hover:bg-stone-800/60",
+                      "hover:bg-stone-100 dark:hover:bg-stone-800/60",
+                    )} ${sectionActionIconClass}`}
                     title={
                       isSelectionMode
                         ? t("common.cancel")
@@ -721,7 +751,10 @@ export function SessionListContent({
                   ) : (
                     groupedUncategorized.map((group) => (
                       <div key={group.label}>
-                        <div className="px-[9px] h-8 flex items-center text-13 font-medium text-stone-400 dark:text-stone-500 select-none">
+                        <div className={protoCls(
+                          "px-[9px] h-8 flex items-center text-13 font-medium text-theme-text-tertiary dark:text-stone-500 select-none",
+                          "px-[9px] h-8 flex items-center text-13 font-medium text-stone-400 dark:text-stone-500 select-none",
+                        )}>
                           {group.label}
                         </div>
                         <div className="flex flex-col gap-px">
@@ -779,7 +812,10 @@ export function SessionListContent({
                   {hasMoreUncategorized && (
                     <div ref={loadMoreRef} className="flex justify-center py-2">
                       {isLoadingMoreUncategorized && (
-                        <div className="flex items-center gap-2 text-stone-400 dark:text-stone-500">
+                        <div className={protoCls(
+                          "flex items-center gap-2 text-theme-text-tertiary dark:text-stone-500",
+                          "flex items-center gap-2 text-stone-400 dark:text-stone-500",
+                        )}>
                           <LoadingSpinner size="xs" />
                           <span className="text-12">{t("common.loading")}</span>
                         </div>
@@ -794,11 +830,20 @@ export function SessionListContent({
       </div>
 
       {isSelectionMode && (
-        <div className="shrink-0 border-t border-stone-200/80 bg-[var(--theme-bg-sidebar)] px-2 py-2 dark:border-stone-800/70">
+        <div className={protoCls(
+          "shrink-0 border-t border-theme-border/80 bg-[var(--theme-bg-sidebar)] px-2 py-2 dark:border-stone-800/70",
+          "shrink-0 border-t border-stone-200/80 bg-[var(--theme-bg-sidebar)] px-2 py-2 dark:border-stone-800/70",
+        )}>
           <div className="relative">
             {isProjectPickerOpen && (
-              <div className="absolute bottom-12 left-0 right-0 z-30 overflow-hidden rounded-xl border border-stone-200 bg-stone-50 shadow-xl shadow-stone-900/10 dark:border-stone-700 dark:bg-stone-900 dark:shadow-black/30">
-                <div className="px-3 py-2 text-11 font-medium uppercase tracking-wide text-stone-400 dark:text-stone-500">
+              <div className={protoCls(
+                "absolute bottom-12 left-0 right-0 z-30 overflow-hidden rounded-xl border border-theme-border bg-theme-bg-elevated shadow-xl shadow-stone-900/10 dark:border-stone-700 dark:bg-stone-900 dark:shadow-black/30",
+                "absolute bottom-12 left-0 right-0 z-30 overflow-hidden rounded-xl border border-stone-200 bg-stone-50 shadow-xl shadow-stone-900/10 dark:border-stone-700 dark:bg-stone-900 dark:shadow-black/30",
+              )}>
+                <div className={protoCls(
+                  "px-3 py-2 text-11 font-medium uppercase tracking-wide text-theme-text-tertiary dark:text-stone-500",
+                  "px-3 py-2 text-11 font-medium uppercase tracking-wide text-stone-400 dark:text-stone-500",
+                )}>
                   {t("sidebar.moveSelectedToProject")}
                 </div>
                 <div className="max-h-56 overflow-y-auto p-1">
@@ -807,11 +852,14 @@ export function SessionListContent({
                       key={project.id}
                       type="button"
                       onClick={() => handleMoveSelected(project.id)}
-                      className="flex h-9 w-full items-center gap-2 rounded-lg px-2.5 text-left text-13 font-medium text-stone-600 transition hover:bg-stone-200/60 hover:text-stone-900 dark:text-stone-300 dark:hover:bg-stone-800 dark:hover:text-stone-50"
+                      className={protoCls(
+                        "flex h-9 w-full items-center gap-2 rounded-lg px-2.5 text-left text-13 font-medium text-theme-text-secondary transition hover:bg-theme-border/60 hover:text-theme-text dark:text-stone-300 dark:hover:bg-stone-800 dark:hover:text-stone-50",
+                        "flex h-9 w-full items-center gap-2 rounded-lg px-2.5 text-left text-13 font-medium text-stone-600 transition hover:bg-stone-200/60 hover:text-stone-900 dark:text-stone-300 dark:hover:bg-stone-800 dark:hover:text-stone-50",
+                      )}
                     >
                       <FolderInput
                         size={15}
-                        className="shrink-0 text-stone-400"
+                        className={protoCls("shrink-0 text-theme-text-tertiary", "shrink-0 text-stone-400")}
                       />
                       <span className="truncate font-serif">
                         {project.name}
@@ -821,9 +869,12 @@ export function SessionListContent({
                   <button
                     type="button"
                     onClick={() => handleMoveSelected(null)}
-                    className="flex h-9 w-full items-center gap-2 rounded-lg px-2.5 text-left text-13 font-medium text-stone-600 transition hover:bg-stone-200/60 hover:text-stone-900 dark:text-stone-300 dark:hover:bg-stone-800 dark:hover:text-stone-50"
+                    className={protoCls(
+                      "flex h-9 w-full items-center gap-2 rounded-lg px-2.5 text-left text-13 font-medium text-theme-text-secondary transition hover:bg-theme-border/60 hover:text-theme-text dark:text-stone-300 dark:hover:bg-stone-800 dark:hover:text-stone-50",
+                      "flex h-9 w-full items-center gap-2 rounded-lg px-2.5 text-left text-13 font-medium text-stone-600 transition hover:bg-stone-200/60 hover:text-stone-900 dark:text-stone-300 dark:hover:bg-stone-800 dark:hover:text-stone-50",
+                    )}
                   >
-                    <Tag size={15} className="shrink-0 text-stone-400" />
+                    <Tag size={15} className={protoCls("shrink-0 text-theme-text-tertiary", "shrink-0 text-stone-400")} />
                     <span className="truncate">
                       {t("sidebar.uncategorized")}
                     </span>
@@ -832,8 +883,14 @@ export function SessionListContent({
               </div>
             )}
 
-            <div className="flex items-center justify-between gap-2 rounded-[10px] bg-stone-100/85 p-1 ring-1 ring-inset ring-stone-200/80 dark:bg-stone-800/55 dark:ring-stone-700/70">
-              <div className="flex h-8 min-w-[72px] shrink-0 items-center justify-center rounded-lg bg-white/70 px-2 text-12 font-semibold text-stone-600 ring-1 ring-inset ring-stone-200/70 dark:bg-stone-900/45 dark:text-stone-300 dark:ring-stone-700/60">
+            <div className={protoCls(
+              "flex items-center justify-between gap-2 rounded-[10px] bg-theme-bg-subtle/85 p-1 ring-1 ring-inset ring-theme-border/80 dark:bg-stone-800/55 dark:ring-stone-700/70",
+              "flex items-center justify-between gap-2 rounded-[10px] bg-stone-100/85 p-1 ring-1 ring-inset ring-stone-200/80 dark:bg-stone-800/55 dark:ring-stone-700/70",
+            )}>
+              <div className={protoCls(
+                "flex h-8 min-w-[72px] shrink-0 items-center justify-center rounded-lg bg-theme-bg-card/70 px-2 text-12 font-semibold text-theme-text-secondary ring-1 ring-inset ring-theme-border/70 dark:bg-stone-900/45 dark:text-stone-300 dark:ring-stone-700/60",
+                "flex h-8 min-w-[72px] shrink-0 items-center justify-center rounded-lg bg-white/70 px-2 text-12 font-semibold text-stone-600 ring-1 ring-inset ring-stone-200/70 dark:bg-stone-900/45 dark:text-stone-300 dark:ring-stone-700/60",
+              )}>
                 {t("sidebar.selectedCount", {
                   count: selectedCount,
                   defaultValue: "已选 {{count}} 个",
@@ -846,7 +903,10 @@ export function SessionListContent({
                     disabled={selectedCount === 0}
                     onClick={() => setIsProjectPickerOpen((value) => !value)}
                     aria-label={t("sidebar.moveSelectedToProject")}
-                    className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-stone-600 transition hover:bg-white/70 hover:text-stone-900 disabled:cursor-not-allowed disabled:opacity-45 dark:text-stone-300 dark:hover:bg-stone-900/45 dark:hover:text-stone-50"
+                    className={protoCls(
+                      "inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-theme-text-secondary transition hover:bg-theme-bg-card/70 hover:text-theme-text disabled:cursor-not-allowed disabled:opacity-45 dark:text-stone-300 dark:hover:bg-stone-900/45 dark:hover:text-stone-50",
+                      "inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-stone-600 transition hover:bg-white/70 hover:text-stone-900 disabled:cursor-not-allowed disabled:opacity-45 dark:text-stone-300 dark:hover:bg-stone-900/45 dark:hover:text-stone-50",
+                    )}
                   >
                     <FolderInput size={14} />
                   </button>
@@ -857,7 +917,10 @@ export function SessionListContent({
                     disabled={selectedCount === 0}
                     onClick={handleRequestDeleteSelected}
                     aria-label={t("sidebar.deleteSelected")}
-                    className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-red-600 transition hover:bg-red-50 hover:text-red-700 disabled:cursor-not-allowed disabled:opacity-45 dark:text-red-400 dark:hover:bg-red-950/40 dark:hover:text-red-300"
+                    className={protoCls(
+                      "inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-theme-error transition hover:bg-[color-mix(in_srgb,var(--theme-error)_10%,transparent)] disabled:cursor-not-allowed disabled:opacity-45 dark:text-red-400 dark:hover:bg-red-950/40 dark:hover:text-red-300",
+                      "inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-red-600 transition hover:bg-red-50 hover:text-red-700 disabled:cursor-not-allowed disabled:opacity-45 dark:text-red-400 dark:hover:bg-red-950/40 dark:hover:text-red-300",
+                    )}
                   >
                     <Trash2 size={14} />
                   </button>
@@ -867,7 +930,10 @@ export function SessionListContent({
                     type="button"
                     onClick={onClearSelection}
                     aria-label={t("common.cancel")}
-                    className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-stone-500 transition hover:bg-white/70 hover:text-stone-800 dark:text-stone-400 dark:hover:bg-stone-900/45 dark:hover:text-stone-100"
+                    className={protoCls(
+                      "inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-theme-text-secondary transition hover:bg-theme-bg-card/70 hover:text-theme-text dark:text-stone-400 dark:hover:bg-stone-900/45 dark:hover:text-stone-100",
+                      "inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-stone-500 transition hover:bg-white/70 hover:text-stone-800 dark:text-stone-400 dark:hover:bg-stone-900/45 dark:hover:text-stone-100",
+                    )}
                   >
                     <X size={15} />
                   </button>
@@ -879,7 +945,10 @@ export function SessionListContent({
       )}
 
       {/* Footer */}
-      <div className="shrink-0 px-2 py-1 border-t border-stone-300/70 dark:border-stone-800/60">
+      <div className={protoCls(
+        "shrink-0 px-2 py-1 border-t border-theme-border-hover/70 dark:border-stone-800/60",
+        "shrink-0 px-2 py-1 border-t border-stone-300/70 dark:border-stone-800/60",
+      )}>
         <SidebarUserRow
           user={user}
           imgError={imgError}

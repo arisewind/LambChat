@@ -9,6 +9,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { protoCls } from "../__proto__/protoSepiaSwap";
 import {
   ChevronRight,
   Copy,
@@ -137,16 +138,19 @@ export function WorkspacePanel({ sessionId, workspaceSelection }: WorkspacePanel
               <ChevronRight
                 size={13}
                 className={clsx(
-                  "shrink-0 text-stone-400 transition-transform duration-150",
+                  protoCls(
+                    "shrink-0 text-theme-text-tertiary transition-transform duration-150",
+                    "shrink-0 text-stone-400 transition-transform duration-150",
+                  ),
                   expanded && "rotate-90",
                 )}
               />
               {node.loading ? (
-                <Loader2 size={15} className="shrink-0 animate-spin text-stone-400" />
+                <Loader2 size={15} className={protoCls("shrink-0 animate-spin text-theme-text-tertiary", "shrink-0 animate-spin text-stone-400")} />
               ) : expanded ? (
-                <FolderOpen size={15} className="shrink-0 text-stone-500" />
+                <FolderOpen size={15} className={protoCls("shrink-0 text-theme-text-secondary", "shrink-0 text-stone-500")} />
               ) : (
-                <FolderClosed size={15} className="shrink-0 text-stone-500" />
+                <FolderClosed size={15} className={protoCls("shrink-0 text-theme-text-secondary", "shrink-0 text-stone-500")} />
               )}
               <span className="truncate text-13 text-left">{node.name}</span>
             </button>
@@ -168,7 +172,7 @@ export function WorkspacePanel({ sessionId, workspaceSelection }: WorkspacePanel
           style={{ paddingLeft: padding + 13 + 6 }}
         >
           {isLoading ? (
-            <Loader2 size={15} className="shrink-0 animate-spin text-stone-400" />
+            <Loader2 size={15} className={protoCls("shrink-0 animate-spin text-theme-text-tertiary", "shrink-0 animate-spin text-stone-400")} />
           ) : (
             <Icon size={15} className="shrink-0" style={{ color: info.color }} />
           )}
@@ -182,7 +186,7 @@ export function WorkspacePanel({ sessionId, workspaceSelection }: WorkspacePanel
       {/* 面板头 */}
       <div className="flex items-center justify-between px-3 pt-3 pb-2">
         <div className="flex items-center gap-1.5">
-          <HardDrive size={15} className="text-stone-500" />
+          <HardDrive size={15} className={protoCls("text-theme-text-secondary", "text-stone-500")} />
           <span className="text-13 font-medium text-[var(--theme-text-secondary)]">
             {t("workspacePanel.title", { defaultValue: "工作区" })}
           </span>
@@ -191,7 +195,10 @@ export function WorkspacePanel({ sessionId, workspaceSelection }: WorkspacePanel
           <button
             onClick={refresh}
             disabled={!online || state === "loading"}
-            className="flex size-7 items-center justify-center rounded-lg text-stone-500 hover:bg-stone-200/60 dark:text-stone-400 dark:hover:bg-stone-700/40 transition-colors disabled:opacity-40"
+            className={protoCls(
+              "flex size-7 items-center justify-center rounded-lg text-theme-text-secondary hover:bg-theme-border/60 dark:text-stone-400 dark:hover:bg-stone-700/40 transition-colors disabled:opacity-40",
+              "flex size-7 items-center justify-center rounded-lg text-stone-500 hover:bg-stone-200/60 dark:text-stone-400 dark:hover:bg-stone-700/40 transition-colors disabled:opacity-40",
+            )}
             aria-label={t("workspacePanel.refresh", { defaultValue: "刷新" })}
           >
             <RefreshCw size={14} className={state === "loading" ? "animate-spin" : ""} />
@@ -202,8 +209,8 @@ export function WorkspacePanel({ sessionId, workspaceSelection }: WorkspacePanel
       {/* 状态区 */}
       {!online ? (
         <div className="flex flex-1 flex-col items-center justify-center gap-2 px-6 text-center">
-          <HardDrive size={22} className="text-stone-400" />
-          <p className="text-12 text-stone-500 dark:text-stone-400">
+          <HardDrive size={22} className={protoCls("text-theme-text-tertiary", "text-stone-400")} />
+          <p className="text-12 text-theme-text-secondary dark:text-stone-400">
             {t("workspacePanel.daemonOffline", {
               defaultValue: "本地沙箱未连接，无法浏览工作区文件",
             })}
@@ -211,7 +218,7 @@ export function WorkspacePanel({ sessionId, workspaceSelection }: WorkspacePanel
         </div>
       ) : !sessionId ? (
         <div className="flex flex-1 flex-col items-center justify-center gap-2 px-6 text-center">
-          <p className="text-12 text-stone-500 dark:text-stone-400">
+          <p className="text-12 text-theme-text-secondary dark:text-stone-400">
             {t("workspacePanel.noSession", {
               defaultValue: "打开一个会话后即可浏览其工作区文件",
             })}
@@ -219,10 +226,13 @@ export function WorkspacePanel({ sessionId, workspaceSelection }: WorkspacePanel
         </div>
       ) : state === "error" ? (
         <div className="flex flex-1 flex-col items-center justify-center gap-2 px-6 text-center">
-          <p className="text-12 text-stone-500 dark:text-stone-400">{error}</p>
+          <p className="text-12 text-theme-text-secondary dark:text-stone-400">{error}</p>
           <button
             onClick={refresh}
-            className="text-12 text-stone-600 hover:underline dark:text-stone-300"
+            className={protoCls(
+              "text-12 text-theme-text-secondary hover:underline dark:text-stone-300",
+              "text-12 text-stone-600 hover:underline dark:text-stone-300",
+            )}
           >
             {t("workspacePanel.retry", { defaultValue: "重试" })}
           </button>
@@ -231,10 +241,10 @@ export function WorkspacePanel({ sessionId, workspaceSelection }: WorkspacePanel
         <div className="flex-1 overflow-y-auto px-2 pb-3 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
           {state === "loading" && root.length === 0 ? (
             <div className="flex items-center justify-center pt-6">
-              <Loader2 size={16} className="animate-spin text-stone-400" />
+              <Loader2 size={16} className={protoCls("animate-spin text-theme-text-tertiary", "animate-spin text-stone-400")} />
             </div>
           ) : root.length === 0 ? (
-            <p className="pt-4 text-center text-12 text-stone-500 dark:text-stone-400">
+            <p className="pt-4 text-center text-12 text-theme-text-secondary dark:text-stone-400">
               {t("workspacePanel.emptyDir", { defaultValue: "空工作区" })}
             </p>
           ) : (
@@ -257,7 +267,10 @@ export function WorkspacePanel({ sessionId, workspaceSelection }: WorkspacePanel
       {contextMenu && (
         <div
           ref={menuRef}
-          className="fixed z-[200] min-w-44 overflow-hidden rounded-lg border border-stone-200 bg-white py-1 shadow-lg dark:border-stone-700 dark:bg-stone-800"
+          className={protoCls(
+            "fixed z-[200] min-w-44 overflow-hidden rounded-lg border border-theme-border bg-theme-bg-elevated py-1 shadow-lg dark:border-stone-700 dark:bg-stone-800",
+            "fixed z-[200] min-w-44 overflow-hidden rounded-lg border border-stone-200 bg-white py-1 shadow-lg dark:border-stone-700 dark:bg-stone-800",
+          )}
           style={{ left: contextMenu.x, top: contextMenu.y }}
         >
           <button
@@ -265,7 +278,10 @@ export function WorkspacePanel({ sessionId, workspaceSelection }: WorkspacePanel
               void copyToClipboard(contextMenu.path);
               setContextMenu(null);
             }}
-            className="flex w-full items-center gap-2 px-3 py-1.5 text-left text-13 text-stone-700 hover:bg-stone-100 dark:text-stone-200 dark:hover:bg-stone-700/60"
+            className={protoCls(
+              "flex w-full items-center gap-2 px-3 py-1.5 text-left text-13 text-theme-text hover:bg-theme-bg-subtle dark:text-stone-200 dark:hover:bg-stone-700/60",
+              "flex w-full items-center gap-2 px-3 py-1.5 text-left text-13 text-stone-700 hover:bg-stone-100 dark:text-stone-200 dark:hover:bg-stone-700/60",
+            )}
           >
             <Copy size={14} />
             {t("workspacePanel.copyPath", { defaultValue: "复制路径" })}
@@ -276,7 +292,10 @@ export function WorkspacePanel({ sessionId, workspaceSelection }: WorkspacePanel
                 void handleReveal(contextMenu.path);
                 setContextMenu(null);
               }}
-              className="flex w-full items-center gap-2 px-3 py-1.5 text-left text-13 text-stone-700 hover:bg-stone-100 dark:text-stone-200 dark:hover:bg-stone-700/60"
+              className={protoCls(
+              "flex w-full items-center gap-2 px-3 py-1.5 text-left text-13 text-theme-text hover:bg-theme-bg-subtle dark:text-stone-200 dark:hover:bg-stone-700/60",
+              "flex w-full items-center gap-2 px-3 py-1.5 text-left text-13 text-stone-700 hover:bg-stone-100 dark:text-stone-200 dark:hover:bg-stone-700/60",
+            )}
             >
               <FolderOpen size={14} />
               {t("workspacePanel.revealInFileManager", {
