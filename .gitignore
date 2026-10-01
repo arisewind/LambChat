@@ -41,6 +41,14 @@ wheels/
 .env.*
 !.env.example
 
+# 密钥/凭据文件——密钥只进 .env 或运行时配置，禁止落盘仓库目录
+e2b_temporary_key.txt
+*_key.txt
+*.key
+*.pem
+*.p12
+credentials*.json
+
 # Logs
 *.log
 logs/
