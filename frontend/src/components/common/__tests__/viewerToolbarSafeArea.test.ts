@@ -34,3 +34,15 @@ test("ViewerToolbar call sites avoid safe-area padding that shifts controls off 
     );
   }
 });
+
+test("shared viewer controls use compact 36px touch targets without extra mobile gaps", () => {
+  const css = readFileSync(
+    new URL("../../../styles/components.css", import.meta.url),
+    "utf8",
+  );
+  expect(source).toMatch(/"viewer-toolbar absolute/);
+  expect(css).toMatch(
+    /\.viewer-toolbar button\s*\{[^}]*min-width: 2\.25rem;[^}]*min-height: 2\.25rem/,
+  );
+  expect(css).toMatch(/\.viewer-toolbar\s*\{\s*gap: 0;/);
+});

@@ -72,6 +72,8 @@ export interface ChatInputProps {
   selectedPersonaName?: string | null;
   personaSkillsControlled?: boolean;
   personaPresetsLoading?: boolean;
+  personaPresetsError?: string | null;
+  onRetryPersonaPresets?: () => void;
   personaPresetsMutating?: boolean;
   onUsePersonaPreset?: (
     preset: PersonaPreset,
@@ -95,6 +97,9 @@ export interface ChatInputProps {
   /** 当前模型思考能力；undefined=未知（不隐藏），false=隐藏思考强度控件 */
   modelSupportsThinking?: boolean;
   agents?: AgentInfo[];
+  agentsLoading?: boolean;
+  agentsError?: boolean;
+  onRetryAgents?: () => void;
   currentAgent?: string;
   onSelectAgent?: (id: string) => void;
   // Team picker

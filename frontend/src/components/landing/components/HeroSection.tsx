@@ -1,4 +1,5 @@
 import { useTranslation } from "react-i18next";
+import { useTheme } from "../../../contexts/ThemeContext";
 import { APP_NAME, GITHUB_URL } from "../../../constants";
 import { BrandWordmark } from "../../common/BrandWordmark";
 import { TECH_STACK } from "../data";
@@ -11,6 +12,7 @@ interface HeroSectionProps {
 
 export function HeroSection({ onLogin }: HeroSectionProps) {
   const { t } = useTranslation();
+  const { theme } = useTheme();
 
   return (
     <section className={`${getHeroSectionClassName()} public-brand-hero`}>
@@ -82,13 +84,13 @@ export function HeroSection({ onLogin }: HeroSectionProps) {
           className="mt-12 sm:mt-24 pt-6 sm:pt-8 border-t border-stone-200/40 dark:border-stone-800/30"
         >
           <div className="flex flex-wrap items-center justify-center gap-x-3 gap-y-2 sm:gap-x-5 sm:gap-y-2.5">
-            <span className="text-10 font-semibold tracking-[0.14em] uppercase text-theme-text-tertiary dark:text-theme-text-secondary">
+            <span className="text-10 font-serif font-semibold tracking-[0.14em] uppercase text-theme-text-tertiary dark:text-theme-text-secondary">
               {t("landing.footerBuiltWith")}
             </span>
             {TECH_STACK.map((tech) => (
               <span
                 key={tech.label}
-                className={`blog-tech-pill inline-flex items-center rounded-full px-3 py-1 text-11 sm:text-12 font-medium text-theme-text-secondary border border-stone-100/60 dark:border-stone-700/20`}
+                className={`blog-tech-pill inline-flex items-center rounded-full px-3 py-1 text-11 sm:text-12 font-medium font-serif text-theme-text-secondary border border-stone-100/60 dark:border-stone-700/20`}
               >
                 {tech.label}
               </span>
@@ -98,7 +100,11 @@ export function HeroSection({ onLogin }: HeroSectionProps) {
       </div>
       <img
         className="public-brand-art"
-        src="/images/illustrations/auth-brand-workspace.webp"
+        src={
+          theme === "dark"
+            ? "/images/illustrations/auth-brand-workspace.webp"
+            : "/images/illustrations/auth-brand-workspace-light.webp"
+        }
         alt=""
         aria-hidden="true"
         fetchPriority="high"

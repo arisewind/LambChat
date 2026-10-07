@@ -1,3 +1,4 @@
+import { EmptyState } from "../common/EmptyState";
 /**
  * 角色管理页面组件
  */
@@ -284,6 +285,7 @@ function RoleFormModal({
           <label className="es-label">{t("roles.roleName")}</label>
           <Input
             type="text"
+            aria-label={t("roles.roleName")}
             value={name}
             onChange={(e) => setName(e.target.value)}
             disabled={isSystem}
@@ -296,6 +298,7 @@ function RoleFormModal({
         <div className="es-field">
           <label className="es-label">{t("roles.description")}</label>
           <Textarea
+            aria-label={t("roles.description")}
             value={description}
             onChange={(e) => setDescription(e.target.value)}
             rows={2}
@@ -309,6 +312,7 @@ function RoleFormModal({
           <label className="es-label">{t("roles.maxChannels")}</label>
           <Input
             type="number"
+            aria-label={t("roles.maxChannels")}
             min="0"
             value={maxChannels}
             onChange={(e) =>
@@ -334,6 +338,7 @@ function RoleFormModal({
               </label>
               <Input
                 type="number"
+                aria-label={t("roles.maxConcurrentChats")}
                 min="0"
                 value={maxConcurrentChats}
                 onChange={(e) =>
@@ -349,6 +354,7 @@ function RoleFormModal({
               <label className="es-label">{t("roles.maxQueuedChats")}</label>
               <Input
                 type="number"
+                aria-label={t("roles.maxQueuedChats")}
                 min="0"
                 value={maxQueuedChats}
                 onChange={(e) =>
@@ -413,6 +419,7 @@ function RoleFormModal({
                   <label className="es-label">{t(`roles.${label}`)}</label>
                   <Input
                     type="number"
+                    aria-label={t(`roles.${label}`)}
                     min="0"
                     value={value}
                     onChange={(e) =>
@@ -438,6 +445,7 @@ function RoleFormModal({
                 {/* 组标题 */}
                 <label className="group flex cursor-pointer items-center gap-2.5 rounded-lg px-2 py-1.5 transition-colors hover:bg-[var(--theme-bg-subtle)]">
                   <Checkbox
+                    ariaLabel={group.name}
                     size="sm"
                     checked={isGroupChecked(group.permissions)}
                     onChange={() =>
@@ -459,6 +467,9 @@ function RoleFormModal({
                       className="group flex cursor-pointer items-center gap-2.5 rounded-lg px-2 py-1.5 transition-colors hover:bg-[var(--theme-bg-subtle)]"
                     >
                       <Checkbox
+                        ariaLabel={
+                          permissionLabels[permission.value] || permission.label
+                        }
                         size="sm"
                         checked={selectedPermissions.includes(permission.value)}
                         onChange={() => togglePermission(permission.value)}
@@ -553,7 +564,6 @@ export function RolesPanel() {
     } catch (err) {
       const errorMsg = (err as Error).message || t("roles.loadFailed");
       setError(errorMsg);
-      toast.error(errorMsg);
     } finally {
       setIsLoading(false);
     }
@@ -660,24 +670,25 @@ export function RolesPanel() {
 
       {/* 错误提示 */}
       {error && (
-        <div className="panel-notice flex items-center gap-2 rounded-xl bg-red-50 p-3 text-14 text-red-600 dark:bg-red-900/30 dark:text-red-400">
-          <AlertCircle size={18} />
-          <span>{error}</span>
+        <div
+          role="alert"
+          className="panel-notice flex flex-wrap items-center gap-2 rounded-xl bg-red-50 p-3 text-14 text-red-600 dark:bg-red-900/30 dark:text-red-400"
+        >
+          <AlertCircle size={18} className="shrink-0" />
+          <span className="min-w-0 flex-1 break-words">{error}</span>
+          <Button onClick={loadData}>{t("common.refresh")}</Button>
         </div>
       )}
 
       {/* 角色列表 */}
       <div className="panel-body flex-1 overflow-y-auto">
-        {filteredRoles.length === 0 ? (
-          <div className="flex h-full flex-col items-center justify-center text-center">
-            <Shield
-              size={48}
-              className="mb-4 text-theme-text-secondary opacity-40"
-            />
-            <p className="text-theme-text-secondary">
-              {searchQuery ? t("roles.noMatchingRoles") : t("roles.noRoles")}
-            </p>
-          </div>
+        {!error && filteredRoles.length === 0 ? (
+          <EmptyState
+            icon={<Shield size={20} />}
+            title={
+              searchQuery ? t("roles.noMatchingRoles") : t("roles.noRoles")
+            }
+          />
         ) : (
           <div className="grid gap-3 auto-grid-cols">
             {paginatedRoles.map((role) => (

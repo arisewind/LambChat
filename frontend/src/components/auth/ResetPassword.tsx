@@ -115,9 +115,17 @@ export function ResetPassword() {
                 : t("auth.resetPasswordFailedDesc")}
             </p>
           </div>
+          {type === "error" && (
+            <Link
+              to="/auth/reset-request"
+              className="blog-btn-primary auth-primary-button mb-3 flex min-h-12 w-full items-center justify-center rounded-full py-3 text-14 font-medium"
+            >
+              {t("auth.requestNewResetLink")}
+            </Link>
+          )}
           <button
             onClick={handleBackToLogin}
-            className="blog-btn-primary auth-primary-button min-h-12 w-full rounded-full py-3 text-14 font-medium transition-all"
+            className={`${type === "error" ? "blog-btn-ghost auth-secondary-button" : "blog-btn-primary auth-primary-button"} min-h-12 w-full rounded-full py-3 text-14 font-medium transition-all`}
           >
             {t("auth.goToLogin")}
           </button>
@@ -210,7 +218,7 @@ export function ResetPassword() {
               <button
                 type="submit"
                 disabled={isSubmitting}
-                className="auth-primary-button min-h-12 w-full rounded-xl py-3 text-14 transition-all duration-200 hover:-translate-y-px active:translate-y-0 disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:translate-y-0"
+                className="auth-primary-button min-h-12 w-full rounded-xl py-3 text-14 transition-all duration-200 hover:-translate-y-px active:translate-y-0 disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:translate-y-0 font-serif"
               >
                 <span className="inline-flex items-center justify-center gap-2">
                   {isSubmitting && (

@@ -1,30 +1,44 @@
 import { useTranslation } from "react-i18next";
-import { Shrink, Plus, ChevronDown, Upload } from "lucide-react";
+import { Shrink, Plus, ChevronDown, Upload, Search } from "lucide-react";
+import { useId, useRef, useState } from "react";
+import { useCodeMirrorReady } from "../../hooks/useCodeMirrorReady";
 import { FileTreeItem } from "./FileTreeItem";
 import { FileTabs } from "./FileTabs";
 import { SkillEditor } from "./SkillEditor";
 import { BinaryFilePreview } from "./BinaryFilePreview";
+import { SkillFileLoadState } from "./SkillFileLoadState";
 import { buildFileTree } from "./SkillForm.utils";
-import { FloatingIconButton } from "../common";
+import { Input, ToolbarIconButton } from "../common";
+import { ConfigPanelErrorCallout } from "../panels/ConfigPanelErrorCallout";
 import type { SkillFormActions } from "./SkillForm.types";
 
 export function SkillFormFullscreen(a: SkillFormActions) {
   const { t } = useTranslation();
+  const editorRef = useRef<HTMLDivElement>(null);
+  const [naming, setNaming] = useState(false);
+  const errorId = useId();
+  const currentPath = a.files[a.activeFileIndex]?.path || "";
+  const searchReady = useCodeMirrorReady(
+    editorRef,
+    !a.loadingFilePath && !a.fileLoadError && !a.binaryFiles[currentPath],
+  );
+  const addFile = () => {
+    setNaming(true);
+    a.addFile();
+  };
+  const handleSearch = () => {
+    const editor = editorRef.current?.querySelector<HTMLElement>(".cm-editor");
+    if (!editor) return;
+    void import("../common/codeMirrorSearchExtensions").then(
+      ({ openCodeMirrorSearch }) => openCodeMirrorSearch(editor),
+    );
+  };
 
   return (
     <>
-      {/* Top-right floating exit button — always visible, prominent */}
-      <FloatingIconButton
-        onClick={() => a.toggleFullscreen(false)}
-        style={{
-          top: "calc(1rem + var(--app-safe-area-top-active, var(--app-safe-area-top, 0px)))",
-        }}
-        title={t("skills.form.exitFullscreen")}
-        icon={<Shrink size={18} />}
-      />
       <div className="flex flex-1 min-h-0 overflow-hidden">
         {/* Editor area — sidebar + editor, full-screen focused */}
-        <div className="skill-form-editor flex flex-1 min-h-0 overflow-hidden">
+        <div className="skill-form-editor flex flex-1 min-w-0 min-h-0 overflow-hidden">
           {/* Desktop sidebar */}
           <div className="skill-file-sidebar hidden w-52 shrink-0 flex-col sm:flex lg:w-60">
             <div className="flex items-center justify-between px-3 py-1.5">
@@ -49,53 +63,115 @@ export function SkillFormFullscreen(a: SkillFormActions) {
             <div className="shrink-0 px-2 py-1.5 space-y-1">
               <button
                 type="button"
-                onClick={a.addFile}
+                onClick={addFile}
                 className="w-full flex items-center gap-1.5 rounded-xl px-2 py-1.5 text-14 text-stone-500 dark:text-stone-400 hover:bg-stone-100 dark:hover:bg-white/5 transition-colors"
               >
                 <Plus size={13} />
                 {t("skills.form.addFile")}
               </button>
-              <button
-                type="button"
-                onClick={a.addBinaryFile}
-                className="w-full flex items-center gap-1.5 rounded-xl px-2 py-1.5 text-14 text-stone-500 dark:text-stone-400 hover:bg-stone-100 dark:hover:bg-white/5 transition-colors"
-              >
-                <Upload size={13} />
-                {t("skills.form.addBinaryFile", "Upload binary file")}
-              </button>
+              {a.allowBinaryUploads && (
+                <button
+                  type="button"
+                  onClick={a.addBinaryFile}
+                  className="w-full flex items-center gap-1.5 rounded-xl px-2 py-1.5 text-14 text-stone-500 dark:text-stone-400 hover:bg-stone-100 dark:hover:bg-white/5 transition-colors"
+                >
+                  <Upload size={13} />
+                  {t("skills.form.addBinaryFile", "Upload binary file")}
+                </button>
+              )}
             </div>
           </div>
 
           {/* Right: editor only */}
-          <div className="flex flex-1 flex-col min-h-0">
+          <div ref={editorRef} className="flex flex-1 flex-col min-w-0 min-h-0">
             {/* Mobile header: tabs + actions */}
-            <div className="shrink-0 flex items-center gap-1 px-3 py-2 sm:hidden">
-              <div className="flex-1 min-w-0">
-                <FileTabs
-                  files={a.files}
-                  activeFileIndex={a.activeFileIndex}
-                  onSelect={a.setActiveFileIndex}
-                  onRemove={a.removeFile}
-                  untitledLabel={t("skills.form.untitled")}
+            <div className="shrink-0 flex items-center gap-1 px-3 py-2">
+              {naming || !currentPath.trim() ? (
+                <Input
+                  type="text"
+                  data-skill-file-path
+                  aria-label={t("skills.form.filePath")}
+                  aria-describedby={a.errors.files ? errorId : undefined}
+                  placeholder={t("skills.form.fileNamePlaceholder")}
+                  value={currentPath}
+                  disabled={!a.isCurrentFileLoaded}
+                  error={!!a.errors.files}
+                  className="min-w-0 flex-1 font-mono"
+                  onChange={(event) =>
+                    a.updateFilePath(a.activeFileIndex, event.target.value)
+                  }
+                  onBlur={() => setNaming(false)}
+                  onKeyDown={(event) => {
+                    if (
+                      event.key !== "Enter" ||
+                      event.nativeEvent.isComposing ||
+                      event.keyCode === 229
+                    )
+                      return;
+                    event.preventDefault();
+                    if (currentPath.trim() && !a.errors.files) {
+                      setNaming(false);
+                      editorRef.current
+                        ?.querySelector<HTMLElement>(".cm-content")
+                        ?.focus();
+                    }
+                  }}
                 />
-              </div>
-              <button
-                type="button"
-                onClick={a.addFile}
-                className="shrink-0 flex items-center justify-center h-9 w-9 rounded-xl text-stone-400 transition-colors duration-150 hover:bg-[var(--theme-bg-card)] hover:text-[var(--theme-text)]"
-                title={t("skills.form.addFile", "Add file")}
-              >
-                <Plus size={15} />
-              </button>
-              <button
-                type="button"
-                onClick={a.addBinaryFile}
-                className="shrink-0 flex items-center justify-center h-9 w-9 rounded-xl text-stone-400 transition-colors duration-150 hover:bg-[var(--theme-bg-card)] hover:text-[var(--theme-text)]"
-                title={t("skills.form.addBinaryFile", "Upload binary file")}
-              >
-                <Upload size={15} />
-              </button>
+              ) : (
+                <>
+                  <p
+                    className="hidden min-w-0 flex-1 truncate font-mono text-12 text-[var(--theme-text-secondary)] sm:block"
+                    title={a.files[a.activeFileIndex]?.path}
+                  >
+                    {a.files[a.activeFileIndex]?.path ||
+                      t("skills.form.untitled")}
+                  </p>
+                  <div className="flex-1 min-w-0 sm:hidden">
+                    <FileTabs
+                      files={a.files}
+                      activeFileIndex={a.activeFileIndex}
+                      onSelect={a.setActiveFileIndex}
+                      onRemove={a.removeFile}
+                      untitledLabel={t("skills.form.untitled")}
+                    />
+                  </div>
+                </>
+              )}
+              <ToolbarIconButton
+                onClick={addFile}
+                icon={<Plus size={15} />}
+                aria-label={t("skills.form.addFile")}
+                title={t("skills.form.addFile")}
+                className="sm:hidden"
+              />
+              {a.allowBinaryUploads && (
+                <ToolbarIconButton
+                  onClick={a.addBinaryFile}
+                  icon={<Upload size={15} />}
+                  aria-label={t("skills.form.addBinaryFile")}
+                  title={t("skills.form.addBinaryFile")}
+                  className="sm:hidden"
+                />
+              )}
+              <ToolbarIconButton
+                onClick={handleSearch}
+                disabled={!searchReady}
+                icon={<Search size={15} />}
+                aria-label={t("common.search")}
+                title={t("common.search")}
+              />
+              <ToolbarIconButton
+                onClick={() => a.toggleFullscreen(false)}
+                icon={<Shrink size={18} />}
+                aria-label={t("skills.form.exitFullscreen")}
+                title={t("skills.form.exitFullscreen")}
+              />
             </div>
+            {a.errors.files && (
+              <div id={errorId} className="mx-3">
+                <ConfigPanelErrorCallout message={a.errors.files} />
+              </div>
+            )}
 
             {/* Editor / Binary Preview */}
             <div className="flex-1 min-h-0 p-3 sm:p-4">
@@ -103,35 +179,13 @@ export function SkillFormFullscreen(a: SkillFormActions) {
                 const currentPath = a.files[a.activeFileIndex]?.path || "";
                 const binaryInfo = a.binaryFiles?.[currentPath];
 
-                // Loading state
-                if (a.loadingFilePath === currentPath) {
+                if (a.loadingFilePath === currentPath || a.fileLoadError) {
                   return (
-                    <div className="flex h-full items-center justify-center rounded-2xl bg-[var(--theme-bg-subtle)]">
-                      <div className="flex flex-col items-center gap-3">
-                        <svg
-                          className="h-6 w-6 animate-spin text-[var(--theme-text-secondary)]"
-                          viewBox="0 0 24 24"
-                        >
-                          <circle
-                            className="opacity-25"
-                            cx="12"
-                            cy="12"
-                            r="10"
-                            stroke="currentColor"
-                            strokeWidth="4"
-                            fill="none"
-                          />
-                          <path
-                            className="opacity-75"
-                            fill="currentColor"
-                            d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
-                          />
-                        </svg>
-                        <span className="text-14 text-[var(--theme-text-secondary)]">
-                          {currentPath.split("/").pop()}
-                        </span>
-                      </div>
-                    </div>
+                    <SkillFileLoadState
+                      path={currentPath}
+                      error={a.fileLoadError}
+                      onRetry={() => a.loadFileContent(a.activeFileIndex)}
+                    />
                   );
                 }
 
@@ -158,8 +212,10 @@ export function SkillFormFullscreen(a: SkillFormActions) {
                       onChange={(val) =>
                         a.updateFileContent(a.activeFileIndex, val)
                       }
-                      className="flex-1 min-h-0"
+                      className="flex-1 min-h-0 code-editor--overlay-search"
+                      showToolbar={false}
                       filePath={a.files[a.activeFileIndex]?.path}
+                      readOnly={a.isLoading}
                     />
                   </div>
                 );

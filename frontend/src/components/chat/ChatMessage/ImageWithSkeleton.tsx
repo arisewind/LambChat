@@ -1,5 +1,7 @@
-import { useState, useCallback, useEffect } from "react";
+import { useState, useCallback, useEffect, useMemo } from "react";
+import { useTranslation } from "react-i18next";
 import { getFullUrl } from "../../../services/api/config";
+import { getEmojiFallbackUrls } from "../../../utils/emojiAssets";
 
 /** Tracks URLs that have already loaded — skip skeleton for cached images */
 const loadedImages = new Set<string>();
@@ -59,20 +61,27 @@ export function ImageWithSkeleton({
   onLoad: onExternalLoad,
   onError: onExternalError,
 }: ImageWithSkeletonProps) {
+  const { t } = useTranslation();
+  const Container = onClick ? "button" : "div";
   const resolvedSrc = skipUrlResolve ? src : getFullUrl(src);
-  const [srcUsed, setSrcUsed] = useState<string | undefined>(
-    () => thumbSrc ?? resolvedSrc,
+  // 加载源链：缩略图（如有）→ 主源 → 外部静态资源（emoji 图标）的备用 CDN。
+  // 任一阶段失败自动换下一阶段重试，链耗尽才进入错误态。
+  const retryChain = useMemo(
+    () => [resolvedSrc, ...getEmojiFallbackUrls(resolvedSrc ?? "")],
+    [resolvedSrc],
   );
+  // stage = -1 表示缩略图阶段；>= 0 索引 retryChain
+  const [stage, setStage] = useState(() => (thumbSrc ? -1 : 0));
+  const srcUsed = stage < 0 ? thumbSrc : retryChain[stage];
   const [isLoaded, setIsLoaded] = useState(() =>
     loadedImages.has(thumbSrc ?? resolvedSrc ?? ""),
   );
   const [hasError, setHasError] = useState(false);
 
   useEffect(() => {
-    const initial = thumbSrc ?? resolvedSrc;
-    setSrcUsed(initial);
+    setStage(thumbSrc ? -1 : 0);
     setHasError(false);
-    setIsLoaded(loadedImages.has(initial ?? ""));
+    setIsLoaded(loadedImages.has(thumbSrc ?? resolvedSrc ?? ""));
   }, [thumbSrc, resolvedSrc]);
 
   const handleLoad = useCallback(() => {
@@ -81,34 +90,38 @@ export function ImageWithSkeleton({
     onExternalLoad?.();
   }, [onExternalLoad, srcUsed]);
   const handleError = useCallback(() => {
-    if (srcUsed !== resolvedSrc && resolvedSrc) {
-      // Thumbnail unavailable (unsupported provider/format) — try the
-      // original once before reporting failure.
-      setSrcUsed(resolvedSrc);
+    if (stage + 1 < retryChain.length) {
+      setStage(stage + 1);
       return;
     }
     setIsLoaded(true);
     setHasError(true);
     onExternalError?.();
-  }, [srcUsed, resolvedSrc, onExternalError]);
+  }, [stage, retryChain, onExternalError]);
 
   if (!resolvedSrc) return null;
 
   // Inline mode: skeleton sits behind the img in the same space, no extra wrapper
   if (inline) {
     return (
-      <div className={`relative overflow-hidden ${className ?? ""}`}>
+      <Container
+        type={onClick ? "button" : undefined}
+        aria-label={onClick ? alt || t("documents.preview") : undefined}
+        onClick={onClick}
+        style={hasError ? { aspectRatio } : undefined}
+        className={`relative overflow-hidden image-with-skeleton ${className ?? ""} ${onClick ? "block text-left focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--theme-primary)]" : ""}`}
+      >
         {!isLoaded && !hasError && (
           <div className="absolute inset-0 skeleton-line rounded-[inherit]" />
         )}
         {hasError ? (
-          errorFallback ?? (
+          (errorFallback ?? (
             <div className="absolute inset-0 flex items-center justify-center bg-stone-100 dark:bg-stone-800 rounded-[inherit]">
               <span className="text-12 text-stone-400 truncate px-1">
                 {alt || "…"}
               </span>
             </div>
-          )
+          ))
         ) : (
           <img
             src={srcUsed}
@@ -116,7 +129,6 @@ export function ImageWithSkeleton({
             loading={loading}
             onLoad={handleLoad}
             onError={handleError}
-            onClick={onClick}
             referrerPolicy="no-referrer"
             style={{
               opacity: isLoaded ? 1 : 0,
@@ -128,16 +140,19 @@ export function ImageWithSkeleton({
             }}
           />
         )}
-      </div>
+      </Container>
     );
   }
 
   // Block mode: full wrapper with skeleton, error state
   return (
-    <div
+    <Container
+      type={onClick ? "button" : undefined}
+      aria-label={onClick ? alt || t("documents.preview") : undefined}
+      onClick={onClick}
       className={`relative my-2 overflow-hidden rounded-lg shadow ${
         wrapperClassName ?? ""
-      }`}
+      } image-with-skeleton ${onClick ? "block w-full text-left focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--theme-primary)]" : ""}`}
     >
       {/* Skeleton placeholder */}
       {!isLoaded && !hasError && (
@@ -155,7 +170,6 @@ export function ImageWithSkeleton({
           loading={loading}
           onLoad={handleLoad}
           onError={handleError}
-          onClick={onClick}
           className={`${
             !isLoaded ? "absolute inset-0 pointer-events-none" : ""
           } ${className ?? ""}`}
@@ -186,6 +200,6 @@ export function ImageWithSkeleton({
             <span>{alt || "Image failed to load"}</span>
           </div>
         ))}
-    </div>
+    </Container>
   );
 }

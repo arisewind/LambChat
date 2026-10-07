@@ -1,6 +1,7 @@
 import { SceneIllustration } from "../common/SceneIllustration";
 import { Suspense, lazy } from "react";
 import { LoadingSpinner } from "../common/LoadingSpinner";
+import { Button } from "../common/ui/Button";
 import { ImageViewer } from "../common/ImageViewer";
 import { ImageWithSkeleton } from "../chat/ChatMessage/ImageWithSkeleton";
 import { mediaProxyFallbackSrc } from "./documentFetchCache";
@@ -23,6 +24,7 @@ type ContentProps = Pick<
   | "data"
   | "loading"
   | "error"
+  | "retryLoad"
   | "imageUrl"
   | "pdfUrl"
   | "pptUrl"
@@ -68,6 +70,7 @@ export default function DocumentPreviewContent({
   data,
   loading,
   error,
+  retryLoad,
   imageUrl,
   pdfUrl,
   pptUrl,
@@ -108,7 +111,7 @@ export default function DocumentPreviewContent({
   setShowImageViewer,
 }: ContentProps) {
   const suspenseFallback = (
-    <div className="flex items-center justify-center h-full min-h-[400px]">
+    <div className="flex items-center justify-center h-full min-h-0">
       <LoadingSpinner size="lg" />
     </div>
   );
@@ -126,7 +129,10 @@ export default function DocumentPreviewContent({
             />
           </div>
         </div>
-        <p className="text-14 text-stone-500 dark:text-stone-400 font-medium">
+        <p
+          role="status"
+          className="text-14 text-theme-text-secondary font-medium"
+        >
           {t("documents.loadingFileContent")}
         </p>
       </div>
@@ -137,14 +143,17 @@ export default function DocumentPreviewContent({
     return (
       <div className="flex min-h-full flex-col items-center justify-center py-8 gap-4 px-4">
         <SceneIllustration scene="files" />
-        <div className="text-center">
-          <p className="text-14 text-red-600 dark:text-red-400 font-medium mb-2">
-            {error}
-          </p>
-          <p className="text-12 text-stone-400 dark:text-stone-500">
+        <div role="alert" className="text-center max-w-md break-words">
+          <p className="text-14 text-theme-error font-medium mb-2">{error}</p>
+          <p className="text-12 text-theme-text-secondary">
             {t("documents.unableToLoadContent")}
           </p>
         </div>
+        {retryLoad && (
+          <Button size="lg" onClick={retryLoad}>
+            {t("common.retry")}
+          </Button>
+        )}
       </div>
     );
   }
@@ -195,7 +204,7 @@ export default function DocumentPreviewContent({
   if (resolvedPdfFile) {
     return (
       <Suspense fallback={suspenseFallback}>
-        <div className="h-full min-h-[400px]">
+        <div className="h-full min-h-0">
           {pdfUrl && <PdfPreview url={pdfUrl} />}
         </div>
       </Suspense>
@@ -204,12 +213,14 @@ export default function DocumentPreviewContent({
 
   if (resolvedVideoFile && videoUrl) {
     return (
-      <div className="flex items-center justify-center h-full bg-gradient-to-b from-stone-900 to-stone-950 min-h-[400px] p-4 sm:p-8">
-        <div className="relative w-full max-w-4xl mx-auto">
+      <div className="flex h-full min-h-0 items-center justify-center overflow-hidden bg-theme-bg-subtle p-4 sm:p-8">
+        <div className="relative flex h-full min-h-0 w-full max-w-4xl items-center justify-center mx-auto">
           <video
             controls
+            playsInline
+            aria-label={fileName}
             autoPlay={false}
-            className="w-full max-h-[65dvh] rounded-xl shadow-2xl ring-1 ring-white/10"
+            className="h-full w-full max-h-full object-contain"
             src={videoUrl}
             style={{ margin: "0 auto", display: "block" }}
             onError={(e) => {
@@ -227,15 +238,12 @@ export default function DocumentPreviewContent({
 
   if (resolvedAudioFile && audioUrl) {
     return (
-      <div className="flex items-center justify-center h-full min-h-[400px] p-4 sm:p-8">
-        <div className="w-full max-w-lg mx-auto flex flex-col items-center gap-6">
-          <div className="flex flex-col items-center gap-2">
-            <SceneIllustration scene="files" />
-            <Icon size={18} className={fileInfo.color} />
-          </div>
+      <div className="h-full min-h-0 overflow-auto bg-theme-bg-subtle">
+        <div className="flex min-h-full items-center justify-center p-4 sm:p-8">
           <audio
             controls
-            className="w-full"
+            aria-label={fileName}
+            className="w-full max-w-lg"
             src={audioUrl}
             onError={(e) => {
               const fallback = mediaProxyFallbackSrc(e.currentTarget);
@@ -252,7 +260,7 @@ export default function DocumentPreviewContent({
   if (cadKind) {
     return (
       <Suspense fallback={suspenseFallback}>
-        <div className="h-full min-h-[400px]">
+        <div className="h-full min-h-0">
           <CadPreview fileName={fileName} kind={cadKind} url={cadUrl} t={t} />
         </div>
       </Suspense>
@@ -262,7 +270,7 @@ export default function DocumentPreviewContent({
   if (pptFile && (pptUrl || pptxBuffer)) {
     return (
       <Suspense fallback={suspenseFallback}>
-        <div className="h-full min-h-[400px]">
+        <div className="h-full min-h-0">
           <PptPreview
             url={resolvedUrl || signedUrl || pptUrl || ""}
             arrayBuffer={pptxBuffer}
@@ -276,7 +284,7 @@ export default function DocumentPreviewContent({
 
   if (htmlFile && htmlUrl) {
     return (
-      <div className="h-full min-h-[400px]">
+      <div className="h-full min-h-0">
         <HtmlPreview content={htmlContent} />
       </div>
     );

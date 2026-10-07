@@ -22,7 +22,7 @@ test("CodeMirrorViewer fills the available parent height by default", () => {
   );
   expect(source).toMatch(/<CodeMirror[\s\S]*className="h-full"/);
   expect(source).toMatch(/<CodeMirror[\s\S]*height="100%"/);
-  expect(source).toMatch(/copyable \? "group relative h-full"/);
+  expect(source).toMatch(/className=\{`code-editor \$\{wrapperClassName\}`\}/);
 });
 
 test("CodeMirrorViewer exposes selected preview text to native copy", () => {
@@ -87,5 +87,5 @@ test("document code preview relies on the shared viewer fill behavior", () => {
   expect(source).not.toMatch(/\[&_\.cm-editor\]:h-full/);
   expect(source).not.toMatch(/\[&_\.cm-scroller\]:!overflow-auto/);
   expect(source).toMatch(/bg-theme-bg-code/);
-  expect(source).toMatch(/className="h-full"/);
+  expect(source).toMatch(/className="h-full code-editor--overlay-search"/);
 });

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useId, useRef, useState } from "react";
 import type { ReactNode } from "react";
 import { createPortal } from "react-dom";
 import { Check, ChevronDown } from "lucide-react";
@@ -7,6 +7,7 @@ import { useStickyDropdownPosition } from "../../../hooks/useStickyDropdownPosit
 export interface SelectOption {
   value: string;
   label: ReactNode;
+  group?: string;
   disabled?: boolean;
 }
 
@@ -42,7 +43,8 @@ export function Select({
   dropdownClassName,
 }: SelectProps) {
   const [localOpen, setLocalOpen] = useState(false);
-  const open = controlledOpen ?? localOpen;
+  const requestedOpen = controlledOpen ?? localOpen;
+  const open = requestedOpen && !disabled;
   const setOpen = useCallback(
     (next: boolean) => {
       setLocalOpen(next);
@@ -50,23 +52,50 @@ export function Select({
     },
     [onOpenChange],
   );
+  useEffect(() => {
+    if (disabled && requestedOpen) setOpen(false);
+  }, [disabled, requestedOpen, setOpen]);
   const ref = useRef<HTMLDivElement>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
+  const dropdownId = useId();
+  const labelId = useId();
 
   const dropdownStyle = useStickyDropdownPosition(ref, open, (rect) => {
-    const viewportWidth = window.innerWidth;
-    const viewportHeight = window.innerHeight;
-    const width = Math.max(rect.width, 160);
-    const left = Math.max(16, Math.min(rect.left, viewportWidth - width - 16));
-    const spaceBelow = viewportHeight - rect.bottom - 16;
-    const spaceAbove = rect.top - 16;
+    const viewport = window.visualViewport;
+    const viewportLeft = viewport?.offsetLeft ?? 0;
+    const viewportTop = viewport?.offsetTop ?? 0;
+    const viewportWidth = viewport?.width ?? window.innerWidth;
+    const viewportBottom =
+      viewportTop + (viewport?.height ?? window.innerHeight);
+    const width = Math.min(
+      Math.max(rect.width, 160),
+      Math.max(0, viewportWidth - 32),
+    );
+    const left = Math.max(
+      viewportLeft + 16,
+      Math.min(rect.left, viewportLeft + viewportWidth - width - 16),
+    );
+    const anchorTop = Math.max(
+      viewportTop + 16,
+      Math.min(rect.top, viewportBottom - 16),
+    );
+    const anchorBottom = Math.max(
+      viewportTop + 16,
+      Math.min(rect.bottom, viewportBottom - 16),
+    );
+    const spaceBelow = viewportBottom - anchorBottom - 16;
+    const spaceAbove = anchorTop - viewportTop - 16;
     const preferBelow = spaceBelow >= 200 || spaceBelow >= spaceAbove;
     return {
       position: "fixed",
-      top: preferBelow ? rect.bottom + 4 : undefined,
-      bottom: preferBelow ? undefined : viewportHeight - rect.top + 4,
+      top: preferBelow ? anchorBottom + 4 : undefined,
+      bottom: preferBelow ? undefined : window.innerHeight - anchorTop + 4,
       left,
       width,
+      maxHeight: Math.max(
+        0,
+        Math.min(224, (preferBelow ? spaceBelow : spaceAbove) - 4),
+      ),
       zIndex: 9999,
     };
   });
@@ -104,6 +133,42 @@ export function Select({
       )?.focus();
   }, [open]);
 
+  const optionGroups: { label?: string; options: SelectOption[] }[] = [];
+  for (const option of options) {
+    const previous = optionGroups[optionGroups.length - 1];
+    if (previous && previous.label === option.group) {
+      previous.options.push(option);
+    } else {
+      optionGroups.push({ label: option.group, options: [option] });
+    }
+  }
+
+  const renderOption = (option: SelectOption) => (
+    <button
+      key={option.value}
+      type="button"
+      disabled={option.disabled}
+      role="option"
+      aria-selected={option.value === value}
+      className={cx(
+        "ui-select-option",
+        option.value === value && "ui-select-option--active",
+        option.disabled && "ui-select-option--disabled",
+      )}
+      onClick={() => {
+        if (option.disabled) return;
+        setOpen(false);
+        ref.current?.querySelector("button")?.focus();
+        onChange(option.value);
+      }}
+    >
+      {option.value === value && (
+        <Check size={14} className="ui-select-option__check" />
+      )}
+      <span className="ui-select-option__label">{option.label}</span>
+    </button>
+  );
+
   return (
     <div ref={ref} className={cx("ui-select", className)}>
       <button
@@ -111,8 +176,10 @@ export function Select({
         disabled={disabled}
         className={cx("ui-select-trigger", triggerClassName)}
         aria-label={ariaLabel}
+        aria-describedby={ariaLabel ? labelId : undefined}
         aria-haspopup="listbox"
         aria-expanded={open}
+        aria-controls={open ? dropdownId : undefined}
         onKeyDown={(event) => {
           if (event.key === "ArrowDown" || event.key === "ArrowUp") {
             event.preventDefault();
@@ -122,6 +189,7 @@ export function Select({
         onClick={() => !disabled && setOpen(!open)}
       >
         <span
+          id={labelId}
           className={
             selected
               ? "ui-select-trigger__label"
@@ -141,9 +209,11 @@ export function Select({
         createPortal(
           <div
             ref={dropdownRef}
+            id={dropdownId}
             className={cx("ui-select-dropdown", dropdownClassName)}
             role="listbox"
             aria-label={ariaLabel}
+            aria-labelledby={ariaLabel ? undefined : labelId}
             onKeyDown={(event) => {
               if (event.key === "Escape" || event.key === "Tab") {
                 event.stopPropagation();
@@ -175,31 +245,22 @@ export function Select({
             }}
             style={dropdownStyle}
           >
-            {options.map((option) => (
-              <button
-                key={option.value}
-                type="button"
-                disabled={option.disabled}
-                role="option"
-                aria-selected={option.value === value}
-                className={cx(
-                  "ui-select-option",
-                  option.value === value && "ui-select-option--active",
-                  option.disabled && "ui-select-option--disabled",
-                )}
-                onClick={() => {
-                  if (option.disabled) return;
-                  setOpen(false);
-                  onChange(option.value);
-                  ref.current?.querySelector("button")?.focus();
-                }}
-              >
-                {option.value === value && (
-                  <Check size={14} className="ui-select-option__check" />
-                )}
-                <span className="ui-select-option__label">{option.label}</span>
-              </button>
-            ))}
+            {optionGroups.map((group) =>
+              group.label === undefined ? (
+                group.options.map(renderOption)
+              ) : (
+                <div
+                  key={group.options[0].value}
+                  role="group"
+                  aria-label={group.label}
+                >
+                  <div className="px-3 pb-1 pt-2 text-12 font-medium text-theme-text-secondary">
+                    {group.label}
+                  </div>
+                  {group.options.map(renderOption)}
+                </div>
+              ),
+            )}
           </div>,
           document.body,
         )}

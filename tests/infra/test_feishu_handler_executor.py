@@ -5,10 +5,24 @@ import json
 import sys
 from types import ModuleType
 from typing import Any
+from unittest.mock import AsyncMock
 
 import pytest
 
 from src.infra.channel.feishu import handler as feishu_handler
+
+
+@pytest.fixture(autouse=True)
+def local_handler_runtime(monkeypatch):
+    monkeypatch.setattr("src.infra.channel.recovery.settings.TASK_BACKEND", "local")
+    storage = AsyncMock()
+    storage.get_config.return_value = None
+    monkeypatch.setattr("src.infra.channel.channel_storage.ChannelStorage", lambda: storage)
+    monkeypatch.setattr("src.infra.session.manager.SessionManager", lambda: AsyncMock())
+
+
+async def _successful_send_card(self) -> bool:
+    return True
 
 
 class _FakeManager:
@@ -289,6 +303,8 @@ class _FakeProjectStorage:
         self.created_names: list[tuple[str, str]] = []
 
     async def get_by_id(self, project_id: str, user_id: str):
+        if project_id == "project-from-channel-name":
+            return type("Project", (), {"id": project_id, "workspace": None})()
         return None
 
     async def get_or_create_by_name(self, user_id: str, name: str):
@@ -318,7 +334,7 @@ async def test_feishu_executor_accepts_task_runtime_skill_kwargs(
     monkeypatch.setattr(
         feishu_handler,
         "_get_feishu_session_id",
-        lambda chat_id: _async_return(f"feishu_{chat_id}"),
+        lambda chat_id, *, user_id, instance_id: _async_return(f"feishu_{chat_id}"),
     )
     _install_fake_task_manager_module(monkeypatch, fake_task_manager)
     monkeypatch.setattr(feishu_handler, "execute_feishu_agent", _fake_execute_feishu_agent)
@@ -331,7 +347,7 @@ async def test_feishu_executor_accepts_task_runtime_skill_kwargs(
     monkeypatch.setattr(
         feishu_handler.FeishuResponseCollector,
         "send_card_message",
-        _no_op_collector_method,
+        _successful_send_card,
     )
     monkeypatch.setattr(
         feishu_handler.FeishuResponseCollector,
@@ -359,7 +375,7 @@ async def test_feishu_executor_accepts_task_runtime_skill_kwargs(
 
 
 @pytest.mark.asyncio
-async def test_feishu_handler_ignores_stale_channel_project_id(
+async def test_feishu_handler_rejects_stale_project_without_switching_workspace(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     fake_task_manager = _FakeTaskManager()
@@ -379,7 +395,7 @@ async def test_feishu_handler_ignores_stale_channel_project_id(
     monkeypatch.setattr(
         feishu_handler,
         "_get_feishu_session_id",
-        lambda chat_id: _async_return(f"feishu_{chat_id}"),
+        lambda chat_id, *, user_id, instance_id: _async_return(f"feishu_{chat_id}"),
     )
     _install_fake_task_manager_module(monkeypatch, fake_task_manager)
     monkeypatch.setattr(
@@ -400,7 +416,7 @@ async def test_feishu_handler_ignores_stale_channel_project_id(
     monkeypatch.setattr(
         feishu_handler.FeishuResponseCollector,
         "send_card_message",
-        _no_op_collector_method,
+        _successful_send_card,
     )
     monkeypatch.setattr(
         feishu_handler.FeishuResponseCollector,
@@ -418,9 +434,9 @@ async def test_feishu_handler_ignores_stale_channel_project_id(
         metadata={"instance_id": "instance-1"},
     )
 
-    assert fake_project_storage.created_names == [("user-1", "Feishu Channel")]
-    assert fake_channel_storage.cleared_configs
-    assert fake_task_manager.submit_calls[0]["project_id"] == "project-from-channel-name"
+    assert fake_project_storage.created_names == []
+    assert fake_channel_storage.cleared_configs == []
+    assert fake_task_manager.submit_calls == []
 
 
 @pytest.mark.asyncio
@@ -443,7 +459,7 @@ async def test_feishu_handler_applies_channel_persona_preset(
     monkeypatch.setattr(
         feishu_handler,
         "_get_feishu_session_id",
-        lambda chat_id: _async_return(f"feishu_{chat_id}"),
+        lambda chat_id, *, user_id, instance_id: _async_return(f"feishu_{chat_id}"),
     )
     _install_fake_task_manager_module(monkeypatch, fake_task_manager)
     monkeypatch.setattr(
@@ -468,7 +484,7 @@ async def test_feishu_handler_applies_channel_persona_preset(
     monkeypatch.setattr(
         feishu_handler.FeishuResponseCollector,
         "send_card_message",
-        _no_op_collector_method,
+        _successful_send_card,
     )
     monkeypatch.setattr(
         feishu_handler.FeishuResponseCollector,
@@ -520,7 +536,7 @@ async def test_feishu_handler_passes_channel_team_id_to_team_agent(
     monkeypatch.setattr(
         feishu_handler,
         "_get_feishu_session_id",
-        lambda chat_id: _async_return(f"feishu_{chat_id}"),
+        lambda chat_id, *, user_id, instance_id: _async_return(f"feishu_{chat_id}"),
     )
     _install_fake_task_manager_module(monkeypatch, fake_task_manager)
     monkeypatch.setattr(
@@ -545,7 +561,7 @@ async def test_feishu_handler_passes_channel_team_id_to_team_agent(
     monkeypatch.setattr(
         feishu_handler.FeishuResponseCollector,
         "send_card_message",
-        _no_op_collector_method,
+        _successful_send_card,
     )
     monkeypatch.setattr(
         feishu_handler.FeishuResponseCollector,
@@ -585,7 +601,16 @@ async def test_feishu_handler_deletes_received_reaction_when_processing_finishes
         return None
 
     class _CaptureCollector:
+        def set_session_link(self, session_id: str, run_id: str) -> None:
+            self.session_link = (session_id, run_id)
+
+        async def _cancel_stream_update_worker(self) -> None:
+            return None
+
         def __init__(self, **_kwargs: Any) -> None:
+            return None
+
+        async def stop_processing_indicator(self) -> None:
             return None
 
         async def finalize_stream_message(self) -> bool:
@@ -600,7 +625,7 @@ async def test_feishu_handler_deletes_received_reaction_when_processing_finishes
     monkeypatch.setattr(
         feishu_handler,
         "_get_feishu_session_id",
-        lambda chat_id: _async_return(f"feishu_{chat_id}"),
+        lambda chat_id, *, user_id, instance_id: _async_return(f"feishu_{chat_id}"),
     )
     _install_fake_task_manager_module(monkeypatch, fake_task_manager)
     monkeypatch.setattr(feishu_handler, "execute_feishu_agent", _fake_execute_feishu_agent)
@@ -639,6 +664,12 @@ async def test_feishu_handler_uses_event_chat_id_for_p2p_delivery(
         return None
 
     class _CaptureCollector:
+        def set_session_link(self, session_id: str, run_id: str) -> None:
+            self.session_link = (session_id, run_id)
+
+        async def _cancel_stream_update_worker(self) -> None:
+            captured_collector["stream_worker_cancelled"] = True
+
         def __init__(self, **kwargs: Any) -> None:
             captured_collector.update(kwargs)
 
@@ -660,7 +691,7 @@ async def test_feishu_handler_uses_event_chat_id_for_p2p_delivery(
     monkeypatch.setattr(
         feishu_handler,
         "_get_feishu_session_id",
-        lambda chat_id: _async_return(f"feishu_{chat_id}"),
+        lambda chat_id, *, user_id, instance_id: _async_return(f"feishu_{chat_id}"),
     )
     _install_fake_task_manager_module(monkeypatch, fake_task_manager)
     monkeypatch.setattr(feishu_handler, "execute_feishu_agent", _fake_execute_feishu_agent)
@@ -684,6 +715,8 @@ async def test_feishu_handler_uses_event_chat_id_for_p2p_delivery(
     assert fake_task_manager.submit_calls[0]["session_id"] == "feishu_ou_sender"
     assert captured_collector["chat_id"] == "oc_p2p_chat"
     assert captured_collector["reply_to_message_id"] == "om_original"
+    assert captured_collector["stream_worker_cancelled"] is True
+    assert fake_manager.sent_messages == []
 
 
 @pytest.mark.asyncio
@@ -701,6 +734,12 @@ async def test_feishu_handler_does_not_add_processing_indicator_reaction(
         return None
 
     class _CaptureCollector:
+        def set_session_link(self, session_id: str, run_id: str) -> None:
+            self.session_link = (session_id, run_id)
+
+        async def _cancel_stream_update_worker(self) -> None:
+            return None
+
         def __init__(self, **_kwargs: Any) -> None:
             return None
 
@@ -722,7 +761,7 @@ async def test_feishu_handler_does_not_add_processing_indicator_reaction(
     monkeypatch.setattr(
         feishu_handler,
         "_get_feishu_session_id",
-        lambda chat_id: _async_return(f"feishu_{chat_id}"),
+        lambda chat_id, *, user_id, instance_id: _async_return(f"feishu_{chat_id}"),
     )
     _install_fake_task_manager_module(monkeypatch, fake_task_manager)
     monkeypatch.setattr(feishu_handler, "execute_feishu_agent", _fake_execute_feishu_agent)

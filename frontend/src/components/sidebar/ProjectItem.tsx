@@ -15,7 +15,7 @@ import {
   FolderClosed,
   FolderOpen,
   MoreHorizontal,
-  Plus,
+  SquarePen,
   Star,
 } from "lucide-react";
 import toast from "react-hot-toast";
@@ -348,6 +348,7 @@ export const ProjectItem = forwardRef<ProjectItemHandle, ProjectItemProps>(
               <input
                 ref={inputRef}
                 type="text"
+                aria-label={`${t("sidebar.rename")} ${project.name}`}
                 value={editName}
                 onChange={(e) => setEditName(e.target.value)}
                 onKeyDown={handleKeyDown}
@@ -369,14 +370,14 @@ export const ProjectItem = forwardRef<ProjectItemHandle, ProjectItemProps>(
           </div>
           {/* Project actions */}
           <div
-            className="flex shrink-0 items-center gap-1 sidebar-action-reveal"
+            className="flex shrink-0 items-center gap-1 sidebar-action-reveal sidebar-action-controls"
             style={isTouched || isMenuOpen ? { opacity: 1 } : undefined}
           >
             {!isEditing && project.workspace && (
               <ProjectWorkspaceDetails value={project.workspace} />
             )}
             {!isEditing && unreadCount > 0 && (
-              <div className="flex h-8 w-8 shrink-0 items-center justify-center max-sm:h-9 max-sm:w-9">
+              <div className="flex h-8 w-6 shrink-0 items-center justify-center max-sm:h-11 max-sm:w-11">
                 <MarkAllReadBadge
                   count={unreadCount}
                   badgeId={`project-${project.id}`}
@@ -401,9 +402,9 @@ export const ProjectItem = forwardRef<ProjectItemHandle, ProjectItemProps>(
                   aria-label={t("sidebar.newChatInProject", {
                     project: project.name,
                   })}
-                  className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md text-stone-500 hover:text-stone-700 dark:text-stone-400 dark:hover:text-stone-200 focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--theme-primary)] max-sm:h-9 max-sm:w-9"
+                  className="flex h-8 w-6 shrink-0 items-center justify-center rounded-md text-stone-500 hover:text-stone-700 dark:text-stone-400 dark:hover:text-stone-200 focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--theme-primary)] max-sm:h-9 max-sm:w-9"
                 >
-                  <Plus size={16} aria-hidden="true" />
+                  <SquarePen size={14} aria-hidden="true" />
                 </button>
               </Tooltip>
             )}
@@ -415,7 +416,7 @@ export const ProjectItem = forwardRef<ProjectItemHandle, ProjectItemProps>(
                   ref={menuButtonRef}
                   onClick={handleMenuClick}
                   aria-label={t("sidebar.moreOptions")}
-                  className="flex h-8 w-8 shrink-0 items-center justify-center max-sm:h-9 max-sm:w-9 rounded p-0.5 transition-colors"
+                  className="flex h-8 w-6 shrink-0 items-center justify-center max-sm:h-9 max-sm:w-9 rounded-md transition-colors"
                 >
                   <MoreHorizontal
                     size={14}
@@ -490,7 +491,7 @@ export const ProjectItem = forwardRef<ProjectItemHandle, ProjectItemProps>(
                 onClick={() => onNewSessionInProject(project.id)}
                 className="flex min-h-10 items-center gap-2 rounded-md px-3 text-left text-13 text-stone-500 hover:text-stone-700 dark:text-stone-400 dark:hover:text-stone-200 focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--theme-primary)]"
               >
-                <Plus size={14} className="shrink-0" aria-hidden="true" />
+                <SquarePen size={14} className="shrink-0" aria-hidden="true" />
                 {t("sidebar.startFirstChat")}
               </button>
             ) : null}

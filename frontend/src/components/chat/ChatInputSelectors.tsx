@@ -72,6 +72,8 @@ export interface ChatInputSelectorsProps {
   onPersonaPresetsTagChange?: (tag: string | null) => void;
   selectedPersonaPresetId?: string | null;
   personaPresetsLoading?: boolean;
+  personaPresetsError?: string | null;
+  onRetryPersonaPresets?: () => void;
   personaPresetsMutating?: boolean;
   onUsePersonaPreset?: (
     preset: PersonaPreset,
@@ -85,6 +87,9 @@ export interface ChatInputSelectorsProps {
   canManagePersonaPresets?: boolean;
   // Agent mode
   agents?: AgentInfo[];
+  agentsLoading?: boolean;
+  agentsError?: boolean;
+  onRetryAgents?: () => void;
   currentAgent?: string;
   onSelectAgent?: (id: string) => void;
   selectedTeamId?: string | null;
@@ -126,6 +131,8 @@ export function ChatInputSelectors({
   onPersonaPresetsTagChange,
   selectedPersonaPresetId,
   personaPresetsLoading = false,
+  personaPresetsError,
+  onRetryPersonaPresets,
   personaPresetsMutating = false,
   onUsePersonaPreset,
   onTogglePersonaPreference,
@@ -133,6 +140,9 @@ export function ChatInputSelectors({
   onClearPersonaPreset,
   canManagePersonaPresets = false,
   agents = [],
+  agentsLoading = false,
+  agentsError = false,
+  onRetryAgents,
   currentAgent,
   onSelectAgent,
   selectedTeamId,
@@ -365,6 +375,8 @@ export function ChatInputSelectors({
           selectedPresetId={selectedPersonaPresetId}
           isOpen={activePanel === "persona"}
           isLoading={personaPresetsLoading}
+          error={personaPresetsError}
+          onRetry={onRetryPersonaPresets}
           isMutating={personaPresetsMutating}
           canManagePresets={canManagePersonaPresets}
           onOpenChange={(open) => onActivePanelChange(open ? "persona" : null)}
@@ -383,6 +395,9 @@ export function ChatInputSelectors({
       )}
       <AgentModeSelector
         agents={agents}
+        isLoading={agentsLoading}
+        error={agentsError}
+        onRetry={onRetryAgents}
         currentAgent={currentAgent || ""}
         onSelectAgent={onSelectAgent}
         isOpen={activePanel === "agent"}

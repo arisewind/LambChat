@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import {
@@ -17,7 +17,7 @@ import { Checkbox } from "../common/Checkbox";
 import type { ToolState, ToolCategory, ToolParamInfo } from "../../types";
 
 import { useClientPagination } from "../../hooks/useClientPagination";
-import { matchTool } from "../../utils/pinyinSearch";
+import { matchTool, preloadPinyin } from "../../utils/pinyinSearch";
 import { Pagination } from "../common/Pagination";
 import { PanelSearchInput } from "../common/PanelSearchInput";
 import {
@@ -63,6 +63,12 @@ export function ToolSelector({
   const navigate = useNavigate();
   const [internalOpen, setInternalOpen] = useState(false);
   const isOpen = externalIsOpen ?? internalOpen;
+
+  // Warm the pinyin dictionary once the selector is about to be used so the
+  // first search already matches pinyin queries.
+  useEffect(() => {
+    if (isOpen) void preloadPinyin();
+  }, [isOpen]);
   const setIsOpen = externalOnOpenChange ?? setInternalOpen;
   const [expandedTools, setExpandedTools] = useState<Set<string>>(new Set());
   const [expandedCategories, setExpandedCategories] = useState<
@@ -219,6 +225,7 @@ export function ToolSelector({
                     </span>
                   </div>
                   <Checkbox
+                    ariaLabel={t(`tools.categories.${cat}`)}
                     checked={allEnabled}
                     onChange={() => onToggleCategory(cat, !allEnabled)}
                   />
@@ -292,6 +299,7 @@ export function ToolSelector({
                                 </p>
                               </div>
                               <Checkbox
+                                ariaLabel={tool.name}
                                 checked={tool.enabled}
                                 onChange={() => onToggleTool(tool.name)}
                                 disabled={tool.system_disabled}

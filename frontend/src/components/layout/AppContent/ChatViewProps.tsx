@@ -158,6 +158,8 @@ export interface ChatViewProps {
   selectedPersonaSnapshot: PersonaPresetSnapshot | null;
   personaSkillsControlled: boolean;
   personaPresetsLoading: boolean;
+  personaPresetsError?: string | null;
+  onRetryPersonaPresets?: () => void;
   personaPresetsMutating: boolean;
   onUsePersonaPreset: (
     preset: PersonaPreset,
@@ -186,6 +188,9 @@ export interface ChatViewProps {
   modelSupportsThinking?: boolean;
   // Agent mode selector
   agents: AgentInfo[];
+  agentsLoading?: boolean;
+  agentsError?: boolean;
+  onRetryAgents?: () => void;
   currentAgent: string;
   onSelectAgent: (id: string) => void;
   // Team picker

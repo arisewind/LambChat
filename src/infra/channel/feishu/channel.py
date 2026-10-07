@@ -23,20 +23,21 @@ from src.infra.channel.feishu.utils import (
     extract_post_content,
     extract_share_card_content,
 )
+from src.infra.channel.inbox import ChannelInbox
+from src.infra.channel.inbox_worker import InboxWorker
 from src.infra.logging import get_logger
-from src.infra.storage.redis import get_redis_client
 from src.kernel.schemas.channel import ChannelCapability, ChannelType
 from src.kernel.schemas.feishu import (
     DEFAULT_AUDIO_TRANSCRIBE_PROMPT,
     FeishuConfig,
     FeishuGroupPolicy,
+    feishu_api_domain,
 )
 
 logger = get_logger(__name__)
 
 FEISHU_AVAILABLE = importlib.util.find_spec("lark_oapi") is not None
-_PROCESSED_MESSAGE_TTL_SECONDS = 15 * 60
-_PROCESSED_MESSAGE_CACHE_MAX = 1000
+_CALLBACK_ACCEPT_TIMEOUT_SECONDS = 30
 _FEISHU_WS_LOOP_LOCK = threading.Lock()
 _FEISHU_WS_LOOP: asyncio.AbstractEventLoop | None = None
 _FEISHU_WS_THREAD: threading.Thread | None = None
@@ -123,7 +124,14 @@ class FeishuChannel(FeishuSenderMixin, BaseChannel):
         self._health_check_future: Any = None
         self._ws_loop_ref: asyncio.AbstractEventLoop | None = None
         self._loop: asyncio.AbstractEventLoop | None = None
-        self._processed_message_ids: OrderedDict[str, None] = OrderedDict()
+        self._callback_futures: set[Any] = set()
+        self._callback_tasks: set[asyncio.Task] = set()
+        self._callback_lock = threading.Lock()
+        self._inbox_worker = InboxWorker(
+            ChannelInbox(self.channel_type.value, config.user_id, config.instance_id),
+            self._deliver_inbox_message,
+        )
+        self._inbox_task: asyncio.Task | None = None
         self._chat_mode_cache: OrderedDict[str, str] = (
             OrderedDict()
         )  # Cache: chat_id -> "group"|"thread"
@@ -156,6 +164,12 @@ class FeishuChannel(FeishuSenderMixin, BaseChannel):
             "type": "object",
             "required": ["app_id", "app_secret"],
             "properties": {
+                "platform": {
+                    "type": "string",
+                    "enum": ["feishu", "lark"],
+                    "default": "feishu",
+                    "title": "Service region",
+                },
                 "app_id": {
                     "type": "string",
                     "title": "App ID",
@@ -216,6 +230,16 @@ class FeishuChannel(FeishuSenderMixin, BaseChannel):
     def get_config_fields(cls) -> list[dict[str, Any]]:
         """Get configuration fields for UI rendering."""
         return [
+            {
+                "name": "platform",
+                "title": "Service region",
+                "type": "select",
+                "default": "feishu",
+                "options": [
+                    {"value": "feishu", "label": "Feishu (China)"},
+                    {"value": "lark", "label": "Lark (International)"},
+                ],
+            },
             {
                 "name": "app_id",
                 "title": "App ID",
@@ -395,6 +419,7 @@ class FeishuChannel(FeishuSenderMixin, BaseChannel):
                 lark.Client.builder()
                 .app_id(self.config.app_id)
                 .app_secret(self.config.app_secret)
+                .domain(feishu_api_domain(self.config.platform))
                 .log_level(lark.LogLevel.INFO)
                 .build()
             )
@@ -416,7 +441,9 @@ class FeishuChannel(FeishuSenderMixin, BaseChannel):
 
         self._client, event_handler = await run_blocking_io(_build_clients)
 
-        self._ws_loop_ref = _ensure_feishu_ws_loop()
+        self._inbox_task = asyncio.create_task(self._inbox_worker.run())
+        # 首次创建要同步等锁 + ready.wait(5)（含 lark_oapi 冷 import），必须离开事件循环
+        self._ws_loop_ref = await run_blocking_io(_ensure_feishu_ws_loop)
         self._ws_future = asyncio.run_coroutine_threadsafe(
             self._run_ws_client(event_handler),
             self._ws_loop_ref,
@@ -446,6 +473,7 @@ class FeishuChannel(FeishuSenderMixin, BaseChannel):
             self.config.app_id,
             self.config.app_secret,
             event_handler=event_handler,
+            domain=feishu_api_domain(self.config.platform),
             log_level=lark.LogLevel.WARNING,
             auto_reconnect=True,
         )
@@ -536,7 +564,21 @@ class FeishuChannel(FeishuSenderMixin, BaseChannel):
 
     async def stop(self) -> None:
         """Stop the Feishu bot."""
-        self._running = False
+        with self._callback_lock:
+            self._running = False
+            callbacks = list(self._callback_futures)
+        for callback in callbacks:
+            await _cancel_and_wait_future(callback)
+        # concurrent.futures cancellation completes before its coroutine has
+        # unwound. Join the actual main-loop tasks before shutting down workers.
+        callbacks_running = list(self._callback_tasks)
+        if callbacks_running:
+            await asyncio.gather(*callbacks_running, return_exceptions=True)
+        await self._inbox_worker.stop()
+        if self._inbox_task:
+            self._inbox_task.cancel()
+            await asyncio.gather(self._inbox_task, return_exceptions=True)
+            self._inbox_task = None
         if self._ws_loop_ref is not None and self._ws_client is not None:
             try:
                 await asyncio.wrap_future(
@@ -582,8 +624,40 @@ class FeishuChannel(FeishuSenderMixin, BaseChannel):
         # Set state to connected if not already
         if self._get_connection_state() != ConnectionState.CONNECTED:
             self._set_connection_state(ConnectionState.CONNECTED)
-        if self._loop and self._loop.is_running():
-            asyncio.run_coroutine_threadsafe(self._on_message(data), self._loop)
+        # SDK callbacks run on the dedicated WS thread. Returning acknowledges
+        # delivery, so wait there until acceptance has persisted on the main loop.
+        if not self._loop or not self._loop.is_running():
+            raise RuntimeError("Feishu message loop unavailable")
+        try:
+            running_loop = asyncio.get_running_loop()
+        except RuntimeError:
+            running_loop = None
+        if running_loop is self._loop:
+            raise RuntimeError("Feishu callback cannot block its message loop")
+        with self._callback_lock:
+            if not self._running:
+                raise RuntimeError("Feishu channel stopped")
+            future = asyncio.run_coroutine_threadsafe(self._receive_message(data), self._loop)
+            self._callback_futures.add(future)
+        try:
+            future.result(timeout=_CALLBACK_ACCEPT_TIMEOUT_SECONDS)
+        except BaseException:
+            future.cancel()
+            raise
+        finally:
+            with self._callback_lock:
+                self._callback_futures.discard(future)
+
+    async def _receive_message(self, data: Any) -> None:
+        if not self._running:
+            raise RuntimeError("Feishu channel stopped")
+        task = asyncio.current_task()
+        assert task is not None
+        self._callback_tasks.add(task)
+        try:
+            await self._on_message(data)
+        finally:
+            self._callback_tasks.discard(task)
 
     def _on_card_action_sync(self, data: Any) -> Any:
         """Sync handler for Feishu interactive card button clicks."""
@@ -694,10 +768,7 @@ class FeishuChannel(FeishuSenderMixin, BaseChannel):
             message = event.message
             sender = event.sender
 
-            # Deduplication check
             message_id = message.message_id
-            if not await self._mark_message_processed(message_id):
-                return
 
             # Skip bot messages
             if sender.sender_type == "bot":
@@ -713,10 +784,6 @@ class FeishuChannel(FeishuSenderMixin, BaseChannel):
                     f"Feishu: skipping group message (not mentioned) for user {self.config.user_id}"
                 )
                 return
-
-            # Add reaction to indicate the message is being handled; the handler
-            # receives the reaction id so it can remove it after processing.
-            reaction_id = await self._add_reaction(message_id, self.config.react_emoji)
 
             # Parse content and extract attachments
             content_parts = []
@@ -842,50 +909,42 @@ class FeishuChannel(FeishuSenderMixin, BaseChannel):
                 "sender_id": sender_id,
                 "reply_chat_id": chat_id,
             }
-            if reaction_id:
-                metadata["reaction_id"] = reaction_id
             if root_id:
                 metadata["root_id"] = root_id
             if attachments:
                 metadata["attachments"] = attachments
 
-            await self._handle_message(
-                sender_id=sender_id,
-                chat_id=reply_to,
-                content=content,
-                metadata=metadata,
+            if not await self._inbox_worker.accept(
+                {
+                    "message_id": message_id,
+                    "sender_id": sender_id,
+                    "chat_id": reply_to,
+                    "content": content,
+                    "metadata": metadata,
+                }
+            ):
+                raise RuntimeError("Feishu inbox acceptance failed")
+
+        except Exception as exc:
+            logger.error(
+                "Error accepting Feishu message for user %s: %s",
+                self.config.user_id,
+                type(exc).__name__,
             )
+            raise
 
-        except Exception as e:
-            logger.error(f"Error processing Feishu message for user {self.config.user_id}: {e}")
-
-    async def _mark_message_processed(self, message_id: str) -> bool:
-        """Mark a message as processed using local cache plus Redis NX dedupe."""
-        if message_id in self._processed_message_ids:
-            return False
-
-        redis_claimed = True
-        try:
-            redis_client = get_redis_client()
-            redis_claimed = bool(
-                await redis_client.set(
-                    f"feishu:processed:{message_id}",
-                    self.config.instance_id or self.config.user_id,
-                    nx=True,
-                    ex=_PROCESSED_MESSAGE_TTL_SECONDS,
-                )
-            )
-        except Exception as e:
-            logger.warning(
-                "Feishu distributed dedupe unavailable for message %s: %s",
-                message_id,
-                e,
-            )
-
-        if not redis_claimed:
-            return False
-
-        self._processed_message_ids[message_id] = None
-        while len(self._processed_message_ids) > _PROCESSED_MESSAGE_CACHE_MAX:
-            self._processed_message_ids.popitem(last=False)
-        return True
+    async def _deliver_inbox_message(self, message: dict[str, Any]) -> None:
+        metadata = dict(message.get("metadata") or {})
+        if message.get("outbound") is True:
+            if not await self.send_message(message["chat_id"], message["content"], **metadata):
+                raise RuntimeError("Feishu outbound delivery failed")
+            return
+        reaction_id = await self._add_reaction(metadata["message_id"], self.config.react_emoji)
+        if reaction_id:
+            metadata["reaction_id"] = reaction_id
+        await self._handle_message(
+            sender_id=message["sender_id"],
+            chat_id=message["chat_id"],
+            content=message["content"],
+            metadata=metadata,
+        )

@@ -1,5 +1,13 @@
 import { useRef, useCallback, useState, useEffect } from "react";
-import { ArrowUp, Cloud, Monitor, Settings2, Square, Lock } from "lucide-react";
+import {
+  AlertCircle,
+  ArrowUp,
+  Cloud,
+  Monitor,
+  Settings2,
+  Square,
+  Lock,
+} from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { FeatureMenu, type FeaturePanel } from "../selectors/FeatureMenu";
 import { getFileAccept } from "./fileAccept";
@@ -17,6 +25,7 @@ import {
   getTeamFallbackTag,
 } from "../team/teamAvatarUtils";
 import { ToolbarChip } from "./ToolbarChip";
+import { LoadingSpinner } from "../common/LoadingSpinner";
 import { AgentIcon } from "../agent/AgentIcon";
 import { subscribeTeamsChanged } from "../../hooks/teamEvents";
 import { RunModePopover } from "./RunModePopover";
@@ -52,6 +61,8 @@ export interface ChatInputToolbarProps {
   personaName?: string | null;
   totalPersonaCount?: number;
   hasAgentSelector: boolean;
+  agentsLoading?: boolean;
+  agentsError?: boolean;
   agentName?: string;
   agentIcon?: string;
   hasThinkingOption: boolean;
@@ -96,6 +107,8 @@ export function ChatInputToolbar({
   personaName,
   totalPersonaCount,
   hasAgentSelector,
+  agentsLoading = false,
+  agentsError = false,
   agentName,
   agentIcon,
   hasThinkingOption,
@@ -199,7 +212,7 @@ export function ChatInputToolbar({
       enabled: showSandboxEntry && sandboxChipLocal,
     },
   );
-  // 统一面板入口标签：本地档 + 已选设备 → 「档位 · 设备」（chip 与 popover 徽标共用；
+  // 统一面板入口标签：本地档 + 已选设备 → 设备名（chip 与 popover 徽标共用；
   // 云端档或自动解析时退回纯档位名）
   const sandboxLabel = sandboxTierLabel
     ? resolveSandboxButtonLabel({
@@ -236,7 +249,7 @@ export function ChatInputToolbar({
   const selectedTeamName = selectedTeam?.name ?? null;
 
   return (
-    <div className="chat-input-toolbar flex max-w-full flex-nowrap justify-between gap-1.5 px-2 pb-3 pt-3 mx-0.5">
+    <div className="chat-input-toolbar flex max-w-full flex-nowrap justify-between gap-1.5 px-1 py-2 sm:px-2 sm:py-3 mx-0.5">
       {/* 左行不设横向滚动：滚动容器会在手机端裁切 chip（视觉上与右簇重叠），
           超宽时由 chip 的 shrink + truncate 优雅降级 */}
       <div className="flex min-h-10 min-w-0 flex-1 items-center gap-1.5">
@@ -266,8 +279,21 @@ export function ChatInputToolbar({
           !selectedPersonaName &&
           !(currentAgent === "team" && onSelectTeam && selectedTeamId) && (
             <ToolbarChip
-              icon={<AgentIcon icon={agentIcon || "Bot"} size={16} />}
+              icon={
+                agentsLoading ? (
+                  <LoadingSpinner size="sm" />
+                ) : agentsError ? (
+                  <AlertCircle size={16} className="text-theme-error" />
+                ) : (
+                  <AgentIcon icon={agentIcon || "Bot"} size={16} />
+                )
+              }
               label={agentName || t(`agents.${currentAgent}.name`) || ""}
+              title={
+                agentsLoading || agentsError
+                  ? `${agentName || t("agent.selectMode")} · ${t(agentsLoading ? "common.loading" : "common.loadFailed")}`
+                  : undefined
+              }
               onClick={() => onActivePanelChange("agent")}
             />
           )}
@@ -285,7 +311,7 @@ export function ChatInputToolbar({
                       : personaAvatar.avatar
                   }
                   alt=""
-                  className="w-4 h-4 rounded-full object-cover group-hover:opacity-0 transition-opacity"
+                  className="w-4 h-4 rounded-full object-cover  transition-opacity"
                   onError={(e) => {
                     (e.target as HTMLImageElement).style.display = "none";
                   }}
@@ -295,7 +321,7 @@ export function ChatInputToolbar({
                   avatar={personaAvatar?.avatar}
                   primaryTag={personaAvatar?.primaryTag ?? ""}
                   size={16}
-                  className="transition-transform duration-200 group-hover:opacity-0"
+                  className="transition-transform duration-200 "
                 />
               )
             }
@@ -316,7 +342,7 @@ export function ChatInputToolbar({
                   selectedTeam ? getTeamFallbackTag(selectedTeam) : ""
                 }
                 label={selectedTeamName ?? t("chat.teamSelected")}
-                className="team-toolbar-avatar transition-opacity group-hover:opacity-0"
+                className="team-toolbar-avatar transition-opacity "
                 iconSize={16}
               />
             }

@@ -92,7 +92,7 @@ describe("SessionItem task running indicator", () => {
     renderSessionItem({ task_status: "waiting_human" });
     const indicator = document.querySelector("[data-session-status=ask-human]");
     expect(indicator).toBeInTheDocument();
-    expect(indicator).toHaveClass("w-4", "h-4");
+    expect(indicator).toHaveClass("w-6", "h-8");
     expect(indicator).not.toHaveClass("border", "bg-amber-100/70");
     expect(indicator?.textContent).toBe("");
     expect(indicator?.querySelector("svg")).toHaveAttribute("width", "16");
@@ -112,7 +112,9 @@ describe("SessionItem more-options button tooltip", () => {
   it("reveals the more-options button itself on touch, without popping its bubble", () => {
     // The i18n mock returns the key itself when no in-code fallback exists
     const { row } = renderSessionItem({});
-    const moreButton = row.querySelector("button");
+    const moreButton = within(row).getByRole("button", {
+      name: "sidebar.moreOptions",
+    });
     expect(moreButton).not.toHaveAttribute("title");
     expect(moreButton).toHaveAttribute("aria-label", "sidebar.moreOptions");
     touchRow(row);

@@ -1,8 +1,9 @@
+import { SidebarToggleIcon } from "../../common/SidebarToggleIcon";
 import { useCallback, useMemo, useState } from "react";
 import {
   Search,
   FolderOpen,
-  MessageSquarePlus,
+  SquarePen,
   MoreHorizontal,
   CalendarClock,
   FolderInput,
@@ -90,6 +91,7 @@ interface SessionListContentProps {
   onOpenSearch: () => void;
   onShowProfile: () => void;
   hasMoreMenuItems: boolean;
+  singleMoreMenuItem?: { label: string; icon: typeof MoreHorizontal };
   onToggleMoreMenu: () => void;
   expandedMoreMenuBtnRef: React.RefObject<HTMLButtonElement | null>;
   scrollEl: HTMLDivElement | null;
@@ -146,6 +148,7 @@ export function SessionListContent({
   onOpenSearch,
   onShowProfile,
   hasMoreMenuItems,
+  singleMoreMenuItem,
   onToggleMoreMenu,
   expandedMoreMenuBtnRef,
   scrollEl,
@@ -185,6 +188,8 @@ export function SessionListContent({
   onClearSelection,
 }: SessionListContentProps) {
   const { t } = useTranslation();
+  const MoreIcon = singleMoreMenuItem?.icon ?? MoreHorizontal;
+  const moreLabel = singleMoreMenuItem?.label ?? t("nav.more", "更多");
   const navigate = useNavigate();
   const { hasPermission } = useAuth();
   const canReadScheduledTasks = hasPermission(Permission.SCHEDULED_TASK_READ);
@@ -264,41 +269,47 @@ export function SessionListContent({
     sessionActions.onRequestBatchDeleteSessions(selectedIds);
   }, [selectedIds, sessionActions]);
 
+  const selectModeButton = !isSelectionMode && (
+    <Tooltip content={t("sidebar.selectMode")}>
+      <button
+        type="button"
+        onClick={handleToggleSelectionMode}
+        aria-label={t("sidebar.selectMode")}
+        className={`${sectionActionClass} ${sectionRevealClass}`}
+      >
+        <ListChecks size={14} />
+      </button>
+    </Tooltip>
+  );
+
   return (
     <>
       {/* Header（桌面双栏模式下品牌与折叠由 ActivityRail 承接，不渲染） */}
       {!compactChrome && (
-        <div className="flex items-center justify-between px-3 pt-3 pb-2">
+        <div
+          data-sidebar-brand=""
+          className="flex h-12 shrink-0 items-center justify-between px-3"
+        >
           <div className="flex size-7 items-center gap-1.5">
             <BrandLogo alt={APP_NAME} className="size-7 mb-1" />
             <a
+              aria-label={APP_NAME}
               href={GITHUB_URL}
               target="_blank"
               rel="noopener noreferrer"
               className="text-theme-text dark:text-stone-100 hover:text-theme-text dark:hover:text-stone-50 transition-colors"
             >
-              <BrandWordmark decorative className="size-7 w-auto mb-1" />
+              <BrandWordmark decorative className="size-7 w-auto" />
             </a>
           </div>
           <Tooltip content={t("sidebar.collapseSidebar")}>
             <button
+              type="button"
               onClick={onCollapse}
               className="flex size-8 items-center justify-center rounded-lg text-theme-text-secondary dark:text-stone-400 transition-colors cursor-w-resize rtl:cursor-e-resize"
               aria-label={t("sidebar.collapseSidebar")}
             >
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                fill="none"
-                viewBox="0 0 24 24"
-                className="size-5 text-theme-text-secondary dark:text-stone-300"
-              >
-                <path
-                  fillRule="evenodd"
-                  clipRule="evenodd"
-                  d="M8.85719 3H15.1428C16.2266 2.99999 17.1007 2.99998 17.8086 3.05782C18.5375 3.11737 19.1777 3.24318 19.77 3.54497C20.7108 4.02433 21.4757 4.78924 21.955 5.73005C22.2568 6.32234 22.3826 6.96253 22.4422 7.69138C22.5 8.39925 22.5 9.27339 22.5 10.3572V13.6428C22.5 14.7266 22.5 15.6008 22.4422 16.3086C22.3826 17.0375 22.2568 17.6777 21.955 18.27C21.4757 19.2108 20.7108 19.9757 19.77 20.455C19.1777 20.7568 18.5375 20.8826 17.8086 20.9422C17.1008 21 16.2266 21 15.1428 21H8.85717C7.77339 21 6.89925 21 6.19138 20.9422C5.46253 20.8826 4.82234 20.7568 4.23005 20.455C3.28924 19.9757 2.52433 19.2108 2.04497 18.27C1.74318 17.6777 1.61737 17.0375 1.55782 16.3086C1.49998 15.6007 1.49999 14.7266 1.5 13.6428V10.3572C1.49999 9.27341 1.49998 8.39926 1.55782 7.69138C1.61737 6.96253 1.74318 6.32234 2.04497 5.73005C2.52433 4.78924 3.28924 4.02433 4.23005 3.54497C4.82234 3.24318 5.46253 3.11737 6.19138 3.05782C6.89926 2.99998 7.77341 2.99999 8.85719 3ZM6.35424 5.05118C5.74907 5.10062 5.40138 5.19279 5.13803 5.32698C4.57354 5.6146 4.1146 6.07354 3.82698 6.63803C3.69279 6.90138 3.60062 7.24907 3.55118 7.85424C3.50078 8.47108 3.5 9.26339 3.5 10.4V13.6C3.5 14.7366 3.50078 15.5289 3.55118 16.1458C3.60062 16.7509 3.69279 17.0986 3.82698 17.362C4.1146 17.9265 4.57354 18.3854 5.13803 18.673C5.40138 18.8072 5.74907 18.8994 6.35424 18.9488C6.97108 18.9992 7.76339 19 8.9 19H9.5V5H8.9C7.76339 5 6.97108 5.00078 6.35424 5.05118ZM11.5 5V19H15.1C16.2366 19 17.0289 18.9992 17.6458 18.9488C18.2509 18.8994 18.5986 18.8072 18.862 18.673C19.4265 18.3854 19.8854 17.9265 20.173 17.362C20.3072 17.0986 20.3994 16.7509 20.4488 16.1458C20.4992 15.5289 20.5 14.7366 20.5 13.6V10.4C20.5 9.26339 20.4992 8.47108 20.4488 7.85424C20.3994 7.24907 20.3072 6.90138 20.173 6.63803C19.8854 6.57354 19.4265 6.1146 18.862 5.32698C18.5986 5.19279 18.2509 5.10062 17.6458 5.05118C17.0289 5.00078 16.2366 5 15.1 5H11.5ZM5 8.5C5 7.94772 5.44772 7.5 6 7.5H7C7.55229 7.5 8 7.94772 8 8.5C8 9.05229 7.55229 9.5 7 9.5H6C5.44772 9.5 5 9.05229 5 8.5ZM5 12C5 11.4477 5.44772 11 6 11H7C7.55229 11 8 11.4477 8 12C8 12.5523 7.55229 13 7 13H6C5.44772 13 5 12.4477 5 12Z"
-                  fill="currentColor"
-                />
-              </svg>
+              <SidebarToggleIcon mobileFilled className="size-5 text-theme-text-secondary dark:text-stone-300" />
             </button>
           </Tooltip>
         </div>
@@ -307,15 +318,15 @@ export function SessionListContent({
       <div
         className={
           compactChrome
-            ? "flex flex-col gap-px ps-1 pe-0 pt-1 mb-2 space-y-1"
-            : "flex flex-col gap-px ps-1 pe-0 mb-2 space-y-1"
+            ? "flex flex-col gap-0 sm:gap-px px-1 pt-1 mb-2 space-y-0 sm:space-y-1"
+            : "flex flex-col gap-0 sm:gap-px px-1 mb-2 space-y-0 sm:space-y-1"
         }
       >
         <button
           onClick={onNewSession}
           className="sidebar-nav-btn w-full h-8 rounded-[10px] flex items-center gap-3 px-[9px] focus:outline-none transition-colors group"
         >
-          <MessageSquarePlus size={20} />
+          <SquarePen size={compactChrome ? 19 : 20} />
           <span className="flex-1 text-left">{t("sidebar.newChat")}</span>
           <kbd className="hidden sm:inline-flex items-center gap-0.5 px-1.5 py-0.5 text-10 font-medium text-theme-text-tertiary dark:text-stone-500 rounded opacity-0 group-hover:opacity-100 transition-opacity">
             {t("sidebar.newChatShortcut")}
@@ -367,8 +378,8 @@ export function SessionListContent({
               onClick={onToggleMoreMenu}
               className="sidebar-nav-btn w-full h-8 rounded-[10px] flex items-center gap-3 px-[9px] focus:outline-none transition-colors"
             >
-              <MoreHorizontal size={20} />
-              <span className="flex-1 text-left">{t("nav.more", "更多")}</span>
+              <MoreIcon size={20} />
+              <span className="flex-1 text-left">{moreLabel}</span>
             </button>
           </div>
         )}
@@ -378,7 +389,7 @@ export function SessionListContent({
       <div
         ref={onSetScrollEl}
         data-sidebar-scroll
-        className="flex-1 overflow-y-auto ps-1 pe-0 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+        className="flex-1 overflow-y-auto px-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
       >
         <div className="flex flex-col gap-px">
           {/* Pinned sessions (aggregated across projects) */}
@@ -418,16 +429,9 @@ export function SessionListContent({
               collapsed={isPinnedCollapsed}
               onToggle={onTogglePinnedCollapsed}
               createLabel={t("sidebar.newChat")}
-              moreLabel={t("nav.more")}
-              menuItems={[
-                {
-                  label: t(
-                    isPinnedCollapsed ? "common.expand" : "common.collapse",
-                  ),
-                  onClick: onTogglePinnedCollapsed,
-                },
-              ]}
-            />
+            >
+              {selectModeButton}
+            </SidebarSectionHeader>
             {!isPinnedCollapsed && (
               <>
                 {isPinnedLoading ? (
@@ -453,9 +457,7 @@ export function SessionListContent({
                           }
                           currentProjectId={
                             (session.metadata?.project_id as
-                              | string
-                              | null
-                              | undefined) ?? null
+                              string | null | undefined) ?? null
                           }
                           onShare={() =>
                             sessionActions.onShareSession(session.id)
@@ -506,16 +508,9 @@ export function SessionListContent({
             onToggle={onToggleProjectsCollapsed}
             createLabel={t("sidebar.newProject")}
             onCreate={projectActions.onOpenNewProjectModal}
-            moreLabel={t("nav.more")}
-            menuItems={[
-              {
-                label: t(
-                  isProjectsCollapsed ? "common.expand" : "common.collapse",
-                ),
-                onClick: onToggleProjectsCollapsed,
-              },
-            ]}
-          />
+          >
+            {selectModeButton}
+          </SidebarSectionHeader>
 
           {/* Favorites project */}
           {!isProjectsCollapsed &&
@@ -605,7 +600,7 @@ export function SessionListContent({
           {visibleUncategorizedSessions.length > 0 || isUncategorizedLoading ? (
             <>
               {isSelectionMode ? (
-                <div className="flex h-9 items-center justify-between gap-2 px-[9px]">
+                <div className="flex h-9 max-sm:h-11 items-center justify-between gap-2 px-[9px]">
                   <span className="text-13 font-medium text-theme-text-secondary dark:text-stone-400">
                     {t("sidebar.selectedCount", { count: selectedCount })}
                   </span>
@@ -623,7 +618,7 @@ export function SessionListContent({
                       type="button"
                       onClick={handleToggleSelectionMode}
                       aria-label={t("common.cancel")}
-                      className="sidebar-nav-btn flex size-7 items-center justify-center rounded-md"
+                      className="sidebar-nav-btn flex h-8 w-6 items-center justify-center rounded-md"
                     >
                       <X size={14} />
                     </button>
@@ -637,32 +632,18 @@ export function SessionListContent({
                   createLabel={t("sidebar.newChat")}
                   onCreate={onNewSession}
                   createIcon="compose"
-                  moreLabel={t("nav.more")}
-                  menuItems={[
-                    {
-                      label: t("sidebar.selectMode"),
-                      onClick: handleToggleSelectionMode,
-                    },
-                  ]}
                 >
-                  <Tooltip content={t("sidebar.selectMode")}>
-                    <button
-                      type="button"
-                      onClick={handleToggleSelectionMode}
-                      aria-label={t("sidebar.selectMode")}
-                      className={`${sectionActionClass} ${sectionRevealClass}`}
-                    >
-                      <ListChecks size={14} />
-                    </button>
-                  </Tooltip>
+                  {selectModeButton}
                   {chatsUnreadCount > 0 && (
-                    <MarkAllReadBadge
-                      count={chatsUnreadCount}
-                      badgeId="all"
-                      markingReadId={markingReadId}
-                      onMarkAllRead={() => onMarkAllRead()}
-                      tooltip={t("sidebar.markAllRead")}
-                    />
+                    <div className="flex h-8 w-6 shrink-0 items-center justify-center max-sm:h-11 max-sm:w-11">
+                      <MarkAllReadBadge
+                        count={chatsUnreadCount}
+                        badgeId="all"
+                        markingReadId={markingReadId}
+                        onMarkAllRead={() => onMarkAllRead()}
+                        tooltip={t("sidebar.markAllRead")}
+                      />
+                    </div>
                   )}
                 </SidebarSectionHeader>
               )}
@@ -766,7 +747,10 @@ export function SessionListContent({
                     onClick={() => handleMoveSelected(null)}
                     className="flex h-9 w-full items-center gap-2 rounded-lg px-2.5 text-left text-13 font-medium text-theme-text-secondary transition hover:text-theme-text dark:text-stone-300 dark:hover:text-stone-50"
                   >
-                    <Tag size={15} className="shrink-0 text-theme-text-tertiary" />
+                    <Tag
+                      size={15}
+                      className="shrink-0 text-theme-text-tertiary"
+                    />
                     <span className="truncate">
                       {t("sidebar.uncategorized")}
                     </span>
@@ -782,14 +766,14 @@ export function SessionListContent({
                   defaultValue: "已选 {{count}} 个",
                 })}
               </div>
-              <div className="flex shrink-0 items-center gap-1.5">
+              <div className="flex shrink-0 items-center gap-1">
                 <Tooltip content={t("sidebar.moveSelectedToProject")}>
                   <button
                     type="button"
                     disabled={selectedCount === 0}
                     onClick={() => setIsProjectPickerOpen((value) => !value)}
                     aria-label={t("sidebar.moveSelectedToProject")}
-                    className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-theme-text-secondary transition hover:text-theme-text disabled:cursor-not-allowed disabled:opacity-45 dark:text-stone-300 dark:hover:text-stone-50"
+                    className="inline-flex h-8 w-6 shrink-0 items-center justify-center rounded-lg text-theme-text-secondary transition hover:text-theme-text disabled:cursor-not-allowed disabled:opacity-45 dark:text-stone-300 dark:hover:text-stone-50"
                   >
                     <FolderInput size={14} />
                   </button>
@@ -800,7 +784,7 @@ export function SessionListContent({
                     disabled={selectedCount === 0}
                     onClick={handleRequestDeleteSelected}
                     aria-label={t("sidebar.deleteSelected")}
-                    className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-theme-error transition hover:text-theme-error disabled:cursor-not-allowed disabled:opacity-45 dark:text-red-400 dark:hover:text-red-300"
+                    className="inline-flex h-8 w-6 shrink-0 items-center justify-center rounded-lg text-theme-error transition hover:text-theme-error disabled:cursor-not-allowed disabled:opacity-45 dark:text-red-400 dark:hover:text-red-300"
                   >
                     <Trash2 size={14} />
                   </button>
@@ -810,7 +794,7 @@ export function SessionListContent({
                     type="button"
                     onClick={onClearSelection}
                     aria-label={t("common.cancel")}
-                    className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-theme-text-secondary transition hover:text-theme-text dark:text-stone-400 dark:hover:text-stone-100"
+                    className="inline-flex h-8 w-6 shrink-0 items-center justify-center rounded-lg text-theme-text-secondary transition hover:text-theme-text dark:text-stone-400 dark:hover:text-stone-100"
                   >
                     <X size={15} />
                   </button>

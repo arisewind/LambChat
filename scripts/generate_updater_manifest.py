@@ -6,8 +6,17 @@
 从 ASSET_DIR 下的各平台 .sig 文件组装清单（端点见 tauri.conf.json
 updater.endpoints）；版本取自 tag（app-release 的 preflight 已校验与六处
 版本文件一致）；macOS updater 走 .app.tar.gz，dmg 仅用于首装。
-缺某平台 sig 时告警并省略该条目（发布完成的判据是五桌面齐全——由调用方
-校验，本脚本只如实反映现状）。
+
+平台范围（v2.14 起对齐主流桌面自更新）：
+- Windows：NSIS setup.exe（currentUser + passive，零 UAC）；MSI 仅企业
+  手动部署，不进清单。
+- macOS：.app.tar.gz（双架构）。
+- Linux 不进清单——AppImage 已停发，tauri updater 在 Linux 只认 AppImage；
+  deb/rpm 走应用内自研链路（后端版本检查 + 版本化缓存下载 + pkcon/
+  pkexec 安装，见 frontend/src-tauri/src/linux_update.rs）。
+
+缺某平台 sig 时告警并省略该条目（发布完成的判据是清单三平台齐全——
+由调用方校验，本脚本只如实反映现状）。
 
 下载 URL 走 lambchat.com 自托管反代并锁 ``?tag=``：国内直连 GitHub 下载
 必挂；反代路由按 tag 查资产，发新版瞬间 latest 前移也不会 404。
@@ -25,15 +34,13 @@ import sys
 PROXY_ASSET_BASE = "https://lambchat.com/api/version/assets"
 
 MAPPING = [
-    ("windows-x86_64", "*_x64_en-US.msi.sig", "Windows.msi"),
-    ("linux-x86_64", "*_amd64.AppImage.sig", "Linux-x86_64.AppImage"),
-    ("linux-aarch64", "*_aarch64.AppImage.sig", "Linux-arm64.AppImage"),
+    ("windows-x86_64", "*_x64-setup.exe.sig", "Windows-x64-setup.exe"),
     # 双 darwin：sig 按 Tauri updater 产物名的 arch 段区分
     ("darwin-aarch64", "*-macOS-Apple-Silicon.app.tar.gz.sig", "macOS-Apple-Silicon.app.tar.gz"),
     ("darwin-x86_64", "*-macOS-Intel.app.tar.gz.sig", "macOS-Intel.app.tar.gz"),
 ]
 
-REQUIRED_PLATFORMS = ("darwin-aarch64", "darwin-x86_64", "linux-x86_64", "windows-x86_64")
+REQUIRED_PLATFORMS = ("windows-x86_64", "darwin-aarch64", "darwin-x86_64")
 
 
 def main() -> int:
@@ -44,6 +51,8 @@ def main() -> int:
         return 1
 
     version = tag.lstrip("v")
+    notes_file = os.environ.get("RELEASE_NOTES_FILE")
+    notes = pathlib.Path(notes_file).read_text(encoding="utf-8").strip() if notes_file else ""
 
     def sig(pattern: str) -> str | None:
         files = sorted(glob.glob(str(asset_dir / pattern)))
@@ -63,8 +72,9 @@ def main() -> int:
 
     manifest = {
         "version": version,
-        "notes": f"LambChat {tag}",
-        "pub_date": datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
+        "notes": notes or f"LambChat {tag}",
+        "pub_date": os.environ.get("RELEASE_PUBLISHED_AT")
+        or datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
         "platforms": platforms,
     }
     out = asset_dir / "latest.json"
@@ -73,7 +83,7 @@ def main() -> int:
 
     if not all(p in platforms for p in REQUIRED_PLATFORMS):
         print(
-            "发布判据未满足（五桌面须齐全，含 darwin-x86_64）——清单已生成但缺:",
+            "发布判据未满足（Windows 与 macOS 双架构须齐全，含 darwin-x86_64）——清单已生成但缺:",
             [p for p in REQUIRED_PLATFORMS if p not in platforms],
             file=sys.stderr,
         )

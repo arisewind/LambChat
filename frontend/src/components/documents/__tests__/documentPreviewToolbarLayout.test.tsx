@@ -16,6 +16,8 @@ test("document preview toolbar gives the file title flexible space and groups ac
     >["t"],
     data: { content: "preview content", path: fileName },
     copied: false,
+    copying: false,
+    copyFailed: false,
     viewSource: false,
     isSidebar: true,
     isFullscreen: false,
@@ -39,6 +41,7 @@ test("document preview toolbar gives the file title flexible space and groups ac
     handleCopy: vi.fn(),
     handleDownload: vi.fn(),
     toolbarRef: createRef<HTMLDivElement>(),
+    panelRef: createRef<HTMLDivElement>(),
     setViewSource: vi.fn(),
     setViewMode: vi.fn(),
     handleFullscreenToggle: vi.fn(),
@@ -58,7 +61,9 @@ test("document preview toolbar gives the file title flexible space and groups ac
     "[&_button>svg]:size-5",
     "sm:[&_button>svg]:size-4",
   );
-  expect(fileIcon).toHaveClass("size-8");
+  expect(fileIcon).toHaveClass("document-preview-header-icon", props.fileInfo.color);
+  expect(fileIcon).toHaveAttribute("width", "16");
+  expect(fileIcon).toHaveAttribute("height", "16");
   expect(fileInfoBlock).toHaveClass(
     "document-preview-file-info",
     "flex-1",
@@ -74,11 +79,11 @@ test("document preview toolbar gives the file title flexible space and groups ac
     "gap-1",
     "shrink-0",
   );
-  expect(actionGroup?.querySelectorAll("button")).toHaveLength(4);
+  expect(actionGroup?.querySelectorAll("button")).toHaveLength(3);
   expect(screen.queryByTitle("Copy link")).toBeNull();
   expect(
     screen.getByRole("button", { name: "documents.source" }),
-  ).toHaveTextContent("documents.source");
+  ).toHaveTextContent(/^$/);
   fireEvent.click(screen.getByRole("button", { name: "documents.source" }));
   expect(props.setViewSource).toHaveBeenCalledWith(true);
   fireEvent.click(screen.getByTitle("documents.download"));

@@ -1,6 +1,5 @@
 import { createRoot } from "react-dom/client";
 import { BrowserRouter } from "react-router-dom";
-import "katex/dist/katex.min.css";
 import "./fonts.css";
 // 动态 import chunk 拉取失败自愈（桌面端更新重启后 WebView2 缓存旧
 // index.html 引用已删除 chunk）：吞错并带 cache-bust 参数重载一次。
@@ -10,7 +9,7 @@ installChunkLoadRecovery();
 // CJK 字体异步加载（约 940 条 @font-face 拆独立 chunk，不阻塞首屏，
 // 也不占 PWA 预缓存预算），见 src/fonts-cjk.ts。
 void import("./fonts-cjk");
-import "./i18n";
+import { i18nReady } from "./i18n";
 // 打包壳网络改写：运行时配置的服务器地址生效（fetch/EventSource/WebSocket
 // 的相对 /api、/ws 请求单点改写，业务代码零侵入）。未配置时由首启设置屏引导。
 import { installServerUrlNetworkPatch } from "./services/api/serverConfig";
@@ -38,6 +37,7 @@ import "./styles/pwa.css";
 import "./styles/utilities.css";
 import "./styles/panels.css";
 import "./styles/legacy-panels.css";
+import { LanguagePreferenceProvider } from "./hooks/useLanguagePreference";
 import { AuthProvider } from "./hooks/useAuth";
 import { SettingsProvider } from "./contexts/SettingsContext";
 import { installMobileViewportResetHandlers } from "./utils/mobile";
@@ -55,12 +55,15 @@ registerLambChatPwa();
 
 // 开发时临时禁用 StrictMode 避免 SSE 双重连接问题
 // 生产环境可以重新启用
-createRoot(document.getElementById("root")!).render(
+// Wait for the selected locale; i18next still resolves with English on load failure.
+void i18nReady.then(() => createRoot(document.getElementById("root")!).render(
   <BrowserRouter>
     <AuthProvider>
-      <SettingsProvider>
-        <App />
-      </SettingsProvider>
+      <LanguagePreferenceProvider>
+        <SettingsProvider>
+          <App />
+        </SettingsProvider>
+      </LanguagePreferenceProvider>
     </AuthProvider>
   </BrowserRouter>,
-);
+));

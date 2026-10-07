@@ -1,4 +1,9 @@
 import {
+  restoreOpenerFocusUnclaimed,
+  topmostVisibleDialog,
+  topmostVisibleModalDialog,
+} from "../../utils/modalDialog";
+import {
   createContext,
   useContext,
   useEffect,
@@ -10,6 +15,7 @@ import {
   type ReactNode,
 } from "react";
 
+import { useBodyScrollLock } from "../../hooks/useBodyScrollLock";
 import type { RightPanelPresentation } from "../../hooks/rightPanelLayout";
 import {
   getRightPanelSnapshot,
@@ -54,7 +60,7 @@ export function useRightPanelEntry({
   // Subscribe to flags, so unrelated tab metadata cannot rerender hidden shells.
   const getFlags = () => {
     const current = getRightPanelSnapshot();
-    return (current.activeId === ownerId ? 1 : 0) | (current.depth > 1 ? 2 : 0);
+    return (current.activeId === ownerId ? 1 : 0) | (current.depth > 1 ? 2 : 0) | (current.collapsed ? 4 : 0);
   };
   const flags = useSyncExternalStore(subscribeRightPanels, getFlags, getFlags);
 
@@ -114,20 +120,27 @@ export function useRightPanelEntry({
   return {
     ownerId,
     panelId,
-    active: open && !!(flags & 1),
+    selected: open && !!(flags & 1),
+    active: open && !!(flags & 1) && !(flags & 4),
     hasPrevious: open && !!(flags & 1) && !!(flags & 2),
     openerRef,
   };
 }
 
 const FOCUSABLE =
-  'a[href],button:not([disabled]),input:not([disabled]),select:not([disabled]),textarea:not([disabled]),[tabindex]:not([tabindex="-1"])';
+  'a[href],button:not([disabled]),input:not([disabled]),select:not([disabled]),textarea:not([disabled]),[contenteditable="true"],[tabindex]:not([tabindex="-1"])';
 
 function restoreOpenerFocus(openerRef: RefObject<HTMLElement | null>): void {
   requestAnimationFrame(() => {
-    if (openerRef.current?.isConnected) {
-      openerRef.current.focus({ preventScroll: true });
-    }
+    if (getRightPanelSnapshot().activeId) return;
+    const modal = topmostVisibleModalDialog();
+    if (
+      modal &&
+      openerRef.current?.isConnected &&
+      !modal.contains(openerRef.current)
+    )
+      return;
+    restoreOpenerFocusUnclaimed(openerRef.current, null);
   });
 }
 
@@ -153,6 +166,7 @@ export function useRightPanelFocus({
     if (active && !wasActive.current && !automatic) {
       queueMicrotask(() => {
         const panel = panelRef.current;
+        if (!panel || panel.closest("[hidden], [inert]")) return;
         const first =
           panel?.querySelector<HTMLElement>(
             '[role="tab"][aria-selected="true"]',
@@ -177,24 +191,41 @@ export function useRightPanelFocus({
     [openerRef],
   );
 
+  useBodyScrollLock(active && presentation !== "docked", true);
+
   useEffect(() => {
     if (!active || presentation === "docked") return;
 
-    const root = document.getElementById("root");
-    const previousInert = root?.inert ?? false;
-    if (root) root.inert = true;
-
     const trapTab = (event: KeyboardEvent) => {
-      if (event.key !== "Tab") return;
+      if (event.key !== "Tab" || event.defaultPrevented) return;
+      const panel = panelRef.current;
+      if (!panel) return;
+      // Same ownership rule as useDialogFocus: the panel keeps the Tab cycle
+      // when the topmost visible dialog (modal or not) contains it.
+      const top = topmostVisibleDialog();
+      const topModal = topmostVisibleModalDialog();
+      if (!(top?.contains(panel) || topModal?.contains(panel))) return;
 
       const focusable = [
         ...(panelRef.current?.querySelectorAll<HTMLElement>(FOCUSABLE) ?? []),
-      ].filter((element) => !element.hidden && element.tabIndex >= 0);
+      ].filter(
+        (element) =>
+          element.getClientRects().length &&
+          !element.closest('[hidden],[inert],[aria-hidden="true"]') &&
+          (element.tabIndex >= 0 ||
+            (element.matches('[contenteditable="true"]') &&
+              !element.hasAttribute("tabindex"))),
+      );
       if (focusable.length === 0) return;
 
       const first = focusable[0];
       const last = focusable[focusable.length - 1];
-      if (event.shiftKey && document.activeElement === first) {
+      const panelHost =
+        panelRef.current?.closest<HTMLElement>('[role="dialog"]') ?? null;
+      if (document.activeElement === panelHost) {
+        event.preventDefault();
+        (event.shiftKey ? last : first).focus();
+      } else if (event.shiftKey && document.activeElement === first) {
         event.preventDefault();
         last.focus();
       } else if (!event.shiftKey && document.activeElement === last) {
@@ -206,7 +237,6 @@ export function useRightPanelFocus({
     document.addEventListener("keydown", trapTab);
     return () => {
       document.removeEventListener("keydown", trapTab);
-      if (root) root.inert = previousInert;
     };
   }, [active, presentation, panelRef]);
 }

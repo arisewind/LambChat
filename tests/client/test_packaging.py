@@ -142,7 +142,14 @@ def test_release_workflow_matrix_covers_three_platforms() -> None:
     # dmg 仅首装；app bundle 产出 .app.tar.gz 供 Tauri updater 增量更新
     assert by_label["macOS Apple Silicon"]["bundles"] == "dmg,app"
     assert by_label["macOS Intel"]["bundles"] == "dmg,app"
-    assert by_label["Windows"]["bundles"] == "msi"
+    # Windows 双包：NSIS（currentUser 主推，updater 载体）+ MSI（企业部署）
+    assert by_label["Windows"]["bundles"] == "msi,nsis"
+    # Linux 只发 deb/rpm（AppImage 停发）：应用内走版本化缓存 + pkcon/
+    # pkexec 自研链路，不进 updater 清单
+    assert by_label["Linux x86_64"]["bundles"] == "deb,rpm"
+    assert by_label["Linux ARM64"]["bundles"] == "deb,rpm"
+    assert "updater_key" not in by_label["Linux x86_64"]
+    assert "updater_key" not in by_label["Linux ARM64"]
     # PBS 平台标签与 fetch-pbs.py 的 PLATFORM_TRIPLES 键一致
     assert {entry["pbs_platform"] for entry in matrix} == {
         "linux-x86_64",
@@ -211,12 +218,14 @@ def test_release_workflow_publishes_assets_immediately_per_platform() -> None:
     assert "--clobber" in desktop_run
     assert "--generate-notes" in desktop_run
 
-    # updater 平台（linux x2 + windows + macOS）增量合并 latest.json
+    # updater 平台（windows + macOS；Linux 已停发 AppImage 不进清单）增量
+    # 合并 latest.json
     matrix = _desktop_job()["strategy"]["matrix"]["include"]
     by_label = {entry["label"]: entry for entry in matrix}
-    assert by_label["Linux x86_64"]["updater_key"] == "linux-x86_64"
-    assert by_label["Linux ARM64"]["updater_key"] == "linux-aarch64"
     assert by_label["Windows"]["updater_key"] == "windows-x86_64"
+    # Windows updater 载体是 NSIS setup.exe（currentUser + passive 零 UAC）
+    assert by_label["Windows"]["updater_sig"] == "*_x64-setup.exe.sig"
+    assert by_label["Windows"]["updater_asset_suffix"] == "Windows-x64-setup.exe"
     # macOS updater 走 .app.tar.gz（dmg 不能原地更新）；双架构各有平台键，
     # sig 按 Tauri updater 产物名的 arch 段区分（_aarch64 / _x64）
     assert by_label["macOS Apple Silicon"]["updater_key"] == "darwin-aarch64"
@@ -301,11 +310,15 @@ def test_release_workflow_guards_version_drift_and_manifest_version_from_tag() -
     ]
     assert '("darwin-aarch64", "*-macOS-Apple-Silicon.app.tar.gz.sig"' in generator
     assert '("darwin-x86_64", "*-macOS-Intel.app.tar.gz.sig"' in generator
-    # 五桌面平台不齐时拒发（exit 2）：缺 darwin-x86_64 不许算发布完成
-    assert (
-        'REQUIRED_PLATFORMS = ("darwin-aarch64", "darwin-x86_64", "linux-x86_64", "windows-x86_64")'
-        in generator
-    )
+    assert '("windows-x86_64", "*_x64-setup.exe.sig", "Windows-x64-setup.exe")' in generator
+    # Linux 已停发 AppImage：清单不得再含 linux 条目
+    assert "linux-x86_64" not in {
+        entry.split(",")[0].strip().strip('"() ')
+        for entry in generator.splitlines()
+        if entry.strip().startswith("(")
+    }
+    # 清单平台不齐时拒发（exit 2）：Win NSIS + 双 mac 是发布完成判据
+    assert 'REQUIRED_PLATFORMS = ("windows-x86_64", "darwin-aarch64", "darwin-x86_64")' in generator
 
 
 def test_updater_manifest_download_urls_go_through_self_hosted_proxy() -> None:
@@ -546,3 +559,27 @@ def test_release_workflow_collect_steps_publish_daemon_sidecar_assets() -> None:
                 assert "RELEASE_TAG" not in line, (
                     f"{name}: daemon 资产名保留 triple 原名，不得重命名"
                 )
+
+
+def test_updater_manifest_includes_release_notes(tmp_path, monkeypatch):
+    import json
+    import runpy
+
+    notes = tmp_path / "notes.md"
+    notes.write_text("## 本次更新\n- 修复检查更新提示\n", encoding="utf-8")
+    for name in [
+        "LambChat_2.14.2_x64-setup.exe.sig",
+        "LambChat-v2.14.2-macOS-Apple-Silicon.app.tar.gz.sig",
+        "LambChat-v2.14.2-macOS-Intel.app.tar.gz.sig",
+    ]:
+        (tmp_path / name).write_text("signature")
+    monkeypatch.setenv("RELEASE_TAG", "v2.14.2")
+    monkeypatch.setenv("ASSET_DIR", str(tmp_path))
+    monkeypatch.setenv("RELEASE_NOTES_FILE", str(notes))
+    monkeypatch.setenv("RELEASE_PUBLISHED_AT", "2026-10-06T19:35:00Z")
+    generator = runpy.run_path("scripts/generate_updater_manifest.py")
+    assert generator["main"]() == 0
+    manifest = json.loads((tmp_path / "latest.json").read_text())
+    assert manifest["notes"] == notes.read_text().strip()
+
+    assert manifest["pub_date"] == "2026-10-06T19:35:00Z"

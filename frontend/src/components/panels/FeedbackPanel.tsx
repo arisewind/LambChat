@@ -1,3 +1,5 @@
+import { EmptyState } from "../common/EmptyState";
+import { DialogCloseButton } from "../common/DialogCloseButton";
 import { ModalSurface } from "../common/ModalSurface";
 /**
  * 反馈管理面板 — 电商平台评价风格
@@ -24,7 +26,7 @@ import { PanelHeader } from "../common/PanelHeader";
 import { ConfirmDialog } from "../common/ConfirmDialog";
 import { FeedbackListSkeleton } from "../skeletons";
 import { Pagination } from "../common/Pagination";
-import { ImageViewer } from "../common";
+import { Button, ImageViewer } from "../common";
 import { feedbackApi } from "../../services/api/feedback";
 import { useAuth } from "../../hooks/useAuth";
 import { Permission } from "../../types";
@@ -367,7 +369,7 @@ function FeedbackDetailModal({
     <>
       <ModalSurface open onClose={onClose}>
         <div
-          className="w-full sm:max-w-lg bg-white dark:bg-stone-800 sm:rounded-2xl rounded-t-2xl shadow-2xl border-t sm:border border-stone-200/50 dark:border-stone-700/50 max-h-[85vh] flex flex-col animate-slide-up-sheet sm:animate-in sm:fade-in sm:zoom-in-95 sm:duration-200 safe-area-bottom"
+          className="w-full sm:max-w-lg bg-theme-bg-card sm:rounded-2xl rounded-t-2xl shadow-2xl border-t sm:border border-stone-200/50 dark:border-stone-700/50 max-h-[85vh] flex flex-col animate-slide-up-sheet sm:animate-in sm:fade-in sm:zoom-in-95 sm:duration-200 safe-area-bottom"
           onClick={(e) => e.stopPropagation()}
         >
           {/* Header */}
@@ -389,24 +391,7 @@ function FeedbackDetailModal({
                 </p>
               </div>
             </div>
-            <button
-              onClick={onClose}
-              className="flex h-11 w-11 items-center justify-center rounded-full text-stone-400 hover:bg-stone-100 dark:hover:bg-stone-700 transition-colors"
-            >
-              <svg
-                className="h-4 w-4"
-                fill="none"
-                viewBox="0 0 24 24"
-                stroke="currentColor"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M6 18L18 6M6 6l12 12"
-                />
-              </svg>
-            </button>
+            <DialogCloseButton onClick={onClose} />
           </div>
 
           {/* Body */}
@@ -512,6 +497,7 @@ export function FeedbackPanel() {
   const [feedbackList, setFeedbackList] = useState<Feedback[]>([]);
   const [stats, setStats] = useState<FeedbackStats | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [loadError, setLoadError] = useState(false);
   const [total, setTotal] = useState(0);
   const [skip, setSkip] = useState(0);
   const [limit] = useState(20);
@@ -543,19 +529,18 @@ export function FeedbackPanel() {
 
   const fetchFeedback = useCallback(async () => {
     setIsLoading(true);
+    setLoadError(false);
     try {
       const response = await feedbackApi.list(skip, limit, ratingFilter);
       setFeedbackList(response.items);
       setStats(response.stats);
       setTotal(response.total);
-    } catch (error) {
-      const message =
-        error instanceof Error ? error.message : t("common.loadFailed");
-      toast.error(message);
+    } catch {
+      setLoadError(true);
     } finally {
       setIsLoading(false);
     }
-  }, [skip, limit, ratingFilter, t]);
+  }, [skip, limit, ratingFilter]);
 
   useEffect(() => {
     fetchFeedback();
@@ -613,20 +598,25 @@ export function FeedbackPanel() {
 
       {/* Feedback list */}
       <div className="panel-scroll min-h-0 flex-1 overflow-y-auto">
+        {loadError && (
+          <div
+            role="alert"
+            className="p-4 text-center text-theme-text-secondary"
+          >
+            <p>{t("common.loadFailed")}</p>
+            <Button className="mt-3" onClick={fetchFeedback}>
+              {t("common.refresh")}
+            </Button>
+          </div>
+        )}
         {isLoading && feedbackList.length === 0 ? (
           <FeedbackListSkeleton />
-        ) : !isLoading && feedbackList.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-24 text-center">
-            <div className="mb-3 flex h-14 w-14 items-center justify-center rounded-2xl bg-stone-100 dark:bg-stone-800">
-              <ThumbsUp size={24} className="text-theme-text-tertiary" />
-            </div>
-            <p className="text-14 font-medium text-theme-text-secondary">
-              {t("feedback.noFeedback")}
-            </p>
-            <p className="mt-1 text-12 text-stone-400 dark:text-stone-600">
-              {t("feedback.noFeedbackHint")}
-            </p>
-          </div>
+        ) : !loadError && !isLoading && feedbackList.length === 0 ? (
+          <EmptyState
+            icon={<ThumbsUp size={20} />}
+            title={t("feedback.noFeedback")}
+            description={t("feedback.noFeedbackHint")}
+          />
         ) : (
           feedbackList.map((feedback) => (
             <FeedbackCard

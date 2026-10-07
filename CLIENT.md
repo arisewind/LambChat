@@ -70,6 +70,7 @@
 
 ## 7. 桌面端（Tauri）专项
 
+- **macOS 标题栏对齐**：`src/titlebar.rs` 按 AppKit 按钮实际高度对齐 36px WebView 顶栏（含 1px 底边框，内容中心为距顶端 17.5px）；使用原生通知在缩放、退出全屏、切换显示器、恢复窗口和重新聚焦后校正，不替换 Tauri 的窗口 delegate。不要再配置 `trafficLightPosition`，否则 Tao/Wry 会在布局时覆盖原生校正。修改后运行 `cd frontend/src-tauri && cargo run --example verify_titlebar_alignment`（真实原生控件与通知处理器冒烟；需要 macOS 及客户端构建资源），并打包检查实际缩放与全屏往返。
 - **安全**：`capabilities/default.json` 最小权限，新 command 显式声明所需权限；CSP 当前为 `null`，属已知债务，收紧计划登记 §11；签名/更新密钥只进 CI secrets，代码与文档不落明文。
 - **macOS 特例**：ad-hoc 签名（`signingIdentity: "-"`）+ `hardenedRuntime: false` 是 PBS sidecar 内嵌 dylib 的既定兼容决策，改动此项必须附真机验证结论，否则 CI 签名校验门禁与 Gatekeeper 都可能翻车。
 - **sidecar 生命周期契约**：退避重启（上限 3 次、稳定 300s 重置计数）、`kill(pid,0)` 存活探测、SIGTERM 优雅退出、`RunEvent::Exit` 兜底回收——**凡动 `daemon.rs` 或 daemon 进程管理（`procsup.py`），合并前必须跑 `uv run python scripts/e2e_local_sandbox.py` 全绿**（AGENTS.md 硬性门禁）。
@@ -77,6 +78,7 @@
 
 ## 8. 移动端（Capacitor）专项
 
+- **应用图标**：`frontend/resources/mobile-icon.png` 是 512×512 RGBA 原图，底板纯白且不透明；由 `pnpm brand:assets` 同步 Android launcher、`resources/icon.png` 与 1024×1024 RGB iOS AppIcon（无 alpha 通道），`pnpm brand:assets:check` 校验一致性。系统负责移动端外轮廓裁切，不在原图画圆角。桌面端独立使用 `resources/native-icon.png`，Web 图标继续沿用现有素材。
 - **流程**：改 WebView 代码后 `pnpm mobile:sync` 重新同步；`android/`、`ios/App/` 的 diff 必须人工过目后再提交，防止 sync 静默改坏原生配置。
 - **版本**：`versionCode` = 版本去点数字（2.10.1 → 2101），`versionName` 与六文件版本一致；禁止手改 `build.gradle` / `project.pbxproj` 版本号绕过统一 bump。
 - **安全红线**：`allowMixedContent: false` 不动摇，API 一律 https；敏感数据不进 WebView localStorage，走原生侧或后端会话。
@@ -87,7 +89,14 @@
 - 六文件 bump 规则以 `AGENTS.md` 为准；`versionCode`（第七处）随 `versionName` 联动。
 - **cargo `Cargo.toml` crate 版本当前已漂移（2.8.6 vs `tauri.conf.json` 2.10.1）且 preflight 不校验**——二选一，团队拍板：纳入 preflight 一并 bump（推荐），或在 `Cargo.toml` 注释明确「crate 版本不参与发版」并写明理由。悬空不管是最差选项。
 - 建议 bump 脚本化（`scripts/bump_version.py`：一次改齐全部版本文件 + 校验 versionCode 规则），替代手工六处编辑；出 tag 的 preflight 继续兜底。
-- 发版完成判据不变：latest.json 五个桌面平台条目齐全（含 `darwin-x86_64`）+ mac/windows 真机抽检通过。
+- 发版完成判据不变：latest.json 三个桌面平台条目齐全（Windows x64、macOS Apple Silicon / Intel）（含 `darwin-x86_64`）+ mac/windows 真机抽检通过。
+
+### 模型调用与跨端一致性
+
+- Web、Tauri（macOS / Windows / Linux）、Capacitor（Android / iOS）共享助手目录与五语文案；轻量助手保留 `quick` 标识，已有会话和助手偏好继续有效。
+- 所有已注册模型协议共用瞬态错误分类：连接故障、超时、408 / 409 / 429 / 5xx 按 `LLM_MAX_RETRIES` 和 `LLM_RETRY_DELAY` 重试。主模型失败后使用模型配置或全局配置中的 fallback；401 / 403 直接切备用模型，不重试相同凭据。
+- 轻量助手的直接调用也使用共享重试 / fallback；直接调用已经交付流式内容后不重放请求，取消立即传播。备用模型失败后终止，不循环切换。
+- 桌面烘焙期间自动更新主端点回退到最近已发布稳定版清单；手动检查直接依据返回的版本结果反馈，检查、下载和待安装状态不互相覆盖。
 
 ## 10. 测试（§5 + §10）
 

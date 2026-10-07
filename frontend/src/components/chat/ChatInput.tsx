@@ -12,7 +12,6 @@ import { createPortal } from "react-dom";
 import toast from "react-hot-toast";
 import { Maximize2, Minimize2 } from "lucide-react";
 import { useTranslation } from "react-i18next";
-import i18n from "../../i18n";
 import { useFileUpload } from "../../hooks/useFileUpload";
 import { useMentionState } from "../../hooks/useMentionState";
 import { useMentionSearch } from "../../hooks/useMentionSearch";
@@ -117,6 +116,8 @@ export const ChatInput = memo(function ChatInput({
   selectedPersonaName,
   personaSkillsControlled = false,
   personaPresetsLoading = false,
+  personaPresetsError,
+  onRetryPersonaPresets,
   personaPresetsMutating = false,
   onUsePersonaPreset,
   onCopyPersonaPreset,
@@ -127,6 +128,9 @@ export const ChatInput = memo(function ChatInput({
   onToggleAgentOption,
   modelSupportsThinking,
   agents = [],
+  agentsLoading = false,
+  agentsError = false,
+  onRetryAgents,
   currentAgent,
   onSelectAgent,
   selectedTeamId,
@@ -151,7 +155,7 @@ export const ChatInput = memo(function ChatInput({
   onToggleAutoMode,
   onToggleGoalMode,
 }: ChatInputProps) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const [input, setInput] = useState("");
   const inputValueRef = useRef("");
   const composerRef = useRef<RichChatComposerHandle>(null);
@@ -182,7 +186,7 @@ export const ChatInput = memo(function ChatInput({
   const [contactAdminOpen, setContactAdminOpen] = useState(false);
   const [composerExpanded, setComposerExpanded] = useState(false);
   const { host: composerHost, slotRef: composerSlotRef } =
-    useExpandedComposerHost(composerExpanded);
+    useExpandedComposerHost(composerExpanded, setComposerExpanded);
   const formRef = useRef<HTMLFormElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const [cursorPosition, setCursorPosition] = useState(0);
@@ -229,6 +233,10 @@ export const ChatInput = memo(function ChatInput({
     expanded: composerExpanded,
   });
   const mentionMode = currentAgent === "team" ? "team" : "persona";
+  const currentAgentInfo = agents.find((agent) => agent.id === currentAgent);
+  const agentName = currentAgentInfo
+    ? resolveAgentDisplayName(currentAgentInfo, i18n.language, t)
+    : t("agent.selectMode");
   const mentionEnabled =
     mentionMode === "team" ? !!onSelectTeam : !!onUsePersonaPreset;
   const {
@@ -316,16 +324,6 @@ export const ChatInput = memo(function ChatInput({
     document.addEventListener("keydown", handleKeyDown);
     return () => document.removeEventListener("keydown", handleKeyDown);
   }, [currentAgent, onSelectTeam]);
-  useEffect(() => {
-    if (!composerExpanded) return;
-    const collapseOnEscape = (event: KeyboardEvent) => {
-      if (event.key !== "Escape") return;
-      event.preventDefault();
-      setComposerExpanded(false);
-    };
-    document.addEventListener("keydown", collapseOnEscape);
-    return () => document.removeEventListener("keydown", collapseOnEscape);
-  }, [composerExpanded]);
   useEffect(() => {
     if (!mention.isActive) {
       setMentionPopupPlacement(null);
@@ -530,6 +528,7 @@ export const ChatInput = memo(function ChatInput({
   });
   const handleComposerKeyDown = useCallback(
     (event: React.KeyboardEvent<HTMLDivElement>) => {
+      if (event.nativeEvent.isComposing || event.keyCode === 229) return;
       if (mention.isActive) {
         if (event.key === "Enter" || event.key === "Tab") {
           event.preventDefault();
@@ -544,12 +543,11 @@ export const ChatInput = memo(function ChatInput({
         }
         if (event.key === "Escape") {
           event.preventDefault();
-          resetMention();
+          dismissMention();
           return;
         }
       }
       if (event.key === "Enter") {
-        if (event.nativeEvent.isComposing || event.keyCode === 229) return;
         handleEnterSubmit(
           event,
           {
@@ -573,6 +571,7 @@ export const ChatInput = memo(function ChatInput({
     [
       applyMentionSelection,
       applyTeamMentionSelection,
+      dismissMention,
       clearSteerDraft,
       hasFailedAttachment,
       hasUploadingAttachment,
@@ -584,7 +583,6 @@ export const ChatInput = memo(function ChatInput({
       mentionMode,
       mentionSearch.presets,
       onQueueFollowUp,
-      resetMention,
       sendBlocked,
       visibleAttachments,
       teamMentionSearch.teams,
@@ -896,14 +894,11 @@ export const ChatInput = memo(function ChatInput({
                   hasPersonaSelector={!!onUsePersonaPreset}
                   personaName={selectedPersonaName}
                   totalPersonaCount={personaPresetsTotal}
-                  hasAgentSelector={agents.length > 1 && !!onSelectAgent}
-                  agentName={(() => {
-                    const agent = agents.find((a) => a.id === currentAgent);
-                    return agent
-                      ? resolveAgentDisplayName(agent, i18n.language, t)
-                      : undefined;
-                  })()}
-                  agentIcon={agents.find((a) => a.id === currentAgent)?.icon}
+                  hasAgentSelector={!!onSelectAgent}
+                  agentsLoading={agentsLoading}
+                  agentsError={agentsError}
+                  agentName={agentName}
+                  agentIcon={currentAgentInfo?.icon}
                   hasThinkingOption={
                     !!(
                       agentOptions &&
@@ -964,12 +959,17 @@ export const ChatInput = memo(function ChatInput({
         onPersonaPresetsTagChange={onPersonaPresetsTagChange}
         selectedPersonaPresetId={selectedPersonaPresetId}
         personaPresetsLoading={personaPresetsLoading}
+        personaPresetsError={personaPresetsError}
+        onRetryPersonaPresets={onRetryPersonaPresets}
         personaPresetsMutating={personaPresetsMutating}
         onUsePersonaPreset={onUsePersonaPreset}
         onCopyPersonaPreset={onCopyPersonaPreset}
         onClearPersonaPreset={onClearPersonaPreset}
         canManagePersonaPresets={canManagePersonaPresets}
         agents={agents}
+        agentsLoading={agentsLoading}
+        agentsError={agentsError}
+        onRetryAgents={onRetryAgents}
         currentAgent={currentAgent}
         onSelectAgent={onSelectAgent}
         selectedTeamId={selectedTeamId}

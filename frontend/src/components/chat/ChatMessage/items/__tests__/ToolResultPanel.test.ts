@@ -61,7 +61,7 @@ test("tool result overlay reserves vertical safe-area spacing", () => {
   expect(componentSource).toMatch(/safe-area-viewport-padding/);
 });
 
-test("close button delegates to handleUserClose for panel dismissal", () => {
+test("tab closure delegates to handleUserClose for panel dismissal", () => {
   const componentSource = readFileSync(
     new URL("../ToolResultPanel.tsx", import.meta.url),
     "utf8",
@@ -70,11 +70,11 @@ test("close button delegates to handleUserClose for panel dismissal", () => {
   expect(componentSource).toMatch(
     /const handleUserClose = useCallback\(\(\) => \{\s*onUserClose\?\.\(\);\s*clearSidebarHistory\(\);\s*onClose\(\);/s,
   );
-  expect(componentSource).toMatch(/aria-label=\{t\("common\.close"\)\}/);
+  expect(componentSource).toMatch(/useRightPanelEntry\(\{[\s\S]*?onClose: handleUserClose,/);
   expect(componentSource).toMatch(/handleUserClose\(\)/);
 });
 
-test("tool result header truncates long titles and subtitles on narrow screens", () => {
+test("tool result header preserves single-line ellipsis with room for glyph ascenders and descenders", () => {
   const componentSource = readFileSync(
     new URL("../ToolResultPanel.tsx", import.meta.url),
     "utf8",
@@ -85,7 +85,7 @@ test("tool result header truncates long titles and subtitles on narrow screens",
   );
   // 无副标题时标题占满整行可用宽度（"General-purpose" 级别的名字不再被 40% 上限截断）
   expect(componentSource).toMatch(
-    /tool-console-title min-w-0 truncate font-medium text-14 text-theme-text \$\{\s*subtitle \? "max-w-\[40%\]" : "max-w-full"\s*\}/,
+    /tool-console-title min-w-0 truncate leading-6 font-medium text-14 text-theme-text \$\{\s*subtitle \? "max-w-\[40%\]" : "max-w-full"\s*\}/,
   );
   expect(componentSource).not.toMatch(
     /className="tool-console-title min-w-0 max-w-\[40%\] truncate/,
@@ -97,7 +97,7 @@ test("tool result header truncates long titles and subtitles on narrow screens",
   );
   expect(componentSource).not.toMatch(/pb-\[1px\]/);
   expect(componentSource).toMatch(
-    /className="tool-console-subtitle-pill min-w-0 max-w-\[45vw\] sm:max-w-\[min\(32rem,52%\)\] truncate font-sans text-12 font-normal leading-none text-theme-text-tertiary"/,
+    /className="tool-console-subtitle-pill min-w-0 max-w-\[45vw\] sm:max-w-\[min\(32rem,52%\)\] truncate font-sans text-12 font-normal leading-5 text-theme-text-tertiary"/,
   );
   expect(componentSource).toMatch(
     /title=\{subtitle\}\s*>\s*\{subtitle\}\s*<\/span>/s,
@@ -106,10 +106,10 @@ test("tool result header truncates long titles and subtitles on narrow screens",
     /className="tool-console-subtitle-list flex items-baseline gap-1 min-w-0 max-w-\[45vw\] sm:max-w-\[min\(32rem,52%\)\] overflow-hidden"/,
   );
   expect(componentSource).toMatch(
-    /className="tool-console-subtitle-chip min-w-0 shrink-0 max-w-full truncate font-sans text-12 font-normal leading-none text-theme-text-tertiary"/,
+    /className="tool-console-subtitle-chip min-w-0 shrink-0 max-w-full truncate font-sans text-12 font-normal leading-5 text-theme-text-tertiary"/,
   );
   expect(componentSource).toMatch(
-    /className="tool-console-subtitle-overflow shrink-0 font-sans text-12 font-normal leading-none text-theme-text-tertiary tabular-nums"/,
+    /className="tool-console-subtitle-overflow shrink-0 font-sans text-12 font-normal leading-5 text-theme-text-tertiary tabular-nums"/,
   );
   expect(componentSource).not.toMatch(
     /tool-console-command-pill|tool-console-command-text/,
@@ -122,6 +122,23 @@ test("tool result header truncates long titles and subtitles on narrow screens",
   ).not.toMatch(
     /tool-console-subtitle(?:-pill|-chip)\s*\{[\s\S]*?border-bottom:/,
   );
+});
+
+test("tool result header icons have no background or border decoration", () => {
+  const source = readFileSync(
+    new URL("../ToolResultPanel.tsx", import.meta.url),
+    "utf8",
+  );
+  const css = readFileSync(
+    new URL("../../../../../styles/components.css", import.meta.url),
+    "utf8",
+  );
+  const iconClasses = source.match(
+    /className=.[^\n]*tool-console-header-icon[^\n]*/,
+  )?.[0];
+  expect(iconClasses).toBeTruthy();
+  expect(iconClasses).not.toMatch(/rounded|cfg\.bg|border|bg-/);
+  expect(css).not.toMatch(/\.tool-console-header-icon\s*\{/);
 });
 
 test("tool result panel exposes console chrome styling hooks", () => {
@@ -201,7 +218,7 @@ test("tool result actions stay compact and flat at every breakpoint", () => {
     ),
     (match) => match[1].trim().split(/\s+/),
   );
-  expect(actionClassNames).toHaveLength(2);
+  expect(actionClassNames).toHaveLength(1);
   for (const classNames of actionClassNames) {
     expect(classNames).toEqual(
       expect.arrayContaining([
@@ -215,7 +232,7 @@ test("tool result actions stay compact and flat at every breakpoint", () => {
   }
   expect(componentsSource).not.toMatch(/\.tool-console-actions\s*\{/);
   expect(componentsSource).toMatch(
-    /\.tool-console-actions\s*>\s*button\s*\{[\s\S]*?width:\s*2rem;[\s\S]*?height:\s*2rem;[\s\S]*?min-width:\s*0;[\s\S]*?min-height:\s*0;/,
+    /\.tool-console-actions\s*>\s*button\s*\{[\s\S]*?width:\s*var\(--right-panel-action-size, 2rem\);[\s\S]*?height:\s*var\(--right-panel-action-size, 2rem\);[\s\S]*?min-width:\s*0;[\s\S]*?min-height:\s*0;/,
   );
   expect(toolbarButtonSource).toMatch(
     /min-h-\[44px\] min-w-\[44px\] sm:size-8 sm:min-h-0 sm:min-w-0/,

@@ -109,27 +109,26 @@ test("sidebars, fullscreen editors, and media viewers use vertical safe-area spa
   expect(skillForm).toMatch(
     /skill-form--fullscreen safe-area-viewport-padding/,
   );
-  expect(skillFullscreen).toMatch(
-    /top:\s*"calc\(1rem \+ var\(--app-safe-area-top-active,/,
-  );
+  // The exit action stays in the toolbar, inside SkillForm's safe viewport.
+  expect(skillFullscreen).toMatch(/<ToolbarIconButton[\s\S]*exitFullscreen/);
+  expect(skillFullscreen).not.toMatch(/<FloatingIconButton/);
 
-  expect(viewerTopBar).toMatch(/className=\{clsx\("safe-area-top\b/);
+  expect(viewerTopBar).toMatch(/className=\{clsx\([\s\S]*?\bsafe-area-top\b/);
   expect(imageViewer).toMatch(/<ViewerTopBar[\s>]/);
   expect(imageViewer).not.toMatch(/safe-area-bottom/);
   expect(videoViewer).toMatch(/<ViewerTopBar[\s>]/);
-  expect(videoViewer).toMatch(/className="safe-area-bottom\b/);
+  expect(videoViewer).toMatch(/className="[^"\n]*\bsafe-area-bottom\b/);
   expect(excalidrawThumbnail).toMatch(/safe-area-viewport-padding/);
   expect(toolResultPanel).toMatch(/safe-area-viewport-padding/);
   expect(excalidrawPreview).toMatch(/<ViewerTopBar[\s>]/);
   expect(excalidrawPreview).not.toMatch(/safe-area-bottom/);
-  expect(excalidrawDirectViewer).toMatch(
-    /safe-area-viewport-padding fixed inset-0/,
-  );
+  expect(excalidrawDirectViewer).toMatch(/<ExcalidrawFullscreenViewer[\s>]/);
   expect(mermaidViewer).toMatch(/<ViewerTopBar[\s>]/);
   expect(mermaidViewer).not.toMatch(/safe-area-bottom/);
 });
 
 test("portal dialogs and sheets reserve safe-area spacing", () => {
+  expect(readSource("../components/common/Dialog.tsx")).toMatch(/<ModalSurface\b/);
   const safeViewportFiles = [
     "../components/common/AboutDialog.tsx",
     "../components/common/ConfirmDialog.tsx",
@@ -164,7 +163,7 @@ test("portal dialogs and sheets reserve safe-area spacing", () => {
   // （逐文件的精确模式由 fullscreenOverlaysSafeAreaSource.test.ts 锁定）
   for (const path of safeViewportFiles) {
     expect(readSource(path)).toMatch(
-      /safe-area-viewport-padding\b|safe-area-bottom|<ModalSurface/,
+      /safe-area-viewport-padding\b|safe-area-bottom|<ModalSurface|<Dialog\b/,
     );
   }
 });
@@ -175,10 +174,10 @@ test("profile mobile sheet relies on the portal viewport safe area only", () => 
   // 外层只避让顶部系统栏；底部 inset 由 sheet 表面自己承担，
   // 不允许 padding-bottom 把 sheet 顶离屏幕底边（遮罩会露缝）
   expect(profileModal).toMatch(/<ModalSurface/);
-  expect(readSource("../components/common/ModalSurface.tsx")).toMatch(/safe-area-viewport-padding-top/);
-  expect(profileModal).toMatch(
-    /profile-dialog safe-area-bottom/,
+  expect(readSource("../components/common/ModalSurface.tsx")).toMatch(
+    /safe-area-viewport-padding-top/,
   );
+  expect(profileModal).toMatch(/profile-dialog safe-area-bottom/);
   expect(profileModal).not.toMatch(
     /renderFooter\(\s*"[^"]*\bsafe-area-bottom\b/,
   );

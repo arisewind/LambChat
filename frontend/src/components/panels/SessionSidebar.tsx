@@ -35,6 +35,7 @@ import {
   CHATS_COLLAPSED_STORAGE_KEY,
 } from "../../hooks/userMetadataPreferences";
 import { ConfirmDialog } from "../common/ConfirmDialog";
+import { useDialogFocus } from "../common/useDialogFocus";
 import { DeleteProjectDialog } from "../common/DeleteProjectDialog";
 import { RecentChatsDialog } from "../sidebar/RecentChatsDialog";
 import type { ProjectItemHandle } from "../sidebar/ProjectItem";
@@ -210,7 +211,7 @@ export const SessionSidebar = forwardRef<
   const inDesktopShell = variant === "desktopShell";
   const isCollapsed = inDesktopShell
     ? false
-    : externalCollapsed ?? internalCollapsed;
+    : (externalCollapsed ?? internalCollapsed);
   const setIsCollapsed = onToggleCollapsed ?? setInternalCollapsed;
 
   // ─── Refs ────────────────────────────────────────────────────────
@@ -477,7 +478,7 @@ export const SessionSidebar = forwardRef<
   const handleImgError = useCallback(() => setImgError(true), []);
   const handleOpenSearch = useCallback(() => setIsSearchOpen(true), []);
   const handleToggleMoreMenu = useCallback(
-    () => moreMenu.setIsMoreMenuOpen((prev) => !prev),
+    () => moreMenu.toggleMoreMenu(),
     [moreMenu],
   );
   const handleToggleProjectsCollapsed = useCallback(() => {
@@ -522,6 +523,7 @@ export const SessionSidebar = forwardRef<
       onOpenSearch: handleOpenSearch,
       onShowProfile: onShowProfile!,
       hasMoreMenuItems: moreMenu.hasMoreMenuItems,
+      singleMoreMenuItem: moreMenu.singleMoreMenuItem,
       onToggleMoreMenu: handleToggleMoreMenu,
       expandedMoreMenuBtnRef: moreMenu.expandedMoreMenuBtnRef,
       scrollEl,
@@ -571,6 +573,7 @@ export const SessionSidebar = forwardRef<
       handleOpenSearch,
       onShowProfile,
       moreMenu.hasMoreMenuItems,
+      moreMenu.singleMoreMenuItem,
       handleToggleMoreMenu,
       moreMenu.expandedMoreMenuBtnRef,
       scrollEl,
@@ -614,6 +617,13 @@ export const SessionSidebar = forwardRef<
     ],
   );
 
+  const mobileDrawerRef = useRef<HTMLDivElement>(null);
+  useDialogFocus({
+    open: mobileOpen && isMobile,
+    onClose: () => onMobileClose?.(),
+    surfaceRef: mobileDrawerRef,
+  });
+
   // ─── JSX ──────────────────────────────────────────────────────────
 
   return (
@@ -633,7 +643,14 @@ export const SessionSidebar = forwardRef<
 
       {/* Mobile drawer */}
       <div
-        className={`rounded-r-lg fixed left-0 z-[70] w-64 max-w-full flex flex-col sm:hidden bg-[var(--theme-bg-sidebar)] transition-transform duration-300 ease-in-out ${
+        ref={mobileDrawerRef}
+        role="dialog"
+        aria-label={t("common.menu")}
+        aria-modal={mobileOpen && isMobile ? true : undefined}
+        aria-hidden={!mobileOpen}
+        inert={!mobileOpen}
+        tabIndex={-1}
+        className={`session-sidebar-drawer rounded-r-lg fixed left-0 z-[70] w-64 max-w-full flex flex-col sm:hidden bg-[var(--theme-bg-sidebar)] transition-transform duration-300 ease-in-out ${
           mobileOpen ? "translate-x-0" : "-translate-x-full"
         }`}
         style={{
@@ -696,6 +713,8 @@ export const SessionSidebar = forwardRef<
         {/* Collapsed rail（desktopShell 下折叠职责在外层壳，不渲染） */}
         {!inDesktopShell && (
           <div
+            inert={!isCollapsed}
+            aria-hidden={!isCollapsed}
             className={`absolute inset-0 ${
               isCollapsed
                 ? "opacity-100 pointer-events-auto"
@@ -717,9 +736,8 @@ export const SessionSidebar = forwardRef<
               onOpenBookmarks={() => navigate("/bookmarks")}
               onOpenScheduledTasks={() => navigate("/scheduled-tasks")}
               hasMoreMenuItems={moreMenu.hasMoreMenuItems}
-              onToggleMoreMenu={() =>
-                moreMenu.setIsMoreMenuOpen((prev) => !prev)
-              }
+              singleMoreMenuItem={moreMenu.singleMoreMenuItem}
+              onToggleMoreMenu={handleToggleMoreMenu}
               moreMenuBtnRef={moreMenu.moreMenuBtnRef}
               recentChatsBtnRef={recentChatsBtnRef}
               onShowProfile={onShowProfile!}

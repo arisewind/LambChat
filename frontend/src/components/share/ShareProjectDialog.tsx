@@ -1,3 +1,4 @@
+import { DialogCloseButton } from "../common/DialogCloseButton";
 import { ModalSurface } from "../common/ModalSurface";
 /**
  * ShareProjectDialog - 创建/管理项目分享
@@ -12,23 +13,21 @@ import { useCallback, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
   Share2,
-  Copy,
   Trash2,
   Globe,
   Lock,
   Loader2,
-  Check,
-  X,
   AlertTriangle,
 } from "lucide-react";
 import toast from "react-hot-toast";
 import { SkeletonList } from "../skeletons";
 import { Checkbox } from "../common/Checkbox";
+import { CopyButton } from "../common/CopyButton";
+import { ToolbarIconButton } from "../common/ui";
 import { shareApi } from "../../services/api/share";
 import { sessionApi } from "../../services/api/session";
 import type { SharedSession, ShareType, ShareVisibility } from "../../types";
 
-import { copyToClipboard } from "../../utils/clipboard";
 import { getFullUrl } from "../../services/api/config";
 import {
   PROJECT_SHARE_SESSION_LIMIT,
@@ -68,7 +67,6 @@ export function ShareProjectDialog({
   const [isLoadingShares, setIsLoadingShares] = useState(false);
   const [hasLoadedShares, setHasLoadedShares] = useState(false);
   const [isCreating, setIsCreating] = useState(false);
-  const [copiedId, setCopiedId] = useState<string | null>(null);
 
   const loadExistingShares = useCallback(async () => {
     setIsLoadingShares(true);
@@ -148,12 +146,6 @@ export function ShareProjectDialog({
     }
   };
 
-  const handleCopy = async (shareId: string) => {
-    await copyToClipboard(getFullUrl(`/shared/${shareId}`) ?? "");
-    setCopiedId(shareId);
-    setTimeout(() => setCopiedId(null), 1500);
-  };
-
   const handleDelete = async (shareDbId: string) => {
     try {
       await shareApi.delete(shareDbId);
@@ -191,21 +183,16 @@ export function ShareProjectDialog({
 
   return (
     <ModalSurface open={isOpen} onClose={onClose} dismissible={true}>
-      <div className="relative z-10 w-full sm:max-w-xl sm:mx-4 sm:pointer-events-auto bg-white dark:bg-stone-800 sm:rounded-xl rounded-t-xl shadow-xl border border-stone-200 dark:border-stone-700 overflow-hidden duration-300 max-h-[90vh] max-h-[90dvh] flex flex-col animate-slide-up-sheet sm:animate-in sm:fade-in sm:zoom-in-95 sm:duration-200">
+      <div className="relative z-10 w-full sm:max-w-xl sm:mx-4 sm:pointer-events-auto bg-theme-bg-card sm:rounded-xl rounded-t-xl shadow-xl border border-stone-200 dark:border-stone-700 overflow-hidden duration-300 max-h-[90vh] max-h-[90dvh] flex flex-col animate-slide-up-sheet sm:animate-in sm:fade-in sm:zoom-in-95 sm:duration-200">
         {/* Header */}
-        <div className="flex items-center justify-between px-5 py-4 border-b border-stone-200 dark:border-stone-700">
+        <div className="flex items-center justify-between px-5 py-3 sm:py-4 border-b border-stone-200 dark:border-stone-700">
           <div className="flex items-center gap-2 pt-2 sm:pt-0">
             <Share2 size={20} className="text-stone-500 dark:text-stone-400" />
             <h3 className="text-18 font-semibold font-serif text-stone-900 dark:text-stone-100">
               {t("sidebar.shareProject")}
             </h3>
           </div>
-          <button
-            onClick={onClose}
-            className="p-1 rounded-lg hover:bg-stone-100 dark:hover:bg-stone-700 transition-colors"
-          >
-            <X size={20} className="text-stone-500 dark:text-stone-400" />
-          </button>
+          <DialogCloseButton onClick={onClose} />
         </div>
 
         {/* Content */}
@@ -232,8 +219,9 @@ export function ShareProjectDialog({
             </label>
             <div className="flex gap-3">
               <button
+                aria-pressed={shareType === "full"}
                 onClick={() => setShareType("full")}
-                className={`flex-1 px-4 py-2.5 rounded-lg border text-14 font-medium transition-colors ${
+                className={`min-h-11 flex-1 px-4 py-2.5 rounded-lg border text-14 font-medium transition-colors ${
                   shareType === "full"
                     ? "border-stone-500 bg-stone-100 dark:bg-stone-700 text-stone-700 dark:text-stone-200"
                     : "border-stone-200 dark:border-stone-600 text-stone-700 dark:text-stone-300 hover:bg-stone-50 dark:hover:bg-stone-700"
@@ -242,8 +230,9 @@ export function ShareProjectDialog({
                 {t("share.fullProject", "完整项目")}
               </button>
               <button
+                aria-pressed={shareType === "partial"}
                 onClick={() => setShareType("partial")}
-                className={`flex-1 px-4 py-2.5 rounded-lg border text-14 font-medium transition-colors ${
+                className={`min-h-11 flex-1 px-4 py-2.5 rounded-lg border text-14 font-medium transition-colors ${
                   shareType === "partial"
                     ? "border-stone-500 bg-stone-100 dark:bg-stone-700 text-stone-700 dark:text-stone-200"
                     : "border-stone-200 dark:border-stone-600 text-stone-700 dark:text-stone-300 hover:bg-stone-50 dark:hover:bg-stone-700"
@@ -300,6 +289,9 @@ export function ShareProjectDialog({
                       key={session.session_id}
                       type="button"
                       onClick={() => toggleSession(session.session_id)}
+                      aria-pressed={selectedSessionIds.includes(
+                        session.session_id,
+                      )}
                       className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-14 transition-colors ${
                         selectedSessionIds.includes(session.session_id)
                           ? "bg-stone-100 dark:bg-stone-700 text-stone-700 dark:text-stone-200"
@@ -307,11 +299,11 @@ export function ShareProjectDialog({
                       }`}
                     >
                       <Checkbox
+                        ariaLabel={session.name || t("share.untitledSession")}
                         checked={selectedSessionIds.includes(
                           session.session_id,
                         )}
                         size="sm"
-                        onChange={() => toggleSession(session.session_id)}
                       />
                       <span className="flex-1 min-w-0 truncate text-left">
                         {session.name ||
@@ -336,6 +328,7 @@ export function ShareProjectDialog({
             </label>
             <div className="space-y-2">
               <button
+                aria-pressed={visibility === "public"}
                 onClick={() => setVisibility("public")}
                 className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg border text-left transition-colors ${
                   visibility === "public"
@@ -361,6 +354,7 @@ export function ShareProjectDialog({
                 </div>
               </button>
               <button
+                aria-pressed={visibility === "authenticated"}
                 onClick={() => setVisibility("authenticated")}
                 className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg border text-left transition-colors ${
                   visibility === "authenticated"
@@ -402,9 +396,9 @@ export function ShareProjectDialog({
                 {existingShares.map((share) => (
                   <div
                     key={share.id}
-                    className="flex items-center justify-between p-3 bg-stone-50 dark:bg-stone-900/50 rounded-lg border border-stone-200 dark:border-stone-700"
+                    className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 p-3 bg-stone-50 dark:bg-stone-900/50 rounded-lg border border-stone-200 dark:border-stone-700"
                   >
-                    <div className="flex items-center gap-2 min-w-0">
+                    <div className="flex items-center gap-2 min-w-0 flex-1">
                       {share.visibility === "public" ? (
                         <Globe
                           size={14}
@@ -427,31 +421,21 @@ export function ShareProjectDialog({
                         )
                       </span>
                     </div>
-                    <div className="flex items-center gap-1">
-                      <button
-                        onClick={() => handleCopy(share.share_id)}
-                        className="p-1.5 rounded hover:bg-stone-200 dark:hover:bg-stone-700 transition-colors"
-                        title={t("share.copyLink")}
-                      >
-                        {copiedId === share.share_id ? (
-                          <Check size={14} className="text-green-500" />
-                        ) : (
-                          <Copy
-                            size={14}
-                            className="text-stone-400 dark:text-stone-500"
-                          />
-                        )}
-                      </button>
-                      <button
-                        onClick={() => handleDelete(share.id)}
-                        className="p-1.5 rounded hover:bg-stone-200 dark:hover:bg-stone-700 transition-colors"
+                    <div className="flex items-center justify-end gap-1 shrink-0">
+                      <CopyButton
+                        text={
+                          getFullUrl(`/shared/${share.share_id}`) ||
+                          `${window.location.origin}/shared/${share.share_id}`
+                        }
+                        label={t("share.copyLink")}
+                      />
+                      <ToolbarIconButton
+                        aria-label={t("share.deleteShare")}
                         title={t("share.deleteShare")}
-                      >
-                        <Trash2
-                          size={14}
-                          className="text-stone-400 hover:text-red-500 dark:text-stone-500 dark:hover:text-red-400"
-                        />
-                      </button>
+                        onClick={() => handleDelete(share.id)}
+                        icon={<Trash2 size={14} />}
+                        className="hover:text-theme-error"
+                      />
                     </div>
                   </div>
                 ))}
@@ -461,7 +445,7 @@ export function ShareProjectDialog({
         </div>
 
         {/* Footer */}
-        <div className="safe-area-bottom flex items-center justify-end gap-2 px-5 pt-4 [--safe-area-bottom-extra:1rem] bg-stone-50 dark:bg-stone-900/50 border-t border-stone-100 dark:border-stone-700">
+        <div className="safe-area-bottom flex flex-wrap items-center justify-end gap-2 px-5 pt-4 [--safe-area-bottom-extra:1rem] [&>button]:min-h-11 bg-theme-bg-card border-t border-theme-border">
           <button
             onClick={onClose}
             className="px-4 py-2 text-14 font-medium text-stone-700 dark:text-stone-300 bg-white dark:bg-stone-800 border border-stone-200 dark:border-stone-600 rounded-lg hover:bg-stone-50 dark:hover:bg-stone-700 transition-colors"

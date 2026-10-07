@@ -23,6 +23,7 @@ from src.infra.channel.feishu.handler_helpers import (
     _get_feishu_session_id,
 )
 from src.infra.channel.feishu.manager import FeishuChannelManager
+from src.infra.channel.recovery import delivery_session, submit_channel_task
 from src.infra.logging import get_logger
 from src.infra.utils.datetime import utc_now
 from src.kernel.config import settings  # noqa: F401 - compatibility for handler tests/patching
@@ -89,6 +90,9 @@ async def execute_feishu_agent(
     enabled_skills: list[str] | None = None,
     persona_system_prompt: str | None = None,
     disabled_mcp_tools: list[str] | None = None,
+    enabled_mcp_servers=None,
+    hitl_resume=None,
+    base_url="",
     recommendation_input: str | None = None,
     team_id: str | None = None,
     active_goal: dict | None = None,
@@ -119,6 +123,9 @@ async def execute_feishu_agent(
             enabled_skills=enabled_skills,
             persona_system_prompt=persona_system_prompt,
             disabled_mcp_tools=disabled_mcp_tools,
+            enabled_mcp_servers=enabled_mcp_servers,
+            hitl_resume=hitl_resume,
+            base_url=base_url,
             recommendation_input=recommendation_input,
             team_id=team_id,
             active_goal=active_goal,
@@ -161,16 +168,11 @@ def create_feishu_message_handler(
         metadata: dict,
     ) -> None:
         """处理飞书消息"""
-        print(
-            f"[DEBUG] feishu_message_handler: {content[:50]}",
-            file=sys.stderr,
-            flush=True,
-        )
-
         original_message_id = metadata.get("message_id")
         received_reaction_id = metadata.get("reaction_id")
         instance_id = metadata.get("instance_id")
         delivery_chat_id = chat_id
+        collector = None
 
         try:
             logger.info(
@@ -186,18 +188,24 @@ def create_feishu_message_handler(
 
             # 处理 /new 命令 - 严格匹配
             if content.strip() == "/new":
-                new_session_id = await _create_new_feishu_session(chat_id)
-                await manager.send_message(
+                new_session_id = await _create_new_feishu_session(
+                    chat_id, user_id=user_id, instance_id=instance_id
+                )
+                if not await manager.send_message(
                     user_id,
                     delivery_chat_id,
                     "✅ 已创建新对话，请发送消息开始",
                     instance_id,
-                )
+                ):
+                    raise RuntimeError("Channel reply failed")
                 logger.info(f"[Feishu] New session created for chat {chat_id}: {new_session_id}")
                 return
 
             # 获取当前 session ID
-            session_id = await _get_feishu_session_id(chat_id)
+            session_id = await _get_feishu_session_id(
+                chat_id, user_id=user_id, instance_id=instance_id
+            )
+            session_id = delivery_session(session_id)
             task_manager = get_task_manager()
 
             # Resolve agent, model & project: use per-channel config if available
@@ -207,11 +215,13 @@ def create_feishu_message_handler(
             team_id: str | None = None
             persona_preset_id: str | None = None
             enabled_skills: list[str] | None = None
+            enabled_mcp_servers: list[str] | None = None
             persona_system_prompt: str | None = None
             persona_metadata: dict[str, Any] | None = None
             channel_name: str | None = None
             stream_reply = True
             ch_storage = None
+            ch_config = None
             if instance_id:
                 from src.infra.channel.channel_storage import ChannelStorage
                 from src.kernel.schemas.channel import ChannelType
@@ -244,6 +254,7 @@ def create_feishu_message_handler(
                     )
                     persona_system_prompt = snapshot.system_prompt
                     enabled_skills = snapshot.skill_names or None
+                    enabled_mcp_servers = getattr(snapshot, "mcp_server_names", None) or None
                     persona_metadata = {
                         "persona_preset_id": snapshot.preset_id,
                         "persona_preset_name": snapshot.name,
@@ -261,26 +272,6 @@ def create_feishu_message_handler(
                         f"[Feishu] Ignoring unavailable channel persona {persona_preset_id}: {e}"
                     )
 
-            if project_id:
-                try:
-                    from src.infra.folder.storage import get_project_storage
-
-                    proj_storage = get_project_storage()
-                    project = await proj_storage.get_by_id(project_id, user_id)
-                    if not project:
-                        logger.warning(
-                            f"[Feishu] Ignoring missing channel project_id {project_id} "
-                            f"for user {user_id}"
-                        )
-                        if ch_storage and instance_id:
-                            await ch_storage.clear_config_project_id(
-                                user_id, ChannelType.FEISHU, instance_id
-                            )
-                        project_id = None
-                except Exception as e:
-                    logger.warning(f"[Feishu] Failed to validate channel project_id: {e}")
-                    project_id = None
-
             # Auto-create project by channel name if not manually configured
             if not project_id and channel_name:
                 try:
@@ -292,10 +283,14 @@ def create_feishu_message_handler(
                 except Exception as e:
                     logger.warning(f"[Feishu] Failed to auto-create project: {e}")
 
-            # Build agent_options with model_id if configured
-            feishu_agent_options: dict | None = None
-            if model_id:
-                feishu_agent_options = {"model_id": model_id}
+            from src.infra.channel.runtime import (
+                build_channel_agent_options,
+                build_channel_session_metadata,
+            )
+
+            feishu_agent_options = await build_channel_agent_options(
+                {**(ch_config or {}), "model_id": model_id, "project_id": project_id}, user_id
+            )
 
             collector = FeishuResponseCollector(
                 manager=manager,
@@ -321,6 +316,9 @@ def create_feishu_message_handler(
                 enabled_skills=None,
                 persona_system_prompt=None,
                 disabled_mcp_tools=None,
+                enabled_mcp_servers=None,
+                hitl_resume=None,
+                base_url="",
                 recommendation_input=None,
                 team_id=None,
                 active_goal=None,
@@ -339,6 +337,9 @@ def create_feishu_message_handler(
                     enabled_skills=enabled_skills,
                     persona_system_prompt=persona_system_prompt,
                     disabled_mcp_tools=disabled_mcp_tools,
+                    enabled_mcp_servers=enabled_mcp_servers,
+                    hitl_resume=hitl_resume,
+                    base_url=base_url,
                     recommendation_input=recommendation_input,
                     team_id=team_id,
                     active_goal=active_goal,
@@ -349,7 +350,15 @@ def create_feishu_message_handler(
             # Use time-based session title for Feishu
             session_title = utc_now().strftime("%Y-%m-%d %H:%M")
 
-            run_id, _ = await task_manager.submit(
+            run_id, _ = await submit_channel_task(
+                task_manager,
+                channel_delivery={
+                    "channel_type": "feishu",
+                    "channel_instance_id": instance_id,
+                    "chat_id": delivery_chat_id,
+                    "enabled": True,
+                    "send_on_success": True,
+                },
                 session_id=session_id,
                 agent_id=agent_to_use,
                 message=content,
@@ -363,6 +372,17 @@ def create_feishu_message_handler(
                 persona_system_prompt=persona_system_prompt,
                 team_id=team_id if agent_to_use == "team" else None,
                 auto_mode=True,
+                enabled_mcp_servers=enabled_mcp_servers,
+                session_metadata=build_channel_session_metadata(
+                    agent_id=agent_to_use,
+                    agent_options=feishu_agent_options,
+                    project_id=project_id,
+                    team_id=team_id if agent_to_use == "team" else None,
+                    enabled_skills=enabled_skills,
+                    enabled_mcp_servers=enabled_mcp_servers,
+                    persona_system_prompt=persona_system_prompt,
+                    auto_mode=True,
+                ),
             )
             collector.set_session_link(session_id, run_id)
             try:
@@ -405,13 +425,17 @@ def create_feishu_message_handler(
             )
 
             streamed = await collector.finalize_stream_message()
-            if not streamed:
-                await collector.send_card_message()
+            if not streamed and not await collector.send_card_message():
+                raise RuntimeError("Channel reply failed")
             await collector.upload_and_send_files()
 
             logger.info(f"[Feishu] Message processing completed for {chat_id}")
 
         except Exception as e:
+            from src.infra.channel.inbox_worker import current_delivery
+
+            if current_delivery.get() is not None:
+                raise
             logger.error(f"[Feishu] Error handling message: {e}", exc_info=True)
             try:
                 await manager.send_message(
@@ -423,6 +447,8 @@ def create_feishu_message_handler(
             except Exception:
                 pass
         finally:
+            if collector is not None:
+                await collector._cancel_stream_update_worker()
             if original_message_id and received_reaction_id:
                 try:
                     await manager.delete_reaction(

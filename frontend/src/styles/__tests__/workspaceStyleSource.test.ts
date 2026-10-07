@@ -13,16 +13,16 @@ test("web chat loads the shared workspace styles without requiring native chrome
   expect(css).toContain(":has([data-titlebar], [data-workspace-ui])");
 });
 
-test("docked panels reserve native titlebar space and align with the workspace below the titlebar", () => {
+test("docked panels reserve native titlebar space and keep even outer insets", () => {
   const css = readFileSync(
     resolve(import.meta.dirname, "../desktop.css"),
     "utf8",
   );
   expect(css).toContain("top: var(--titlebar-inset, 0px)");
   expect(css).toContain(
-    "height: calc(100% - var(--titlebar-inset, 0px))",
+    "height: calc(100% - var(--titlebar-inset, 0px) - 1rem)",
   );
-  expect(css).toContain("margin: 0 0.5rem");
+  expect(css).toContain("margin: 0.5rem");
 });
 
 test("assistant heading preserves serif typography and a stable centered line box", () => {
@@ -32,19 +32,20 @@ test("assistant heading preserves serif typography and a stable centered line bo
     css.match(/\.chat-assistant-heading\s+\.font-serif\s*\{([^}]+)\}/)?.[1] ??
     "";
   expect(headingRule).not.toContain("font-family:");
+  expect(headingRule).toContain("top: 0.125em;");
   const message = readFileSync(
     resolve(root, "components/chat/ChatMessage/index.tsx"),
     "utf8",
   );
   expect(message).toMatch(
-    /className="min-w-0 truncate[^"\n]*leading-none[^"\n]*font-serif"/,
+    /className="min-w-0 truncate[^"\n]*leading-normal[^"\n]*font-serif"/,
   );
 });
 
-test("compact serif icon labels share an optical alignment correction", () => {
+test("toolbar keeps its independent optical alignment correction", () => {
   const css = readFileSync(resolve(import.meta.dirname, "../desktop.css"), "utf8");
   expect(css).toMatch(
-    /\.chat-input-toolbar\s+\.font-serif,\s*\.chat-assistant-heading\s+\.font-serif\s*\{[^}]*position: relative;[^}]*top: 1px;/,
+    /\.chat-input-toolbar\s+\.font-serif\s*\{[^}]*position: relative;[^}]*top: 1px;/,
   );
 });
 

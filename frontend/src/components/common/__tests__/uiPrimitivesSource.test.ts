@@ -1,4 +1,16 @@
 import { readFileSync } from "node:fs";
+test("editor controls keep touch targets at tablet and landscape widths", () => {
+  const styles = readFileSync(
+    new URL("../../../styles/panels.css", import.meta.url),
+    "utf8",
+  );
+  expect(styles).toMatch(
+    /@media \(max-width: 639px\), \(pointer: coarse\) \{[\s\S]*?\.editor-sidebar :is\(/,
+  );
+  expect(styles).toMatch(
+    /\.editor-sidebar \[role="switch"\] \{\s*min-height: 2\.75rem/,
+  );
+});
 function readSource(path: string): string {
   return readFileSync(new URL(path, import.meta.url), "utf8");
 }
@@ -112,7 +124,8 @@ test("floating icon button centralizes fullscreen overlay icon actions", () => {
   expect(floatingIconButton).toMatch(/w-11 h-11 rounded-xl bg-black\/80/);
 
   expect(documentToolbar).toMatch(/import \{[\s\S]*FloatingIconButton/);
-  expect(skillFullscreen).toMatch(/import \{ FloatingIconButton \}/);
+  expect(skillFullscreen).toMatch(/import \{[^}]*\bToolbarIconButton\b[^}]*\}/);
+  expect(skillFullscreen).toMatch(/<ToolbarIconButton[\s\S]*exitFullscreen/);
   expect(documentToolbar).not.toMatch(/w-11 h-11 rounded-xl bg-black\/80/);
   expect(skillFullscreen).not.toMatch(/w-11 h-11 rounded-xl bg-black\/80/);
 });
@@ -143,12 +156,13 @@ test("viewer top bar buttons keep overlay actions fixed and non-wrapping", () =>
   );
 
   assertExports(commonIndex, "ViewerTopBar");
-  expect(topBar).toMatch(/safe-area-top bg-black/);
-  expect(topBar).toMatch(/flex h-16 items-center justify-between px-3 sm:px-6/);
+  expect(topBar).toMatch(/viewer-top-bar safe-area-top pointer-events-none absolute inset-x-0 top-0 z-20/);
+  expect(topBar).toMatch(/flex h-14 items-center justify-between px-3 sm:px-6/);
   assertExports(commonIndex, "ViewerTopBarButton");
   expect(source).toMatch(/flex shrink-0/);
   expect(source).toMatch(/whitespace-nowrap/);
   expect(source).toMatch(/w-10 h-10/);
+  expect(source).toMatch(/min-h-11 min-w-11 sm:min-h-0 sm:min-w-0/);
   expect(source).toMatch(/px-3 h-10/);
   expect(source).toMatch(/disabled:opacity-50 disabled:cursor-not-allowed/);
 
@@ -222,18 +236,18 @@ test("diagram viewers share blob download behavior", () => {
   expect(menuItem).toMatch(/whitespace-nowrap/);
 
   expect(mermaidViewer).toMatch(/import \{ downloadBlob \}/);
-  expect(mermaidViewer).toMatch(/import \{[\s\S]*ViewerDropdownMenuItem/);
+  expect(mermaidViewer).toMatch(/import \{ ResourceCardMenu \}/);
   expect(documentMermaidViewer).toMatch(/import \{ downloadBlob \}/);
   expect(documentMermaidViewer).toMatch(
     /import \{[\s\S]*ViewerDropdownMenuItem/,
   );
   expect(excalidrawViewer).toMatch(/import \{ downloadBlob \}/);
-  expect(excalidrawViewer).toMatch(/import \{[\s\S]*ViewerDropdownMenuItem/);
+  expect(excalidrawViewer).toMatch(/import \{ ResourceCardMenu \}/);
   expect(mermaidViewer).toMatch(/downloadBlob\([^)]*"diagram\.svg"/);
   expect(mermaidViewer).toMatch(/downloadBlob\([^)]*"diagram\.png"/);
   expect(mermaidViewer).toMatch(/downloadBlob\([^)]*"mermaid\.svg"/);
-  expect(mermaidViewer).toMatch(/<ViewerDropdownMenuItem[\s\S]*SVG/);
-  expect(mermaidViewer).toMatch(/<ViewerDropdownMenuItem[\s\S]*PNG/);
+  expect(mermaidViewer).toMatch(/<ResourceCardMenu[\s\S]*label: "SVG"/);
+  expect(mermaidViewer).toMatch(/<ResourceCardMenu[\s\S]*label: "PNG"/);
   expect(documentMermaidViewer).toMatch(/downloadBlob\([^)]*"diagram\.svg"/);
   expect(documentMermaidViewer).toMatch(/downloadBlob\([^)]*"diagram\.png"/);
   expect(documentMermaidViewer).toMatch(/<ViewerDropdownMenuItem[\s\S]*SVG/);
@@ -244,12 +258,8 @@ test("diagram viewers share blob download behavior", () => {
   expect(excalidrawViewer).toMatch(
     /downloadBlob\([^)]*"excalidraw-diagram\.png"/,
   );
-  expect(excalidrawViewer).toMatch(
-    /<ViewerDropdownMenuItem[\s\S]*variant="dark"[\s\S]*SVG/,
-  );
-  expect(excalidrawViewer).toMatch(
-    /<ViewerDropdownMenuItem[\s\S]*variant="dark"[\s\S]*PNG/,
-  );
+  expect(excalidrawViewer).toMatch(/<ResourceCardMenu[\s\S]*label: "SVG"/);
+  expect(excalidrawViewer).toMatch(/<ResourceCardMenu[\s\S]*label: "PNG"/);
   expect(
     [mermaidViewer, documentMermaidViewer, excalidrawViewer].join("\n"),
   ).not.toMatch(
@@ -351,24 +361,19 @@ test("mcp server form uses shared icon buttons for generic icon actions", () => 
 });
 
 test("custom admin pickers reuse shared picker trigger and input primitives", () => {
-  const providerSelect = readSource(
+  const shared = readSource(
+    "../../panels/ModelPanel/tabs/ModelBrandPicker.tsx",
+  );
+  for (const path of [
     "../../panels/AgentPanel/shared/ProviderSelect.tsx",
-  );
-  const modelIconSelect = readSource(
     "../../panels/ModelPanel/tabs/ModelIconSelect.tsx",
-  );
-  const source = [providerSelect, modelIconSelect].join("\n");
-
-  expect(source).toMatch(/import \{[\s\S]*Input[\s\S]*PickerTrigger/);
-  expect(providerSelect).toMatch(
-    /<PickerTrigger[\s\S]*selected=\{!!selected\}/,
-  );
-  expect(modelIconSelect).toMatch(
-    /<PickerTrigger[\s\S]*selected=\{!!selected\}/,
-  );
-  expect(source).toMatch(/<PanelSearchInput[\s\S]*searchRef/);
-  expect(source).not.toMatch(/className="glass-input/);
-  expect(source).not.toMatch(/<input[\s\S]*searchRef/);
+  ]) {
+    expect(readSource(path)).toContain("<ModelBrandPicker");
+  }
+  expect(shared).toMatch(/import \{[\s\S]*Input[\s\S]*PickerTrigger/);
+  expect(shared).toMatch(/<PickerTrigger[\s\S]*selected=\{!!selected\}/);
+  expect(shared).toMatch(/<PanelSearchInput[\s\S]*searchRef/);
+  expect(shared).not.toMatch(/className="glass-input/);
 });
 
 test("normal skill form uses shared primitives for generic form controls", () => {
@@ -383,10 +388,10 @@ test("normal skill form uses shared primitives for generic form controls", () =>
   );
   expect(source).toMatch(/<Input[\s\S]*adminMarketplace\.tagsPlaceholder/);
   expect(source).toMatch(/<Input[\s\S]*skills\.form\.filePathPlaceholder/);
-  expect(source).toMatch(/<IconButton[\s\S]*addFile/);
-  expect(source).toMatch(/<IconButton[\s\S]*editFullscreen/);
-  expect(source).toMatch(/icon=\{<Pencil size=\{15\} \/>/);
-  expect(source).toMatch(/<IconButton[\s\S]*toggleFullscreen\(true\)/);
+  expect(source).toMatch(/<ToolbarIconButton[\s\S]*addFile/);
+  expect(source).toMatch(/<ToolbarIconButton[\s\S]*toggleFullscreen\(true\)/);
+  expect(source).toMatch(/<FormField[\s\S]*skills\.form\.name/);
+  expect(source).toMatch(/<ToggleSwitch[\s\S]*ariaLabel=/);
   expect(source).toMatch(/<Button[\s\S]*type="submit"/);
   expect(source).not.toMatch(
     /<input[\s\S]*(a\.name|a\.tagsInput|updateFilePath)/,
@@ -668,7 +673,7 @@ test("json schema editor uses shared primitives for generated controls", () => {
   expect(source).toMatch(/import \{ Button, IconButton, Input, Select \}/);
   expect(source).toMatch(/<Select[\s\S]*field\.options/);
   expect(source).toMatch(/<Input[\s\S]*field\.placeholder/);
-  expect(source).toMatch(/<IconButton[\s\S]*removeItem/);
+  expect(source).toMatch(/<IconButton[\s\S]*<Trash2/);
   expect(source).toMatch(/<Button[\s\S]*JSON_SCHEMA_ADD_ITEM/);
   expect(source).not.toMatch(/GlassSelect/);
   expect(source).not.toMatch(/<input[\s\S]*field\.placeholder/);

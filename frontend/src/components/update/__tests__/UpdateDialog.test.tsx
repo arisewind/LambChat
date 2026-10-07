@@ -1,10 +1,19 @@
 /** @vitest-environment jsdom */
 
-import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import {
+  act,
+  cleanup,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+} from "@testing-library/react";
 import { afterEach, expect, test, vi } from "vitest";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 
+import { useState } from "react";
+import { UpdateProgressBar } from "../UpdateProgressBar";
 import { UpdateDialog } from "../UpdateDialog";
 import { APP_VERSION } from "../../../utils/appVersion";
 import type { UpdateState } from "../../../types";
@@ -63,12 +72,10 @@ test("skip-this-version action is available before download and wired", () => {
 });
 
 test("downloading state hides skip actions and shows progress", () => {
-  const onSkip = vi.fn();
   const onSkipVersion = vi.fn();
   render(
     <UpdateDialog
       {...baseProps}
-      onSkip={onSkip}
       onSkipVersion={onSkipVersion}
       state={makeState({
         downloading: true,
@@ -117,7 +124,7 @@ test("unknown linux source falls back to go-to-download button", () => {
   expect(screen.queryByRole("button", { name: /下载并安装/ })).toBeNull();
 });
 
-test("appimage source keeps the updater button semantics", () => {
+test("appimage source falls back to go-to-download (AppImage discontinued)", () => {
   render(
     <UpdateDialog
       {...baseProps}
@@ -127,7 +134,46 @@ test("appimage source keeps the updater button semantics", () => {
       })}
     />,
   );
-  expect(screen.getByRole("button", { name: /重启并安装/ })).toBeTruthy();
+  // AppImage 已停发：不再走 updater 重启安装语义，引导到下载页换装 deb
+  expect(screen.getByRole("button", { name: /前往下载/ })).toBeTruthy();
+  expect(screen.queryByRole("button", { name: /重启并安装/ })).toBeNull();
+});
+
+test("android ready-to-install shows direct install button", () => {
+  render(
+    <UpdateDialog
+      {...baseProps}
+      platform="android"
+      state={makeState({
+        readyToInstall: true,
+        downloaded: 100,
+        progress: 100,
+      })}
+    />,
+  );
+  // APK 已完整缓存：按钮是「安装」（不重下），不是桌面的「重启并安装」
+  expect(screen.getByRole("button", { name: /^安装$/ })).toBeTruthy();
+  expect(screen.queryByRole("button", { name: /重启并安装/ })).toBeNull();
+});
+
+test("android ready state explains why the button installs without re-downloading", () => {
+  render(
+    <UpdateDialog
+      {...baseProps}
+      platform="android"
+      state={makeState({ readyToInstall: true })}
+    />,
+  );
+  expect(screen.getByText(/安装包已下载完成/)).toBeTruthy();
+});
+
+test("new version is the visual anchor and current version stays as reference", () => {
+  render(<UpdateDialog {...baseProps} state={makeState()} />);
+  const body = document.body.textContent ?? "";
+  // 新版本号与当前版本都在场（大号主体 + 小字参照）
+  expect(body).toContain("99.0.0");
+  expect(body).toContain(APP_VERSION);
+  expect(body).toContain("更新日志");
 });
 
 test("uses the universal Dialog shell (common dialog component)", () => {
@@ -144,4 +190,84 @@ test("uses the universal Dialog shell (common dialog component)", () => {
   expect(dialogSource).toMatch(/<ModalSurface/);
   expect(dialogSource).toMatch(/rounded-t-2xl/);
   expect(dialogSource).toMatch(/sm:rounded-xl/);
+});
+
+test("a failed update exposes one primary retry and retains its error", () => {
+  const onUpgrade = vi.fn();
+  render(
+    <UpdateDialog
+      {...baseProps}
+      onUpgrade={onUpgrade}
+      state={makeState({ error: "Download unavailable" })}
+    />,
+  );
+  expect(screen.getByRole("alert")).toHaveTextContent("Download unavailable");
+  const retry = screen.getByRole("button", { name: "重试" });
+  expect(retry).toHaveClass("ui-button--primary");
+  expect(screen.queryByRole("button", { name: "立即升级" })).toBeNull();
+  fireEvent.click(retry);
+  expect(onUpgrade).toHaveBeenCalledTimes(1);
+});
+
+test("starting an update keeps keyboard focus in the locked dialog", async () => {
+  const onDismiss = vi.fn();
+  let failDownload!: () => void;
+  function PendingUpdate() {
+    const [state, setState] = useState(makeState());
+    failDownload = () => setState(makeState({ error: "Download unavailable" }));
+    return (
+      <UpdateDialog
+        {...baseProps}
+        state={state}
+        onDismiss={onDismiss}
+        onUpgrade={() =>
+          setState(makeState({ downloading: true, progress: 42 }))
+        }
+      />
+    );
+  }
+  render(<PendingUpdate />);
+  const start = screen.getByRole("button", { name: "立即升级" });
+  start.focus();
+  fireEvent.click(start);
+  await waitFor(() => expect(screen.getByRole("dialog")).toHaveFocus());
+  expect(
+    screen.getByRole("progressbar", { name: "正在下载..." }),
+  ).toHaveAttribute("aria-valuenow", "42");
+  expect(screen.getByRole("button", { name: "正在下载..." })).toBeDisabled();
+  fireEvent.keyDown(document, { key: "Escape" });
+  fireEvent.click(document.querySelector("[data-dialog-backdrop]")!);
+  expect(onDismiss).not.toHaveBeenCalled();
+  act(() => failDownload());
+  await waitFor(() => expect(screen.getByRole("alert")).toHaveFocus());
+});
+
+test("download progress exposes a bounded accessible percentage", () => {
+  for (const [value, expected] of [
+    [-10, 0],
+    [110, 100],
+    [Number.NaN, 0],
+  ]) {
+    cleanup();
+    render(
+      <UpdateProgressBar
+        progress={value}
+        downloaded={50}
+        contentLength={100}
+      />,
+    );
+    const progress = screen.getByRole("progressbar", { name: "正在下载..." });
+    expect(progress).toHaveAttribute("aria-valuemin", "0");
+    expect(progress).toHaveAttribute("aria-valuemax", "100");
+    expect(progress).toHaveAttribute("aria-valuenow", String(expected));
+  }
+});
+
+test("the mobile footer keeps one secondary action and one primary action", () => {
+  render(
+    <UpdateDialog {...baseProps} platform="android" state={makeState()} />,
+  );
+  expect(screen.getByRole("button", { name: /跳过此版本/ })).toBeTruthy();
+  expect(screen.getByRole("button", { name: /立即升级/ })).toBeTruthy();
+  expect(screen.queryByRole("button", { name: /以后再说/ })).toBeNull();
 });

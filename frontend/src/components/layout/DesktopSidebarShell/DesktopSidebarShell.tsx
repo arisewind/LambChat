@@ -1,3 +1,5 @@
+import { SidebarToggleIcon } from "../../common/SidebarToggleIcon";
+import { hasVisibleModalDialog } from "../../../utils/modalDialog";
 /** 左侧导航壳：会话列表、全局导航和可调整宽度。会话文件由右侧面板承载。 */
 
 import {
@@ -16,6 +18,8 @@ import { BrandLogo } from "../../common/BrandLogo";
 import { BrandWordmark } from "../../common/BrandWordmark";
 import { APP_NAME } from "../../../constants";
 import { DesktopActivityRail } from "./DesktopActivityRail";
+import { isEditableEventTarget } from "../../../utils/editableTarget";
+
 import {
   DESKTOP_SIDEBAR_TOGGLE_EVENT,
   DESKTOP_SIDEBAR_OPEN_SEARCH_EVENT,
@@ -26,7 +30,7 @@ import {
 
 const WIDTH_STORAGE_KEY = "lambchat_desktop_sidebar_width";
 const DEFAULT_WIDTH = 264;
-const MIN_WIDTH = 232;
+const MIN_WIDTH = 264;
 const MAX_WIDTH_CAP = 480;
 const MAX_WIDTH_RATIO = 0.5;
 
@@ -72,6 +76,15 @@ function useDesktopShellShortcuts(
   useEffect(() => {
     if (!isDesktopShell()) return;
     const handleKeyDown = (e: KeyboardEvent) => {
+      if (
+        e.defaultPrevented ||
+        e.isComposing ||
+        e.altKey ||
+        e.shiftKey ||
+        isEditableEventTarget(e.target) ||
+        hasVisibleModalDialog()
+      )
+        return;
       const isMac = navigator.platform.toUpperCase().includes("MAC");
       const modifier = isMac ? e.metaKey : e.ctrlKey;
       if (modifier && (e.key === "b" || e.key === "B")) {
@@ -216,7 +229,7 @@ export function DesktopSidebarShell({
       )}
       <div
         data-desktop-sidebar={wide ? "" : undefined}
-        inert={wide && collapsed}
+        inert={navigationCollapsed}
         className={
           wide
             ? clsx(
@@ -250,6 +263,18 @@ export function DesktopSidebarShell({
                   <BrandWordmark decorative className="h-7 w-auto min-w-0" />
                 </Link>
                 <div className="ml-auto flex shrink-0 items-center">
+                  {!isDesktopShell() && (
+                    <button
+                      type="button"
+                      title={t("sidebar.collapseSidebar")}
+                      aria-label={t("sidebar.collapseSidebar")}
+                      aria-expanded={!collapsed}
+                      onClick={() => onToggleCollapsed(true)}
+                      className="flex size-8 items-center justify-center rounded-lg text-theme-text-secondary hover:bg-theme-bg-subtle focus-visible:outline focus-visible:outline-2"
+                    >
+                      <SidebarToggleIcon className="size-4" />
+                    </button>
+                  )}
                   <button
                     type="button"
                     title={t("nav.notifications")}

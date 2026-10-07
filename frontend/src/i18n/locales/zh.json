@@ -246,7 +246,8 @@
     "tempTag": "温度: {{value}}",
     "temperature": "温度",
     "title": "助手配置",
-    "valueAndLabelRequired": "值和标签为必填项"
+    "valueAndLabelRequired": "值和标签为必填项",
+    "modelApiBaseDefaultHint": "留空将使用官方端点 {{url}}"
   },
   "agentOptions": {
     "enableCodeInterpreter": {
@@ -295,6 +296,10 @@
     "fast": {
       "description": "无沙箱，响应更快，适合日常对话",
       "name": "快速助手"
+    },
+    "quick": {
+      "description": "日常问答、写作与翻译，专注直接回应。",
+      "name": "轻量助手"
     },
     "search": {
       "description": "支持代码解释器和沙箱，适合复杂任务",
@@ -445,7 +450,8 @@
     "verifyEmailSuccessTitle": "邮箱已验证",
     "verifyingEmail": "正在验证邮箱...",
     "welcomeBack": "欢迎回来！",
-    "whatToDoNext": "接下来该做什么？"
+    "whatToDoNext": "接下来该做什么？",
+    "requestNewResetLink": "重新获取重置链接"
   },
   "backendErrors": {
     "accountInactive": "账户未激活，请验证邮箱后登录",
@@ -697,7 +703,8 @@
     "daemonVersionUnsupported": "本地沙箱守护进程版本 {{version}} 低于最低要求 {{min}}，请升级",
     "sandboxMachineOffline": "所选沙箱机器「{{machine}}」当前离线",
     "sandboxMachineNotFound": "沙箱机器「{{machine}}」不存在或已移除",
-    "pluginNoEditPermission": "没有编辑插件 {{name}} 的权限"
+    "pluginNoEditPermission": "没有编辑插件 {{name}} 的权限",
+    "modelConfigIncomplete": "模型配置不完整：渠道 {{provider}} 缺少 {{field}}"
   },
   "categories": {
     "scheduled_task": "定时任务",
@@ -728,6 +735,7 @@
     "document_parse": "文档解析"
   },
   "channel": {
+    "statusUnavailable": "状态暂不可用",
     "addFirstInstance": "添加第一个实例",
     "addInstance": "添加实例",
     "agent": "助手",
@@ -750,7 +758,7 @@
     "disconnected": "未连接",
     "enabled": "启用渠道",
     "enabledDesc": "启用或禁用此渠道",
-    "fieldRequired": "此字段为必填项",
+    "fieldRequired": "请填写{{field.title}}",
     "instanceCount_one": "{{count}} 个实例",
     "instanceCount_other": "{{count}} 个实例",
     "instanceName": "实例名称",
@@ -760,7 +768,6 @@
     "loadTypesError": "加载可用渠道失败",
     "model": "模型",
     "modelHint": "选择此渠道使用的模型，将使用该模型配置的接口和密钥",
-    "moreOptions": "更多选项",
     "nameRequired": "实例名称为必填项",
     "newInstance": "新实例",
     "noChannels": "暂无可用渠道",
@@ -780,7 +787,386 @@
     "testSuccess": "连接成功",
     "title": "渠道管理",
     "webhookShort": "Hook",
-    "websocketShort": "WS"
+    "websocketShort": "WS",
+    "pushOnly": "单向推送",
+    "twoWayChat": "双向聊天",
+    "longPolling": "长轮询",
+    "weixin": {
+      "scanLogin": "扫码登录获取 Token",
+      "qrWaiting": "请用微信扫码确认",
+      "qrScanned": "已扫码，请在手机上确认",
+      "qrExpired": "二维码已过期，请重新获取",
+      "qrFailed": "扫码登录失败，请重试"
+    },
+    "catalog": {
+      "providers": {
+        "bark": {
+          "name": "Bark",
+          "description": "通过 Bark 应用向 iOS 设备推送通知",
+          "fields": {
+            "server": {
+              "placeholder": "https://api.day.app（自建服务请填写自己的地址）",
+              "title": "服务器地址"
+            },
+            "device_key": {
+              "placeholder": "从应用首页复制设备密钥",
+              "title": "设备密钥"
+            },
+            "group": {
+              "title": "通知分组"
+            }
+          },
+          "guide": {
+            "0": "从 App Store 安装 Bark 应用",
+            "1": "复制应用首页显示的设备密钥"
+          }
+        },
+        "dingtalk": {
+          "name": "钉钉",
+          "description": "通过钉钉 Stream 机器人对话，或通过群 Webhook 推送通知",
+          "fields": {
+            "secret": {
+              "placeholder": "以 SEC 开头，启用加签时必填",
+              "title": "加签密钥"
+            },
+            "webhook_url": {
+              "title": "Webhook 地址"
+            }
+          },
+          "guide": {
+            "0": "双向对话请创建 Stream 模式企业应用机器人，填写 Client ID、Client Secret 和 Corporation ID 后启用接收",
+            "1": "使用钉钉员工 ID 限制发送者。通知目标可填群会话 ID；私信使用 user:<staffId>",
+            "2": "仅通过 Webhook 推送时，打开目标钉钉群设置并选择「机器人」",
+            "3": "添加支持 Markdown 消息的自定义机器人",
+            "4": "将 Webhook 地址复制到上方配置",
+            "5": "若启用了加签安全设置，同时填写签名密钥"
+          }
+        },
+        "discord": {
+          "name": "Discord",
+          "description": "通过 Discord 机器人对话，或通过 Webhook 推送通知",
+          "guide": {
+            "0": "仅推送通知可使用频道 Webhook；接收消息请在 Discord 开发者门户创建机器人",
+            "1": "邀请机器人并授予查看频道、发送消息及读取消息历史权限；填写机器人令牌和允许的发送者 ID",
+            "2": "群聊默认仅响应提及。关闭此限制前，请先在开发者门户启用 Message Content Intent"
+          },
+          "fields": {
+            "webhook_url": {
+              "title": "Webhook 地址"
+            }
+          }
+        },
+        "gotify": {
+          "name": "Gotify",
+          "description": "向自建 Gotify 服务器推送通知",
+          "fields": {
+            "app_token": {
+              "placeholder": "在 Gotify 中创建应用后获取的令牌",
+              "title": "应用令牌"
+            },
+            "server": {
+              "title": "服务器地址"
+            },
+            "priority": {
+              "title": "优先级",
+              "options": {
+                "3": "低（3）",
+                "5": "默认（5）",
+                "8": "高（8）"
+              }
+            }
+          },
+          "guide": {
+            "0": "在 Gotify 服务器中创建应用并复制令牌",
+            "1": "在上方填写服务器地址和应用令牌"
+          }
+        },
+        "ntfy": {
+          "name": "ntfy",
+          "description": "向 ntfy 主题推送通知，支持自建服务或 ntfy.sh",
+          "fields": {
+            "server": {
+              "placeholder": "https://ntfy.sh（自建服务请填写自己的地址）",
+              "title": "服务器地址"
+            },
+            "topic": {
+              "placeholder": "填写私密主题名称",
+              "title": "主题"
+            },
+            "priority": {
+              "title": "优先级",
+              "options": {
+                "default": "默认",
+                "high": "高",
+                "urgent": "紧急"
+              }
+            }
+          },
+          "guide": {
+            "0": "选择唯一的主题名称并妥善保密，知道主题名的人都能读取消息",
+            "1": "在 ntfy 应用中订阅该主题",
+            "2": "使用自建服务时，填写自己的 ntfy 服务器地址"
+          }
+        },
+        "pushover": {
+          "name": "Pushover",
+          "description": "通过 Pushover 向设备推送通知",
+          "fields": {
+            "api_token": {
+              "placeholder": "在 pushover.net 创建应用后获取的令牌",
+              "title": "API 令牌"
+            },
+            "user_key": {
+              "placeholder": "Pushover 用户主页中的用户密钥",
+              "title": "用户密钥"
+            }
+          },
+          "guide": {
+            "0": "在 pushover.net 创建应用并复制 API 令牌",
+            "1": "从 Pushover 用户主页复制用户密钥"
+          }
+        },
+        "pushplus": {
+          "name": "PushPlus 推送加",
+          "description": "通过 PushPlus 推送加向微信推送通知",
+          "fields": {
+            "token": {
+              "placeholder": "pushplus.plus 用户中心中的令牌",
+              "title": "令牌"
+            },
+            "template": {
+              "title": "消息模板",
+              "options": {
+                "markdown": "Markdown",
+                "html": "HTML",
+                "txt": "纯文本"
+              }
+            }
+          },
+          "guide": {
+            "0": "使用微信登录 pushplus.plus 并复制令牌",
+            "1": "通过微信中的 PushPlus 推送加公众号接收消息"
+          }
+        },
+        "serverchan": {
+          "name": "Server酱",
+          "description": "通过 Server酱向微信推送通知",
+          "fields": {
+            "send_key": {
+              "placeholder": "以 SCT 开头，在 sct.ftqq.com 获取",
+              "title": "发送密钥（SendKey）"
+            }
+          },
+          "guide": {
+            "0": "使用微信登录 sct.ftqq.com 并复制 SendKey",
+            "1": "通过微信中的「方糖」服务号接收消息"
+          }
+        },
+        "slack": {
+          "name": "Slack",
+          "description": "通过 Slack Socket Mode 对话，或通过 Webhook 推送通知",
+          "guide": {
+            "0": "仅推送通知可使用传入 Webhook；与 Agent 对话请启用接收消息",
+            "1": "启用 Socket Mode，创建具有 connections:write 权限的应用令牌，并安装具有 chat:write、app_mentions:read 和 im:history 权限的机器人",
+            "2": "订阅 app_mention 和 message.im 事件，将机器人加入频道，并配置允许的发送者 ID"
+          },
+          "fields": {
+            "webhook_url": {
+              "title": "Webhook 地址"
+            }
+          }
+        },
+        "telegram": {
+          "name": "Telegram",
+          "description": "通过 Telegram 机器人与 Agent 对话并接收通知",
+          "fields": {
+            "bot_token": {
+              "placeholder": "123456:ABC-DEF...（从 @BotFather 获取）",
+              "title": "机器人令牌"
+            },
+            "default_chat_id": {
+              "placeholder": "先向机器人发送消息，再通过 getUpdates 获取",
+              "title": "默认会话 ID"
+            },
+            "parse_mode": {
+              "title": "解析模式",
+              "options": {
+                "plain": "纯文本",
+                "Markdown": "Markdown",
+                "HTML": "HTML"
+              }
+            }
+          },
+          "guide": {
+            "0": "通过 @BotFather 创建机器人并复制令牌",
+            "1": "启用接收消息，并指定允许的发送者或会话 ID。两个访问列表都为空时可使用默认会话 ID",
+            "2": "启用长轮询前，请移除已有 Webhook。LambChat 不会自动删除它",
+            "3": "私信机器人，或在允许的群聊中提及或回复它。发送 /new 开始新会话"
+          }
+        },
+        "wecom": {
+          "name": "企业微信机器人",
+          "description": "通过企业微信智能机器人对话，或通过群 Webhook 推送通知",
+          "guide": {
+            "0": "双向对话请创建 API 模式长连接智能机器人，填写 Bot ID 和 Bot Secret 后启用接收",
+            "1": "使用企业微信用户 ID 限制发送者。旧版群 Webhook 仅支持推送通知",
+            "2": "仅通过 Webhook 推送时，在目标企业微信群中添加群机器人",
+            "3": "将 Webhook 地址复制到上方配置"
+          },
+          "fields": {
+            "webhook_url": {
+              "title": "Webhook 地址"
+            }
+          }
+        },
+        "weixin": {
+          "name": "微信机器人",
+          "description": "通过官方 iLink 机器人接口，在微信中与智能体对话",
+          "fields": {
+            "bot_token": {
+              "placeholder": "点击「扫码登录」自动获取",
+              "title": "机器人令牌"
+            },
+            "default_chat_id": {
+              "placeholder": "出站推送的默认微信用户 ID，可从消息日志获取",
+              "title": "默认会话 ID"
+            },
+            "group_policy": {
+              "title": "群聊策略",
+              "options": {
+                "open": "响应群聊和私聊",
+                "off": "仅响应私聊"
+              }
+            }
+          },
+          "guide": {
+            "0": "点击「扫码登录」，在手机上确认",
+            "1": "扫码成功后会自动填入机器人令牌",
+            "2": "在微信中向机器人发送消息，即可开始对话"
+          }
+        },
+        "wechat": {
+          "name": "微信",
+          "description": "连接微信与智能体"
+        },
+        "feishu": {
+          "name": "飞书 / Lark",
+          "description": "连接飞书 / Lark 企业协作平台",
+          "guide": {
+            "0": "访问飞书开放平台 open.feishu.cn",
+            "1": "创建自建应用并获取 App ID 和 App Secret",
+            "2": "启用机器人能力并订阅消息事件",
+            "3": "使用 WebSocket 长连接，无需公网 IP"
+          }
+        },
+        "webhook": {
+          "name": "Webhook",
+          "description": "通过身份验证的 Webhook 将外部服务接入 Agent",
+          "guide": {
+            "0": "设置至少 16 个随机字符的密钥，并配置允许的发送者或会话 ID",
+            "1": "保存渠道并复制实例 ID，向 /api/channels/webhook/{instance_id}/callback 发送 POST 请求",
+            "2": "在 x-lambchat-bot-secret 请求头中填写保存的密钥。JSON 包含 sender_id、content、message_id，可选 chat_id",
+            "3": "重试时使用同一个稳定且唯一的 message_id。发送 /new 开始新会话",
+            "4": "可选填公网 HTTPS 回复地址。回复包含 chatId 和 text，使用相同的密钥请求头验证身份"
+          },
+          "fields": {
+            "webhook_url": {
+              "title": "回复地址",
+              "description": "可选，用于接收 Agent 回复的 HTTPS 地址。",
+              "placeholder": "https://example.com/replies"
+            },
+            "webhook_secret": {
+              "title": "Webhook 密钥",
+              "description": "入站请求和出站回复共用的身份验证密钥。",
+              "placeholder": "至少 16 个随机字符"
+            }
+          }
+        }
+      },
+      "commonFields": {
+        "receive_enabled": {
+          "title": "接收消息",
+          "description": "启用双向对话。启用前请配置允许的发送者 ID、会话 ID 或默认会话 ID。"
+        },
+        "allowed_sender_ids": {
+          "title": "允许的发送者 ID",
+          "description": "填写平台用户的固定 ID，而非显示名称。同时设置发送者和会话列表时，两项限制都必须满足。",
+          "placeholder": "多个用户 ID 用逗号分隔"
+        },
+        "allowed_chat_ids": {
+          "title": "允许的会话 ID",
+          "description": "限制哪些会话可以调用 Agent。两个列表都留空时使用默认会话 ID；默认会话也为空时无法启用接收。",
+          "placeholder": "多个会话 ID 用逗号分隔"
+        },
+        "bot_token": {
+          "title": "机器人令牌",
+          "description": "接收消息时必填；仅通过 Webhook 推送通知时无需填写。",
+          "placeholder": "从平台复制机器人令牌"
+        },
+        "app_token": {
+          "title": "应用令牌",
+          "description": "具有 connections:write 权限的 Slack 应用级令牌。",
+          "placeholder": "xapp-..."
+        },
+        "default_chat_id": {
+          "title": "默认会话 ID",
+          "description": "通知的默认发送目标。两个访问列表都为空时，也用于限定可接收消息的会话。",
+          "placeholder": "平台会话 ID"
+        },
+        "require_mention": {
+          "title": "群聊中仅响应提及",
+          "description": "仅在群聊中被提及时回复。关闭前请在 Discord 开发者门户启用 Message Content Intent。"
+        },
+        "client_id": {
+          "title": "客户端 ID",
+          "description": "钉钉企业应用机器人的 Client ID。"
+        },
+        "client_secret": {
+          "title": "客户端密钥",
+          "description": "钉钉企业应用机器人的 Client Secret。"
+        },
+        "corp_id": {
+          "title": "企业 ID",
+          "description": "应用所属钉钉组织的 Corporation ID。"
+        },
+        "bot_id": {
+          "title": "机器人 ID",
+          "description": "企业微信 API 模式智能机器人的 Bot ID。"
+        },
+        "bot_secret": {
+          "title": "机器人密钥",
+          "description": "企业微信智能机器人长连接使用的密钥。"
+        }
+      }
+    },
+    "runtime": {
+      "title": "运行配置",
+      "project": "项目",
+      "noProject": "不关联项目",
+      "unavailableProject": "已保存的项目不可用",
+      "projectWorkspace": "此项目绑定 {{machine}} 上的 {{path}}，运行环境由该本地工作目录确定。",
+      "sandbox": "运行环境",
+      "local": "本地电脑",
+      "cloud": "云端电脑",
+      "machine": "本地设备",
+      "offline": "离线",
+      "noMachines": "暂无可用设备。连接本地沙箱后可选择设备。",
+      "thinking": "思考强度",
+      "low": "低",
+      "medium": "中",
+      "high": "高",
+      "max": "最高",
+      "code": "代码解释器",
+      "language": "回复语言",
+      "inherit": "使用默认值",
+      "env": "沙箱环境变量",
+      "envHint": "每行填写 KEY=VALUE。保留 *** 表示沿用已保存的值，删除整行可移除该变量。变量仅用于此渠道的沙箱。",
+      "envInvalid": "请每行填写不重复的 KEY=VALUE；名称以字母或下划线开头，只能包含字母、数字和下划线，不允许 NUL 字符。",
+      "envTooLarge": "最多 50 个变量，每个值不超过 16000 字符，总计不超过 64000 字符。",
+      "applyHint": "保存后用于后续渠道运行；正在执行的任务保留当前配置。",
+      "reset": "重置运行配置",
+      "envProtected": "LAMBCHAT_WORKSPACE 和 LAMBCHAT_SHARED 由沙箱管理，不能覆盖。"
+    }
   },
   "chat": {
     "addMoreFiles": "添加更多文件",
@@ -858,6 +1244,8 @@
       "complete": "完成",
       "consoleOutput": "控制台输出",
       "copied": "已复制!",
+      "copyFailed": "复制失败，请重试。",
+      "copyArgument": "复制参数 {{name}}",
       "copy": "复制",
       "copyCode": "复制代码",
       "costDetail": "费用明细",
@@ -897,6 +1285,7 @@
       "removeBookmark": "移除书签",
       "result": "结果",
       "retryAnswer": "重新回答",
+      "runInterrupted": "回答已中断",
       "runStepsCount": "{{count}} 个步骤",
       "runStepsDetail": "查看完整详情",
       "runStepsStopped": "已停止",
@@ -1141,6 +1530,8 @@
   },
   "common": {
     "moreOptions": "更多操作",
+    "collapsePanel": "收起面板",
+    "expandPanel": "展开面板",
     "panelTabs": "侧栏标签",
     "closePanelTab": "关闭标签：{{title}}",
     "paginationSummary": "共 {{total}} 条 · 每页 {{pageSize}}",
@@ -1222,7 +1613,8 @@
     "timeWeeksAgo": "{{count}}周前",
     "toggleVisibility": "切换可见性",
     "user": "用户",
-    "you": "你"
+    "you": "你",
+    "retry": "重试"
   },
   "contactAdmin": {
     "emailActivationDesc": "您的邮箱尚未验证或验证链接已过期，请联系管理员获取帮助。",
@@ -1343,6 +1735,7 @@
     "unsupportedFileHint": "此文件类型暂不支持在线预览，请下载后查看。",
     "unsupportedFilePreview": "暂不支持预览此文件",
     "videoNotSupported": "您的浏览器不支持视频标签",
+    "videoLoadFailed": "无法播放此视频，请重试或下载后使用其他播放器打开。",
     "viewSource": "查看源代码",
     "wordConversionError": "Word 文档转换失败",
     "wordPreviewError": "Word 预览错误",
@@ -1427,7 +1820,7 @@
     "paginationInfo": "显示第 {{start}}-{{end}} 条，共 {{total}} 条",
     "positive": "好评",
     "positiveRate": "好评率",
-    "pressEnter": "⌘+Enter 发送",
+    "pressEnter": "按 Ctrl / ⌘ + Enter 提交",
     "skipAndSubmit": "跳过并提交",
     "submit": "提交",
     "submitFailed": "反馈提交失败",
@@ -1444,12 +1837,11 @@
     "appIdPlaceholder": "cli_xxxxxxxxxx",
     "appIdRequired": "App ID 是必填项",
     "appSecret": "App Secret",
-    "appSecretPlaceholder": "输入 App Secret",
     "appSecretRequired": "App Secret 是必填项",
     "autoTranscribeAudio": "语音转写",
     "autoTranscribeAudioDesc": "接收语音消息时作为附件传给 Agent，并提示转写",
+    "audioTranscribePrompt": "语音转写提示词",
     "behavior": "行为设置",
-    "configuration": "配置",
     "connected": "已连接",
     "credentials": "应用凭证",
     "currentCredential": "当前凭证",
@@ -1463,17 +1855,21 @@
     "description": "连接您的飞书机器人，接收和发送消息",
     "disconnected": "未连接",
     "emoji": {
+      "yes": "是的",
+      "checkMark": "确认",
+      "get": "收到",
+      "onIt": "处理中",
+      "oneSecond": "稍等",
+      "lgtm": "看起来不错",
+      "meMeMe": "我来",
+      "thanks": "感谢",
+      "salute": "致敬",
+      "praise": "赞扬",
       "clap": "鼓掌",
       "done": "完成",
-      "eyes": "眼睛",
       "fire": "火焰",
-      "heart": "爱心",
       "muscle": "肌肉",
       "ok": "OK",
-      "party": "派对",
-      "rocket": "火箭",
-      "star": "星星",
-      "thinking": "思考",
       "thumbsUp": "点赞"
     },
     "enabled": "启用飞书机器人",
@@ -1521,7 +1917,12 @@
     "title": "飞书渠道",
     "verificationToken": "验证令牌",
     "waitingForQr": "正在准备二维码",
-    "waitingForScan": "等待扫码"
+    "waitingForScan": "等待扫码",
+    "platform": "服务区域",
+    "platformFeishu": "飞书（中国）",
+    "platformLark": "Lark（国际）",
+    "larkManualHint": "在 Lark 开发者后台创建应用并填写凭据。扫码注册仅适用于飞书。",
+    "larkStep1": "前往 Lark 开发者后台（open.larksuite.com）"
   },
   "fileLibrary": {
     "action": {
@@ -1656,6 +2057,7 @@
     "resources": "资源"
   },
   "imageViewer": {
+    "loadFailed": "图片加载失败",
     "download": "下载",
     "fullscreen": "全屏",
     "hint": "滚轮/双指缩放 · 拖拽/滑动移动 · ESC 关闭",
@@ -2212,6 +2614,7 @@
     "viewSource": "查看原文"
   },
   "profile": {
+    "preferenceSyncFailed": "已在此设备应用，云端同步失败",
     "appearance": "外观",
     "avatar": "头像",
     "avatarDeleted": "头像已删除",
@@ -2293,7 +2696,7 @@
       "restartDaemon": "重启 daemon",
       "needDesktop": "本地沙箱当前离线：用 LambChat 桌面端配对连接后，即可在网页端选用本地沙箱。",
       "webManaged": "由已配对的桌面端管理",
-      "pairFailed": "配对失败，请检查账号密码后重试",
+      "pairFailed": "配对失败，请重试。",
       "unpair": "取消配对",
       "unpaired": "已取消配对",
       "machines": "我的机器",
@@ -2319,7 +2722,8 @@
         "days": "{{days}} 天前在线"
       },
       "forgetMachine": "忘记这台机器",
-      "forgetMachineConfirm": "确定忘记「{{name}}」？将清除它的名称与默认机设置。"
+      "forgetMachineConfirm": "确定忘记「{{name}}」？将清除它的名称与默认机设置。",
+      "pairSavedRestartPending": "配对信息已保存，重启服务后即可完成。"
     },
     "maxPinnedModels": "最多置顶 {{max}} 个模型",
     "memoryToggle": "跨会话记忆",
@@ -3344,6 +3748,7 @@
         "contentRequired": "请输入内容",
         "descriptionRequired": "请输入描述",
         "duplicateFilePaths": "文件路径不能重复",
+        "filePathRequired": "请输入每个文件的路径",
         "nameInvalid": "名称只能包含字母、数字、下划线、连字符、点和中文",
         "nameRequired": "请输入技能名称",
         "nameTooLong": "名称不能超过100个字符",
@@ -3414,7 +3819,8 @@
     "uploadZip": "ZIP 上传",
     "uploadZipTitle": "上传技能 ZIP",
     "uploading": "上传中...",
-    "userSkillVisible": "用户技能（仅对自己可见）"
+    "userSkillVisible": "用户技能（仅对自己可见）",
+    "githubBranch": "分支"
   },
   "skillsHub": {
     "subtitle": "管理本地技能并浏览技能商店",
@@ -3816,7 +4222,7 @@
   },
   "bookmarks": {
     "empty": "还没有书签",
-    "emptyHint": "把鼠标悬停在任意消息上，点书签图标即可收藏大纲、总结等重要内容",
+    "emptyHint": "点击消息下方的书签图标，即可收藏大纲、总结等重要内容",
     "loadFailed": "书签加载失败",
     "loading": "正在加载书签…",
     "refresh": "刷新",
@@ -3831,6 +4237,7 @@
     "messageMissing": "书签指向的消息不在历史中，可能已被删除"
   },
   "update": {
+    "checking": "正在检查更新…",
     "aboutTitle": "关于",
     "checkNow": "检查更新",
     "notificationBody": "新版本 {{version}} 已发布，可在设置中检查更新",
@@ -3838,11 +4245,19 @@
     "upToDate": "已是最新版本",
     "installPermissionHint": "请先允许 LambChat 安装未知应用，授权后重新点击升级",
     "updateRelaunchInstall": "重启并安装",
+    "installNow": "安装",
+    "currentVersionLabel": "当前",
+    "apkReady": "安装包已下载完成，点击安装不会重复下载",
     "availableTitle": "发现新版本",
     "skipVersion": "跳过此版本",
     "viewFullNotes": "查看完整更新日志",
     "foundToast": "发现新版本 v{{version}}",
-    "notificationBodyDesktop": "新版本 {{version}} 已开始后台下载，完成后可在标题栏一键重启安装"
+    "notificationBodyDesktop": "新版本 {{version}} 已开始后台下载，完成后可在标题栏一键重启安装",
+    "readyTitle": "更新已下载",
+    "readyHint": "重启后即可使用新版本。",
+    "notesUnavailable": "此版本尚未提供详细更新说明，可查看完整更新日志。",
+    "readyToast": "v{{version}} 已下载，可重启安装",
+    "downloadingToast": "正在下载 v{{version}}，完成后即可安装"
   },
   "download": {
     "title": "下载本地沙箱",

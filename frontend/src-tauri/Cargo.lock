@@ -1940,10 +1940,14 @@ dependencies = [
 
 [[package]]
 name = "lambchat"
-version = "2.13.0"
+version = "2.14.2"
 dependencies = [
+ "block2",
  "command-group",
  "libc",
+ "objc2",
+ "objc2-app-kit",
+ "objc2-foundation",
  "reqwest",
  "rustls",
  "serde",

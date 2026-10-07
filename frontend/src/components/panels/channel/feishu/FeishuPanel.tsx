@@ -1,14 +1,17 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import QRCode from "qrcode";
+import { ChannelIcon } from "../ChannelIcon";
 import { BackIcon } from "../../../common/BackIcon";
-import { BotMessageSquare, Save, Trash2 } from "lucide-react";
+import { Save, Trash2 } from "lucide-react";
 import toast from "react-hot-toast";
 import { useTranslation } from "react-i18next";
 import { useAuth } from "../../../../hooks/useAuth";
 import { Permission } from "../../../../types";
 import { PanelHeader } from "../../../common/PanelHeader";
-import { LoadingSpinner } from "../../../common/LoadingSpinner";
+import { Button, PanelFooterActions } from "../../../common";
+import { ConfigPanelErrorCallout } from "../../ConfigPanelErrorCallout";
+import { EmptyState } from "../../../common/EmptyState";
 import { ChannelConfigSkeleton } from "../../../skeletons";
 import { EditorSidebar } from "../../../common/EditorSidebar";
 import { channelApi } from "../../../../services/api/channel";
@@ -17,6 +20,9 @@ import {
   PREDEFINED_EMOJIS,
 } from "./constants";
 import { FeishuPanelForm } from "./FeishuPanelForm";
+import { ChannelRunConfigFields } from "../ChannelRunConfigFields";
+import { defaultChannelRuntime, formatChannelEnv, parseChannelEnv } from "../channelRuntimeConfig";
+import type { ChannelRuntimeConfig } from "../../../../types/channel";
 import type {
   FeishuConfigResponse,
   FeishuConfigStatus,
@@ -38,15 +44,22 @@ export function FeishuPanel({
   const canDelete = hasPermission(Permission.CHANNEL_DELETE);
 
   // State
-  const [, setConfig] = useState<FeishuConfigResponse | null>(null);
+  const [config, setConfig] = useState<FeishuConfigResponse | null>(null);
   const [status, setStatus] = useState<FeishuConfigStatus | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
+  const [loadError, setLoadError] = useState(false);
+  const loadGeneration = useRef(0);
+  const pageRef = useRef<HTMLDivElement>(null);
+  const [statusRefreshError, setStatusRefreshError] = useState(false);
+  const [isRefreshingStatus, setIsRefreshingStatus] = useState(false);
   const [isTesting, setIsTesting] = useState(false);
 
   // Form state
   const [instanceName, setInstanceName] = useState("");
   const [enabled, setEnabled] = useState(false);
+  const [platform, setPlatform] = useState<"feishu" | "lark">("feishu");
   const [appId, setAppId] = useState("");
   const [appSecret, setAppSecret] = useState("");
   const [encryptKey, setEncryptKey] = useState("");
@@ -62,6 +75,9 @@ export function FeishuPanel({
   );
   const [agentId, setAgentId] = useState<string | null>(null);
   const [modelId, setModelId] = useState<string | null>(null);
+  const [projectId, setProjectId] = useState<string | null>(null);
+  const [runtimeConfig, setRuntimeConfig] = useState<ChannelRuntimeConfig>(defaultChannelRuntime);
+  const [envText, setEnvText] = useState("");
   const [teamId, setTeamId] = useState<string | null>(null);
   const [personaPresetId, setPersonaPresetId] = useState<string | null>(null);
   const [registrationSessionId, setRegistrationSessionId] = useState<
@@ -84,30 +100,34 @@ export function FeishuPanel({
 
   // Load config - use external data if provided, otherwise fetch from API
   useEffect(() => {
-    if (externalIsLoading) {
-      return;
+    const generationRef = loadGeneration;
+    generationRef.current++;
+    if (!externalIsLoading) {
+      if (initialConfig || initialStatus) {
+        initializeFromExternalData();
+      } else {
+        void loadConfig();
+      }
     }
-
-    // Use external data if available
-    if (initialConfig || initialStatus) {
-      initializeFromExternalData();
-      return;
-    }
-
-    // Otherwise fetch from API
-    loadConfig();
+    return () => {
+      generationRef.current++;
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [externalIsLoading, initialConfig, initialStatus]);
+  }, [instanceId, externalIsLoading, initialConfig, initialStatus]);
 
   const initializeFromExternalData = () => {
+    setLoadError(false);
+    setSaveError(null);
+    setStatusRefreshError(false);
+    setIsRefreshingStatus(false);
     if (initialConfig) {
       const feishuConfig = initialConfig.config as unknown as
-        | FeishuConfigResponse
-        | undefined;
+        FeishuConfigResponse | undefined;
       setConfig(feishuConfig ?? null);
       setHasExistingConfig(true);
       setInstanceName(initialConfig.name || "");
       setEnabled(initialConfig.enabled);
+      setPlatform(feishuConfig?.platform || "feishu");
       setAppId(feishuConfig?.app_id || "");
       setEncryptKey(feishuConfig?.encrypt_key || "");
       setVerificationToken(feishuConfig?.verification_token || "");
@@ -122,6 +142,9 @@ export function FeishuPanel({
       const initialAgentId = initialConfig.agent_id || null;
       setAgentId(initialAgentId);
       setModelId(initialConfig.model_id || null);
+      setProjectId(initialConfig.project_id || null);
+      setRuntimeConfig(initialConfig.runtime_config || defaultChannelRuntime());
+      setEnvText(formatChannelEnv(initialConfig.runtime_config?.env_vars));
       setTeamId(
         initialAgentId === "team" ? initialConfig.team_id || null : null,
       );
@@ -147,6 +170,7 @@ export function FeishuPanel({
       setHasExistingConfig(false);
       setInstanceName("");
       setEnabled(false);
+      setPlatform("feishu");
       setAppId("");
       setAppSecret("");
       setEncryptKey("");
@@ -161,6 +185,9 @@ export function FeishuPanel({
       setCredentialMode("scan");
       setAgentId(null);
       setModelId(null);
+      setProjectId(null);
+      setRuntimeConfig(defaultChannelRuntime());
+      setEnvText("");
       setTeamId(null);
       setPersonaPresetId(null);
     }
@@ -172,13 +199,19 @@ export function FeishuPanel({
   };
 
   const loadConfig = async () => {
+    const generation = ++loadGeneration.current;
     setIsLoading(true);
+    setLoadError(false);
+    setSaveError(null);
+    setStatusRefreshError(false);
+    setIsRefreshingStatus(false);
     try {
       // For new instances, just set defaults without calling API
       if (instanceId === "new") {
         setHasExistingConfig(false);
         setEnabled(false);
         setInstanceName("");
+        setPlatform("feishu");
         setAppId("");
         setAppSecret("");
         setEncryptKey("");
@@ -194,6 +227,9 @@ export function FeishuPanel({
         setStatus(null);
         setAgentId(null);
         setModelId(null);
+        setProjectId(null);
+        setRuntimeConfig(defaultChannelRuntime());
+        setEnvText("");
         setTeamId(null);
         setPersonaPresetId(null);
         setIsLoading(false);
@@ -204,6 +240,7 @@ export function FeishuPanel({
         channelApi.get("feishu", instanceId!),
         channelApi.getStatus("feishu", instanceId!),
       ]);
+      if (generation !== loadGeneration.current) return;
 
       if (configResponse) {
         const feishuConfig = configResponse.config as FeishuConfigResponse;
@@ -211,6 +248,7 @@ export function FeishuPanel({
         setHasExistingConfig(true);
         setInstanceName(configResponse.name || "");
         setEnabled(configResponse.enabled);
+        setPlatform(feishuConfig.platform || "feishu");
         setAppId(feishuConfig.app_id || "");
         setEncryptKey(feishuConfig.encrypt_key || "");
         setVerificationToken(feishuConfig.verification_token || "");
@@ -225,6 +263,9 @@ export function FeishuPanel({
         const loadedAgentId = configResponse.agent_id || null;
         setAgentId(loadedAgentId);
         setModelId(configResponse.model_id || null);
+        setProjectId(configResponse.project_id || null);
+        setRuntimeConfig(configResponse.runtime_config || defaultChannelRuntime());
+        setEnvText(formatChannelEnv(configResponse.runtime_config?.env_vars));
         setTeamId(
           loadedAgentId === "team" ? configResponse.team_id || null : null,
         );
@@ -251,6 +292,7 @@ export function FeishuPanel({
         setHasExistingConfig(false);
         setInstanceName("");
         setEnabled(false);
+        setPlatform("feishu");
         setAppId("");
         setAppSecret("");
         setEncryptKey("");
@@ -265,6 +307,9 @@ export function FeishuPanel({
         setCredentialMode("scan");
         setAgentId(null);
         setModelId(null);
+        setProjectId(null);
+        setRuntimeConfig(defaultChannelRuntime());
+        setEnvText("");
         setTeamId(null);
         setPersonaPresetId(null);
       }
@@ -272,9 +317,9 @@ export function FeishuPanel({
       setStatus(statusResponse);
     } catch (error) {
       console.error("Failed to load Feishu config:", error);
-      toast.error(t("feishu.loadError", "Failed to load Feishu configuration"));
+      if (generation === loadGeneration.current) setLoadError(true);
     } finally {
-      setIsLoading(false);
+      if (generation === loadGeneration.current) setIsLoading(false);
     }
   };
 
@@ -304,11 +349,14 @@ export function FeishuPanel({
     }
 
     let completed = false;
+    let stopped = false;
     const interval = window.setInterval(async () => {
+      if (completed || stopped) return;
       try {
         const result = await channelApi.getFeishuRegistration(
           registrationSessionId,
         );
+        if (completed || stopped) return;
         setRegistrationStatus(result.status);
         setRegistrationQrUrl(result.qr_url || null);
 
@@ -325,19 +373,22 @@ export function FeishuPanel({
           completed = true;
           setIsRegistering(false);
           setRegistrationSessionId(null);
-          toast.error(
+          setSaveError(
             result.error ||
               t("feishu.registrationFailed", "Feishu registration failed"),
           );
         }
       } catch (error) {
+        if (completed || stopped) return;
         console.error("Failed to poll Feishu registration:", error);
         setIsRegistering(false);
         setRegistrationSessionId(null);
+        setSaveError(t("feishu.registrationFailed"));
       }
     }, 2000);
 
     return () => {
+      stopped = true;
       window.clearInterval(interval);
       if (!completed) {
         void channelApi
@@ -383,6 +434,8 @@ export function FeishuPanel({
   }, [registrationQrUrl]);
 
   const handleStartRegistration = async () => {
+    if (platform !== "feishu") return;
+    setSaveError(null);
     setCredentialMode("scan");
     setIsRegistering(true);
     setRegistrationQrUrl(null);
@@ -396,31 +449,37 @@ export function FeishuPanel({
     } catch (error) {
       console.error("Failed to start Feishu registration:", error);
       setIsRegistering(false);
-      toast.error(t("feishu.registrationFailed", "Feishu registration failed"));
+      setSaveError(
+        t("feishu.registrationFailed", "Feishu registration failed"),
+      );
     }
   };
 
   const handleSave = async () => {
+    setSaveError(null);
     // Validate instance name for new instances
     if (!hasExistingConfig && !instanceName.trim()) {
-      toast.error(
+      setSaveError(
         t("feishu.instanceNameRequired", "Instance name is required"),
       );
       return;
     }
 
     if (!appId.trim()) {
-      toast.error(t("feishu.appIdRequired", "App ID is required"));
+      setSaveError(t("feishu.appIdRequired", "App ID is required"));
       return;
     }
 
-    if (!hasExistingConfig && !appSecret.trim()) {
-      toast.error(t("feishu.appSecretRequired", "App Secret is required"));
+    if (
+      (!hasExistingConfig || platform !== (config?.platform || "feishu")) &&
+      !appSecret.trim()
+    ) {
+      setSaveError(t("feishu.appSecretRequired", "App Secret is required"));
       return;
     }
 
     if (useCustomEmoji && !customEmoji.trim()) {
-      toast.error(
+      setSaveError(
         t(
           "feishu.customEmojiRequired",
           "Custom emoji is required when selected",
@@ -429,6 +488,13 @@ export function FeishuPanel({
       return;
     }
 
+    let runtimeData: ChannelRuntimeConfig;
+    try {
+      runtimeData = { ...defaultChannelRuntime(), ...runtimeConfig, env_vars: parseChannelEnv(envText) };
+    } catch (error) {
+      setSaveError(t(error instanceof Error ? error.message : "channel.runtime.envInvalid"));
+      return;
+    }
     setIsSaving(true);
     try {
       const emojiValue = getEmojiValue();
@@ -438,6 +504,7 @@ export function FeishuPanel({
 
       if (hasExistingConfig) {
         const updateData: Record<string, unknown> = {
+          platform,
           app_id: appId,
           react_emoji: emojiValue,
           group_policy: groupPolicy,
@@ -462,9 +529,13 @@ export function FeishuPanel({
           enabled,
           agent_id: agentId,
           model_id: modelId,
+          project_id: projectId,
+          runtime_config: runtimeData,
           team_id: channelTeamId,
           persona_preset_id: channelPersonaPresetId,
         });
+        setRuntimeConfig(updated.runtime_config || defaultChannelRuntime());
+        setEnvText(formatChannelEnv(updated.runtime_config?.env_vars));
         const feishuConfig = updated.config as FeishuConfigResponse;
         setConfig(feishuConfig);
         setHasExistingConfig(true);
@@ -474,6 +545,7 @@ export function FeishuPanel({
           channel_type: "feishu",
           name: instanceName.trim(),
           config: {
+            platform,
             app_id: appId,
             app_secret: appSecret,
             encrypt_key: encryptKey || undefined,
@@ -486,9 +558,13 @@ export function FeishuPanel({
           },
           agent_id: agentId,
           model_id: modelId,
+          project_id: projectId,
+          runtime_config: runtimeData,
           team_id: channelTeamId,
           persona_preset_id: channelPersonaPresetId,
         });
+        setRuntimeConfig(created.runtime_config || defaultChannelRuntime());
+        setEnvText(formatChannelEnv(created.runtime_config?.env_vars));
         const feishuConfig = created.config as FeishuConfigResponse;
         setConfig(feishuConfig);
         setHasExistingConfig(true);
@@ -501,8 +577,7 @@ export function FeishuPanel({
 
       // Only fetch status for existing instances
       if (hasExistingConfig) {
-        const newStatus = await channelApi.getStatus("feishu", instanceId);
-        setStatus(newStatus);
+        await refreshStatus();
       }
     } catch (error) {
       console.error("Failed to save Feishu config:", error);
@@ -510,9 +585,24 @@ export function FeishuPanel({
         error instanceof Error
           ? error.message
           : t("feishu.saveError", "Failed to save Feishu configuration");
-      toast.error(errorMessage);
+      setSaveError(errorMessage);
     } finally {
       setIsSaving(false);
+    }
+  };
+
+  const refreshStatus = async () => {
+    const generation = loadGeneration.current;
+    setIsRefreshingStatus(true);
+    try {
+      const nextStatus = await channelApi.getStatus("feishu", instanceId);
+      if (generation !== loadGeneration.current) return;
+      setStatus(nextStatus);
+      setStatusRefreshError(false);
+    } catch {
+      if (generation === loadGeneration.current) setStatusRefreshError(true);
+    } finally {
+      if (generation === loadGeneration.current) setIsRefreshingStatus(false);
     }
   };
 
@@ -533,6 +623,7 @@ export function FeishuPanel({
       setConfig(null);
       setHasExistingConfig(false);
       setEnabled(false);
+      setPlatform("feishu");
       setAppId("");
       setAppSecret("");
       setEncryptKey("");
@@ -547,6 +638,9 @@ export function FeishuPanel({
       setCredentialMode("scan");
       setAgentId(null);
       setModelId(null);
+      setProjectId(null);
+      setRuntimeConfig(defaultChannelRuntime());
+      setEnvText("");
       setTeamId(null);
       setPersonaPresetId(null);
       setStatus(null);
@@ -562,6 +656,7 @@ export function FeishuPanel({
 
   const handleTest = async () => {
     setIsTesting(true);
+    setSaveError(null);
     try {
       const result = await channelApi.test("feishu", instanceId);
       if (result.success) {
@@ -569,31 +664,63 @@ export function FeishuPanel({
           result.message || t("feishu.testSuccess", "Connection successful"),
         );
       } else {
-        toast.error(
+        setSaveError(
           result.message || t("feishu.testFailed", "Connection failed"),
         );
       }
     } catch (error) {
       console.error("Failed to test Feishu connection:", error);
-      toast.error(t("feishu.testError", "Failed to test connection"));
+      setSaveError(t("feishu.testError", "Failed to test connection"));
     } finally {
       setIsTesting(false);
     }
   };
 
-  if (isLoading) {
-    return <ChannelConfigSkeleton />;
-  }
-
-  const formContent = (
+  const formContent = isLoading ? (
+    <ChannelConfigSkeleton />
+  ) : loadError ? (
+    <div role="alert" className="flex min-h-full items-center justify-center">
+      <EmptyState
+        illustration="panel-channels"
+        title={t("feishu.loadError")}
+        action={
+          <Button
+            onClick={(event) => {
+              (
+                event.currentTarget.closest<HTMLElement>(
+                  "[data-right-panel-root]",
+                ) ?? pageRef.current
+              )?.focus();
+              void loadConfig();
+            }}
+          >
+            {t("common.retry")}
+          </Button>
+        }
+      />
+    </div>
+  ) : (
     <FeishuPanelForm
       t={t}
+      runConfiguration={<ChannelRunConfigFields value={runtimeConfig} onChange={setRuntimeConfig}
+        projectId={projectId} onProjectChange={setProjectId} envText={envText}
+        onEnvTextChange={setEnvText} disabled={isSaving || !canWrite} />}
       hasExistingConfig={hasExistingConfig}
       status={status}
       enabled={enabled}
       isTesting={isTesting}
+      isSaving={isSaving}
       canWrite={canWrite}
       instanceName={instanceName}
+      platform={platform}
+      secretRequired={
+        !hasExistingConfig || platform !== (config?.platform || "feishu")
+      }
+      setPlatform={(value) => {
+        setPlatform(value);
+        setCredentialMode("manual");
+        setAppSecret("");
+      }}
       appId={appId}
       appSecret={appSecret}
       encryptKey={encryptKey}
@@ -638,33 +765,63 @@ export function FeishuPanel({
   );
 
   // Action buttons
-  const actionButtons = (
-    <div className="flex flex-col gap-2 pt-2 sm:flex-row sm:items-center sm:justify-between">
-      {canDelete && (
-        <button
-          onClick={handleDelete}
-          disabled={!hasExistingConfig}
-          className="btn-danger"
-        >
-          <Trash2 size={16} />
-          {t("common.delete")}
-        </button>
+  const actionButtons = !isLoading && !loadError && (
+    <>
+      {statusRefreshError && (
+        <div className="flex items-start gap-2">
+          <ConfigPanelErrorCallout
+            message={t("common.loadFailed")}
+            className="min-w-0 flex-1"
+          />
+          <Button
+            onClick={(event) => {
+              (
+                event.currentTarget.closest<HTMLElement>(
+                  "[data-right-panel-root]",
+                ) ?? pageRef.current
+              )?.focus();
+              void refreshStatus();
+            }}
+            loading={isRefreshingStatus}
+          >
+            {t("common.retry")}
+          </Button>
+        </div>
       )}
-      {canWrite && (
-        <button
-          onClick={handleSave}
-          disabled={isSaving || !appId.trim()}
-          className="btn-primary"
-        >
-          {isSaving ? (
-            <LoadingSpinner size="sm" color="text-white" />
-          ) : (
-            <Save size={16} />
-          )}
-          {t("common.save")}
-        </button>
+      {saveError && (
+        <ConfigPanelErrorCallout
+          message={saveError}
+          tabIndex={0}
+          className="max-h-32 overflow-y-auto"
+        />
       )}
-    </div>
+      <PanelFooterActions
+        align={canDelete ? "between" : "end"}
+        className="pt-2"
+      >
+        {canDelete && (
+          <Button
+            variant="danger"
+            onClick={handleDelete}
+            disabled={!hasExistingConfig}
+            leftIcon={<Trash2 size={16} />}
+          >
+            {t("common.delete")}
+          </Button>
+        )}
+        {canWrite && (
+          <Button
+            variant="primary"
+            onClick={handleSave}
+            disabled={!appId.trim()}
+            loading={isSaving}
+            leftIcon={<Save size={16} />}
+          >
+            {t("common.save")}
+          </Button>
+        )}
+      </PanelFooterActions>
+    </>
   );
 
   // Sidebar mode: render inside EditorSidebar
@@ -674,17 +831,12 @@ export function FeishuPanel({
         open={true}
         onClose={onClose}
         title={
-          hasExistingConfig
-            ? instanceName || t("feishu.title", "Feishu/Lark Channel")
-            : t("feishu.newInstance", "New Feishu Instance")
+          instanceId === "new"
+            ? t("feishu.newInstance", "New Feishu Instance")
+            : instanceName || t("feishu.title", "Feishu/Lark Channel")
         }
         subtitle={t("feishu.description")}
-        icon={
-          <BotMessageSquare
-            size={20}
-            className="text-[#3370ff] dark:text-[#7aa2ff]"
-          />
-        }
+        icon={<ChannelIcon channelType="feishu" />}
         footer={actionButtons}
       >
         {formContent}
@@ -694,7 +846,11 @@ export function FeishuPanel({
 
   // Full-page mode (backward compatible)
   return (
-    <div className="glass-shell flex h-full flex-col min-h-0">
+    <div
+      ref={pageRef}
+      tabIndex={-1}
+      className="glass-shell flex h-full flex-col min-h-0"
+    >
       <PanelHeader
         title={t("feishu.title", "Feishu/Lark Channel")}
         subtitle={t("feishu.description")}

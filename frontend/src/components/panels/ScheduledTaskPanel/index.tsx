@@ -18,7 +18,7 @@ import {
   Trash2,
 } from "lucide-react";
 import { PanelHeader } from "../../common/PanelHeader";
-import { PanelHeaderActions } from "../../common";
+import { EmptyState, PanelHeaderActions } from "../../common";
 import { Button } from "../../common/ui/Button";
 import { ScheduledTaskPanelSkeleton } from "../../skeletons";
 import { Pagination } from "../../common/Pagination";
@@ -79,6 +79,7 @@ export function ScheduledTaskPanel({
   const [searchQuery, setSearchQuery] = useState("");
   const [tasks, setTasks] = useState<ScheduledTask[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [loadError, setLoadError] = useState(false);
   const [hasLoaded, setHasLoaded] = useState(false);
   const requestIdRef = useRef(0);
   const [total, setTotal] = useState(0);
@@ -164,6 +165,7 @@ export function ScheduledTaskPanel({
   const fetchTasks = useCallback(async () => {
     const requestId = ++requestIdRef.current;
     setIsLoading(true);
+    setLoadError(false);
     try {
       const response = await scheduledTaskApi.list(skip, limit, statusFilter, {
         search: searchQuery,
@@ -171,18 +173,16 @@ export function ScheduledTaskPanel({
       if (requestId !== requestIdRef.current) return;
       setTasks(response.items);
       setTotal(response.total);
-    } catch (error) {
+    } catch {
       if (requestId !== requestIdRef.current) return;
-      const message =
-        error instanceof Error ? error.message : t("common.loadFailed");
-      toast.error(message);
+      setLoadError(true);
     } finally {
       if (requestId === requestIdRef.current) {
         setIsLoading(false);
         setHasLoaded(true);
       }
     }
-  }, [skip, limit, statusFilter, searchQuery, t]);
+  }, [skip, limit, statusFilter, searchQuery]);
 
   useEffect(() => {
     fetchTasks();
@@ -426,26 +426,31 @@ export function ScheduledTaskPanel({
 
           {/* Task List */}
           <div className="panel-body flex-1 overflow-y-auto">
-            {tasks.length === 0 ? (
-              <div className="scheduled-task-empty-state">
-                <div className="scheduled-task-empty-state__icon">
-                  <Clock size={32} />
-                </div>
-                <p className="scheduled-task-empty-state__title font-serif">
-                  {t(
-                    searchQuery.trim()
-                      ? "scheduledTask.noResults"
-                      : "scheduledTask.noTasks",
-                  )}
-                </p>
-                <p className="scheduled-task-empty-state__body">
-                  {t(
-                    searchQuery.trim()
-                      ? "scheduledTask.noResultsDesc"
-                      : "scheduledTask.noTasksDesc",
-                  )}
-                </p>
+            {loadError && (
+              <div
+                role="alert"
+                className="p-4 text-center text-theme-text-secondary"
+              >
+                <p>{t("common.loadFailed")}</p>
+                <Button className="mt-3" onClick={fetchTasks}>
+                  {t("common.refresh")}
+                </Button>
               </div>
+            )}
+            {!loadError && tasks.length === 0 ? (
+              <EmptyState
+                icon={<Clock size={20} />}
+                title={t(
+                  searchQuery.trim()
+                    ? "scheduledTask.noResults"
+                    : "scheduledTask.noTasks",
+                )}
+                description={t(
+                  searchQuery.trim()
+                    ? "scheduledTask.noResultsDesc"
+                    : "scheduledTask.noTasksDesc",
+                )}
+              />
             ) : (
               <div className="grid auto-grid-cols gap-3">
                 {tasks.map((task) => {

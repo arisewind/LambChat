@@ -40,10 +40,10 @@ describe("focused AIcss-inspired component upgrade", () => {
 
   test("uses a quiet framed header for Markdown code blocks", () => {
     expect(markdownSource).toContain("ai-code-block");
-    expect(markdownSource).toContain("ai-code-block__header");
-    expect(markdownSource).toContain("ai-code-block__copy");
+    expect(markdownSource).toContain("toolbarLabel={");
+    expect(markdownSource).toContain('copyLabel={t("chat.message.copyCode")}');
     expect(markdownCss).toContain(".ai-code-block");
-    expect(markdownCss).toContain(".ai-code-block__header");
+    expect(markdownCss).toContain(".ai-code-block .code-editor-toolbar");
   });
 
   test("shows a single lightweight caret only while Markdown is streaming", () => {
@@ -67,6 +67,12 @@ describe("focused AIcss-inspired component upgrade", () => {
     expect(markdownSource).toContain("handleExport");
     expect(markdownCss).toContain(".ai-data-table__head");
     expect(markdownCss).toContain(".ai-data-table__row");
+  });
+
+  test("keeps table toolbar labels on one horizontal line", () => {
+    expect(markdownCss).toMatch(
+      /\.ai-data-table__title,\s*\.ai-data-table__action\s*\{[^}]*line-height:\s*1rem;[^}]*white-space:\s*nowrap;/,
+    );
   });
 
   test("renders comparison values with accessible icon states", () => {

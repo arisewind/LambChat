@@ -52,6 +52,38 @@ test("renders nothing while no update is available", () => {
   expect(container).toBeEmptyDOMElement();
 });
 
+test("opening by keyboard focuses the popover and Escape returns to its trigger", () => {
+  renderIndicator(makeState());
+  const trigger = screen.getByRole("button", { name: /发现新版本/ });
+  trigger.focus();
+  fireEvent.click(trigger);
+  const dialog = screen.getByRole("dialog");
+  expect(dialog.contains(document.activeElement)).toBe(true);
+  fireEvent.keyDown(document.activeElement!, { key: "Escape" });
+  expect(screen.queryByRole("dialog")).toBeNull();
+  expect(trigger).toHaveFocus();
+});
+
+test("an update becoming unavailable closes its old popover", () => {
+  const { rerender } = renderIndicator(makeState());
+  fireEvent.click(screen.getByRole("button", { name: /发现新版本/ }));
+  rerender(
+    <UpdateTitlebarIndicator
+      state={makeState({ available: false })}
+      onInstall={() => {}}
+      onSkipVersion={() => {}}
+    />,
+  );
+  rerender(
+    <UpdateTitlebarIndicator
+      state={makeState({ version: "100.0.0" })}
+      onInstall={() => {}}
+      onSkipVersion={() => {}}
+    />,
+  );
+  expect(screen.queryByRole("dialog")).toBeNull();
+});
+
 test("clicking the icon opens a popover with version transition and notes", () => {
   renderIndicator(makeState());
   fireEvent.click(screen.getByRole("button", { name: /发现新版本/ }));
@@ -112,4 +144,23 @@ test("skip-this-version is wired and hidden while downloading", () => {
   fireEvent.click(screen.getByRole("button", { name: /发现新版本/ }));
   fireEvent.click(screen.getByRole("button", { name: /跳过此版本/ }));
   expect(onSkipVersion).toHaveBeenCalledTimes(1);
+});
+
+test("ready popover explains the restart and offers complete release notes", () => {
+  renderIndicator(
+    makeState({
+      readyToInstall: true,
+      releaseNotes: "LambChat v99.0.0",
+      releaseUrl: "https://example.test/release",
+    }),
+  );
+  fireEvent.click(screen.getByRole("button", { name: /发现新版本/ }));
+  const popover = screen.getByRole("dialog");
+  expect(within(popover).getByRole("heading")).toHaveTextContent(
+    /已下载|ready/i,
+  );
+  expect(within(popover).getByText(/重启后|restart/i)).toBeTruthy();
+  expect(
+    within(popover).getByRole("link", { name: /完整更新日志/ }),
+  ).toHaveAttribute("href", "https://example.test/release");
 });

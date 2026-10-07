@@ -1,3 +1,4 @@
+import { EmptyState } from "../common/EmptyState";
 import { FolderOpen } from "lucide-react";
 import { useState, useMemo, useCallback } from "react";
 import { Plus, X, Download, Upload, Check, Pencil, Wrench } from "lucide-react";
@@ -436,26 +437,19 @@ export function MCPPanel() {
       {/* Servers Grid */}
       <div className="panel-body flex-1 overflow-y-auto">
         {filteredServers.length === 0 ? (
-          <div className="flex h-full flex-col items-center justify-center text-theme-text-secondary">
-            <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-stone-100 dark:bg-stone-800 mb-4">
-              <FolderOpen
-                size={28}
-                className="text-stone-400 dark:text-stone-500"
-              />
-            </div>
-            <p className="text-center text-14">
-              {searchQuery ? t("mcp.noMatchingServers") : t("mcp.noServers")}
-            </p>
-            {!searchQuery && canWrite && (
-              <Button
-                variant="ghost"
-                onClick={handleCreate}
-                className="mt-3 text-14 font-medium text-[var(--theme-text-secondary)] hover:text-[var(--theme-text)] transition-colors"
-              >
-                {t("mcp.addFirst")}
-              </Button>
-            )}
-          </div>
+          <EmptyState
+            icon={<FolderOpen size={20} />}
+            title={
+              searchQuery ? t("mcp.noMatchingServers") : t("mcp.noServers")
+            }
+            action={
+              !searchQuery && canWrite ? (
+                <Button variant="ghost" onClick={handleCreate}>
+                  {t("mcp.addFirst")}
+                </Button>
+              ) : undefined
+            }
+          />
         ) : (
           <div className="grid auto-grid-cols gap-3">
             {paginatedServers.map((server) => (
@@ -499,6 +493,7 @@ export function MCPPanel() {
           {isCreating && canAdmin && (
             <label className="group flex cursor-pointer items-center gap-2.5 rounded-lg px-2.5 py-2 mb-4 transition-colors hover:bg-[var(--theme-bg-subtle)]">
               <Checkbox
+                ariaLabel={t("mcp.createAsSystem")}
                 size="sm"
                 checked={createAsSystem}
                 onChange={() => setCreateAsSystem(!createAsSystem)}
@@ -512,6 +507,11 @@ export function MCPPanel() {
           {!isCreating && editingServer && canAdmin && (
             <label className="group flex cursor-pointer items-center gap-2.5 rounded-lg px-2.5 py-2 mb-4 transition-colors hover:bg-[var(--theme-bg-subtle)]">
               <Checkbox
+                ariaLabel={
+                  changeToSystem
+                    ? t("mcp.systemServerVisible")
+                    : t("mcp.userServerVisible")
+                }
                 size="sm"
                 checked={changeToSystem}
                 onChange={() => setChangeToSystem(!changeToSystem)}
@@ -582,6 +582,7 @@ export function MCPPanel() {
           <div className="es-field">
             <label className="group flex cursor-pointer items-center gap-2.5 es-label rounded-lg px-1 py-1 transition-colors hover:bg-[var(--theme-bg-subtle)]">
               <Checkbox
+                ariaLabel={t("mcp.overwriteExisting")}
                 size="sm"
                 checked={importOverwrite}
                 onChange={() => setImportOverwrite(!importOverwrite)}

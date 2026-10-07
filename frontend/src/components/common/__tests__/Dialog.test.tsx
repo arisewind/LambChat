@@ -58,3 +58,16 @@ test("closed dialog renders nothing", () => {
   );
   expect(screen.queryByText("内容")).toBeNull();
 });
+
+test("dialog close has a 44px mobile target and keeps the desktop size compact", () => {
+  render(
+    <Dialog open onClose={vi.fn()} title="Edit">
+      Content
+    </Dialog>,
+  );
+  expect(screen.getByRole("button")).toHaveClass(
+    "size-11",
+    "sm:size-8",
+    "[@media(pointer:coarse)]:size-11",
+  );
+});

@@ -1,5 +1,6 @@
+import { DialogCloseButton } from "../../common/DialogCloseButton";
 import { ModalSurface } from "../../common/ModalSurface";
-import { X } from "lucide-react";
+
 import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router-dom";
 import { LucideIcon } from "lucide-react";
@@ -51,16 +52,14 @@ export function MobileMoreMenuSheet({
     <ModalSurface open onClose={onClose} label={t("nav.more")}>
       <div
         ref={menuRef}
-        className="safe-area-x safe-area-bottom rounded-t-2xl shadow-xl max-h-[70dvh] overflow-y-auto"
+        className="sidebar-mobile-menu safe-area-x safe-area-bottom rounded-t-2xl shadow-xl max-h-[70dvh] overflow-y-auto"
         style={{ backgroundColor: "var(--theme-bg-card)" }}
       >
         <div className="flex items-center justify-between px-4 pb-1.5">
           <span className="text-13 font-medium text-[var(--theme-text)]">
             {t("nav.more", "更多")}
           </span>
-          <button onClick={onClose} className="p-1 rounded-full ">
-            <X size={16} className="text-[var(--theme-text-secondary)]" />
-          </button>
+          <DialogCloseButton onClick={onClose} />
         </div>
         <div className="flex flex-col gap-px px-2 pb-3 space-y-1">
           {visibleItems.map(renderItem)}

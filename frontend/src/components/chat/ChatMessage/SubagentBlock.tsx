@@ -8,7 +8,7 @@ import {
   Loader2,
   Bot,
 } from "lucide-react";
-import { getFluentEmojiCDN } from "@lobehub/fluent-emoji";
+import { getEmojiAssetUrl } from "../../../utils/emojiAssets";
 import { useTranslation } from "react-i18next";
 import { hasOpenRightPanel } from "../../common/rightPanelCoordinator";
 import {
@@ -43,6 +43,7 @@ import {
   getSubagentRoleIconMeta,
 } from "./subagentRoleMeta";
 import { DeferredSubagentPanelContent } from "./DeferredSubagentPanelContent";
+import { buildPanelSummary } from "./panelSummary";
 
 function SubagentStatusIcon({
   status,
@@ -113,6 +114,7 @@ export function openSubagentPanelByAgentId(agentId: string): boolean {
   resetSubagentPanelAutoOpenState(panelKey);
   openPersistentToolPanel({
     title: formattedAgentName,
+    subtitle: buildPanelSummary(data.input),
     icon: <Bot size={16} />,
     status: panelStatus,
     panelKey,
@@ -202,6 +204,7 @@ export function SubagentBlock({
       markSubagentPanelAutoOpened(panelKey);
       openPersistentToolPanel({
         title: formattedAgentName,
+        subtitle: buildPanelSummary(input),
         icon: <RoleIcon size={16} />,
         status: panelStatus,
         panelKey,
@@ -234,6 +237,7 @@ export function SubagentBlock({
     resetSubagentPanelAutoOpenState(panelKey);
     openPersistentToolPanel({
       title: formattedAgentName,
+      subtitle: buildPanelSummary(input),
       icon: <RoleIcon size={16} />,
       status: panelStatus,
       panelKey,
@@ -241,7 +245,15 @@ export function SubagentBlock({
       footer: createSubagentPanelFooter(subtitle),
       onUserClose: () => dismissSubagentPanelAutoOpen(panelKey),
     });
-  }, [formattedAgentName, RoleIcon, panelStatus, subtitle, panelKey, agent_id]);
+  }, [
+    formattedAgentName,
+    RoleIcon,
+    panelStatus,
+    subtitle,
+    panelKey,
+    agent_id,
+    input,
+  ]);
 
   return (
     <div
@@ -287,9 +299,8 @@ export function SubagentBlock({
         >
           {!agentAvatarUrl && roleIconMeta.emoji ? (
             <ImageWithSkeleton
-              src={getFluentEmojiCDN(roleIconMeta.emoji!, { type: "3d" })}
+              src={getEmojiAssetUrl(roleIconMeta.emoji!, "3d")}
               alt={roleIconMeta.emoji}
-              skipUrlResolve
               inline
               loading="eager"
               style={{ objectFit: "contain" }}
@@ -302,7 +313,6 @@ export function SubagentBlock({
               <ImageWithSkeleton
                 src={agentAvatarUrl}
                 alt=""
-                skipUrlResolve
                 inline
                 loading="lazy"
               />

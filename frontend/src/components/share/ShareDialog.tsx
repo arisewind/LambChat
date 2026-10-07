@@ -1,3 +1,4 @@
+import { DialogCloseButton } from "../common/DialogCloseButton";
 import { ModalSurface } from "../common/ModalSurface";
 /**
  * ShareDialog - Dialog for creating and managing session shares
@@ -8,19 +9,19 @@ import { useCallback, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
   Share2,
-  Copy,
   Trash2,
   Pencil,
   Globe,
   Lock,
   Loader2,
-  Check,
-  X,
   AlertTriangle,
 } from "lucide-react";
 import toast from "react-hot-toast";
 import { SkeletonList, SkeletonCard } from "../skeletons";
 import { Checkbox } from "../common/Checkbox";
+import { CopyButton } from "../common/CopyButton";
+import { SceneIllustration } from "../common/SceneIllustration";
+import { ToolbarIconButton } from "../common/ui";
 import { shareApi } from "../../services/api/share";
 import type {
   ShareType,
@@ -65,7 +66,6 @@ export function ShareDialog({
   const [hasLoadedRuns, setHasLoadedRuns] = useState(false);
   const [isCreating, setIsCreating] = useState(false);
   const [editingShare, setEditingShare] = useState<SharedSession | null>(null);
-  const [copiedId, setCopiedId] = useState<string | null>(null);
 
   const loadExistingShares = useCallback(async () => {
     setIsLoading(true);
@@ -156,8 +156,12 @@ export function ShareDialog({
       // Copy link to clipboard
       const shareUrl =
         getFullUrl(response.url) || `${window.location.origin}${response.url}`;
-      await copyToClipboard(shareUrl);
-      toast.success(t("share.linkCopied"));
+      try {
+        await copyToClipboard(shareUrl);
+        toast.success(t("share.linkCopied"));
+      } catch {
+        toast.error(t("chat.message.copyFailed"));
+      }
 
       // Refresh shares list
       await loadExistingShares();
@@ -207,16 +211,6 @@ export function ShareDialog({
     setSelectedRunIds([]);
   };
 
-  const handleCopyLink = async (shareId: string) => {
-    const shareUrl =
-      getFullUrl(`/shared/${shareId}`) ||
-      `${window.location.origin}/shared/${shareId}`;
-    await copyToClipboard(shareUrl);
-    setCopiedId(shareId);
-    toast.success(t("share.linkCopied"));
-    setTimeout(() => setCopiedId(null), 2000);
-  };
-
   const handleDeleteShare = async (shareId: string) => {
     try {
       await shareApi.delete(shareId);
@@ -249,21 +243,16 @@ export function ShareDialog({
 
   return (
     <ModalSurface open={isOpen} onClose={onClose} dismissible={true}>
-      <div className="relative z-10 w-full sm:max-w-xl sm:mx-4 sm:pointer-events-auto bg-white dark:bg-stone-800 sm:rounded-xl rounded-t-xl shadow-xl border border-stone-200 dark:border-stone-700 overflow-hidden duration-300 max-h-[90vh] max-h-[90dvh] flex flex-col animate-slide-up-sheet sm:animate-in sm:fade-in sm:zoom-in-95 sm:duration-200">
+      <div className="relative z-10 w-full sm:max-w-xl sm:mx-4 sm:pointer-events-auto bg-theme-bg-card sm:rounded-xl rounded-t-xl shadow-xl border border-stone-200 dark:border-stone-700 overflow-hidden duration-300 max-h-[90vh] max-h-[90dvh] flex flex-col animate-slide-up-sheet sm:animate-in sm:fade-in sm:zoom-in-95 sm:duration-200">
         {/* Header */}
-        <div className="flex items-center justify-between px-5 py-4 border-b border-stone-200 dark:border-stone-700">
-          <div className="flex items-center gap-2 pt-2 sm:pt-0">
-            <Share2 size={20} className="text-stone-500 dark:text-stone-400" />
-            <h3 className="text-18 font-semibold font-serif text-stone-900 dark:text-stone-100">
+        <div className="flex shrink-0 items-center justify-between gap-3 px-5 py-3 sm:py-4 border-b border-stone-200 dark:border-stone-700">
+          <div className="flex min-w-0 items-center gap-3 pt-2 sm:pt-0">
+            <SceneIllustration scene="message" className="!h-12 !w-12" />
+            <h3 className="min-w-0 break-words text-18 font-semibold font-serif text-stone-900 dark:text-stone-100">
               {t("share.title")}
             </h3>
           </div>
-          <button
-            onClick={onClose}
-            className="p-1 rounded-lg hover:bg-stone-100 dark:hover:bg-stone-700 transition-colors"
-          >
-            <X size={20} className="text-stone-500 dark:text-stone-400" />
-          </button>
+          <DialogCloseButton onClick={onClose} />
         </div>
 
         {/* Content */}
@@ -289,8 +278,9 @@ export function ShareDialog({
             </label>
             <div className="flex gap-3">
               <button
+                aria-pressed={shareType === "full"}
                 onClick={() => setShareType("full")}
-                className={`flex-1 px-4 py-2.5 rounded-lg border text-14 font-medium transition-colors ${
+                className={`min-h-11 flex-1 px-4 py-2.5 rounded-lg border text-14 font-medium transition-colors ${
                   shareType === "full"
                     ? "border-stone-500 bg-stone-100 dark:bg-stone-700 text-stone-700 dark:text-stone-200"
                     : "border-stone-200 dark:border-stone-600 text-stone-700 dark:text-stone-300 hover:bg-stone-50 dark:hover:bg-stone-700"
@@ -299,8 +289,9 @@ export function ShareDialog({
                 {t("share.fullSession")}
               </button>
               <button
+                aria-pressed={shareType === "partial"}
                 onClick={() => setShareType("partial")}
-                className={`flex-1 px-4 py-2.5 rounded-lg border text-14 font-medium transition-colors ${
+                className={`min-h-11 flex-1 px-4 py-2.5 rounded-lg border text-14 font-medium transition-colors ${
                   shareType === "partial"
                     ? "border-stone-500 bg-stone-100 dark:bg-stone-700 text-stone-700 dark:text-stone-200"
                     : "border-stone-200 dark:border-stone-600 text-stone-700 dark:text-stone-300 hover:bg-stone-50 dark:hover:bg-stone-700"
@@ -349,6 +340,7 @@ export function ShareDialog({
                       key={run.run_id}
                       type="button"
                       onClick={() => handleRunClick(run.run_id)}
+                      aria-pressed={selectedRunIds.includes(run.run_id)}
                       className={`w-full grid grid-cols-[auto_4rem_1fr] items-center gap-2 px-3 py-2 rounded-lg text-14 transition-colors ${
                         selectedRunIds.includes(run.run_id)
                           ? "bg-stone-100 dark:bg-stone-700 text-stone-700 dark:text-stone-200"
@@ -356,9 +348,9 @@ export function ShareDialog({
                       }`}
                     >
                       <Checkbox
+                        ariaLabel={`${t("share.run")} ${index + 1}`}
                         checked={selectedRunIds.includes(run.run_id)}
                         size="sm"
-                        onChange={() => handleRunClick(run.run_id)}
                       />
                       <span className="flex items-center gap-0.5 whitespace-nowrap">
                         <span>{t("share.run")}</span>
@@ -387,6 +379,7 @@ export function ShareDialog({
             </label>
             <div className="space-y-2">
               <button
+                aria-pressed={visibility === "public"}
                 onClick={() => setVisibility("public")}
                 className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg border text-left transition-colors ${
                   visibility === "public"
@@ -418,6 +411,7 @@ export function ShareDialog({
                 </div>
               </button>
               <button
+                aria-pressed={visibility === "authenticated"}
                 onClick={() => setVisibility("authenticated")}
                 className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg border text-left transition-colors ${
                   visibility === "authenticated"
@@ -469,9 +463,9 @@ export function ShareDialog({
                 {existingShares.map((share) => (
                   <div
                     key={share.id}
-                    className="flex items-center justify-between p-3 bg-stone-50 dark:bg-stone-900/50 rounded-lg border border-stone-200 dark:border-stone-700"
+                    className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 p-3 bg-stone-50 dark:bg-stone-900/50 rounded-lg border border-stone-200 dark:border-stone-700"
                   >
-                    <div className="flex items-center gap-2 min-w-0">
+                    <div className="flex items-center gap-2 min-w-0 flex-1">
                       {share.visibility === "public" ? (
                         <Globe
                           size={14}
@@ -494,45 +488,27 @@ export function ShareDialog({
                         )
                       </span>
                     </div>
-                    <div className="flex items-center gap-1">
-                      <button
-                        onClick={() => handleCopyLink(share.share_id)}
-                        className="p-1.5 rounded hover:bg-stone-200 dark:hover:bg-stone-700 transition-colors"
-                        title={t("share.copyLink")}
-                      >
-                        {copiedId === share.share_id ? (
-                          <Check size={14} className="text-green-500" />
-                        ) : (
-                          <Copy
-                            size={14}
-                            className="text-stone-400 dark:text-stone-500"
-                          />
-                        )}
-                      </button>
-                      <button
-                        onClick={() => handleEditShare(share)}
-                        className="p-1.5 rounded hover:bg-stone-200 dark:hover:bg-stone-700 transition-colors"
+                    <div className="flex items-center justify-end gap-1 shrink-0">
+                      <CopyButton
+                        text={
+                          getFullUrl(`/shared/${share.share_id}`) ||
+                          `${window.location.origin}/shared/${share.share_id}`
+                        }
+                        label={t("share.copyLink")}
+                      />
+                      <ToolbarIconButton
+                        aria-label={t("share.editShare")}
                         title={t("share.editShare")}
-                      >
-                        <Pencil
-                          size={14}
-                          className={
-                            editingShare?.id === share.id
-                              ? "text-stone-700 dark:text-stone-200"
-                              : "text-stone-400 dark:text-stone-500"
-                          }
-                        />
-                      </button>
-                      <button
-                        onClick={() => handleDeleteShare(share.id)}
-                        className="p-1.5 rounded hover:bg-stone-200 dark:hover:bg-stone-700 transition-colors"
+                        onClick={() => handleEditShare(share)}
+                        icon={<Pencil size={14} />}
+                      />
+                      <ToolbarIconButton
+                        aria-label={t("share.deleteShare")}
                         title={t("share.deleteShare")}
-                      >
-                        <Trash2
-                          size={14}
-                          className="text-stone-400 hover:text-red-500 dark:text-stone-500 dark:hover:text-red-400"
-                        />
-                      </button>
+                        onClick={() => handleDeleteShare(share.id)}
+                        icon={<Trash2 size={14} />}
+                        className="hover:text-theme-error"
+                      />
                     </div>
                   </div>
                 ))}
@@ -542,7 +518,7 @@ export function ShareDialog({
         </div>
 
         {/* Footer */}
-        <div className="safe-area-bottom flex items-center justify-end gap-2 px-5 pt-4 [--safe-area-bottom-extra:1rem] bg-stone-50 dark:bg-stone-900/50 border-t border-stone-100 dark:border-stone-700">
+        <div className="safe-area-bottom flex flex-wrap items-center justify-end gap-2 px-5 pt-4 [--safe-area-bottom-extra:1rem] [&>button]:min-h-11 bg-theme-bg-card border-t border-theme-border">
           {editingShare && (
             <button
               onClick={handleCancelEditShare}

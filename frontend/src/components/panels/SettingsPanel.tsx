@@ -632,77 +632,77 @@ export function SettingsPanel() {
             ref={contentRef}
             className="panel-body min-h-0 flex-1 overflow-y-auto"
           >
-            <div className="mb-6">
-              <div className="flex flex-wrap items-start justify-between gap-2">
-                <div className="min-w-0">
-                  <p className="mb-1 text-12 text-theme-text-secondary dark:text-stone-400">
+            <div className="settings-section-header mb-5">
+              <div className="settings-section-header__row">
+                <div className="min-w-0 flex-1">
+                  <p className="mb-1 text-12 font-medium text-theme-text-secondary">
                     {isSearching || !activeGroup
                       ? t("settings.navigation.allCategories")
                       : t(`settings.navigation.groups.${activeGroup.id}`)}
                   </p>
-                  <h2 className="text-18 font-semibold text-theme-text dark:text-stone-100">
-                    {isSearching
-                      ? t("settings.navigation.searchResults")
-                      : CATEGORY_LABELS[activeCategory]}
-                  </h2>
+                  <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
+                    <h2 className="text-18 font-semibold tracking-tight text-theme-text">
+                      {isSearching
+                        ? t("settings.navigation.searchResults")
+                        : CATEGORY_LABELS[activeCategory]}
+                    </h2>
+                    <span
+                      role="status"
+                      className="text-12 tabular-nums text-theme-text-secondary"
+                    >
+                      {isLoading && !settings
+                        ? t("common.loading")
+                        : t("settings.navigation.resultCount", {
+                            count: filteredSettings.length,
+                          })}
+                    </span>
+                  </div>
                   {!isSearching && activeGroup && (
-                    <p className="mt-1 text-12 text-theme-text-secondary dark:text-stone-400">
+                    <p className="mt-1 text-13 leading-relaxed text-theme-text-secondary">
                       {t(`settings.navigation.descriptions.${activeGroup.id}`)}
                     </p>
                   )}
                 </div>
-                <span
-                  role="status"
-                  className="text-12 tabular-nums text-theme-text-secondary dark:text-stone-400"
-                >
-                  {t("settings.navigation.resultCount", {
-                    count: filteredSettings.length,
-                  })}
-                </span>
+                {isSearching ? (
+                  <Button size="sm" onClick={() => setSearchQuery("")}>
+                    {t("settings.navigation.clearSearch")}
+                  </Button>
+                ) : (
+                  subcategories.length > 1 && (
+                    <div className="settings-section-header__filter">
+                      <span className="text-12 text-theme-text-secondary">
+                        {t("settings.navigation.subcategory")}
+                      </span>
+                      <Select
+                        ariaLabel={t("settings.navigation.subcategory")}
+                        value={activeSubcategory ?? "__all__"}
+                        onChange={(value) =>
+                          setActiveSubcategory(value === "__all__" ? null : value)
+                        }
+                        className="min-w-0 max-w-full"
+                        triggerClassName="min-h-11"
+                        options={[
+                          {
+                            value: "__all__",
+                            label: t("settings.navigation.allSubcategories"),
+                          },
+                          ...subcategories.map((group) => ({
+                            value: group.subcategory,
+                            label: `${group.label || t("subcategories.general")} · ${group.settings.length}`,
+                          })),
+                        ]}
+                      />
+                    </div>
+                  )
+                )}
               </div>
-              {isSearching ? (
-                <Button
-                  size="sm"
-                  className="mt-2"
-                  onClick={() => setSearchQuery("")}
-                >
-                  {t("settings.navigation.clearSearch")}
-                </Button>
-              ) : (
-                subcategories.length > 1 && (
-                  <label className="mt-3 flex flex-wrap items-center gap-2 text-12 text-theme-text-secondary dark:text-stone-400">
-                    <span>{t("settings.navigation.subcategory")}</span>
-                    <select
-                      value={activeSubcategory ?? "__all__"}
-                      onChange={(event) =>
-                        setActiveSubcategory(
-                          event.target.value === "__all__"
-                            ? null
-                            : event.target.value,
-                        )
-                      }
-                      className="h-10 min-w-0 max-w-full rounded-lg border border-[var(--glass-border)] bg-[var(--theme-bg-card)] px-3 text-14 text-theme-text focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--theme-primary)] dark:text-stone-100"
-                    >
-                      <option value="__all__">
-                        {t("settings.navigation.allSubcategories")}
-                      </option>
-                      {subcategories.map((group) => (
-                        <option
-                          key={group.subcategory}
-                          value={group.subcategory}
-                        >
-                          {group.label || t("subcategories.general")} ·{" "}
-                          {group.settings.length}
-                        </option>
-                      ))}
-                    </select>
-                  </label>
-                )
-              )}
-              <p className="mt-2 text-12 text-theme-text-secondary dark:text-stone-400">
-                {canManage
-                  ? t("settings.navigation.saveHint")
-                  : t("settings.readOnlyNotice")}
+              <p className="mt-3 flex items-start gap-2 text-12 leading-relaxed text-theme-text-secondary">
+                <Info size={14} className="mt-0.5 shrink-0" aria-hidden="true" />
+                <span>
+                  {canManage
+                    ? t("settings.navigation.saveHint")
+                    : t("settings.readOnlyNotice")}
+                </span>
               </p>
             </div>
 
@@ -785,13 +785,15 @@ export function SettingsPanel() {
                                 <code className="rounded-md bg-[var(--glass-bg-subtle)] px-2 py-0.5 text-12 font-medium text-theme-text break-all dark:text-stone-100">
                                   {setting.key}
                                 </code>
-                                <span
-                                  className={`tag text-11 ${
-                                    TYPE_COLORS[setting.type]
-                                  }`}
-                                >
-                                  {setting.type}
-                                </span>
+                                {!setting.json_schema && (
+                                  <span
+                                    className={`tag text-11 ${
+                                      TYPE_COLORS[setting.type]
+                                    }`}
+                                  >
+                                    {setting.type}
+                                  </span>
+                                )}
                               </div>
                               <p className="mt-1 text-12 text-theme-text-secondary sm:text-14 dark:text-stone-400">
                                 {t(setting.description)}
@@ -803,6 +805,7 @@ export function SettingsPanel() {
                           <div className="mt-3">
                             {isSelect && (
                               <Select
+                                ariaLabel={setting.key}
                                 value={displayValue}
                                 onChange={(v) =>
                                   handleValueChange(
@@ -883,15 +886,16 @@ export function SettingsPanel() {
                                                 ),
                                               },
                                             ]
-                                          : setting.options?.map((opt) => ({
+                                          : (setting.options?.map((opt) => ({
                                               value: opt,
                                               label: opt,
-                                            })) ?? []
+                                            })) ?? [])
                                 }
                               />
                             )}
                             {setting.type === "text" && (
                               <Textarea
+                                aria-label={setting.key}
                                 value={getDisplayValue(setting)}
                                 onChange={(e) =>
                                   handleValueChange(
@@ -927,6 +931,7 @@ export function SettingsPanel() {
                             )}
                             {isJson && !setting.json_schema && (
                               <Textarea
+                                aria-label={setting.key}
                                 value={getDisplayValue(setting)}
                                 onChange={(e) =>
                                   handleValueChange(
@@ -944,6 +949,7 @@ export function SettingsPanel() {
                               setting.type !== "text" &&
                               !isJson && (
                                 <Input
+                                  aria-label={setting.key}
                                   type={
                                     setting.type === "number"
                                       ? "number"

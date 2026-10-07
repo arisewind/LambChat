@@ -1,3 +1,4 @@
+import { EmptyState } from "../common/EmptyState";
 import { AlertCircle } from "lucide-react";
 /**
  * 通知管理面板 - Admin CRUD panel for notifications
@@ -214,6 +215,7 @@ function NotificationFormModal({
                 <button
                   key={nt}
                   type="button"
+                  aria-pressed={notifType === nt}
                   onClick={() => setNotifType(nt)}
                   className={`rounded-lg border px-3 py-2 text-12 font-medium transition-all ${
                     notifType === nt
@@ -244,6 +246,7 @@ function NotificationFormModal({
             <label className="es-label">{t("notification.startTime")}</label>
             <Input
               type="datetime-local"
+              aria-label={t("notification.startTime")}
               value={startTime}
               onChange={(e) => setStartTime(e.target.value)}
             />
@@ -252,6 +255,7 @@ function NotificationFormModal({
             <label className="es-label">{t("notification.endTime")}</label>
             <Input
               type="datetime-local"
+              aria-label={t("notification.endTime")}
               value={endTime}
               onChange={(e) => setEndTime(e.target.value)}
             />
@@ -279,6 +283,7 @@ export function NotificationPanel() {
   const { hasPermission } = useAuth();
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [loadError, setLoadError] = useState(false);
   const [total, setTotal] = useState(0);
   const [skip, setSkip] = useState(0);
   const [limit] = useState(20);
@@ -292,18 +297,17 @@ export function NotificationPanel() {
   // Fetch notifications
   const fetchNotifications = useCallback(async () => {
     setIsLoading(true);
+    setLoadError(false);
     try {
       const response = await notificationApi.list(skip, limit);
       setNotifications(response.items);
       setTotal(response.total);
-    } catch (error) {
-      const message =
-        error instanceof Error ? error.message : t("common.loadFailed");
-      toast.error(message);
+    } catch {
+      setLoadError(true);
     } finally {
       setIsLoading(false);
     }
-  }, [skip, limit, t]);
+  }, [skip, limit]);
 
   // Initial load
   useEffect(() => {
@@ -436,17 +440,24 @@ export function NotificationPanel() {
 
       {/* Notification List */}
       <div className="panel-body flex-1 overflow-y-auto">
+        {loadError && (
+          <div
+            role="alert"
+            className="p-4 text-center text-theme-text-secondary"
+          >
+            <p>{t("common.loadFailed")}</p>
+            <Button className="mt-3" onClick={fetchNotifications}>
+              {t("common.refresh")}
+            </Button>
+          </div>
+        )}
         {isLoading && notifications.length === 0 ? (
           <NotificationsListSkeleton />
-        ) : !isLoading && notifications.length === 0 ? (
-          <div className="flex h-full flex-col items-center justify-center text-center">
-            <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-stone-100 dark:bg-stone-800">
-              <Bell size={32} className="text-stone-400 dark:text-stone-500" />
-            </div>
-            <p className="text-18 font-medium font-serif text-stone-700 dark:text-stone-300">
-              {t("notification.noNotifications")}
-            </p>
-          </div>
+        ) : !loadError && !isLoading && notifications.length === 0 ? (
+          <EmptyState
+            icon={<Bell size={20} />}
+            title={t("notification.noNotifications")}
+          />
         ) : (
           <div className="space-y-3">
             {notifications.map((notification) => {
@@ -502,6 +513,7 @@ export function NotificationPanel() {
                       <div className="notification-card-actions flex flex-shrink-0 items-center gap-1">
                         {hasContent && (
                           <IconButton
+                            aria-expanded={isExpanded}
                             aria-label={
                               isExpanded
                                 ? t("notification.collapse")
@@ -510,7 +522,7 @@ export function NotificationPanel() {
                             icon={
                               <ChevronDown
                                 size={16}
-                                className={`transition-transform duration-200 ${
+                                className={`transition-transform duration-200 motion-reduce:transition-none ${
                                   isExpanded ? "rotate-180" : ""
                                 }`}
                               />
@@ -549,14 +561,16 @@ export function NotificationPanel() {
 
                     {hasContent && (
                       <div
-                        className={`px-4 pb-4 sm:px-5 sm:pb-5 ${
-                          isExpanded ? "pt-3 sm:pt-4" : "pt-0"
+                        className={`px-4 sm:px-5 ${
+                          isExpanded ? "pb-4 pt-3 sm:pb-5 sm:pt-4" : ""
                         }`}
                       >
                         <div
-                          className={`overflow-hidden transition-all duration-200 ${
+                          aria-hidden={!isExpanded}
+                          inert={!isExpanded}
+                          className={`overflow-hidden transition-all duration-200 motion-reduce:transition-none ${
                             isExpanded
-                              ? "max-h-96 opacity-100"
+                              ? "max-h-96 overflow-y-auto opacity-100"
                               : "max-h-0 opacity-0"
                           }`}
                         >
