@@ -459,12 +459,18 @@ async def team_router_node(state: Dict[str, Any], config: RunnableConfig) -> Dic
         prompt_sections: list[str] | None = None,
         fallback_model: str | None = fallback_model_value,
         member_image_url_mode: str = image_url_mode,
+        member_supports_vision: bool = supports_vision,
     ) -> list:
         """Build the middleware stack for a single subagent."""
         mw = [
             *create_retry_middleware(fallback_model=fallback_model),
             create_todo_middleware(),
-            ToolResultBinaryMiddleware(base_url=subagent_base_url),
+            ToolResultBinaryMiddleware(
+                base_url=subagent_base_url,
+                supports_vision=member_supports_vision,
+                user_id=context.user_id,
+                session_id=str(state.get("session_id") or ""),
+            ),
             ArtifactDeliveryMiddleware(workspace_path=sandbox_work_dir),
             SubagentActivityMiddleware(backend=backend),
         ]
@@ -529,6 +535,7 @@ async def team_router_node(state: Dict[str, Any], config: RunnableConfig) -> Dic
                 member_model = None
                 member_fallback_model = fallback_model_value
                 member_image_url_mode = image_url_mode
+                member_supports_vision = supports_vision
                 if member_model_config is not None:
                     member_model = await LLMClient.get_model(
                         model=member_model_config.value,
@@ -542,6 +549,9 @@ async def team_router_node(state: Dict[str, Any], config: RunnableConfig) -> Dic
                         log_prefix=f"[TeamAgent:{subagent_type}]",
                     )
                     member_image_url_mode = effective_image_url_mode(member_model_config.profile)
+                    member_supports_vision = bool(
+                        member_model_config.profile and member_model_config.profile.supports_vision
+                    )
                     logger.info(
                         "[TeamAgent] Role subagent model override: type=%s role=%s model_id=%s model=%s",
                         subagent_type,
@@ -603,6 +613,7 @@ async def team_router_node(state: Dict[str, Any], config: RunnableConfig) -> Dic
                         prompt_sections=role_prompt_sections,
                         fallback_model=member_fallback_model,
                         member_image_url_mode=member_image_url_mode,
+                        member_supports_vision=member_supports_vision,
                     ),
                 }
                 if filtered_tools is not None:
@@ -707,7 +718,14 @@ async def team_router_node(state: Dict[str, Any], config: RunnableConfig) -> Dic
     user_middleware.insert(
         0, SteerMiddleware(session_id=str(state.get("session_id") or ""), presenter=presenter)
     )
-    user_middleware.append(ToolResultBinaryMiddleware(base_url=subagent_base_url))
+    user_middleware.append(
+        ToolResultBinaryMiddleware(
+            base_url=subagent_base_url,
+            supports_vision=supports_vision,
+            user_id=context.user_id,
+            session_id=str(state.get("session_id") or ""),
+        )
+    )
     user_middleware.append(ArtifactDeliveryMiddleware(workspace_path=sandbox_work_dir))
     _image_mw = image_url_middleware_for_mode(image_url_mode)
     if _image_mw:
@@ -788,11 +806,20 @@ async def team_router_node(state: Dict[str, Any], config: RunnableConfig) -> Dic
     graph_compile_time = time.time() - graph_compile_start
     logger.debug(f"[TeamAgent] Graph compile: {graph_compile_time * 1000:.3f}ms")
 
+    from src.infra.tool.computer_use_tool import resolve_computer_use_context
+
     inner_config: RunnableConfig = {
         "configurable": build_nested_graph_configurable(
             thread_id=state.get("session_id", str(uuid.uuid4())),
             checkpointer=inner_checkpointer,
             backend=backend,
+            computer_use_context=(
+                await resolve_computer_use_context(
+                    context.user_id or "", agent_options, configurable.get("hitl_resume")
+                )
+                if settings.ENABLE_COMPUTER_USE
+                else None
+            ),
             context=context,
             disabled_skills=configurable.get("disabled_skills"),
             enabled_skills=runtime_enabled_skills,
@@ -818,7 +845,15 @@ async def team_router_node(state: Dict[str, Any], config: RunnableConfig) -> Dic
     if hitl_resume is not None:
         from langgraph.types import Command
 
-        graph_input: Any = Command(resume=hitl_resume.get("resume_value"))
+        resume_map = hitl_resume.get("resume_value")
+        sandbox_message = hitl_resume.get("sandbox_confirm_message")
+        if sandbox_message and isinstance(resume_map, dict):
+            from src.infra.task.hitl import expand_sandbox_confirm_resume
+
+            resume_map = await expand_sandbox_confirm_resume(
+                inner_graph, inner_config, resume_map, message=sandbox_message
+            )
+        graph_input: Any = Command(resume=resume_map)
     else:
         if supports_vision:
             attachments = await inline_image_attachments_as_data_urls(

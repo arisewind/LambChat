@@ -22,6 +22,7 @@ from urllib.parse import quote
 import httpx
 
 from lambchat_sandbox import __version__
+from lambchat_sandbox.config import server_origin
 from lambchat_sandbox.platform import daemon_platform
 
 BACKOFF_MAX_S = 60.0
@@ -143,6 +144,7 @@ class ChannelClient:
         machine_name: str = "",
         client: httpx.AsyncClient | None = None,
     ) -> None:
+        server_origin(server_url)
         self._base = server_url.rstrip("/")
         self._pat = pat
         self._confirm_policy = confirm_policy
@@ -152,12 +154,14 @@ class ChannelClient:
             client
             if client is not None
             else httpx.AsyncClient(
+                verify=True,
+                follow_redirects=False,
                 timeout=httpx.Timeout(
                     connect=_CHANNEL_CONNECT_TIMEOUT_S,
                     read=_CHANNEL_READ_TIMEOUT_S,
                     write=30.0,
                     pool=30.0,
-                )
+                ),
             )
         )
 
@@ -186,6 +190,7 @@ class ChannelClient:
             f"?version={quote(__version__)}&platform={quote(daemon_platform())}"
             f"{policy_param}{machine_params}",
             headers={"Authorization": f"Bearer {self._pat}", "Accept": "text/event-stream"},
+            follow_redirects=False,
         )
         response = await cm.__aenter__()
         parser = _FrameParser()
@@ -229,6 +234,13 @@ class ChannelClient:
                 frame = parser.feed(line)
                 if frame is None or frame.event != "tool_call":
                     continue
+                data = _parse_json_object(frame.data)
+                if data is not None:
+                    # A registered device must never accept an unscoped legacy command.
+                    if self._machine_id and data.get("machine_id") != self._machine_id:
+                        continue
+                    if not self._machine_id and data.get("machine_id", "legacy") != "legacy":
+                        continue
                 call = _parse_tool_call(frame.data)
                 if call is not None:
                     yield call
@@ -239,15 +251,23 @@ class ChannelClient:
         """回传执行结果；body 中值为 None 的字段按契约剔除（exclude_none）。
 
         有 machine_id 时以 query 参数随行回传——服务端据此校验回传机与下发
-        目标机一致（同用户多机防冒答）；不带（legacy daemon）则服务端跳过校验。
+        目标机一致（同用户多机防冒答）；不带只允许回传明确下发到 legacy 的调用。
         """
         machine_param = f"?machine_id={quote(self._machine_id)}" if self._machine_id else ""
         response = await self._client.post(
             f"{self._base}/api/sandbox/results/{quote(call_id, safe='')}{machine_param}",
             json={k: v for k, v in body.items() if v is not None},
             headers=self._auth_headers(),
+            follow_redirects=False,
             timeout=POST_TIMEOUT_S,
         )
+        if response.status_code == 409 and body.get("stage") == "done":
+            # A timed-out call loses its assignment; a late reply must not tear down SSE.
+            with contextlib.suppress(ValueError):
+                payload = response.json()
+                detail = payload.get("detail") if isinstance(payload, dict) else None
+                if isinstance(detail, dict) and detail.get("code") == "sandbox_result_mismatch":
+                    return
         await _raise_for_status(response, "post_result")
 
     async def post_stream_result(
@@ -271,10 +291,12 @@ class ChannelClient:
             for ftype, payload in frame_iter:
                 yield frame_codec.encode_frame(ftype, payload)
 
+        machine_param = f"?machine_id={quote(self._machine_id)}" if self._machine_id else ""
         response = await self._client.post(
-            f"{self._base}/api/sandbox/results/stream/{quote(call_id, safe='')}",
+            f"{self._base}/api/sandbox/results/stream/{quote(call_id, safe='')}{machine_param}",
             content=_frame_stream(),
             headers={**self._auth_headers(), "Content-Type": "application/octet-stream"},
+            follow_redirects=False,
             timeout=httpx.Timeout(
                 connect=_CHANNEL_CONNECT_TIMEOUT_S,
                 write=30.0,
@@ -292,10 +314,12 @@ class ChannelClient:
         返回异步上下文管理器（yield 字节迭代器）——daemon 在其内解析帧并
         落盘。read/pool 超时放宽到流截止（与 post_stream_result 同则）。
         """
+        machine_param = f"?machine_id={quote(self._machine_id)}" if self._machine_id else ""
         cm = self._client.stream(
             "GET",
-            f"{self._base}/api/sandbox/upload/{quote(call_id, safe='')}",
+            f"{self._base}/api/sandbox/upload/{quote(call_id, safe='')}{machine_param}",
             headers=self._auth_headers(),
+            follow_redirects=False,
             timeout=httpx.Timeout(
                 connect=_CHANNEL_CONNECT_TIMEOUT_S,
                 read=max(deadline_s, 30.0),
@@ -316,6 +340,7 @@ class ChannelClient:
         response = await self._client.post(
             f"{self._base}/api/sandbox/offline{machine_param}",
             headers=self._auth_headers(),
+            follow_redirects=False,
             timeout=POST_TIMEOUT_S,
         )
         await _raise_for_status(response, "post_offline")

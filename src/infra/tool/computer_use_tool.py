@@ -11,18 +11,43 @@ offline 错误（模型可引导用户启动桌面端）。
 
 from __future__ import annotations
 
+import hashlib
 import json
 from typing import Annotated, Any, Optional
 
 from langchain.tools import ToolRuntime, tool
 from pydantic import BaseModel, Field
 
+from src.infra.agent.events.binary_uploads import upload_binary_blocks
+from src.infra.agent.middleware.sandbox_confirm import _lookup_confirm_policy
 from src.infra.async_utils import run_long_blocking_io
 from src.infra.logging import get_logger
+from src.infra.sandbox.confirm import confirm_local_op
 from src.infra.sandbox.relay.dispatch import dispatch_local_call
-from src.infra.tool.backend_utils import get_user_id_from_runtime
+from src.infra.tool.backend_utils import get_session_id_from_runtime, get_user_id_from_runtime
+from src.kernel.errors import AppError
 
 logger = get_logger(__name__)
+
+
+async def resolve_computer_use_context(
+    user_id: str, options: dict[str, Any], hitl_resume: dict[str, Any] | None = None
+) -> dict[str, Any]:
+    """Pin the trusted session selection once per run, before any model tool call."""
+    choice = options.get("sandbox")
+    platform = choice if choice in ("local", "cloud") else None
+    selected = options.get("sandbox_machine_id")
+    machine = selected.strip() if isinstance(selected, str) else None
+    selection: dict[str, Any] = {"platform": platform, "machine_id": machine}
+    if hitl_resume and isinstance(hitl_resume.get("confirmation_context"), dict):
+        approval = hitl_resume.get("approval_resolved") or {}
+        selection["resume"] = {
+            "tool_call_id": approval.get("tool_call_id"),
+            "approved": approval.get("success") is True,
+            "confirmation_context": hitl_resume["confirmation_context"],
+        }
+    return selection
+
 
 _ACTIONS = (
     "status",
@@ -30,6 +55,7 @@ _ACTIONS = (
     "launch",
     "windows",
     "state",
+    "activate",
     "click",
     "set_value",
     "type",
@@ -41,13 +67,17 @@ _ACTIONS = (
 
 class _ComputerUseInput(BaseModel):
     action: str = Field(
-        ..., description="status|apps|launch|windows|state|click|set_value|type|key|scroll|action"
+        ...,
+        description=(
+            "status|apps|launch|windows|state|activate|click|set_value|type|key|scroll|action"
+        ),
     )
     url: Optional[str] = Field(None, description="launch: open this URL in the default browser")
     app: Optional[str] = Field(None, description="launch: executable path to start (no shell)")
     args: Optional[list[str]] = Field(None, description="launch: argv for app")
     machine_id: Optional[str] = Field(
-        None, description="target a specific registered machine (multi-machine users)"
+        None,
+        description="optional assertion of the session-selected machine; cannot change targets",
     )
     pid: Optional[int] = Field(None, description="target app pid (from apps; preferred over name)")
     name: Optional[str] = Field(None, description="target app name (exact, from apps)")
@@ -55,8 +85,14 @@ class _ComputerUseInput(BaseModel):
     index: Optional[int] = Field(
         None, description="element index from the latest state of this app"
     )
-    x: Optional[float] = Field(None, description="coordinate fallback: x on the current raster")
-    y: Optional[float] = Field(None, description="coordinate fallback: y on the current raster")
+    x: Optional[float] = Field(
+        None,
+        description="coordinate fallback: global screen x (add window origin; account for screenshot scaling)",
+    )
+    y: Optional[float] = Field(
+        None,
+        description="coordinate fallback: global screen y (add window origin; account for screenshot scaling)",
+    )
     text: Optional[str] = Field(None, description="type/key text (e.g. 'hello' or 'cmd+c')")
     value: Optional[str] = Field(None, description="set_value text")
     mouse_button: Optional[str] = Field(None, description="click: left|right|middle (default left)")
@@ -66,6 +102,9 @@ class _ComputerUseInput(BaseModel):
     include_screenshot: bool = Field(False, description="state: attach jpeg screenshot (base64)")
     probe_screen: bool = Field(False, description="status: probe Screen Recording permission")
     repeat: Optional[int] = Field(None, description="key: repeat count 1..50")
+    element_action: Optional[str] = Field(
+        None, description="action: exact action name from the latest tree (e.g. Press)"
+    )
 
 
 async def _json_dumps_result(data: dict[str, Any]) -> str:
@@ -108,42 +147,56 @@ def _build_payload(data: _ComputerUseInput) -> dict[str, Any]:
         payload["app"] = data.app
     if data.args:
         payload["args"] = data.args
+    if data.element_action:
+        payload["action"] = data.element_action
     return payload
 
 
-def _format_result(action: str, result: dict[str, Any]) -> str:
+async def _format_result(result: dict[str, Any], runtime: Any = None) -> str:
     if not isinstance(result, dict):
         return str(result)
     if "error" in result:
         detail = result.get("detail") or ""
         return f"ERROR {result['error']}" + (f": {detail}" if detail else "")
-    if action in ("state",):
-        return str(result.get("state") or result)
-    if action == "apps":
-        lines = []
-        for app in result.get("apps", []):
-            marker = " [active]" if app.get("active") else ""
-            lines.append(f"pid={app['pid']} {app['name']}{marker}")
-        return "\n".join(lines) or "no apps"
-    if action == "windows":
-        lines = []
-        for index, win in enumerate(result.get("windows", [])):
-            flags = ("main" if win.get("main") else "") + (" focused" if win.get("focused") else "")
-            lines.append(
-                f"[{index}] id={win.get('window_id')} title={win.get('title')!r}"
-                + (f" ({flags.strip()})" if flags.strip() else "")
-            )
-        return "\n".join(lines) or "no windows"
-    if action == "status":
-        return str(result)
-    return str(result)
+    screenshot = result.get("screenshot")
+    if isinstance(screenshot, dict) and screenshot.get("data_b64"):
+        block = {
+            "base64": screenshot["data_b64"],
+            "mime_type": screenshot.get("mime", "image/jpeg"),
+        }
+        # Persist privately before the SSE limit; pixels never get an anonymous URL.
+        await upload_binary_blocks(
+            {"blocks": [block]},
+            "",
+            private=True,
+            private_user_id=get_user_id_from_runtime(runtime),
+            private_session_id=get_session_id_from_runtime(runtime),
+        )
+        result = {
+            **result,
+            "screenshot": {
+                **{k: v for k, v in screenshot.items() if k != "data_b64"},
+                **{k: v for k, v in block.items() if k in ("url", "upload_error")},
+            },
+        }
+    serialized = await _json_dumps_result(result)
+    # Keep the JSON envelope below the SSE parse limit, including screenshot metadata.
+    while len(serialized) > 90_000 and isinstance(result.get("state"), str) and result["state"]:
+        result = {
+            **result,
+            "state": result["state"][: len(result["state"]) // 2],
+            "truncated": True,
+        }
+        serialized = await _json_dumps_result(result)
+    return serialized
 
 
 @tool("computer_use", args_schema=_ComputerUseInput)
 async def computer_use(
     action: Annotated[
         str,
-        "One of: status, apps, launch, windows, state, click, set_value, type, key, scroll, action",
+        "One of: status, apps, launch, windows, state, activate, click, set_value, "
+        "type, key, scroll, action",
     ],
     url: Annotated[Optional[str], "launch: URL to open in default browser"] = None,
     app: Annotated[Optional[str], "launch: executable path (no shell)"] = None,
@@ -164,14 +217,18 @@ async def computer_use(
     include_screenshot: Annotated[bool, "Attach screenshot to state"] = False,
     probe_screen: Annotated[bool, "Probe Screen Recording in status"] = False,
     repeat: Annotated[Optional[int], "Key repeat count"] = None,
+    element_action: Annotated[Optional[str], "action: name from tree actions= (e.g. Press)"] = None,
     runtime: ToolRuntime = None,  # type: ignore[assignment]
 ) -> str:
     """Operate native apps / the desktop on the user's OWN machine via the local sandbox.
 
-    Availability: requires the LOCAL sandbox platform (desktop app daemon). Cloud sandbox
-    sessions do not have it — on ``dispatch_failed: offline`` tell the user to open the
-    LambChat desktop app (or switch the session sandbox to local); do not retry blindly.
-    Multi-machine users: pass ``machine_id`` to target a specific registered machine.
+    Availability: requires an explicitly selected, online desktop app daemon. The code
+    sandbox may be local or cloud; desktop selection is independent of that platform.
+    On ``dispatch_failed: offline`` tell the user to open LambChat on the selected
+    machine; do not retry blindly. The session's selected machine is authoritative.
+    You cannot change it with
+    tool arguments; ask the user to change the session selection. If it is offline,
+    stop instead of selecting another machine.
 
     Workflow (always):
     1. ``launch`` to open a URL or start an app — this is the correct way to start
@@ -183,7 +240,11 @@ async def computer_use(
        acting again (indices from an older observation are invalid → stale_state).
     4. Prefer element actions (accessibility press/value work on background apps, no
        focus stealing). Coordinates/keyboard are last resorts and need the app frontmost
-       (``foreground_required`` otherwise; the event path NEVER activates apps).
+       (``foreground_required`` otherwise; the event path NEVER activates apps silently —
+       call ``activate`` explicitly first when you truly need keyboard shortcuts).
+       ``type`` with an element ``index`` focuses the element and writes the value via
+       accessibility (works on background windows); raw ``type``/``key`` without an
+       index types into whatever is frontmost.
     5. Multi-window apps: ``windows`` lists them; pin with window_id. Without it the
        key/main window is re-resolved each observation — a just-opened modal becomes the
        captured window (check the ``window:`` header line first when things look wrong).
@@ -193,12 +254,21 @@ async def computer_use(
     navigation instead of trying to click into the page (e.g. open
     ``https://www.baidu.com/s?wd=<query>`` via ``launch`` for searches); address-bar
     and browser chrome (tabs/buttons) are always visible. Firefox exposes page DOM
-    more readily.
+    more readily. On Linux/Wayland launch browsers with
+    ``--ozone-platform=wayland --disable-gpu --force-renderer-accessibility`` plus a
+    fresh ``--user-data-dir`` (default X11 mode exits silently without XWayland);
+    pass the executable path (e.g. ``/usr/bin/microsoft-edge``) — bare names are
+    resolved from PATH.
 
     Hard rules:
     - NEVER use osascript/AppleScript/System Events/JXA for UI automation — an unattended
       TCC permission dialog hangs forever. This tool is the replacement.
     - For settable elements prefer set_value over typing.
+    - ``action`` invokes a named accessibility action: pass ``element_action`` from
+      the latest tree's actions= list and the element ``index``.
+    - Coordinate targets use global screen coordinates, not cropped screenshot pixels.
+      Add the window origin and account for screenshot scaling using window.bounds.
+      For scroll, pass an element index or coordinates to target the scroll area.
     - Errors are structured: ax_not_trusted/screen_recording_denied → tell the user to
       grant Accessibility & Screen Recording to LambChat.app once in System Settings
       (macOS) / enable toolkit-accessibility (Linux); app_not_found → ``apps``;
@@ -219,6 +289,20 @@ async def computer_use(
     user_id = get_user_id_from_runtime(runtime)
     if not user_id:
         return "ERROR no_user_context"
+
+    config = getattr(runtime, "config", None)
+    configurable = config.get("configurable", {}) if isinstance(config, dict) else {}
+    selection = configurable.get("computer_use_context")
+    if not isinstance(selection, dict):
+        return "ERROR machine_selection_required: select an online machine in this session"
+    selected_machine = selection.get("machine_id")
+    if not isinstance(selected_machine, str) or not selected_machine:
+        return "ERROR machine_selection_required: select an online machine in this session"
+    if machine_id and machine_id != selected_machine:
+        return "ERROR machine_mismatch: tool arguments cannot change the session's selected machine"
+    session_id = get_session_id_from_runtime(runtime)
+    if not session_id:
+        return "ERROR session_required: desktop access requires a trusted session"
 
     payload = _build_payload(
         _ComputerUseInput(
@@ -241,12 +325,45 @@ async def computer_use(
             url=url,
             app=app,
             args=args,
+            element_action=element_action,
         )
     )
+    payload["session_id"] = session_id
+    policy = await _lookup_confirm_policy(user_id, selected_machine)
+    read_only = action in ("status", "apps", "windows") or (
+        action == "state" and not include_screenshot
+    )
+    operation = json.dumps({"action": action, **payload}, sort_keys=True, ensure_ascii=False)
+    confirmation_context = {
+        "machine_id": selected_machine,
+        "operation_sha256": hashlib.sha256(operation.encode()).hexdigest(),
+    }
+    resumed = selection.get("resume")
+    if isinstance(resumed, dict):
+        original = resumed.get("confirmation_context") or {}
+        same_call = resumed.get("tool_call_id") == getattr(runtime, "tool_call_id", None)
+        if original.get("machine_id") != selected_machine or (
+            same_call and (resumed.get("approved") is not True or original != confirmation_context)
+        ):
+            return (
+                "ERROR declined_by_user: resumed desktop approval no longer matches this operation"
+            )
+    if not confirm_local_op(
+        "computer_use read" if read_only else "rm computer_use operation",
+        policy,
+        description=f"Computer control on machine {selected_machine}: {operation}"
+        + (" (includes a screenshot sent to the model)" if include_screenshot else ""),
+        tool_call_id=str(getattr(runtime, "tool_call_id", "") or ""),
+        confirmation_context=confirmation_context,
+    ):
+        return "ERROR declined_by_user: approval missing or operation changed; do not retry without an explicit user request"
     try:
-        resp = await dispatch_local_call(user_id, f"cua_{action}", payload, machine_id=machine_id)
+        resp = await dispatch_local_call(
+            user_id, f"cua_{action}", payload, machine_id=selected_machine
+        )
     except Exception as exc:  # noqa: BLE001 - AppError(SANDBOX_*) 等统一转文本
-        message = str(exc)
+        # AppError.__str__ retains interpolation placeholders.
+        message = exc.display_message if isinstance(exc, AppError) else str(exc)
         logger.warning("[computer_use] dispatch failed action=%s: %s", action, message)
         hint = ""
         if "offline" in message.lower():
@@ -257,4 +374,6 @@ async def computer_use(
     if result is None:
         error = resp.get("error") if isinstance(resp, dict) else resp
         return f"ERROR daemon_error: {error}"
-    return _format_result(action, result)
+    if isinstance(result, dict):
+        result = {**result, "machine_id": selected_machine}
+    return await _format_result(result, runtime)

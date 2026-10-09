@@ -19,25 +19,39 @@ psutil 不在此列：procsup.py（Windows 父进程监视）模块级硬依赖�
 """
 
 from pathlib import Path
+import sys
+
+LINUX_SYSTEM_PACKAGES = ["/usr/lib/python3/dist-packages"] if sys.platform.startswith("linux") else []
+sys.path.extend(LINUX_SYSTEM_PACKAGES)
 
 REPO_ROOT = Path(SPECPATH).resolve().parent
 
 a = Analysis(
     [str(REPO_ROOT / "client/lambchat_sandbox/__main__.py")],
-    pathex=[str(REPO_ROOT / "client")],
+    pathex=[str(REPO_ROOT / "client"), *LINUX_SYSTEM_PACKAGES],
     binaries=[],
     datas=[],
-    hiddenimports=[],
+    hiddenimports=[
+        # computer-use 事件/截屏链:pyautogui 懒加载这些模块(函数体内
+        # import / try-import),静态分析抓不到;2026-10-08 生产实测
+        # Windows daemon 截屏全灭(pyscreeze 缺)即此因。pyperclip 是
+        # 非 ASCII 输入的剪贴板路径(中文输入全靠它)。
+        "pyscreeze",
+        "PIL",
+        "pyperclip",
+        "pyautogui",
+        *(["pyatspi", "gi.repository.Atspi"] if LINUX_SYSTEM_PACKAGES else []),
+    ],
     hookspath=[],
     hooksconfig={},
     runtime_hooks=[],
     excludes=[
-        # httpx[cli] 可选链（rich→pygments→PIL→numpy→yaml、markdown_it）。
+        # httpx[cli] 可选链（rich→pygments→PIL→numpy→yaml、click、zstandard）。
         # psutil 曾误列于此（当作 rich 链传递依赖），实为 procsup.py 硬依赖。
+        # PIL 已从排除名单移出:computer-use 截屏(pyscreeze)硬依赖。
         "rich",
         "pygments",
         "markdown_it",
-        "PIL",
         "numpy",
         "yaml",
         "click",

@@ -676,3 +676,132 @@ async def test_connect_hello_timeout_raises_transport_error(monkeypatch):
     dt = time_mod.monotonic() - t0
     assert dt < 2, f"hello 超时应快速失败，耗时 {dt:.1f}s"
     await client.close()
+
+
+async def test_stream_transfers_include_machine_identity():
+    requests = []
+
+    def handler(request):
+        requests.append(request)
+        return httpx.Response(200, content=b"synthetic")
+
+    client = ChannelClient(
+        SERVER,
+        PAT,
+        machine_id="mac 1",
+        client=httpx.AsyncClient(transport=httpx.MockTransport(handler)),
+    )
+    await client.post_stream_result("c", [], deadline_s=1)
+    async with client.get_stream("c", deadline_s=1) as chunks:
+        assert b"".join([chunk async for chunk in chunks]) == b"synthetic"
+    assert len(requests) == 2
+    assert all(request.url.params.get("machine_id") == "mac 1" for request in requests)
+    await client.close()
+
+
+async def test_channel_drops_call_assigned_to_another_machine():
+    stream = (
+        _frame("hello", "{}")
+        + _frame("tool_call", json.dumps({"call_id": "wrong", "op": "exec", "machine_id": "mac2"}))
+        + _frame("tool_call", json.dumps({"call_id": "right", "op": "exec", "machine_id": "mac1"}))
+    )
+    client = ChannelClient(
+        SERVER,
+        PAT,
+        machine_id="mac1",
+        client=httpx.AsyncClient(transport=_sse_transport([], stream.encode())),
+    )
+    _, calls = await client.connect()
+    assert [call.call_id async for call in calls] == ["right"]
+    await client.close()
+
+
+@pytest.mark.parametrize("assignment", [{}, {"machine_id": None}, {"machine_id": ""}])
+async def test_registered_machine_rejects_unbound_calls(assignment):
+    stream = (
+        _frame("hello", "{}")
+        + _frame("tool_call", json.dumps({"call_id": "unbound", "op": "exec", **assignment}))
+        + _frame("tool_call", json.dumps({"call_id": "bound", "op": "exec", "machine_id": "mac1"}))
+    )
+    client = ChannelClient(
+        SERVER,
+        PAT,
+        machine_id="mac1",
+        client=httpx.AsyncClient(transport=_sse_transport([], stream.encode())),
+    )
+    try:
+        _, calls = await client.connect()
+        assert [call.call_id async for call in calls] == ["bound"]
+    finally:
+        await client.close()
+
+
+async def test_late_done_rejected_by_assignment_does_not_break_channel():
+    stream = _frame("hello", "{}") + _frame(
+        "tool_call", json.dumps({"call_id": "next", "op": "exec", "machine_id": "mac1"})
+    )
+
+    def handler(request):
+        if request.url.path.endswith("/channel"):
+            return httpx.Response(200, content=stream.encode())
+        if request.url.path.endswith("/expired"):
+            return httpx.Response(409, json={"detail": {"code": "sandbox_result_mismatch"}})
+        return httpx.Response(200, json={"status": "ok"})
+
+    client = ChannelClient(
+        SERVER,
+        PAT,
+        machine_id="mac1",
+        client=httpx.AsyncClient(transport=httpx.MockTransport(handler)),
+    )
+    _, calls = await client.connect()
+    await client.post_result("expired", {"stage": "done", "status": "ok"})
+    assert [call.call_id async for call in calls] == ["next"]
+    await client.post_result("next", {"stage": "done", "status": "ok"})
+    await client.close()
+
+
+@pytest.mark.parametrize(
+    "stage,code", [("ack", "sandbox_result_mismatch"), ("done", "other_conflict")]
+)
+async def test_result_rejection_still_raises_for_ack_or_unrelated_conflict(stage, code):
+    client = ChannelClient(
+        SERVER,
+        PAT,
+        client=httpx.AsyncClient(
+            transport=httpx.MockTransport(
+                lambda request: httpx.Response(409, json={"detail": {"code": code}})
+            )
+        ),
+    )
+    with pytest.raises(TransportError, match="HTTP 409"):
+        await client.post_result("c", {"stage": stage})
+    await client.close()
+
+
+@pytest.mark.parametrize(
+    "url",
+    ["http://remote.example", "http://192.168.1.2:8000", "https://user:secret@remote.example"],
+)
+def test_channel_rejects_unencrypted_or_credentialed_remote_url(url):
+    from lambchat_sandbox.config import ConfigError
+
+    with pytest.raises(ConfigError):
+        ChannelClient(url, PAT)
+
+
+async def test_result_redirect_never_forwards_private_payload():
+    requests = []
+
+    def respond(request):
+        requests.append(request)
+        return httpx.Response(307, headers={"Location": "https://other.example/stolen"})
+
+    client = httpx.AsyncClient(transport=httpx.MockTransport(respond), follow_redirects=True)
+    channel = ChannelClient(SERVER, PAT, client=client)
+    try:
+        with pytest.raises(TransportError):
+            await channel.post_result("call-1", {"stage": "done", "result": {"private": "capture"}})
+        assert len(requests) == 1 and requests[0].url.host == "lc.example"
+    finally:
+        await channel.close()

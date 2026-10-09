@@ -2,6 +2,7 @@
 会话管理器
 """
 
+import asyncio
 import uuid
 from collections import Counter
 from copy import deepcopy
@@ -287,7 +288,7 @@ class SessionManager:
     async def _get_or_begin_attachment_clear_operation(
         self,
         session_id: str,
-    ) -> tuple[str, str, dict[str, dict[str, Any]]]:
+    ) -> tuple[str, str, dict[str, dict[str, Any]], int]:
         operation = await self.storage.claim_attachment_clear_operation(session_id)
         if operation is None:
             raise SessionError("attachment_clear_operation_persist_failed")
@@ -312,12 +313,15 @@ class SessionManager:
             )
             if operation is None:
                 raise SessionError("attachment_clear_operation_persist_failed")
-        return self._parse_attachment_clear_operation(operation)
+        return (
+            *self._parse_attachment_clear_operation(operation),
+            operation.get("private_capture_epoch", 0),
+        )
 
     async def clear_session_messages(self, session_id: str) -> int:
         """Release attachment references and remove all traces for a session."""
         operation = await self._get_or_begin_attachment_clear_operation(session_id)
-        operation_id, uploaded_by, groups = operation
+        operation_id, uploaded_by, groups, private_capture_epoch = operation
         for group_id, group in groups.items():
             parent_group_id = group.get("parent_group_id")
             if parent_group_id and groups[parent_group_id]["status"] == "survivor":
@@ -362,6 +366,9 @@ class SessionManager:
                 ):
                     raise SessionError("attachment_clear_group_persist_failed")
                 group["status"] = "released"
+        await self._file_record_storage.delete_private_session_files(
+            session_id, max_epoch=private_capture_epoch
+        )
         if not await self.storage.complete_attachment_clear_operation(session_id, operation_id):
             raise SessionError("attachment_clear_operation_complete_failed")
         released_keys = {
@@ -374,22 +381,37 @@ class SessionManager:
 
     async def delete_session(self, session_id: str) -> bool:
         """删除会话（同时删除关联的 traces）"""
-        delete_operation = await self.storage.claim_attachment_delete_operation(session_id)
-        if not isinstance(delete_operation, dict) or not isinstance(
-            delete_operation.get("id"), str
-        ):
-            raise SessionError("session_delete_fence_unavailable")
-        if delete_operation.get("acquired") is False:
-            raise SessionError("session_delete_in_progress")
-        delete_operation_id = delete_operation["id"]
-        try:
-            await self.trace_storage.expire_stale_running_traces(session_id)
-            await self.clear_session_messages(session_id)
-            if await self.trace_storage.has_session_trace_documents(session_id):
-                raise SessionError("session_delete_has_trace_survivors")
-        except BaseException:
-            await self.storage.cancel_attachment_delete_operation(session_id, delete_operation_id)
-            raise
+        # SSE can finish before the writer lease or trace finalizer settles.
+        for attempt in range(6):
+            delete_operation = await self.storage.claim_attachment_delete_operation(session_id)
+            if delete_operation is None and attempt < 5:
+                await asyncio.sleep(0.1)
+                continue
+            if not isinstance(delete_operation, dict) or not isinstance(
+                delete_operation.get("id"), str
+            ):
+                raise SessionError("session_delete_fence_unavailable")
+            if delete_operation.get("acquired") is False:
+                raise SessionError("session_delete_in_progress")
+            delete_operation_id = delete_operation["id"]
+            try:
+                await self.trace_storage.expire_stale_running_traces(session_id)
+                await self.clear_session_messages(session_id)
+                if await self.trace_storage.has_session_trace_documents(session_id):
+                    if attempt == 5:
+                        raise SessionError("session_delete_has_trace_survivors")
+                    await self.storage.cancel_attachment_delete_operation(
+                        session_id, delete_operation_id
+                    )
+                    await asyncio.sleep(0.1)
+                    continue
+                await self._file_record_storage.delete_private_session_files(session_id)
+            except BaseException:
+                await self.storage.cancel_attachment_delete_operation(
+                    session_id, delete_operation_id
+                )
+                raise
+            break
         # Clean up revealed file index
         try:
             from src.infra.revealed_file.storage import get_revealed_file_storage

@@ -16,6 +16,7 @@ import time
 from collections import defaultdict
 from pathlib import Path
 
+import httpx
 import pytest
 
 from lambchat_sandbox import cli
@@ -274,7 +275,7 @@ async def test_allow_path_audits_received_allowed_executed_per_session():
 
     assert [e["event"] for e in auditor.records["s1"]] == ["received", "allowed", "executed"]
     assert [e["event"] for e in auditor.records["s2"]] == ["received", "allowed", "executed"]
-    assert auditor.records["s1"][0]["command"] == "echo a"
+    assert "command" not in auditor.records["s1"][0]
 
 
 async def test_exec_payload_env_passed_to_executor_sanitized():
@@ -607,13 +608,14 @@ def _ns() -> argparse.Namespace:
 
 
 def test_cmd_run_without_pat_returns_1(monkeypatch, capsys):
-    monkeypatch.setattr(cli, "load_pat", lambda: None)
+    monkeypatch.setattr(cli, "load_config", lambda: SandboxConfig())
+    monkeypatch.setattr(cli, "load_pat", lambda **kwargs: None)
     assert cli.cmd_run(_ns()) == 1
     assert "login" in capsys.readouterr().err
 
 
 def test_cmd_run_auth_error_returns_1_with_relogin_hint(monkeypatch, capsys):
-    monkeypatch.setattr(cli, "load_pat", lambda: PAT)
+    monkeypatch.setattr(cli, "load_pat", lambda **kwargs: PAT)
     monkeypatch.setattr(cli, "load_config", lambda: SandboxConfig())
 
     async def fake_daemon(cfg, *, pat):
@@ -660,7 +662,7 @@ async def test_run_daemon_update_required_stops_without_backoff_or_offline(capsy
 def test_cmd_run_update_required_returns_1_with_update_hint(monkeypatch, capsys):
     """CLI 消费：UpdateRequiredError → 退出码 1（升级指引由 daemon 主循环打印，
     CLI 不重复刷屏）；不得误报成 login 提示或优雅下线。"""
-    monkeypatch.setattr(cli, "load_pat", lambda: PAT)
+    monkeypatch.setattr(cli, "load_pat", lambda **kwargs: PAT)
     monkeypatch.setattr(cli, "load_config", lambda: SandboxConfig())
 
     async def fake_daemon(cfg, *, pat):
@@ -677,7 +679,7 @@ def test_cmd_run_update_required_returns_1_with_update_hint(monkeypatch, capsys)
 @pytest.mark.parametrize("exc", [KeyboardInterrupt, asyncio.CancelledError])
 def test_cmd_run_interrupt_flavors_return_0(monkeypatch, capsys, exc):
     """SIGINT→KeyboardInterrupt、SIGTERM→CancelledError：都视为优雅下线。"""
-    monkeypatch.setattr(cli, "load_pat", lambda: PAT)
+    monkeypatch.setattr(cli, "load_pat", lambda **kwargs: PAT)
     monkeypatch.setattr(cli, "load_config", lambda: SandboxConfig())
 
     async def fake_daemon(cfg, *, pat):
@@ -689,7 +691,7 @@ def test_cmd_run_interrupt_flavors_return_0(monkeypatch, capsys, exc):
 
 
 def test_cmd_run_invokes_run_daemon_with_loaded_config_and_pat(monkeypatch):
-    monkeypatch.setattr(cli, "load_pat", lambda: PAT)
+    monkeypatch.setattr(cli, "load_pat", lambda **kwargs: PAT)
     cfg = SandboxConfig()
     monkeypatch.setattr(cli, "load_config", lambda: cfg)
     seen: dict[str, object] = {}
@@ -711,7 +713,7 @@ def test_main_config_error_is_friendly(monkeypatch, capsys):
     def boom_load():
         raise ConfigError("invalid JSON in /tmp/x/sandbox.json: Expecting value")
 
-    monkeypatch.setattr(cli, "load_pat", lambda: PAT)
+    monkeypatch.setattr(cli, "load_pat", lambda **kwargs: PAT)
     monkeypatch.setattr(cli, "load_config", boom_load)
     assert cli.main(["run"]) == 1
     err = capsys.readouterr().err
@@ -789,7 +791,7 @@ async def test_fs_read_dispatches_to_fsops_and_done_carries_result(tmp_path):
     events = [e["event"] for e in auditor.records["s1"]]
     assert events == ["received", "allowed", "executed"]
     received = auditor.records["s1"][0]
-    assert received["op"] == "fs_read" and received["path"] == "f.txt"
+    assert received["op"] == "fs_read" and "path" not in received
 
 
 async def test_fs_write_executes_directly_under_policy_all(tmp_path):
@@ -1344,3 +1346,59 @@ async def test_cua_op_converges_structured_result(tmp_path):
     # 本机平台决定 platform 值：CI(Linux)=unsupported，mac=darwin——都是契约内
     assert result.get("platform") in ("darwin", "win32", "linux", "unsupported")
     assert "ready" in result
+
+
+@pytest.mark.parametrize(
+    "failure",
+    [
+        TransportError("get_stream: HTTP 409"),
+        httpx.ReadError("network disconnected"),
+        httpx.ReadTimeout("read timed out"),
+    ],
+)
+async def test_upload_stream_transport_failure_reports_done_before_reconnect(tmp_path, failure):
+    class FailedStreamClient(_UploadStreamClient):
+        def get_stream(self, call_id: str, *, deadline_s: float):
+            raise failure
+
+    client = FailedStreamClient(
+        [],
+        calls=[
+            _fs_call(
+                op="fs_upload_stream",
+                payload={"path": "test.bin", "cwd": "/workspace/s1"},
+            )
+        ],
+    )
+    await _run(
+        _cfg("none", data_root=tmp_path),
+        FakeFactory([client, _terminator()]),
+        executor=FakeExecutor(),
+        auditor=MemoryAuditor(),
+    )
+    assert client.posted == [
+        ("c1", {"stage": "ack"}),
+        ("c1", {"stage": "done", "status": "error", "error": "stream_transport_failed"}),
+    ]
+
+
+@pytest.mark.parametrize("failure", [httpx.ReadError("get failed"), TransportAuthError("expired")])
+async def test_upload_stream_failed_result_preserves_original_error(tmp_path, failure):
+    class FailedResultClient(_UploadStreamClient):
+        def get_stream(self, call_id: str, *, deadline_s: float):
+            raise failure
+
+        async def post_result(self, call_id: str, body: dict) -> None:
+            raise httpx.ConnectError("result unavailable")
+
+    with pytest.raises(type(failure)) as caught:
+        await daemon_module._process_upload_stream_call(
+            FailedResultClient([]),
+            _fs_call(op="fs_upload_stream", payload={"path": "test.bin", "cwd": "/workspace/s1"}),
+            session_id="s1",
+            path="test.bin",
+            started=time.monotonic(),
+            cfg=_cfg("none", data_root=tmp_path),
+            auditor=MemoryAuditor(),
+        )
+    assert caught.value is failure

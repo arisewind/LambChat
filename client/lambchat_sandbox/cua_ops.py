@@ -18,8 +18,11 @@ from __future__ import annotations
 
 import base64
 import io
+import math
 import os
 import time
+from contextvars import ContextVar
+from threading import Lock
 from typing import Any
 
 from lambchat_sandbox import cua_backend
@@ -31,6 +34,7 @@ CUA_OPS = frozenset(
         "cua_launch",
         "cua_windows",
         "cua_state",
+        "cua_activate",
         "cua_click",
         "cua_set_value",
         "cua_type",
@@ -94,7 +98,7 @@ def _pyautogui() -> Any:
         import pyautogui
 
         return pyautogui
-    except ImportError as exc:
+    except (ImportError, SystemExit) as exc:
         raise CuaOpError("unsupported_platform", f"pyautogui_missing:{exc}") from exc
 
 
@@ -176,8 +180,17 @@ def _op_launch(payload: dict) -> dict:
             else:
                 subprocess.Popen(["xdg-open", url], start_new_session=True)
             return {"ok": True, "kind": "url", "target": url}
-        # app 路径启动(不走 shell)
-        argv = [str(app), *args]
+        # app 路径启动(不走 shell);裸名(如 "firefox")经 PATH 解析——
+        # 2026-10-08 xiaoxin 实测 agent 常用裸名,直接 Popen 报
+        # launch_failed: No such file or directory
+        import shutil
+
+        resolved = str(app)
+        if not os.path.isfile(resolved) and os.sep not in str(app):
+            which = shutil.which(str(app))
+            if which:
+                resolved = which
+        argv = [resolved, *args]
         env = None
         if platform.startswith("linux"):
             env = dict(os.environ)
@@ -216,36 +229,42 @@ class _Observed:
         self.window = window
 
 
-_OBSERVATIONS: dict[str, _Observed] = {}
+_OBSERVATIONS: dict[tuple[str | None, int, int | None], _Observed] = {}
+_OBSERVATION_SESSION: ContextVar[str | None] = ContextVar("cua_observation_session", default=None)
+_OBSERVATION_LOCK = Lock()
 
 
-def _cache_key(pid: int, window_id: int | None) -> str:
-    return f"{pid}:{window_id if window_id is not None else 'main'}"
+def _cache_key(pid: int, window_id: int | None) -> tuple[str | None, int, int | None]:
+    return (_OBSERVATION_SESSION.get(), pid, window_id)
 
 
-def _drop(key: str) -> None:
+def _drop(key: tuple[str | None, int, int | None]) -> None:
     _OBSERVATIONS.pop(key, None)
 
 
 def _store_observation(pid: int, window_id: int | None, observed: _Observed) -> None:
-    key = _cache_key(pid, window_id)
-    now = time.monotonic()
-    for stale_key in [k for k, v in _OBSERVATIONS.items() if now - v.ts > ELEMENT_CACHE_TTL]:
-        _drop(stale_key)
-    while len(_OBSERVATIONS) >= ELEMENT_CACHE_MAX_APPS:
-        oldest = min(_OBSERVATIONS, key=lambda k: _OBSERVATIONS[k].ts)
-        _drop(oldest)
-    _drop(key)
-    _OBSERVATIONS[key] = observed
+    with _OBSERVATION_LOCK:
+        key = _cache_key(pid, window_id)
+        now = time.monotonic()
+        for stale_key in [k for k, v in _OBSERVATIONS.items() if now - v.ts > ELEMENT_CACHE_TTL]:
+            _drop(stale_key)
+        while len(_OBSERVATIONS) >= ELEMENT_CACHE_MAX_APPS:
+            oldest = min(_OBSERVATIONS, key=lambda k: _OBSERVATIONS[k].ts)
+            _drop(oldest)
+        _drop(key)
+        _OBSERVATIONS[key] = observed
 
 
 def _resolve_index(pid: int, window_id: int | None, index: Any) -> Any:
-    if window_id is not None:
-        observed = _OBSERVATIONS.get(_cache_key(pid, window_id))
-    else:
-        # 索引寻址该应用**最近一次**观察(未显式钉窗口时),与 ZCode 语义一致
-        candidates = [v for k, v in _OBSERVATIONS.items() if k.startswith(f"{pid}:")]
-        observed = max(candidates, key=lambda v: v.ts) if candidates else None
+    with _OBSERVATION_LOCK:
+        if window_id is not None:
+            observed = _OBSERVATIONS.get(_cache_key(pid, window_id))
+        else:
+            # 索引寻址该应用**最近一次**观察(未显式钉窗口时),与 ZCode 语义一致
+            candidates = [
+                v for k, v in _OBSERVATIONS.items() if k[:2] == (_OBSERVATION_SESSION.get(), pid)
+            ]
+            observed = max(candidates, key=lambda v: v.ts) if candidates else None
     if observed is None or time.monotonic() - observed.ts > ELEMENT_CACHE_TTL:
         raise CuaOpError("stale_state", "observe again with cua_state before acting")
     if not isinstance(index, int) or index < 0 or index >= len(observed.elements):
@@ -356,7 +375,23 @@ def _op_state(payload: dict) -> dict:
         "state": _render_tree(rows, window_info, truncated),
     }
     if payload.get("include_screenshot"):
-        result["screenshot"] = _capture(window_info.get("bounds"))
+        try:
+            # ponytail: Foreground regions may include overlays; window isolation needs native capture.
+            _require_foreground(pid)
+            try:
+                _, active_window = backend.pick_window(pid, None)
+            except Exception as exc:  # noqa: BLE001 - Preserve the tree when focus is unknown.
+                raise CuaOpError("foreground_required", "active window unavailable") from exc
+            if (
+                active_window.get("focused") is not True
+                or resolved_window_id is None
+                or active_window.get("window_id") != resolved_window_id
+                or active_window.get("bounds") != window_info.get("bounds")
+            ):
+                raise CuaOpError("foreground_required", "target window is not the active window")
+            result["screenshot"] = _capture(window_info.get("bounds"))
+        except CuaOpError as exc:
+            result["screenshot"] = {"error": exc.code, "detail": exc.detail}
     return result
 
 
@@ -366,19 +401,32 @@ def _op_state(payload: dict) -> dict:
 
 
 def _capture(bounds: list[float] | None) -> dict[str, Any]:
-    _backend()  # 平台可用性预检
-    pyautogui = _pyautogui()
+    if (
+        not isinstance(bounds, (list, tuple))
+        or len(bounds) != 4
+        or any(not isinstance(v, (int, float)) or not math.isfinite(v) for v in bounds)
+        or bounds[2] < 1
+        or bounds[3] < 1
+    ):
+        raise CuaOpError("screenshot_failed", "target window bounds unavailable or invalid")
+    backend = _backend()  # 平台可用性预检
+    if _is_mac():
+        import Quartz
+
+        if not Quartz.CGPreflightScreenCaptureAccess():
+            raise CuaOpError("screen_recording_denied", "grant Screen Recording to LambChat.app")
     try:
-        if bounds:
+        native_capture = getattr(backend, "screenshot", None)
+        if callable(native_capture):
+            image = native_capture(bounds)
+        else:
             region = (
                 int(bounds[0]),
                 int(bounds[1]),
                 max(1, int(bounds[2])),
                 max(1, int(bounds[3])),
             )
-            image = pyautogui.screenshot(region=region)
-        else:
-            image = pyautogui.screenshot()
+            image = _pyautogui().screenshot(region=region)
     except Exception as exc:  # noqa: BLE001
         raise CuaOpError("screenshot_failed", str(exc)) from exc
     if image is None:
@@ -424,7 +472,7 @@ def _require_foreground(pid: int) -> None:
         front = _backend().frontmost_pid()
     except Exception:  # noqa: BLE001
         pass
-    if front is not None and front != pid:
+    if front != pid:
         raise CuaOpError(
             "foreground_required",
             "event strategy never activates apps; act on an element instead",
@@ -511,22 +559,79 @@ def _type_text(text: str) -> None:
     if all(ord(ch) < 128 for ch in text):
         pyautogui.typewrite(text, interval=0.01)
         return
-    # 非 ASCII:剪贴板 + 平台粘贴组合键(unicode 键盘事件不可靠)
+    # Non-ASCII fallback for platforms without native text injection.
     import pyperclip
 
-    pyperclip.copy(text)
-    pyautogui.hotkey(*(["command", "v"] if _is_mac() else ["ctrl", "v"]))
+    previous = pyperclip.paste()
+    try:
+        pyperclip.copy(text)
+        pyautogui.hotkey(*(["command", "v"] if _is_mac() else ["ctrl", "v"]))
+    finally:
+        pyperclip.copy(previous)
 
 
 def _op_type(payload: dict) -> dict:
+    """输入文本。带元素索引时优先走免前台路径:AX/UIA 聚焦元素 →
+    ValuePattern/EditableText 直写——后台窗口也能输入,绕开事件策略的
+    foreground 门槛(实测 Chromium 地址框有 ValuePattern,直写即可)。
+    直写失败再回退合成键盘(需前台)。
+    """
     _require_ax()
     pid = _resolve_app_ref(payload)
     text = payload.get("text")
     if not isinstance(text, str) or not text:
         raise CuaOpError("invalid_arguments", "text required")
+
+    # index 取值兼容两层:工具层规范是 target.index(与 click/set_value 同),
+    # 顶层 index 供 op 直调。只读顶层会让元素路径在真实链路上静默失效。
+    target_ref = payload.get("target") or {}
+    index = payload.get("index")
+    if index is None and isinstance(target_ref, dict):
+        index = target_ref.get("index")
+    if index is not None:
+        element = _resolve_index(pid, payload.get("window_id"), index)
+        backend = _backend()
+        try:
+            backend.set_focus(element)
+        except Exception:  # noqa: BLE001 - 聚焦尽力而为,直写不依赖它
+            pass
+        try:
+            backend.set_value(element, text)
+            return {"ok": True, "strategy": "a11y", "method": "set_value"}
+        except Exception:  # noqa: BLE001 - 元素不可直写,回退事件输入
+            pass
+        # set_focus 在 Windows 会顺带把窗口调到前台;再查一次前台,过则打字
+        try:
+            _require_foreground(pid)
+        except CuaOpError as exc:
+            raise CuaOpError(
+                "foreground_required",
+                f"{exc.detail}; element is not directly settable — "
+                "activate the window (action=activate) first, or use set_value on a settable element",
+            ) from exc
+        _type_text(text)
+        return {"ok": True, "strategy": "event", "method": "focused-typing"}
+
     _require_foreground(pid)
     _type_text(text)
-    return {"ok": True}
+    return {"ok": True, "strategy": "event", "method": "raw-typing"}
+
+
+def _op_activate(payload: dict) -> dict:
+    """显式把目标应用/窗口调到前台(agent 主动调用)。
+
+    与「事件策略绝不自动激活」不冲突:禁的是静默抢焦点,给模型一个
+    显式 activate 动作是 ZCode 同款契约——key 快捷键类操作的前置步骤。
+    """
+    backend = _backend()
+    pid = _resolve_app_ref(payload)
+    try:
+        backend.activate_window(pid, payload.get("window_id"))
+    except CuaOpError:
+        raise
+    except Exception as exc:  # noqa: BLE001
+        raise CuaOpError("action_failed", f"activate failed: {exc}") from exc
+    return {"ok": True, "pid": pid}
 
 
 def _map_modifiers(text: str | None) -> list[str]:
@@ -552,24 +657,58 @@ def _map_modifiers(text: str | None) -> list[str]:
 
 def _op_key(payload: dict) -> dict:
     _require_ax()
+    backend = _backend()
     pid = _resolve_app_ref(payload)
     text = payload.get("text")
     if not isinstance(text, str) or not text.strip():
         raise CuaOpError("invalid_arguments", "text required (e.g. 'return' or 'cmd+c')")
     repeat = max(1, min(int(payload.get("repeat") or 1), 50))
-    modifier_keys = _map_modifiers(payload.get("modifiers"))
-    pyautogui = _pyautogui()
+    chord_modifiers = [
+        token.strip().lower()
+        for token in text.split("+")
+        if token.strip().lower()
+        in ("cmd", "command", "meta", "win", "ctrl", "control", "alt", "option", "shift")
+    ]
+    modifier_keys = list(
+        dict.fromkeys(
+            _map_modifiers(payload.get("modifiers")) + _map_modifiers("+".join(chord_modifiers))
+        )
+    )
     keys = []
     for token in text.split("+"):
         token = token.strip().lower()
         if not token:
             continue
-        if token in ("cmd", "command", "meta", "ctrl", "control", "alt", "option", "shift"):
-            continue  # 和弦里的修饰键走 modifiers 参数
+        if token in ("cmd", "command", "meta", "win", "ctrl", "control", "alt", "option", "shift"):
+            continue  # 修饰键已与 modifiers 参数合并
         keys.append(_KEY_MAP.get(token, token))
     if not keys and not modifier_keys:
         raise CuaOpError("invalid_arguments", "no key in chord")
     _require_foreground(pid)
+
+    native_chord = getattr(backend, "press_chord", None)
+    if (
+        callable(native_chord)
+        and keys
+        and (modifier_keys or len(keys) > 1 or not callable(getattr(backend, "press_key", None)))
+    ):
+        for _ in range(repeat):
+            native_chord(keys, modifier_keys)
+        return {"ok": True, "strategy": "a11y-event"}
+
+    # 单键优先走后端原生合成(Linux/AT-SPI KEY_SYM,Wayland 原生可用)。
+    # 2026-10-08 xiaoxin 实测:回车走 pyautogui 在无 X11 环境直接
+    # unsupported_platform,agent 只能绕 URL 导航——单键是最高频操作。
+    native_press = getattr(backend, "press_key", None)
+    if callable(native_press) and not modifier_keys and len(keys) == 1:
+        try:
+            for _ in range(repeat):
+                native_press(keys[0])
+            return {"ok": True, "strategy": "a11y-event", "key": keys[0]}
+        except Exception:  # noqa: BLE001 - 原生不支持该键回退 pyautogui
+            pass
+
+    pyautogui = _pyautogui()
     for _ in range(repeat):
         if modifier_keys and keys:
             pyautogui.hotkey(*modifier_keys, *keys)
@@ -589,9 +728,23 @@ def _op_scroll(payload: dict) -> dict:
         raise CuaOpError("invalid_arguments", "scroll_direction required")
     pages = max(0.0, min(float(payload.get("scroll_amount") or 1), 100))
     clicks = int(pages * 10)
+    target = payload.get("target") or {}
+    native_scroll = getattr(_backend(), "scroll_element", None)
+    if target.get("type") == "element" and callable(native_scroll):
+        element = _resolve_index(pid, payload.get("window_id"), target.get("index"))
+        try:
+            native_scroll(element, direction, pages)
+            return {"ok": True, "strategy": "a11y", "clicks": clicks}
+        except KeyError:
+            pass
     _require_foreground(pid)
     pyautogui = _pyautogui()
-    magnitude = -clicks if direction in ("up", "left") else clicks
+    if target.get("type") == "element":
+        element = _resolve_index(pid, payload.get("window_id"), target.get("index"))
+        pyautogui.moveTo(*_element_center(element))
+    elif target.get("type") == "coordinate":
+        pyautogui.moveTo(float(target["x"]), float(target["y"]))
+    magnitude = -clicks if direction in ("down", "left") else clicks
     try:
         if direction in ("left", "right"):
             pyautogui.hscroll(magnitude)
@@ -646,11 +799,12 @@ def _op_status(payload: dict) -> dict:
     message = None
     if payload.get("probe_screen"):
         try:
-            _capture(None)
+            _capture([0, 0, 10, 10])
             screen_state = "granted"
         except CuaOpError as exc:
             screen_state = "denied" if exc.code == "screen_recording_denied" else "unknown"
-    ready = ax_ok and screen_state in ("granted", "unknown")
+            message = f"{exc.code}: {exc.detail}"
+    ready = ax_ok and (not payload.get("probe_screen") or screen_state == "granted")
     if not ax_ok:
         message = (
             "grant Accessibility (and Screen Recording) to LambChat.app"
@@ -676,6 +830,7 @@ _CUA_HANDLERS = {
     "cua_launch": _op_launch,
     "cua_windows": _op_windows,
     "cua_state": _op_state,
+    "cua_activate": _op_activate,
     "cua_click": _op_click,
     "cua_set_value": _op_set_value,
     "cua_type": _op_type,
@@ -686,11 +841,26 @@ _CUA_HANDLERS = {
 
 
 def handle_cua_op(op: str, payload: dict) -> dict:
-    """执行一个 computer-use op。CuaOpError 转为 ``{"error": ...}`` 结果。"""
+    """执行一个 computer-use op。
+
+    CuaOpError 与**一切**运行时异常都转为 ``{"error": ...}`` 结构化结果:
+    生产实测(2026-10-08 Windows)未捕获的 COMError/pyperclip 缺失会裸穿到
+    daemon 层 error 字符串,relay 包成 SANDBOX_EXEC_FAILED 后模型只见到
+    模板文案而无从纠错——op 级异常必须在模型可读层收敛。
+    """
     handler = _CUA_HANDLERS.get(op)
     if handler is None:
         raise ValueError(f"unknown cua op: {op}")
+    payload = payload or {}
+    session_id = payload.get("session_id")
+    if session_id is not None and (not isinstance(session_id, str) or not session_id):
+        return {"error": "invalid_arguments", "detail": "session_id must be nonempty text"}
+    token = _OBSERVATION_SESSION.set(session_id)
     try:
-        return handler(payload or {})
+        return handler(payload)
     except CuaOpError as exc:
         return {"error": exc.code, "detail": exc.detail}
+    except Exception as exc:  # noqa: BLE001 - COMError 等三方异常同样结构化
+        return {"error": "op_failed", "detail": f"{type(exc).__name__}: {exc}"}
+    finally:
+        _OBSERVATION_SESSION.reset(token)

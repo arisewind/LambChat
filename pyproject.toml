@@ -1,6 +1,6 @@
 [project]
 name = "lambchat"
-version = "2.14.3"
+version = "2.14.4"
 description = "Full-featured AI Agent system with FastAPI, LangGraph, and LangSmith"
 readme = "README.md"
 requires-python = ">=3.12"
@@ -42,6 +42,7 @@ dependencies = [
     "resend>=2.42.0",
     "bcrypt>=5.0.0",
     "authlib>=1.7.2", # OAuth/OIDC support
+    "cryptography>=50.0.1", # Independently signed daemon release verification
     "langgraph-checkpoint-mongodb>=0.4.0",
     "daytona>=0.207.0",
     "minio>=7.2.20",
@@ -89,6 +90,10 @@ cua = [
     "pywinauto>=0.6.9; sys_platform == 'win32'",
     "pyautogui; sys_platform != 'darwin'",
     "python-xlib; sys_platform == 'linux'",
+    "pillow>=12.0",
+    # 非 ASCII 文本输入的剪贴板通道(cua_ops._type_text);缺失时中文
+    # 输入整链 dispatch_failed(2026-10-08 生产实测)
+    "pyperclip",
 ]
 
 [build-system]

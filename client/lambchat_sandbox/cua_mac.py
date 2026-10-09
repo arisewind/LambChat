@@ -29,8 +29,22 @@ def frontmost_pid() -> int | None:
         system = atomacos.NativeUIElement.getSystemObject()
         focused = system.AXFocusedApplication
         return focused.pid if focused is not None else None
-    except Exception:  # noqa: BLE001
-        return None
+    except Exception:  # noqa: BLE001 - system-wide AX is unavailable on some macOS sessions
+        import re
+        import subprocess
+
+        # Launch Services reports focus even when the foreground app has no window.
+        front = subprocess.run(
+            ["/usr/bin/lsappinfo", "front"], capture_output=True, text=True, timeout=2
+        ).stdout.strip()
+        info = subprocess.run(
+            ["/usr/bin/lsappinfo", "info", "-only", "pid", front],
+            capture_output=True,
+            text=True,
+            timeout=2,
+        ).stdout
+        match = re.search(r"\bpid\s*=\s*(\d+)", info)
+        return int(match[1]) if match else None
 
 
 def list_apps() -> list[dict[str, Any]]:
@@ -94,10 +108,10 @@ def app_by_pid(pid: int) -> Any:
 def windows(pid: int) -> list[dict[str, Any]]:
     app = app_by_pid(pid)
     rows = []
-    for window in app.windows():
+    for index, window in enumerate(app.windows()):
         rows.append(
             {
-                "window_id": None,
+                "window_id": index,
                 "title": _scalar(window, "AXTitle") or "",
                 "subrole": _scalar(window, "AXSubrole"),
                 "main": bool(_scalar(window, "AXMain")),
@@ -115,17 +129,17 @@ def pick_window(pid: int, window_id: int | None) -> tuple[Any, dict[str, Any]]:
     if window_id is not None:
         if 0 <= window_id < len(rows):
             row = rows[window_id]
-            return row["handle"], {k: row[k] for k in ("window_id", "title", "bounds")}
+            return row["handle"], {k: row[k] for k in ("window_id", "title", "bounds", "focused")}
         raise KeyError(f"window index {window_id} out of range")
     for row in rows:
         if row["focused"]:
-            return row["handle"], {k: row[k] for k in ("window_id", "title", "bounds")}
+            return row["handle"], {k: row[k] for k in ("window_id", "title", "bounds", "focused")}
     for row in rows:
         if row["main"]:
-            return row["handle"], {k: row[k] for k in ("window_id", "title", "bounds")}
+            return row["handle"], {k: row[k] for k in ("window_id", "title", "bounds", "focused")}
     if rows:
         row = rows[0]
-        return row["handle"], {k: row[k] for k in ("window_id", "title", "bounds")}
+        return row["handle"], {k: row[k] for k in ("window_id", "title", "bounds", "focused")}
     raise KeyError("app has no accessible windows")
 
 
@@ -147,7 +161,10 @@ def row_of(element: Any) -> dict[str, Any]:
         actions = list(element.getActions())
     except Exception:  # noqa: BLE001
         actions = []
-    value = _scalar(element, "AXValue")
+    role = _scalar(element, "AXRole")
+    subrole = _scalar(element, "AXSubrole")
+    protected = subrole == "AXSecureTextField" or role == "AXSecureTextField"
+    value = None if protected else _scalar(element, "AXValue")
     return {
         "kind": _scalar(element, "AXRole"),
         "title": _scalar(element, "AXTitle"),
@@ -181,3 +198,104 @@ def set_value(element: Any, text: str) -> None:
             element.AXValue = text
         except Exception as exc:  # noqa: BLE001
             raise KeyError(f"element not settable: {exc}") from exc
+
+
+def press_chord(keys: list[str], modifiers: list[str]) -> None:
+    """Set modifier flags on each key event; separate modifier events can race."""
+    import Quartz
+    from pyautogui import isShiftCharacter  # noqa: N813
+    from pyautogui._pyautogui_osx import keyboardMapping  # noqa: N813
+
+    modifier_flags = {
+        "command": Quartz.kCGEventFlagMaskCommand,
+        "ctrl": Quartz.kCGEventFlagMaskControl,
+        "option": Quartz.kCGEventFlagMaskAlternate,
+        "shift": Quartz.kCGEventFlagMaskShift,
+    }
+    flags = 0
+    for modifier in modifiers:
+        flags |= modifier_flags[modifier]
+    for key in keys:
+        code = keyboardMapping.get(key)
+        if code is None:
+            raise KeyError(f"key {key} is unavailable")
+        key_flags = flags | (Quartz.kCGEventFlagMaskShift if isShiftCharacter(key) else 0)
+        for down in (True, False):
+            event = Quartz.CGEventCreateKeyboardEvent(None, code, down)
+            Quartz.CGEventSetFlags(event, key_flags if down else 0)
+            Quartz.CGEventPost(Quartz.kCGHIDEventTap, event)
+
+
+def type_text(text: str) -> None:
+    """Paste literal text while preserving images, files and rich clipboard formats."""
+    import time
+
+    import AppKit
+
+    board = AppKit.NSPasteboard.generalPasteboard()
+    saved = []
+    for item in board.pasteboardItems() or []:
+        copy = AppKit.NSPasteboardItem.alloc().init()
+        for kind in item.types():
+            data = item.dataForType_(kind)
+            if data is None:
+                raise RuntimeError("clipboard format cannot be preserved")
+            raw = bytes(data)
+            copy.setData_forType_(AppKit.NSData.dataWithBytes_length_(raw, len(raw)), kind)
+        saved.append(copy)
+    try:
+        board.clearContents()
+        board.setString_forType_(text, AppKit.NSPasteboardTypeString)
+        press_chord(["v"], ["command"])
+        time.sleep(0.1)  # Allow the target to consume the paste before restoring formats.
+    finally:
+        board.clearContents()
+        if saved:
+            board.writeObjects_(saved)
+
+
+def set_focus(element: Any) -> None:
+    """AX 聚焦元素(不抢前台窗口),并确认属性写入生效。"""
+    element.AXFocused = True
+    if not element.AXFocused:
+        raise KeyError("element not focusable")
+
+
+def screenshot(bounds: list[float] | None) -> Any:
+    """Capture native screen-point bounds; cropping a Retina raster mixes coordinate units."""
+    import subprocess
+    from pathlib import Path
+    from tempfile import TemporaryDirectory
+
+    from PIL import Image
+
+    with TemporaryDirectory(prefix="lambchat-cua-") as directory:
+        path = str(Path(directory) / "screen.png")
+        command = ["/usr/sbin/screencapture", "-x", "-t", "png"]
+        if bounds:
+            x, y, width, height = bounds
+            command.append(f"-R{int(x)},{int(y)},{max(1, int(width))},{max(1, int(height))}")
+        else:
+            command.append("-m")
+        subprocess.run([*command, path], check=True, capture_output=True, timeout=10)
+        with Image.open(path) as image:
+            return image.copy()
+
+
+def activate_window(pid: int, window_id: int | None) -> None:
+    """把应用调到前台:`open -a <bundle>`(免 osascript——System Events 的
+    自动化权限无人批准会无限卡死,见记忆 osascript-tcc-hang-gotcha)。
+
+    AppKit/NSWorkspace 非主线程会死锁(记忆 computer-use-implementation),
+    不碰;psutil 取可执行路径后向上找 .app bundle 交给系统 open。
+    """
+    import subprocess
+    from pathlib import Path
+
+    import psutil
+
+    exe = Path(psutil.Process(pid).exe())
+    bundle = next((p for p in exe.parents if p.name.endswith(".app")), None)
+    if bundle is None:
+        raise KeyError(f"pid {pid} is not a bundled .app (exe={exe})")
+    subprocess.Popen(["open", "-a", str(bundle)], start_new_session=True)

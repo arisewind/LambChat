@@ -32,6 +32,36 @@ from src.infra.storage.redis import get_redis_client
 
 _TTL_SECONDS = 35
 
+# Ownership and presence change together; an old stream cannot mutate its replacement.
+_MACHINE_PRESENCE_SCRIPT = """
+local mode, client, member, value, ttl = ARGV[1], ARGV[2], ARGV[3], ARGV[4], ARGV[5]
+if mode ~= 'register' and client ~= '' and redis.call('GET', KEYS[1]) ~= client then
+    return 0
+end
+if mode == 'unregister' then
+    redis.call('DEL', KEYS[1], KEYS[2])
+    redis.call('SREM', KEYS[3], member)
+else
+    redis.call('SET', KEYS[1], client, 'EX', ttl)
+    redis.call('SET', KEYS[2], value, 'EX', ttl)
+    redis.call('SADD', KEYS[3], member)
+end
+return 1
+"""
+
+
+_PRUNE_MACHINE_SCRIPT = """
+if redis.call('EXISTS', KEYS[1]) == 0 then
+    return redis.call('SREM', KEYS[2], ARGV[1])
+end
+return 0
+"""
+
+
+def machine_owner_key(user_id: str, machine_id: str) -> str:
+    return f"sandbox:machineowner:{user_id}:{machine_id}"
+
+
 #: 旧 daemon（无 machine_id）的伪机器标识：机器列表占位 + 旧队列路由。
 LEGACY_MACHINE_ID = "legacy"
 
@@ -121,6 +151,24 @@ def encode_node_value(
     return f"{node_id}|{version}" if version else node_id
 
 
+def version_tuple(version: str) -> tuple[int, ...]:
+    """语义化版本串 → 可比较 int 元组：按 ``.`` 分段，非数字段容错按 0 处理。
+
+    空串 → ``(0,)``（最低）：M1 旧 daemon 不上报 version，按最低版本拒连，
+    倒逼升级到带版本上报与 self-update 的新客户端。段数不齐时短元组直接
+    比较（``(0, 1) < (0, 1, 0)``），与直觉一致。
+
+    数字判定必须 ``isascii() and isdigit()``（M4 T8 加固）：Unicode 数字
+    （如 "٥"）``isdigit()`` 为真且 ``int()`` 可转成 5——伪造 version "٥.0"
+    若被解析成 (5,0) 就绕过了版本门。非 ASCII 数字一律按 0（拒连侧）。
+    """
+    if not version:
+        return (0,)
+    return tuple(
+        int(part) if part.isascii() and part.isdigit() else 0 for part in version.strip().split(".")
+    )
+
+
 def parse_daemon_version(value: str) -> str:
     """hash value 反解 daemon 版本（第二段）；段数不足（旧格式）返回空串。"""
     parts = value.split("|")
@@ -184,8 +232,20 @@ class SandboxClientRegistry:
                 redis, user_id, machine_id, confirm_policy
             )
             value = encode_node_value(node_id, version, platform, effective_policy, machine_name)
-            await redis.sadd(_machset_key(user_id), machine_id)
-            await redis.set(_machine_key(user_id, machine_id), value, ex=_TTL_SECONDS)
+            changed = await redis.eval(
+                _MACHINE_PRESENCE_SCRIPT,
+                3,
+                machine_owner_key(user_id, machine_id),
+                _machine_key(user_id, machine_id),
+                _machset_key(user_id),
+                "register",
+                client_id,
+                machine_id,
+                value,
+                _TTL_SECONDS,
+            )
+            if not changed:
+                return
             await redis.hset(
                 _machseen_key(user_id),
                 machine_id,
@@ -220,8 +280,20 @@ class SandboxClientRegistry:
                 redis, user_id, machine_id, confirm_policy
             )
             value = encode_node_value(node_id, version, platform, effective_policy, machine_name)
-            await redis.sadd(_machset_key(user_id), machine_id)
-            await redis.set(_machine_key(user_id, machine_id), value, ex=_TTL_SECONDS)
+            changed = await redis.eval(
+                _MACHINE_PRESENCE_SCRIPT,
+                3,
+                machine_owner_key(user_id, machine_id),
+                _machine_key(user_id, machine_id),
+                _machset_key(user_id),
+                "heartbeat",
+                client_id,
+                machine_id,
+                value,
+                _TTL_SECONDS,
+            )
+            if not changed:
+                return
             await redis.hset(
                 _machseen_key(user_id),
                 machine_id,
@@ -240,8 +312,18 @@ class SandboxClientRegistry:
     async def unregister(self, user_id: str, client_id: str, machine_id: str = "") -> None:
         redis = self._redis()
         if machine_id:
-            await redis.delete(_machine_key(user_id, machine_id))
-            await redis.srem(_machset_key(user_id), machine_id)
+            await redis.eval(
+                _MACHINE_PRESENCE_SCRIPT,
+                3,
+                machine_owner_key(user_id, machine_id),
+                _machine_key(user_id, machine_id),
+                _machset_key(user_id),
+                "unregister",
+                client_id,
+                machine_id,
+                "",
+                _TTL_SECONDS,
+            )
             return
         await redis.hdel(_key(user_id), client_id)
         if not await redis.hgetall(_key(user_id)):
@@ -287,7 +369,13 @@ class SandboxClientRegistry:
         for mid in sorted(await redis.smembers(_machset_key(user_id))):
             value = await redis.get(_machine_key(user_id, mid))
             if value is None:
-                await redis.srem(_machset_key(user_id), mid)
+                await redis.eval(
+                    _PRUNE_MACHINE_SCRIPT,
+                    2,
+                    _machine_key(user_id, mid),
+                    _machset_key(user_id),
+                    mid,
+                )
                 continue
             online_ids.add(mid)
             seen = _decode_seen_record(seen_raw.get(mid))

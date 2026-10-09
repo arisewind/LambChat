@@ -13,7 +13,8 @@ from fastapi import APIRouter, Depends, Query, Request
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, field_validator
 
-from src.api.deps import get_current_user_pat_or_jwt, require_pat_only
+from src.api.deps import require_pat_only, require_pat_scope
+from src.infra.auth.pat import PATStorage
 from src.infra.logging import get_logger
 from src.infra.sandbox.relay import _frames
 from src.infra.sandbox.relay.dispatch import dispatch_local_call
@@ -24,11 +25,18 @@ from src.infra.sandbox.relay.registry import (
     parse_daemon_platform,
     parse_daemon_version,
 )
+from src.infra.sandbox.relay.registry import (
+    machine_owner_key as _owner_key,
+)
+from src.infra.sandbox.relay.registry import (
+    version_tuple as _version_tuple,
+)
 from src.infra.storage.redis import (
     create_redis_client,
     get_binary_redis_client,
     get_redis_client,
 )
+from src.infra.user.storage import UserStorage
 from src.kernel.config import settings
 from src.kernel.errors import AppError, ErrorCode
 from src.kernel.schemas.user import TokenPayload
@@ -43,14 +51,6 @@ router = APIRouter()
 _BLPOP_TIMEOUT = 1.0
 _HEARTBEAT_SECONDS = 15
 _NODE_ID = f"{socket.gethostname()}:{uuid.uuid4().hex[:8]}"
-
-#: 多机 channel 的属主键前缀：同机重连换属主，旧流心跳时据此退场（对应
-#: legacy 路径 register 清 hash 的「后连踢前连」语义）。
-_OWNER_PREFIX = "sandbox:machineowner"
-
-
-def _owner_key(user_id: str, machine_id: str) -> str:
-    return f"{_OWNER_PREFIX}:{user_id}:{machine_id}"
 
 
 def _redis():
@@ -149,8 +149,6 @@ async def channel_frames(
                 machine_id=machine_id,
                 machine_name=machine_name,
             )
-            if machine_id:
-                await redis.set(_owner_key(user_id, machine_id), client_id, ex=35)
         # 阻塞读下发队列：超时切片返回 None → 回到心跳检查；Redis 异常上抛
         # 终结本流，daemon 走既有退避重连（与旧轮询模型同语义）
         item = await blocking.blpop(req_key, timeout=timeout_slice)
@@ -169,26 +167,9 @@ async def channel_frames(
             continue
 
 
-def _version_tuple(version: str) -> tuple[int, ...]:
-    """语义化版本串 → 可比较 int 元组：按 ``.`` 分段，非数字段容错按 0 处理。
-
-    空串 → ``(0,)``（最低）：M1 旧 daemon 不上报 version，按最低版本拒连，
-    倒逼升级到带版本上报与 self-update 的新客户端。段数不齐时短元组直接
-    比较（``(0, 1) < (0, 1, 0)``），与直觉一致。
-
-    数字判定必须 ``isascii() and isdigit()``（M4 T8 加固）：Unicode 数字
-    （如 "٥"）``isdigit()`` 为真且 ``int()`` 可转成 5——伪造 version "٥.0"
-    若被解析成 (5,0) 就绕过了版本门。非 ASCII 数字一律按 0（拒连侧）。
-    """
-    if not version:
-        return (0,)
-    return tuple(
-        int(part) if part.isascii() and part.isdigit() else 0 for part in version.strip().split(".")
-    )
-
-
 @router.get("/channel")
 async def sandbox_channel(
+    request: Request,
     version: str = "",
     platform: str = "",
     confirm_policy: str = "",
@@ -237,8 +218,6 @@ async def sandbox_channel(
         machine_id=machine_id,
         machine_name=machine_name,
     )
-    if machine_id:  # 多机属主：同机重连改写属主键，旧流心跳时据此退场
-        await _redis().set(_owner_key(user.sub, machine_id), client_id, ex=35)
     stop = asyncio.Event()
     await publish_presence(user.sub)  # 上线事件：注册成功即推，不等心跳
     # 每条 SSE 流一个专用阻塞客户端（独立连接池）：BLPOP 长阻塞独占连接，
@@ -274,6 +253,25 @@ async def sandbox_channel(
                 machine_name=machine_name,
                 stream_redis=stream_redis,
             ):
+                if not frame.startswith("event: hello\n"):
+                    # A long-lived stream must not retain revoked or expired PAT authority.
+                    token = request.headers.get("authorization", "").partition(" ")[2].strip()
+                    try:
+                        record, _ = await PATStorage().verify(token)
+                        if (
+                            record is None
+                            or record.user_id != user.sub
+                            or "sandbox:execute" not in record.scopes
+                        ):
+                            return
+                        account = await UserStorage().get_by_id(record.user_id)
+                        if account is None or account.is_active is False:
+                            return
+                    except Exception:
+                        logger.warning(
+                            "sandbox channel authority revalidation unavailable; closing stream"
+                        )
+                        return
                 yield frame
         finally:
             finalize = asyncio.create_task(_finalize_stream())
@@ -307,6 +305,18 @@ class SandboxResultRequest(BaseModel):
     result: Optional[dict[str, Any]] = None
 
 
+async def _validate_call_assignment(redis, call_id: str, user_id: str, machine_id: str) -> None:
+    assigned = await redis.get(f"sandbox:callassign:{call_id}")
+    owner = await redis.get(f"sandbox:callowner:{call_id}")
+    if isinstance(assigned, bytes):
+        assigned = assigned.decode("utf-8")
+    if isinstance(owner, bytes):
+        owner = owner.decode("utf-8")
+    # Missing identity is permitted only for a call explicitly sent to legacy.
+    if owner != user_id or not assigned or assigned != (machine_id or "legacy"):
+        raise AppError(ErrorCode.SANDBOX_RESULT_MISMATCH, args={"machine": machine_id})
+
+
 @router.post("/results/{call_id}")
 async def sandbox_result(
     call_id: str,
@@ -316,12 +326,7 @@ async def sandbox_result(
     user: TokenPayload = Depends(require_pat_only("sandbox:execute")),
 ):
     redis = _redis()
-    # 调用-机器绑定：dispatch 入队前写目标机，回传机不一致即拒（同用户 A 机
-    # 冒答 B 机）；无绑定键（旧调用/兼容窗口）或回传不带 machine_id（旧
-    # daemon）时跳过校验
-    assigned = await redis.get(f"sandbox:callassign:{call_id}")
-    if assigned and machine_id and assigned != machine_id:
-        raise AppError(ErrorCode.SANDBOX_RESULT_MISMATCH, args={"machine": machine_id})
+    await _validate_call_assignment(redis, call_id, user.sub, machine_id)
     # 回传 body 上限：stdout/base64 是失控大头。先查 Content-Length 头做早期
     # 拒绝（超大请求不进内存），再在读完后二次校验（chunked 无 CL 的兜底）
     content_length = request.headers.get("content-length")
@@ -349,6 +354,7 @@ def _stream_total_max_bytes() -> int:
 async def sandbox_result_stream(
     call_id: str,
     request: Request,
+    machine_id: str = "",
     user: TokenPayload = Depends(require_pat_only("sandbox:execute")),
 ):
     """流式结果回传：fs_download_stream 的二进制帧经 chunked body 逐帧入 Redis list。
@@ -359,6 +365,7 @@ async def sandbox_result_stream(
     三件事：帧/总量上限、逐帧 rpush、无 eof 帧断流的哨兵补齐。
     """
     redis = _binary_redis()  # rpush 裸二进制帧；消费端 dispatch 同走二进制客户端
+    await _validate_call_assignment(redis, call_id, user.sub, machine_id)
     key = f"sandbox:stream:{user.sub}:{call_id}"
     total = 0
     saw_eof = False
@@ -411,6 +418,7 @@ async def _push_stream_error(redis, key: str, text: str) -> None:
 @router.get("/upload/{call_id}")
 async def sandbox_upload_stream(
     call_id: str,
+    machine_id: str = "",
     user: TokenPayload = Depends(require_pat_only("sandbox:execute")),
 ):
     """流式上传拉流端点：daemon 对 fs_upload_stream 的单个 GET 在这里取走整个文件。
@@ -420,6 +428,7 @@ async def sandbox_upload_stream(
     数据不过服务端内存整缓冲。总量上限已在生产者侧预检（max_bytes）。
     """
     redis = _binary_redis()  # lpop 裸二进制帧，解码客户端读取即抛 UnicodeDecodeError
+    await _validate_call_assignment(redis, call_id, user.sub, machine_id)
     key = f"sandbox:upblob:{user.sub}:{call_id}"
     resp_key = f"sandbox:resp:{call_id}"
     deadline = time.monotonic() + float(settings.SANDBOX_LOCAL_STREAM_TIMEOUT) + 10.0
@@ -483,7 +492,7 @@ async def sandbox_upload_stream(
 
 
 @router.get("/machines")
-async def sandbox_machines(user: TokenPayload = Depends(get_current_user_pat_or_jwt)):
+async def sandbox_machines(user: TokenPayload = Depends(require_pat_scope("sandbox:execute"))):
     """机器列表（多机 daemon）：含已知离线机（记忆层保留，online=False +
     last_seen），前端选择器据此置灰展示而非直接消失。"""
     machines = await _registry().list_machines(user.sub, include_offline=True)
@@ -517,7 +526,7 @@ class MachineConfirmPolicyRequest(BaseModel):
 async def sandbox_machine_rename(
     machine_id: str,
     body: MachineRenameRequest,
-    user: TokenPayload = Depends(get_current_user_pat_or_jwt),
+    user: TokenPayload = Depends(require_pat_scope("sandbox:execute")),
 ):
     """重命名机器：写 rename 覆盖层，daemon 重连上报的 hostname 不冲掉自定义名。"""
     name = body.name.strip()
@@ -533,7 +542,7 @@ async def sandbox_machine_rename(
 @router.put("/machines/{machine_id}/default")
 async def sandbox_machine_set_default(
     machine_id: str,
-    user: TokenPayload = Depends(get_current_user_pat_or_jwt),
+    user: TokenPayload = Depends(require_pat_scope("sandbox:execute")),
 ):
     """设默认机：无会话级选择时的执行目标。"""
     await _registry().set_default_machine(user.sub, machine_id)
@@ -545,7 +554,7 @@ async def sandbox_machine_set_default(
 async def sandbox_machine_update_confirm_policy(
     machine_id: str,
     body: MachineConfirmPolicyRequest,
-    user: TokenPayload = Depends(get_current_user_pat_or_jwt),
+    user: TokenPayload = Depends(require_pat_scope("sandbox:execute")),
 ):
     """热更新在线 daemon 的确认策略，下一次执行立即生效。"""
     updated = await _registry().update_confirm_policy(user.sub, machine_id, body.policy)
@@ -558,7 +567,7 @@ async def sandbox_machine_update_confirm_policy(
 @router.delete("/machines/{machine_id}")
 async def sandbox_machine_forget(
     machine_id: str,
-    user: TokenPayload = Depends(get_current_user_pat_or_jwt),
+    user: TokenPayload = Depends(require_pat_scope("sandbox:execute")),
 ):
     """移除离线机器（清集合成员、rename 覆盖层与默认机指向）。"""
     removed = await _registry().forget_machine(user.sub, machine_id)
@@ -574,7 +583,7 @@ async def sandbox_machine_forget(
 @router.get("/status")
 async def sandbox_status(
     machine_id: str = Query("", description="指定机器；缺省走默认机解析"),
-    user: TokenPayload = Depends(get_current_user_pat_or_jwt),
+    user: TokenPayload = Depends(require_pat_scope("sandbox:execute")),
 ):
     """daemon 在线状态。
 
@@ -623,7 +632,6 @@ async def sandbox_offline(
     registry = _registry()
     if machine_id:
         await registry.unregister(user.sub, "", machine_id)
-        await _redis().delete(_owner_key(user.sub, machine_id))
         await publish_presence(user.sub)
         return {"status": "offline", "machine_id": machine_id}
     active = await registry.get_active(user.sub)
@@ -701,7 +709,7 @@ async def _dispatch_fs(user: TokenPayload, op: str, payload: dict, machine_id: s
 async def sandbox_fs_list(
     session_id: str = Query(..., description="会话 id：工作区绑定与目标机的解析依据"),
     path: str = Query("", description="工作区内相对路径；空 = 根目录"),
-    user: TokenPayload = Depends(get_current_user_pat_or_jwt),
+    user: TokenPayload = Depends(require_pat_scope("sandbox:execute")),
 ):
     """列目录（桌面工作区文件树的懒加载源）。
 
@@ -721,7 +729,7 @@ async def sandbox_fs_read(
     path: str = Query(...),
     offset: int = Query(0, ge=0, description="起始行（0 基）"),
     limit: int = Query(500, ge=1, le=_FS_READ_MAX_LINES, description="读取行数"),
-    user: TokenPayload = Depends(get_current_user_pat_or_jwt),
+    user: TokenPayload = Depends(require_pat_scope("sandbox:execute")),
 ):
     """读文本/二进制预览（行分页语义与模型侧 read_file 完全同源）。
 
@@ -794,7 +802,7 @@ def _cloud_rel(path: str) -> str:
 @router.get("/fs/cloud/status")
 async def sandbox_fs_cloud_status(
     session_id: str = Query(...),
-    user: TokenPayload = Depends(get_current_user_pat_or_jwt),
+    user: TokenPayload = Depends(require_pat_scope("sandbox:execute")),
 ):
     """云端电脑状态速览（零副作用，读绑定落库值，不唤醒沙箱）。
 
@@ -811,7 +819,7 @@ async def sandbox_fs_cloud_status(
 async def sandbox_fs_cloud_list(
     session_id: str = Query(...),
     path: str = Query("", description="会话云端工作区内相对路径；空 = 根"),
-    user: TokenPayload = Depends(get_current_user_pat_or_jwt),
+    user: TokenPayload = Depends(require_pat_scope("sandbox:execute")),
 ):
     """列云端会话工作区目录（会话子目录 ``{base}/sessions/{sid}``）。
 
@@ -853,7 +861,7 @@ async def sandbox_fs_cloud_read(
     path: str = Query(...),
     offset: int = Query(0, ge=0),
     limit: int = Query(500, ge=1, le=_FS_READ_MAX_LINES),
-    user: TokenPayload = Depends(get_current_user_pat_or_jwt),
+    user: TokenPayload = Depends(require_pat_scope("sandbox:execute")),
 ):
     """读云端会话工作区文件（行分页，FileData 契约与本地端点对齐）。
 

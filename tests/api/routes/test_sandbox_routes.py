@@ -46,6 +46,27 @@ class _FakeRedis:
         exp = self.expires_at.get(key)
         return exp is None or exp > time.monotonic()
 
+    async def eval(self, script, key_count, *args):
+        if key_count == 2:
+            machine, members, member = args
+            if not await self.exists(machine):
+                await self.srem(members, member)
+                return 1
+            return 0
+        assert key_count == 3
+        owner, machine, members, mode, client, member, value, ttl = args
+        if mode != "register" and client and await self.get(owner) != client:
+            return 0
+        if mode == "unregister":
+            await self.delete(owner)
+            await self.delete(machine)
+            await self.srem(members, member)
+        else:
+            await self.set(owner, client, ex=ttl)
+            await self.set(machine, value, ex=ttl)
+            await self.sadd(members, member)
+        return 1
+
     async def rpush(self, key, value):
         self.lists.setdefault(key, []).append(value)
 
@@ -317,6 +338,8 @@ async def test_channel_and_results_reject_jwt(monkeypatch):
 
 async def test_results_endpoint_writes_resp(monkeypatch):
     redis = _FakeRedis()
+    await redis.set("sandbox:callassign:call-1", "legacy")
+    await redis.set("sandbox:callowner:call-1", "u1")
     app = FastAPI()
     register_error_handlers(app)
     app.include_router(sandbox_route.router, prefix="/api/sandbox", tags=["Sandbox"])
@@ -342,6 +365,8 @@ async def test_results_rejects_oversized_body(monkeypatch):
     超限即拒绝，防止单次回传把 Redis 与内存打爆。
     """
     redis = _FakeRedis()
+    await redis.set("sandbox:callassign:call-1", "legacy")
+    await redis.set("sandbox:callowner:call-1", "u1")
     monkeypatch.setattr(sandbox_route.settings, "SANDBOX_RESULTS_MAX_BYTES", 64)
     app = FastAPI()
     register_error_handlers(app)
@@ -357,7 +382,7 @@ async def test_results_rejects_oversized_body(monkeypatch):
         )
     assert resp.status_code == 413
     assert resp.json()["detail"]["code"] == "sandbox_payload_too_large"
-    assert not redis.kv  # 超限直接拒绝，不写 resp key
+    assert not redis.lists  # 超限直接拒绝，不写 resp key
 
 
 def _results_body_of_size(n: int) -> bytes:
@@ -372,6 +397,8 @@ async def _post_results_with_size(monkeypatch, body: bytes):
     """带精确字节数 body 打 results 端点；返回 (response, redis)。"""
     monkeypatch.setattr(sandbox_route.settings, "SANDBOX_RESULTS_MAX_BYTES", 128)
     redis = _FakeRedis()
+    await redis.set("sandbox:callassign:call-1", "legacy")
+    await redis.set("sandbox:callowner:call-1", "u1")
     app = FastAPI()
     register_error_handlers(app)
     app.include_router(sandbox_route.router, prefix="/api/sandbox", tags=["Sandbox"])
@@ -403,7 +430,7 @@ async def test_results_rejects_body_one_byte_over_limit(monkeypatch):
 
     assert resp.status_code == 413
     assert resp.json()["detail"]["code"] == "sandbox_payload_too_large"
-    assert not redis.kv
+    assert not redis.lists
 
 
 async def test_status_endpoint(monkeypatch):
@@ -876,6 +903,8 @@ async def test_results_endpoint_preserves_fs_op_result(monkeypatch):
     https://lambchat.com/shared/d-_7Oqe2I3ay）。
     """
     redis = _FakeRedis()
+    await redis.set("sandbox:callassign:call-1", "legacy")
+    await redis.set("sandbox:callowner:call-1", "u1")
     app = FastAPI()
     register_error_handlers(app)
     app.include_router(sandbox_route.router, prefix="/api/sandbox", tags=["Sandbox"])
@@ -1074,6 +1103,8 @@ async def test_chunked_download_seam_old_daemon_fallback(monkeypatch, tmp_path):
 
 
 def _stream_app(monkeypatch, redis):
+    redis.kv["sandbox:callassign:call-s1"] = "legacy"
+    redis.kv["sandbox:callowner:call-s1"] = "u1"
     app = FastAPI()
     register_error_handlers(app)
     app.include_router(sandbox_route.router, prefix="/api/sandbox", tags=["Sandbox"])
@@ -1308,6 +1339,8 @@ async def test_upload_stream_endpoint_serves_binary_frames(monkeypatch):
         encode_frame(FRAME_EOF),
     ]
     binary = _BinaryRedisView(store)
+    await binary.set("sandbox:callassign:call-bin", "legacy")
+    await binary.set("sandbox:callowner:call-bin", "u1")
     for frame in frames:  # 生产者（dispatch_local_stream_upload）rpush 二进制帧
         await binary.rpush("sandbox:upblob:u1:call-bin", frame)
 
@@ -1418,7 +1451,12 @@ async def test_presence_pushed_on_channel_register_and_disconnect(monkeypatch):
     monkeypatch.setattr(sandbox_route.settings, "SANDBOX_MIN_DAEMON_VERSION", "0.0.1")
 
     user = _fake_user()
-    resp = await sandbox_route.sandbox_channel(version="0.4.0", machine_id="m1", user=user)
+    resp = await sandbox_route.sandbox_channel(
+        request=Request({"type": "http", "headers": []}),
+        version="0.4.0",
+        machine_id="m1",
+        user=user,
+    )
     assert published == ["u1"]  # register 后、建流前推送
 
     iterator = resp.body_iterator
@@ -1512,6 +1550,8 @@ async def test_upload_stream_client_disconnect_pushes_error_done(monkeypatch):
     from src.infra.sandbox.relay import _frames
 
     redis = _FakeRedis()
+    await redis.set("sandbox:callassign:c1", "legacy")
+    await redis.set("sandbox:callowner:c1", "u1")
     monkeypatch.setattr(sandbox_route, "_binary_redis", lambda: redis)
     await redis.rpush("sandbox:upblob:u1:c1", _frames.encode_frame(_frames.FRAME_DATA, b"partial"))
     await redis.rpush("sandbox:upblob:u1:c1", _frames.encode_frame(_frames.FRAME_EOF))
@@ -1568,3 +1608,33 @@ async def test_status_endpoint_explicit_machine_id_survives_stale_default(monkey
             "daemon_platform": "linux",
             "daemon_confirm_policy": "commands",
         }
+
+
+@pytest.mark.parametrize("account_active", [False, True])
+async def test_long_lived_channel_rechecks_account_before_control_frame(
+    monkeypatch, account_active
+):
+    from types import SimpleNamespace
+    from unittest.mock import AsyncMock
+
+    registry = _FakeRegistry()
+    record = SimpleNamespace(user_id="u1", scopes=["sandbox:execute"])
+    monkeypatch.setattr(sandbox_route.PATStorage, "verify", AsyncMock(return_value=(record, "")))
+    from src.infra.user.storage import UserStorage
+
+    monkeypatch.setattr(
+        UserStorage, "get_by_id", AsyncMock(return_value=SimpleNamespace(is_active=account_active))
+    )
+
+    async def frames(*args, **kwargs):
+        yield "event: hello\ndata: {}\n\n"
+        yield "event: tool_call\ndata: {}\n\n"
+
+    monkeypatch.setattr(sandbox_route, "channel_frames", frames)
+    async with _channel_app(monkeypatch, registry) as client:
+        response = await client.get(
+            "/api/sandbox/channel?version=2.14.4", headers={"Authorization": "Bearer lc_pat_test"}
+        )
+    assert "event: hello" in response.text
+    assert ("event: tool_call" in response.text) is account_active
+    assert len(registry.unregistered) == 1

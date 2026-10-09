@@ -2177,7 +2177,7 @@ wheels = [
 
 [[package]]
 name = "lambchat"
-version = "2.14.3"
+version = "2.14.4"
 source = { editable = "." }
 dependencies = [
     { name = "aiofiles" },
@@ -2190,6 +2190,7 @@ dependencies = [
     { name = "boto3" },
     { name = "botocore" },
     { name = "colorama" },
+    { name = "cryptography" },
     { name = "cubesandbox" },
     { name = "daytona" },
     { name = "deepagents" },
@@ -2240,8 +2241,10 @@ dependencies = [
 [package.dev-dependencies]
 cua = [
     { name = "atomacos", marker = "sys_platform == 'darwin'" },
+    { name = "pillow" },
     { name = "pyautogui", version = "0.9.41", source = { registry = "https://pypi.org/simple" }, marker = "sys_platform != 'darwin' and sys_platform != 'win32'" },
     { name = "pyautogui", version = "0.9.54", source = { registry = "https://pypi.org/simple" }, marker = "sys_platform == 'win32'" },
+    { name = "pyperclip" },
     { name = "python-xlib", marker = "sys_platform == 'linux'" },
     { name = "pywinauto", marker = "sys_platform == 'win32'" },
 ]
@@ -2268,6 +2271,7 @@ requires-dist = [
     { name = "boto3", specifier = ">=1.40.61" },
     { name = "botocore", specifier = ">=1.40.61" },
     { name = "colorama", specifier = ">=0.4.6" },
+    { name = "cryptography", specifier = ">=50.0.1" },
     { name = "cubesandbox", specifier = ">=0.7.0" },
     { name = "daytona", specifier = ">=0.207.0" },
     { name = "deepagents", specifier = ">=0.7.15,<0.8" },
@@ -2318,7 +2322,9 @@ requires-dist = [
 [package.metadata.requires-dev]
 cua = [
     { name = "atomacos", marker = "sys_platform == 'darwin'", specifier = ">=3.3" },
+    { name = "pillow", specifier = ">=12.0" },
     { name = "pyautogui", marker = "sys_platform != 'darwin'" },
+    { name = "pyperclip" },
     { name = "python-xlib", marker = "sys_platform == 'linux'" },
     { name = "pywinauto", marker = "sys_platform == 'win32'", specifier = ">=0.6.9" },
 ]
