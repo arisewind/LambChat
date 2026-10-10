@@ -70,6 +70,7 @@ from src.infra.tool.backend_utils import (
     get_trace_id_from_runtime,
     get_user_id_from_runtime,
 )
+from src.kernel.errors import AppError
 
 logger = get_logger(__name__)
 
@@ -267,6 +268,8 @@ async def reveal_file(
 ) -> str:
     """Show the user one clickable file or URL; replying with a bare path is not
     enough. Directories and multi-file projects must use reveal_project."""
+    if file_path.startswith("/api/upload/file/"):
+        file_path = f"{get_base_url_from_runtime(runtime)}{file_path}"
     if _is_remote_url(file_path):
         self_upload_key = _extract_self_upload_key(file_path)
         if self_upload_key is not None:
@@ -546,6 +549,19 @@ async def reveal_file(
 
         return await _json_dumps_result(reveal_result)
 
+    except AppError as exc:
+        return await _json_dumps_result(
+            {
+                "type": "file_reveal",
+                "file": {
+                    "path": file_path,
+                    "description": description or "",
+                    "error": exc.display_message,
+                    "code": exc.error_code.code,
+                    "args": exc.args_data,
+                },
+            }
+        )
     except Exception as e:
         logger.error(f"Error processing file {file_path}: {e}")
         error_result = {

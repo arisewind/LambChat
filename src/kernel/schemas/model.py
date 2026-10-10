@@ -3,7 +3,7 @@
 from datetime import datetime
 from typing import Literal, Optional
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 # Wire format for OpenAI-protocol providers: classic /chat/completions or the
 # newer /responses endpoint. Per-model override; falls back to the
@@ -13,8 +13,9 @@ ApiFormat = Literal["chat_completions", "responses"]
 # How image URLs are handed to the model:
 # - "url": pass through as-is (provider fetches the redirecting proxy URL)
 # - "base64": rewrite to base64 data URLs in-flight (state keeps compact URLs)
+# - "storage_direct": resolve to a fresh presigned storage URL in-flight
 # - "proxy_direct": append ?proxy=true so the app streams bytes (no redirect)
-ImageUrlMode = Literal["url", "base64", "proxy_direct"]
+ImageUrlMode = Literal["url", "base64", "proxy_direct", "storage_direct"]
 
 
 class ModelProfile(BaseModel):
@@ -29,7 +30,7 @@ class ModelProfile(BaseModel):
     )
     image_url_mode: Optional[ImageUrlMode] = Field(
         None,
-        description="How image URLs are handed to the model (url | base64 | proxy_direct)",
+        description="How image URLs are handed to the model (url | base64 | proxy_direct | storage_direct)",
     )
     image_url_to_base64: Optional[bool] = Field(
         False,
@@ -102,6 +103,19 @@ class ModelConfig(BaseModel):
     order: int = Field(0, description="Display order")
     created_at: Optional[datetime] = Field(None, description="Creation timestamp")
     updated_at: Optional[datetime] = Field(None, description="Last update timestamp")
+
+    @field_validator("provider", mode="after")
+    @classmethod
+    def _normalize_provider_slug(cls, value: Optional[str]) -> Optional[str]:
+        """入库前归一 provider slug（去空白 + 小写）。
+
+        注册表按小写 slug 查协议；大小写变体（如 "ZAI"）查表 miss 会静默
+        兜底到 openai 线格式，思考模型回传历史缺 reasoning 直接 400
+        （生产 2026-10-10）。
+        """
+        if value is None:
+            return value
+        return value.strip().lower() or None
 
 
 class ModelConfigCreate(BaseModel):
