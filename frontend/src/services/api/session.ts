@@ -13,6 +13,13 @@ import { filterSendableAttachments } from "../../components/chat/attachmentValid
 import { API_BASE } from "./config";
 import { authFetch } from "./fetch";
 
+export const SESSIONS_READ_EVENT = "lambchat:sessions-read";
+export interface SessionReadScope {
+  sessionId?: string;
+  projectId?: string | null;
+  scheduledTaskId?: string | null;
+}
+
 // Backend Session type (matches backend Session schema)
 export interface BackendSession {
   id: string;
@@ -47,6 +54,7 @@ export interface SessionEventsQuery {
   exclude_run_id?: string;
   include_active_user_message?: boolean;
   compact_message_chunks?: boolean;
+  include_approval_statuses?: boolean;
   /** 按 trace(run) 窗口读取：只取最新 N 轮（历史分页首屏） */
   trace_limit?: number;
   /** 游标：只返回该 (started_at, trace_id) 之前的 traces（翻更早页） */
@@ -216,6 +224,9 @@ export function buildSessionEventsUrl(
   }
   if (options?.compact_message_chunks) {
     searchParams.set("compact_message_chunks", "true");
+  }
+  if (options?.include_approval_statuses) {
+    searchParams.set("include_approval_statuses", "true");
   }
   if (options?.trace_limit) {
     searchParams.set("trace_limit", String(options.trace_limit));
@@ -455,7 +466,7 @@ export const sessionApi = {
     });
   },
 
-  async getPendingSteers(sessionId: string): Promise<{
+  async getPendingSteers(sessionId: string, options?: { signal?: AbortSignal }): Promise<{
     session_id: string;
     items: Array<{
       message_id: string;
@@ -469,7 +480,7 @@ export const sessionApi = {
       >;
     }>;
   }> {
-    return authFetch(`${API_BASE}/api/chat/sessions/${sessionId}/steer`);
+    return authFetch(`${API_BASE}/api/chat/sessions/${sessionId}/steer`, options);
   },
 
   /**
@@ -575,6 +586,7 @@ export const sessionApi = {
     await authFetch(`${API_BASE}/api/sessions/${sessionId}/mark-read`, {
       method: "POST",
     });
+    window.dispatchEvent(new CustomEvent(SESSIONS_READ_EVENT, { detail: { sessionId } }));
   },
 
   /**
@@ -589,10 +601,12 @@ export const sessionApi = {
     if (opts?.scheduledTaskId)
       params.set("scheduled_task_id", opts.scheduledTaskId);
     const qs = params.toString();
-    return authFetch(
+    const result = await authFetch<{ status: string; modified_count: number }>(
       `${API_BASE}/api/sessions/mark-all-read${qs ? `?${qs}` : ""}`,
       { method: "POST" },
     );
+    window.dispatchEvent(new CustomEvent(SESSIONS_READ_EVENT, { detail: opts ?? {} }));
+    return result;
   },
 
   async forkMessage(

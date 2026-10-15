@@ -1,6 +1,5 @@
 import { useMemo, useCallback, useState, useEffect, useRef } from "react";
 import { useTranslation } from "react-i18next";
-import i18n from "../../../i18n";
 import toast from "react-hot-toast";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../../../hooks/useAuth";
@@ -39,9 +38,7 @@ import {
 } from "./sessionState";
 import type { Message, MessageAttachment } from "../../../types";
 import type { ChatViewProps } from "./ChatViewProps";
-import { useCurrentTeam, resolveChatAssistantIdentity } from "./ChatViewProps";
 import { useChatOutline } from "./useChatOutline";
-import { resolveAgentDisplayName } from "../../agent/agentCatalog";
 import {
   shouldShowMessageOutline,
   createMessageAnchorId,
@@ -235,6 +232,19 @@ export function ChatView({
   const [messageListSessionKey, setMessageListSessionKey] = useState(
     sessionId ?? "__new_session__",
   );
+  // 同帧切换列表 key，避免历史定位后再重挂把滚动位置重置到顶部。
+  if (previousSessionIdRef.current !== sessionId) {
+    const previousSessionId = previousSessionIdRef.current;
+    previousSessionIdRef.current = sessionId;
+    setMessageListSessionKey((previousKey) =>
+      getNextMessageListSessionKey({
+        previousSessionId,
+        sessionId,
+        messageCount: messages.length,
+        previousKey,
+      }),
+    );
+  }
 
   // --- Older-history pagination (reverse infinite scroll) ---
   // Virtuoso 的 firstItemIndex 反向无限滚动：前插旧消息时递减 firstItemIndex，
@@ -308,22 +318,8 @@ export function ChatView({
     [virtuosoRef],
   );
 
-  useEffect(() => {
-    const previousSessionId = previousSessionIdRef.current;
-    previousSessionIdRef.current = sessionId;
-    setMessageListSessionKey((previousKey) => {
-      const nextKey = getNextMessageListSessionKey({
-        previousSessionId,
-        sessionId,
-        messageCount: messages.length,
-        previousKey,
-      });
-      return nextKey === previousKey ? previousKey : nextKey;
-    });
-  }, [messages.length, sessionId]);
-
-  // Virtuoso 挂载时列表初始位于顶部（自动滚到底部之前），startReached 会
-  // 误触发一次；loading 标志此刻已清空，拦不住，须按 remount 粒度忽略。
+  // Virtuoso 挂载期间 startReached 可能在初始定位完成前首报一次；
+  // loading 标志此刻已清空，须按 remount 粒度忽略，避免误加载旧页。
   const startReachedSkipperRef = useRef(createInitialStartReachedSkipper());
   const prevVisibleStartIndexRef = useRef<number | null>(null);
   const prevMessageListSessionKeyRef = useRef(messageListSessionKey);
@@ -349,40 +345,11 @@ export function ChatView({
     onLoadOlderHistory,
   ]);
 
-  // --- Assistant identity ---
-  const currentPersonaAvatar = useMemo(() => {
-    const preset = personaPresets.find((p) => p.id === selectedPersonaPresetId);
-    return preset?.avatar ?? null;
-  }, [personaPresets, selectedPersonaPresetId]);
-  const currentTeam = useCurrentTeam(currentAgent, selectedTeamId);
-  const currentAgentInfo = agents.find((a) => a.id === currentAgent);
-  const currentAgentDisplayName = currentAgentInfo
-    ? resolveAgentDisplayName(currentAgentInfo, i18n.language, t)
-    : null;
-  const assistantIdentity = useMemo(
-    () =>
-      resolveChatAssistantIdentity({
-        currentAgent,
-        currentPersonaAvatar,
-        currentTeam,
-        selectedPersonaName,
-        agentDisplayName: currentAgentDisplayName,
-      }),
-    [
-      currentAgent,
-      currentPersonaAvatar,
-      currentTeam,
-      selectedPersonaName,
-      currentAgentDisplayName,
-    ],
-  );
-
   // --- Outline panel (side effects managed by hook) ---
   const { outlineItems, handleVisibleRangeChange: handleOutlineRangeChange } =
     useChatOutline(
       messages,
       dataIndexVirtuosoRef,
-      assistantIdentity.avatar,
       outlineToggleRef,
       t,
     );
@@ -502,7 +469,7 @@ export function ChatView({
     externalNavigationToken,
     externalNavigationPreview,
     currentRunId,
-    isLoadingHistory,
+    isLoading && !isLoadingHistory,
   );
 
   // --- Goal visibility ---
@@ -671,8 +638,6 @@ export function ChatView({
           toDataIndex(index, firstItemIndexRef.current) ===
           renderItems.length - 1
         }
-        personaAvatar={assistantIdentity.avatar}
-        personaName={assistantIdentity.name}
         activePreview={activePreview}
         latestAutoPreview={latestAutoPreview}
         onOpenPreview={handleOpenPreview}
@@ -689,8 +654,6 @@ export function ChatView({
       sessionId,
       currentRunId,
       renderItems.length,
-      assistantIdentity.avatar,
-      assistantIdentity.name,
       activePreview,
       latestAutoPreview,
       handleOpenPreview,
@@ -867,6 +830,11 @@ export function ChatView({
               data={renderItems}
               computeItemKey={(_, message) => message.id}
               firstItemIndex={firstItemIndex}
+              initialTopMostItemIndex={
+                externalNavigationToken
+                  ? undefined
+                  : { index: "LAST", align: "end" }
+              }
               startReached={handleVirtuosoStartReached}
               atBottomStateChange={handleVirtuosoAtBottomChange}
               atBottomThreshold={getAtBottomThresholdPx(isMobileViewport)}
