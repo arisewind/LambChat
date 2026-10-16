@@ -44,8 +44,8 @@ LambChat 是全栈 AI Agent 平台：
 src/
 ├── agents/            # Agent 图执行层
 │   ├── core/          # BaseGraphAgent 基类、@register_agent 注册、AgentFactory（base.py）
-│   ├── fast_agent/    # 快速 Agent
-│   ├── search_agent/  # 搜索 Agent
+│   ├── quick_agent/   # 快问快答 Agent
+│   ├── search_agent/  # 搜索和执行 Agent（无沙箱时使用持久化文件后端）
 │   └── team_agent/    # 团队 Agent
 ├── api/               # FastAPI 层
 │   ├── main.py        # 应用入口（路由注册、生命周期）
@@ -170,18 +170,30 @@ Conventional Commits + 中文描述：`类型(范围): 摘要`。
 
 **规矩：同一自然日最多发一个正式版。**当天发现的问题攒到 develop（P0 例外：生产不可用/数据丢失可即时热修）；出包后处于「烘焙态」，真机抽检通过再推给桌面端。桌面端打包问题（安装包内路径/签名/启动类）历史上只有装包才能发现，v2.9.0~v2.9.2 一天四版即此教训——现在 CI 已有打包产物冒烟门禁 + latest.json 延后发布双保险，但真机抽检（至少 mac + windows 各一台）仍是发布前最后一道人工关。
 
+### Dev Release：下一版本预发布
+
+- 预发布 tag 使用 `vX.Y.Z-dev.N`（如 `v2.15.2-dev.1`），`X.Y.Z` 是下一正式版，`N` 从 1 递增，最大 998。不得覆盖既有 tag 或复用同一编号。
+- GitHub 必须标记 **Pre-release** 且 `make_latest=false`；稳定版 Latest、安装脚本、下载页和默认版本查询继续指向最近正式版。dev 版可通过指定 tag 的 Release 页面及主动选择测试版通道的下载页/客户端获取，不影响默认正式通道。
+- 平台安装版本与服务端运行时继续使用数字核心 `X.Y.Z`；CI 将完整 tag 注入客户端前端及桌面更新比较（`RELEASE_TAG`）。更新排序为 dev.N 数值递增、同核心正式版高于所有 dev，不自动降级。签名清单保持核心版本并绑定完整资产名与源码 SHA。旧 dev.2 及更早包缺少完整构建身份，需手动重装一次支持更新通道的新版。
+- 更新通道为设备级主动选择：默认 stable，dev 通道可获取已完成发布门禁的测试版及正式版。下载/安装期间禁止切换，切换后丢弃旧检查结果和待安装目标；所有下载绑定具体 tag。
+- Android `versionCode` = `(major × 10000 + minor × 100 + patch) × 1000 + 构建序号`（minor、patch 均须小于 100，结果不超过 Android 的 2100000000 上限）：dev 使用 N，正式版使用 999。例如 `2.15.2-dev.1` 为 21502001，正式版为 21502999；iOS `MARKETING_VERSION` 使用核心版本，`CURRENT_PROJECT_VERSION` 使用对应构建序号。每次替换同核心包都须增加平台构建号。
+- dev 包仍须通过完整 CI、各端打包、产物冒烟及签名校验，失败的预发布不得宣传为可用版本。测试版不阻塞于人工桌面聊天抽检，但 Release 必须说明尚未验证项和已知问题；正式版继续保留实机门禁。标签遵守下文 main 合并提交规则；Web/服务端经 staging 验证后可独立部署生产，客户端 dev 发布不自动晋升稳定通道。
+- dev 版无论 `DESKTOP_UPDATER_AUTO_PUBLISH` 配置如何，都禁止上传稳定 `latest.json`；手动 Desktop Updater Publish 继续拒绝 dev tag。App Release 仅在源提交 CI 与全部原生构建成功、资产签名上传完成后，最后发布独立 `dev-latest.json` 作为测试通道就绪标记。测试版查询不得选择缺少该标记的 dev；稳定缓存与测试缓存隔离。
+- 验证完成后以新 `vX.Y.Z` tag 重新构建正式版，并重新签名、核验版本与升级路径；不得直接编辑 dev Release 将其改成正式版。正式发布仍遵守每天一个正式版与真机抽检要求，dev 预发布不占当天正式版名额。
+- 版本优先级遵守 [SemVer](https://semver.org/)，GitHub 通道标记遵守 [Managing releases](https://docs.github.com/en/repositories/releasing-projects-on-github/managing-releases-in-a-repository)。
+
 ### 发版流程（App Release / `v*` tag）
 
 **规矩：发版 tag 一律打在 `main` 的合并提交上——hotfix 或 develop 晋升合入 `main`、CI 全绿后再打 tag；禁止在 feature 分支或未晋升到 `main` 的提交上发版。**
 
-1. 打 tag 前先 bump 七处版本文件并保持一致：`frontend/package.json`、`frontend/src-tauri/tauri.conf.json`、`frontend/src-tauri/Cargo.toml`（编译期进 `CARGO_PKG_VERSION`，桌面运行时版本依赖它，漏 bump 会导致版本信息不一致）、android `versionName`/`versionCode`（数字串 = 版本去点）、iOS `MARKETING_VERSION`、`pyproject.toml`（服务端 `/api/version` 运行时读它，漏 bump 网页端版本号就不同步）、`client/lambchat_sandbox/__init__.py` 的 `__version__`（daemon 自更新比版本，漏 bump daemon 永不更新）——app-release.yml 的 preflight 会校验 tag 与版本一致，漂移直接红。
+1. 打 tag 前先 bump 七处版本文件并保持一致：`frontend/package.json`、`frontend/src-tauri/tauri.conf.json`、`frontend/src-tauri/Cargo.toml`（编译期进 `CARGO_PKG_VERSION`，桌面运行时版本依赖它，漏 bump 会导致版本信息不一致）、android `versionName`/`versionCode`（按上文核心版本与构建序号映射）、iOS `MARKETING_VERSION`、`pyproject.toml`（服务端 `/api/version` 运行时读它，漏 bump 网页端版本号就不同步）、`client/lambchat_sandbox/__init__.py` 的 `__version__`（daemon 自更新比版本，漏 bump daemon 永不更新）——app-release.yml 的 preflight 会校验 tag 与版本一致，漂移直接红。
 2. 在 `main` 合并提交上打 tag 并推送，触发 `app-release.yml`：六端矩阵构建（Linux x86_64/arm64、Windows、macOS Apple Silicon/Intel）+ Android/iOS，即发即传上传 GitHub Release。
 3. 出包默认**烘焙态**：资产全部上 Release、CI 打包产物冒烟（mac 直接跑 .app 内 daemon、Linux 解包 deb 跑、Windows 跑 sidecar）须绿，但 `latest.json` **不上传**——桌面端自更新不感知。真机抽检（mac/windows）通过后，到 Actions 手动跑 **Desktop Updater Publish**（输入 tag）才把 latest.json 推给桌面端；此时发版完成的判据是 latest.json 平台条目齐全（Windows NSIS + 双架构 macOS，含 `darwin-x86_64`；Linux 不进清单——已停发 AppImage，deb/rpm 走应用内自研更新链路）。仓库变量 `DESKTOP_UPDATER_AUTO_PUBLISH=true` 可恢复随包直发（不建议）。
 > 烘焙期间，`/api/version/assets/latest.json/download` 继续提供最近已发布的稳定版清单；带 `?tag=` 的下载仍严格锁定指定版本。仅桌面自动更新清单回退，普通安装包和移动端版本查询沿用最新 Release。
 
 更新清单的 `notes` 与 `pub_date` 必须来自该 tag 的 GitHub Release 正文与发布时间，不能只填写产品名和版本号；桌面、Linux 与移动端均展示实际改动、日期及完整更新日志链接。
 
-4. 重打同一 tag：先删远端 tag 与旧 run，再在新提交上重推；资产同名 `--clobber` 原地替换。
+4. 正式版重打遵循现有人工流程；已发布 `dev-latest.json` 的测试版禁止覆盖，必须递增 dev.N。尚未就绪的 dev 构建可重试，发布工作流按 tag 串行并在上传前检查就绪标记。
 
 ### 晋升 checklist（develop → main）
 
@@ -282,11 +294,13 @@ cd frontend && pnpm test:watch
 import { buildSubmitChatBody } from "../session";
 
 test("includes user_timezone in submit body", () => {
-  expect(buildSubmitChatBody({
+  expect(
+    buildSubmitChatBody({
     message: "hello",
     sessionId: "session-1",
     userTimezone: "Asia/Shanghai",
-  })).toEqual({
+    }),
+  ).toEqual({
     message: "hello",
     session_id: "session-1",
     user_timezone: "Asia/Shanghai",
@@ -329,11 +343,13 @@ uv run pytest --cov=src  # 带覆盖率
 ```ts
 // ✅ 好的测试
 test("reconcileSessionList removes stale sessions", () => {
-  expect(reconcileSessionList({
+  expect(
+    reconcileSessionList({
     previous: [session("keep"), session("drop")],
     latest: [session("keep")],
     removeMissing: true,
-  }).map(s => s.id)).toEqual(["keep"]);
+    }).map((s) => s.id),
+  ).toEqual(["keep"]);
 });
 
 // ❌ 差的测试

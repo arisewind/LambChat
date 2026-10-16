@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import asyncio
 from types import SimpleNamespace
+from unittest.mock import AsyncMock
 
 import pytest
 
@@ -236,7 +237,7 @@ async def test_team_agent_node_uses_sandbox_backend_when_enabled(
 
 
 @pytest.mark.asyncio
-@pytest.mark.parametrize("agent", ["team", "search", "fast"])
+@pytest.mark.parametrize("agent", ["team", "search"])
 async def test_delegating_agents_load_discovered_role_with_original_prompt(
     monkeypatch: pytest.MonkeyPatch,
     agent: str,
@@ -282,9 +283,7 @@ async def test_delegating_agents_load_discovered_role_with_original_prompt(
         }
     }
 
-    node_name = {"team": "team_router_node", "search": "agent_node", "fast": "fast_agent_node"}[
-        agent
-    ]
+    node_name = {"team": "team_router_node", "search": "agent_node"}[agent]
     await getattr(team_nodes, node_name)(
         {"input": "hello", "session_id": "session-1", "attachments": []},
         config,
@@ -360,6 +359,10 @@ async def test_delegating_agents_load_discovered_role_with_original_prompt(
     role_spec = dispatch.call_args.args[0]
     assert role_spec["name"] == "persona:p1"
     assert any("TRUSTED_ROLE_SOP" in getattr(m, "_prompt", "") for m in role_spec["middleware"])
+    role_prompt = "\n\n".join(getattr(m, "_prompt", "") for m in role_spec["middleware"])
+    assert "no sandbox or operating-system shell" in role_prompt
+    assert "/workflow/<session-id>" in role_prompt
+    assert "Sandbox local:" not in role_prompt
     assert (
         child_graph.builder.compile.call_args.kwargs["store"]
         is fake_graph.captured_create_kwargs["store"]
@@ -422,6 +425,7 @@ async def _run_team_node_with_members(
     team_nodes,
     fake_graph: _FakeDeepAgent,
     members,
+    preset_manager=None,
 ) -> None:
     from src.agents.team_agent.context import TeamAgentContext
     from src.kernel.schemas.team import TeamResponse
@@ -442,9 +446,16 @@ async def _run_team_node_with_members(
         async def use_preset(self, *_args, **_kwargs):
             return SimpleNamespace(system_prompt="You are a focused role.", skill_names=[])
 
+        async def use_presets(self, ids, **kwargs):
+            return [await self.use_preset(preset_id, **kwargs) for preset_id in ids]
+
     import src.infra.persona_preset.manager as persona_manager
 
-    monkeypatch.setattr(persona_manager, "get_persona_preset_manager", lambda: _PresetManager())
+    monkeypatch.setattr(
+        persona_manager,
+        "get_persona_preset_manager",
+        lambda: preset_manager if preset_manager is not None else _PresetManager(),
+    )
     monkeypatch.setattr(team_nodes.settings, "ENABLE_SANDBOX", False)
     monkeypatch.setattr(
         team_nodes.backend_setup, "create_persistent_backend", lambda **_kwargs: object()
@@ -465,6 +476,45 @@ async def _run_team_node_with_members(
         {"input": "hello", "session_id": "session-1", "attachments": []},
         config,
     )
+
+
+@pytest.mark.asyncio
+async def test_team_startup_resolves_member_presets_in_one_request_batch(monkeypatch):
+    _install_deepagents_shims(monkeypatch)
+    from src.agents.team_agent import nodes as team_nodes
+    from src.kernel.schemas.team import TeamMemberResponse
+
+    fake_graph = _FakeDeepAgent()
+    _patch_common(monkeypatch, team_nodes, fake_graph)
+    monkeypatch.setattr(team_nodes.LLMClient, "get_model", AsyncMock(return_value="main-llm"))
+    monkeypatch.setattr(
+        team_nodes, "resolve_team_member_model_config", AsyncMock(return_value=None)
+    )
+    ids = ["preset-a", "preset-b", "preset-a"]
+    manager = SimpleNamespace(
+        use_preset=AsyncMock(side_effect=AssertionError("startup must batch member preset reads")),
+        use_presets=AsyncMock(
+            return_value=[
+                SimpleNamespace(system_prompt=f"Original SOP {pid}", skill_names=[]) for pid in ids
+            ]
+        ),
+    )
+    await _run_team_node_with_members(
+        monkeypatch,
+        team_nodes,
+        fake_graph,
+        [
+            TeamMemberResponse(
+                member_id=f"member-{index}", persona_preset_id=pid, role_name=f"Role {index}"
+            )
+            for index, pid in enumerate(ids)
+        ],
+        preset_manager=manager,
+    )
+
+    manager.use_presets.assert_awaited_once_with(ids, user_id="user-1", is_admin=False)
+    manager.use_preset.assert_not_awaited()
+    assert len(fake_graph.captured_create_kwargs["subagents"]) == 3
 
 
 @pytest.mark.asyncio

@@ -1,3 +1,4 @@
+import { InteractiveIcon } from "../common/InteractiveIcon";
 import { SceneIllustration } from "../common/SceneIllustration";
 import { useState, useCallback, useEffect, useRef, useMemo } from "react";
 import {
@@ -536,7 +537,9 @@ export function SettingsPanel() {
                 disabled={isLoading}
                 className="flex flex-1 items-center justify-center gap-1 rounded-lg py-1.5 text-12 font-medium text-theme-error hover:bg-[color-mix(in_srgb,var(--theme-error)_10%,transparent)] disabled:opacity-50 dark:hover:bg-red-900/20"
               >
-                <RotateCcw size={12} />
+                <InteractiveIcon>
+                  <RotateCcw size={12} />
+                </InteractiveIcon>
                 {t("common.resetAll")}
               </button>
             )}
@@ -622,7 +625,9 @@ export function SettingsPanel() {
                 onClick={clearError}
                 className="ml-2 opacity-60 hover:opacity-100"
               >
-                <AlertCircle size={16} />
+                <InteractiveIcon>
+                  <AlertCircle size={16} />
+                </InteractiveIcon>
               </button>
             </div>
           )}
@@ -669,7 +674,9 @@ export function SettingsPanel() {
                         ariaLabel={t("settings.navigation.subcategory")}
                         value={activeSubcategory ?? "__all__"}
                         onChange={(value) =>
-                          setActiveSubcategory(value === "__all__" ? null : value)
+                          setActiveSubcategory(
+                            value === "__all__" ? null : value,
+                          )
                         }
                         className="min-w-0 max-w-full"
                         triggerClassName="min-h-11"
@@ -680,7 +687,9 @@ export function SettingsPanel() {
                           },
                           ...subcategories.map((group) => ({
                             value: group.subcategory,
-                            label: `${group.label || t("subcategories.general")} · ${group.settings.length}`,
+                            label: `${
+                              group.label || t("subcategories.general")
+                            } · ${group.settings.length}`,
                           })),
                         ]}
                       />
@@ -765,7 +774,7 @@ export function SettingsPanel() {
                           {/* Key and Type */}
                           <div className="flex items-start justify-between gap-2">
                             <div className="min-w-0 flex-1">
-                              <div className="flex flex-wrap items-center gap-2">
+                              <div className="flex flex-wrap items-baseline gap-2">
                                 {isSearching && (
                                   <button
                                     onClick={() => {
@@ -779,7 +788,7 @@ export function SettingsPanel() {
                                     {CATEGORY_LABELS[setting.category]}
                                   </button>
                                 )}
-                                <code className="rounded-md bg-[var(--glass-bg-subtle)] px-2 py-0.5 text-12 font-medium text-theme-text break-all dark:text-stone-100">
+                                <code className="min-w-0 py-0.5 text-12 font-medium text-theme-text break-all dark:text-stone-100">
                                   {setting.key}
                                 </code>
                                 {!setting.json_schema && (
@@ -883,10 +892,10 @@ export function SettingsPanel() {
                                                 ),
                                               },
                                             ]
-                                          : (setting.options?.map((opt) => ({
+                                          : setting.options?.map((opt) => ({
                                               value: opt,
                                               label: opt,
-                                            })) ?? [])
+                                            })) ?? []
                                 }
                               />
                             )}

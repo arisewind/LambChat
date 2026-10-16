@@ -1,3 +1,4 @@
+import { InteractiveIcon } from "../common/InteractiveIcon";
 import { ResourceCardTags } from "../common/ResourceCardTags";
 import {
   FileText,
@@ -5,8 +6,6 @@ import {
   ToggleRight,
   Edit3,
   Trash2,
-  ShoppingBag,
-  User,
   Archive,
   Sparkles,
   Upload,
@@ -36,11 +35,6 @@ interface SkillCardProps {
   onSelect?: (name: string) => void;
   selectionMode?: boolean;
 }
-
-const SOURCE_ICONS: Record<string, React.ReactNode> = {
-  marketplace: <ShoppingBag size={10} />,
-  manual: <User size={10} />,
-};
 
 export function SkillCard({
   skill,
@@ -91,7 +85,9 @@ export function SkillCard({
                   });
                 }}
               >
-                <Pin size={12} />
+                <InteractiveIcon>
+                  <Pin size={12} />
+                </InteractiveIcon>
               </button>
             </Tooltip>
             <Tooltip content={t("personaPresets.favorite", "收藏")}>
@@ -109,7 +105,9 @@ export function SkillCard({
                   });
                 }}
               >
-                <Star size={12} />
+                <InteractiveIcon>
+                  <Star size={12} />
+                </InteractiveIcon>
               </button>
             </Tooltip>
           </>
@@ -129,19 +127,14 @@ export function SkillCard({
           )}
         </>
       }
-      statusPills={
-        <span className="skill-status-pill">
-          {SOURCE_ICONS[skill.source]}
-          {sourceLabel}
-        </span>
-      }
+      statusPills={<span>{sourceLabel}</span>}
       tags={
         skill.tags.length > 0 ? (
           <ResourceCardTags tags={skill.tags} />
         ) : undefined
       }
       meta={
-        <div className="flex flex-wrap items-center gap-2 text-12 text-[var(--theme-text-secondary)]">
+        <div className="min-w-0 flex flex-1 flex-wrap items-center gap-2 text-11 text-[var(--theme-text-secondary)]">
           <div className="skill-meta-pill">
             <FileText size={13} />
             <span>
@@ -249,37 +242,37 @@ export function SkillCard({
       ]}
       footer={
         onToggle ? (
-          <div className="flex items-center gap-1">
-            <Tooltip
-              content={
+          <Tooltip
+            content={
+              skill.enabled ? t("skills.card.disable") : t("skills.card.enable")
+            }
+          >
+            <button
+              aria-label={
                 skill.enabled
                   ? t("skills.card.disable")
                   : t("skills.card.enable")
               }
+              onClick={(e) => {
+                e.stopPropagation();
+                onToggle(skill.name);
+              }}
+              className="scb__action-btn scb__action-btn--ghost"
             >
-              <button
-                aria-label={
-                  skill.enabled
-                    ? t("skills.card.disable")
-                    : t("skills.card.enable")
-                }
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onToggle(skill.name);
-                }}
-                className="scb__action-btn scb__action-btn--ghost"
-              >
-                {skill.enabled ? (
+              {skill.enabled ? (
+                <InteractiveIcon>
                   <ToggleRight
-                    size={15}
-                    className="text-green-600 dark:text-green-500"
+                    size={16}
+                    className="text-theme-success dark:text-green-500"
                   />
-                ) : (
-                  <ToggleLeft size={15} />
-                )}
-              </button>
-            </Tooltip>
-          </div>
+                </InteractiveIcon>
+              ) : (
+                <InteractiveIcon>
+                  <ToggleLeft size={16} />
+                </InteractiveIcon>
+              )}
+            </button>
+          </Tooltip>
         ) : undefined
       }
     />

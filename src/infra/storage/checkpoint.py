@@ -16,6 +16,7 @@ import inspect
 import random
 import time
 from collections import OrderedDict
+from datetime import datetime, timezone
 from types import MethodType
 from typing import Any, Optional
 
@@ -35,6 +36,56 @@ from src.infra.logging import get_logger
 from src.kernel.config import settings
 
 logger = get_logger(__name__)
+
+
+def _coerce_checkpoint_time(ts_raw: Any, cutoff_time: datetime) -> datetime | None:
+    checkpoint_time = None
+    if isinstance(ts_raw, str):
+        try:
+            checkpoint_time = datetime.fromisoformat(ts_raw)
+        except (ValueError, TypeError):
+            return None
+    else:
+        try:
+            checkpoint_time = datetime.fromtimestamp(float(ts_raw))
+        except (TypeError, ValueError):
+            return None
+
+    if checkpoint_time.tzinfo is None and cutoff_time.tzinfo is not None:
+        checkpoint_time = checkpoint_time.replace(tzinfo=timezone.utc)
+    return checkpoint_time
+
+
+def _prune_memory_saver_storage(storage: Any, cutoff_time: datetime) -> int:
+    to_delete = []
+
+    for thread_id in list(storage.keys()):
+        try:
+            checkpoints = storage.get(thread_id, {})
+            if not checkpoints:
+                to_delete.append(thread_id)
+                continue
+
+            latest_checkpoint = max(checkpoints.values(), key=lambda x: getattr(x, "ts", 0))
+            checkpoint_time = _coerce_checkpoint_time(
+                getattr(latest_checkpoint, "ts", "0"),
+                cutoff_time,
+            )
+
+            if checkpoint_time is not None and checkpoint_time < cutoff_time:
+                to_delete.append(thread_id)
+        except Exception:
+            pass
+
+    deleted_count = 0
+    for thread_id in to_delete:
+        try:
+            del storage[thread_id]
+            deleted_count += 1
+        except Exception:
+            pass
+    return deleted_count
+
 
 _MEMORY_SAVER_MAX_THREADS = max(int(getattr(settings, "MEMORY_SAVER_MAX_THREADS", 200) or 0), 1)
 _MEMORY_SAVER_TTL_SECONDS = max(
@@ -280,10 +331,29 @@ async def _create_pg_checkpointer() -> BaseCheckpointSaver[Any] | None:
     global _pg_checkpointer, _pg_checkpointer_pool
 
     try:
+        from importlib.metadata import PackageNotFoundError, version
+
         from langgraph.checkpoint.postgres.aio import AsyncPostgresSaver
         from psycopg import AsyncConnection
         from psycopg.rows import dict_row
         from psycopg_pool import AsyncConnectionPool
+
+        saver_class = AsyncPostgresSaver
+        try:
+            supported_delta_protocol = version("langgraph-checkpoint-postgres") in {
+                "3.1.2",
+                "3.2.0",
+            }
+        except PackageNotFoundError:
+            supported_delta_protocol = False
+        if supported_delta_protocol:
+            from src.infra.storage.checkpoint_postgres import BatchedDeltaPostgresSaver
+
+            saver_class = BatchedDeltaPostgresSaver
+        else:
+            logger.info(
+                "PostgreSQL delta reader uses upstream implementation for this package version"
+            )
 
         pool: AsyncConnectionPool[AsyncConnection[dict[str, Any]]] = AsyncConnectionPool(
             settings.checkpoint_postgres_url,
@@ -306,7 +376,7 @@ async def _create_pg_checkpointer() -> BaseCheckpointSaver[Any] | None:
             await pool.close()
             raise
 
-        cp = AsyncPostgresSaver(pool)
+        cp = saver_class(pool)
         try:
             await cp.setup()
             logger.info(

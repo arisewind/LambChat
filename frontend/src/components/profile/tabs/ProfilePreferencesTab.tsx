@@ -1,3 +1,5 @@
+import { UpdateChannelSelect } from "../../update/UpdateChannelSelect";
+import { InteractiveIcon } from "../../common/InteractiveIcon";
 import { useLanguagePreference } from "../../../hooks/useLanguagePreference";
 import {
   lazy,
@@ -17,7 +19,7 @@ import { useAuth } from "../../../hooks/useAuth";
 import { usePreferenceWrites } from "../../../hooks/usePreferenceWrites";
 import { authApi, agentConfigApi, agentApi } from "../../../services/api";
 import { DEFAULT_THINKING_LEVEL_STORAGE_KEY } from "../../layout/AppContent/useAgentOptions";
-import { resolveAgentDisplayName } from "../../agent/agentCatalog";
+import { resolveAgentReferenceName } from "../../agent/agentCatalog";
 import { CatalogStatus } from "../../common/CatalogStatus";
 import { SelectRow } from "../SelectRow";
 // 定时主题分区懒加载：仅启用定时切换的用户展开渲染，避免顶高 eager 预算
@@ -341,8 +343,7 @@ function PreferencesContent() {
   }));
 
   const renderAgentLabel = (key: string) => {
-    const agent = agents.find((a) => a.id === key);
-    return agent ? resolveAgentDisplayName(agent, i18n.language, t) : key;
+    return resolveAgentReferenceName(key, "", agents, i18n.language, t);
   };
 
   // Show ⌘ instead of Ctrl on Apple platforms for the ctrl send modifier
@@ -359,7 +360,7 @@ function PreferencesContent() {
   };
 
   return (
-    <div ref={contentRef} tabIndex={-1} className="space-y-4 outline-none">
+    <div ref={contentRef} tabIndex={-1} className="space-y-4 outline-hidden">
       <div className="profile-section">
         <div className="space-y-0">
           {enableMemory && (
@@ -538,10 +539,7 @@ function PreferencesContent() {
         {/* 云端沙箱：执行确认策略（用户级偏好，存 metadata） */}
         <div>
           <div className="sandbox-preference-heading">
-            <Cloud
-              size={15}
-              className="text-theme-text-tertiary shrink-0"
-            />
+            <Cloud size={15} className="text-theme-text-tertiary shrink-0" />
             <span className="font-medium text-14 text-theme-text">
               {t("profile.cloudSandbox")}
             </span>
@@ -575,6 +573,7 @@ function PreferencesContent() {
       {/* 关于：检查更新——仅原生客户端（桌面/移动）渲染；Web 随部署走刷新即更 */}
       {isNativeAppRuntime() && (
         <div className="profile-section">
+          <UpdateChannelSelect />
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               <RefreshCw
@@ -592,7 +591,9 @@ function PreferencesContent() {
               }}
               className="flex items-center gap-1.5 rounded-lg border border-theme-border dark:border-stone-600/60 px-3 py-1.5 text-12 font-medium text-theme-text-secondary dark:text-stone-300 hover:bg-theme-bg-card dark:hover:bg-black/20 transition-colors"
             >
-              <RefreshCw size={12} />
+              <InteractiveIcon>
+                <RefreshCw size={12} />
+              </InteractiveIcon>
               {t("update.checkNow", "检查更新")}
             </button>
           </div>

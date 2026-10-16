@@ -1,3 +1,4 @@
+import { InteractiveIcon } from "../../common/InteractiveIcon";
 import { SidebarToggleIcon } from "../../common/SidebarToggleIcon";
 import {
   SquarePen,
@@ -83,7 +84,7 @@ export function SidebarRail({
             aria-label={t("sidebar.expandSidebar")}
           >
             <BrandLogo alt={APP_NAME} className="size-7 group-hover:hidden" />
-            <SidebarToggleIcon className="size-5 hidden group-hover:block" />
+            <SidebarToggleIcon className="size-4 hidden group-hover:block" />
           </button>
         </Tooltip>
       </div>
@@ -100,7 +101,9 @@ export function SidebarRail({
             className={railBtn}
             aria-label={t("sidebar.newChat")}
           >
-            <SquarePen size={20} />
+            <InteractiveIcon>
+              <SquarePen size={16} />
+            </InteractiveIcon>
           </button>
         </Tooltip>
         <Tooltip content={t("sidebar.searchSessions")}>
@@ -110,7 +113,9 @@ export function SidebarRail({
             className={railBtn}
             aria-label={t("sidebar.searchSessions")}
           >
-            <Search size={20} />
+            <InteractiveIcon>
+              <Search size={16} />
+            </InteractiveIcon>
           </button>
         </Tooltip>
         {canReadScheduledTasks && (
@@ -121,7 +126,9 @@ export function SidebarRail({
               className={railBtn}
               aria-label={t("nav.scheduled-tasks")}
             >
-              <CalendarClock size={20} />
+              <InteractiveIcon>
+                <CalendarClock size={16} />
+              </InteractiveIcon>
             </button>
           </Tooltip>
         )}
@@ -132,7 +139,9 @@ export function SidebarRail({
             className={railBtn}
             aria-label={t("fileLibrary.title")}
           >
-            <FolderOpen size={20} />
+            <InteractiveIcon>
+              <FolderOpen size={16} />
+            </InteractiveIcon>
           </button>
         </Tooltip>
         <Tooltip content={t("bookmarks.title")}>
@@ -142,7 +151,9 @@ export function SidebarRail({
             className={railBtn}
             aria-label={t("bookmarks.title")}
           >
-            <Bookmark size={20} />
+            <InteractiveIcon>
+              <Bookmark size={16} />
+            </InteractiveIcon>
           </button>
         </Tooltip>
         <Tooltip content={t("sidebar.recentChats")}>
@@ -153,10 +164,12 @@ export function SidebarRail({
             className={`${railBtn} relative`}
             aria-label={t("sidebar.recentChats")}
           >
-            <History size={20} />
+            <InteractiveIcon>
+              <History size={16} />
+            </InteractiveIcon>
             {unreadCount > 0 && (
               <span
-                className={`absolute -top-0 right-0 flex items-center justify-center rounded-full bg-gradient-to-br from-red-400 to-rose-500 text-9 font-bold leading-none text-white shadow-[0_1px_3px_rgba(239,68,68,0.4)] ring-1 ring-white/20 ${
+                className={`absolute -top-0 right-0 flex items-center justify-center rounded-full bg-linear-to-br from-red-400 to-rose-500 text-9 font-bold leading-none text-white shadow-[0_1px_3px_rgba(239,68,68,0.4)] ring-1 ring-white/20 ${
                   unreadCount <= 9 ? "w-3.5 h-3.5" : "h-3.5 min-w-[18px] px-1"
                 }`}
               >
@@ -174,7 +187,7 @@ export function SidebarRail({
               className={railBtn}
               aria-label={moreLabel}
             >
-              <MoreIcon size={20} />
+              <MoreIcon size={16} />
             </button>
           </Tooltip>
         )}
@@ -204,7 +217,7 @@ export function SidebarRail({
                   className="w-full h-full object-cover rounded-full"
                   style={{ borderRadius: "50%" }}
                   errorFallback={
-                    <div className="flex w-full h-full items-center justify-center bg-gradient-to-br from-amber-400 to-orange-500 rounded-full">
+                    <div className="flex w-full h-full items-center justify-center bg-linear-to-br from-amber-400 to-orange-500 rounded-full">
                       <span className="text-12 font-semibold text-white font-serif">
                         {user?.username?.charAt(0).toUpperCase() || "U"}
                       </span>
@@ -212,7 +225,7 @@ export function SidebarRail({
                   }
                 />
               ) : (
-                <div className="flex w-full h-full items-center justify-center bg-gradient-to-br from-amber-400 to-orange-500 rounded-full">
+                <div className="flex w-full h-full items-center justify-center bg-linear-to-br from-amber-400 to-orange-500 rounded-full">
                   <span className="text-12 font-semibold text-white font-serif">
                     {user?.username?.charAt(0).toUpperCase() || "U"}
                   </span>

@@ -9,11 +9,19 @@ import {
   EAGER_JAVASCRIPT_BUDGET_BYTES,
   PRECACHE_ADDITIONAL_ENTRIES,
   PRECACHE_BUDGET_BYTES,
-} from "./scripts/performanceBudget";
+} from "./scripts/performanceBudget.ts";
+
+// The immutable release identity is distinct from native numeric package versions.
+if (process.env.RELEASE_TAG) {
+  const tag = process.env.RELEASE_TAG;
+  if (!/^v\d+\.\d+\.\d+(?:-dev\.[1-9]\d*)?$/.test(tag))
+    throw new Error("Invalid RELEASE_TAG");
+  process.env.VITE_RELEASE_VERSION = tag.slice(1);
+}
 
 // Available agents (sync with backend)
 const AGENT_IDS = ["default", "api", "data_pipeline", "simple_workflow"];
-const ICONS_DIR = path.resolve(__dirname, "public/icons");
+const ICONS_DIR = path.resolve(import.meta.dirname, "public/icons");
 
 function getStaticIconContentType(filePath: string): string {
   if (filePath.endsWith(".svg")) return "image/svg+xml";
@@ -119,7 +127,7 @@ export default defineConfig({
         additionalManifestEntries: PRECACHE_ADDITIONAL_ENTRIES,
         manifestTransforms: [
           createPerformanceManifestTransform({
-            distDir: path.resolve(__dirname, "dist"),
+            distDir: path.resolve(import.meta.dirname, "dist"),
             readText: (filePath) => fs.readFileSync(filePath, "utf8"),
             readBytes: (filePath) => fs.readFileSync(filePath),
             log: (message) => console.info(message),
@@ -140,38 +148,55 @@ export default defineConfig({
       {
         find: /^opentype\.js$/,
         replacement: path.resolve(
-          __dirname,
+          import.meta.dirname,
           "node_modules/opentype.js/dist/opentype.js",
         ),
       },
       {
         find: /^stream$/,
-        replacement: path.resolve(__dirname, "node_modules/stream-browserify"),
+        replacement: path.resolve(
+          import.meta.dirname,
+          "node_modules/stream-browserify",
+        ),
       },
       {
         find: /^events$/,
-        replacement: path.resolve(__dirname, "node_modules/events"),
+        replacement: path.resolve(import.meta.dirname, "node_modules/events"),
       },
       {
         find: /^util$/,
-        replacement: path.resolve(__dirname, "node_modules/util"),
+        replacement: path.resolve(import.meta.dirname, "node_modules/util"),
       },
       {
         find: /^process$/,
-        replacement: path.resolve(__dirname, "node_modules/process/browser"),
+        replacement: path.resolve(
+          import.meta.dirname,
+          "node_modules/process/browser",
+        ),
       },
     ],
   },
-  esbuild: {
-    drop: process.env.NODE_ENV === "production" ? ["console", "debugger"] : [],
-  },
   build: {
     manifest: true,
-    rollupOptions: {
+    rolldownOptions: {
       output: {
-        manualChunks: {
-          "vendor-react": ["react", "react-dom", "react-router-dom"],
-          "vendor-i18n": ["i18next", "react-i18next"],
+        minify: {
+          compress: {
+            dropConsole: process.env.NODE_ENV === "production",
+            dropDebugger: process.env.NODE_ENV === "production",
+          },
+        },
+        codeSplitting: {
+          groups: [
+            {
+              name: "vendor-react",
+              test: /node_modules\/(react|react-dom|react-router|scheduler)(\/|$)/,
+            },
+            {
+              name: "vendor-i18n",
+              test: /node_modules\/(i18next|react-i18next)(\/|$)/,
+            },
+          ],
         },
       },
     },

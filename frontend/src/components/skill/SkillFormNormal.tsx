@@ -1,3 +1,4 @@
+import { InteractiveIcon } from "../common/InteractiveIcon";
 import { useTranslation } from "react-i18next";
 import { Maximize2, X, Plus, Save, Pencil, Upload } from "lucide-react";
 import { ToggleSwitch } from "../panels/AgentPanel/shared/ToggleSwitch";
@@ -85,7 +86,9 @@ export function SkillFormNormal(a: SkillFormActions) {
                         className="skill-tag-chip-remove"
                         aria-label={`${t("common.remove")}: ${tag}`}
                       >
-                        <X size={11} />
+                        <InteractiveIcon>
+                          <X size={11} />
+                        </InteractiveIcon>
                       </button>
                     </span>
                   ))}
@@ -235,7 +238,7 @@ export function SkillFormNormal(a: SkillFormActions) {
                     filePath={a.files[a.activeFileIndex]?.path}
                     readOnly
                   />
-                  <div className="pointer-events-none absolute inset-x-0 bottom-0 h-14 bg-gradient-to-t from-[var(--theme-bg)] to-transparent" />
+                  <div className="pointer-events-none absolute inset-x-0 bottom-0 h-14 bg-linear-to-t from-[var(--theme-bg)] to-transparent" />
                   <Button
                     variant="primary"
                     onClick={() => a.toggleFullscreen(true)}
@@ -248,7 +251,9 @@ export function SkillFormNormal(a: SkillFormActions) {
               );
             })()}
             {a.errors.content && (
-              <p className="mt-2 text-12 text-red-500">{a.errors.content}</p>
+              <p className="mt-2 text-12 text-theme-error">
+                {a.errors.content}
+              </p>
             )}
           </div>
         </div>

@@ -1,3 +1,4 @@
+import { InteractiveIcon } from "../common/InteractiveIcon";
 import { DialogCloseButton } from "../common/DialogCloseButton";
 /**
  * Search dialog for finding sessions across all projects.
@@ -113,7 +114,8 @@ export function SearchDialog({
           session: s,
           projectName:
             ((s.metadata as Record<string, unknown>)?.project_name as
-              string | null) ?? null,
+              | string
+              | null) ?? null,
         }));
 
         if (reset) {
@@ -235,7 +237,7 @@ export function SearchDialog({
               onValueChange={setSearchQuery}
               onKeyDown={handleKeyDown}
               placeholder={t("sidebar.searchSessions") + "..."}
-              className="h-11 min-w-0 flex-1 border-0 bg-transparent p-0 text-16 text-theme-text placeholder:text-theme-text-tertiary outline-none focus:outline-none focus-visible:outline-none focus:ring-0"
+              className="h-11 min-w-0 flex-1 border-0 bg-transparent p-0 text-16 text-theme-text placeholder:text-theme-text-tertiary outline-hidden focus:outline-hidden focus-visible:outline-hidden focus:ring-0"
             />
             {searchQuery && (
               <IconButton
@@ -338,11 +340,13 @@ export function SearchDialog({
                       )}
                       {projectName && (
                         <span className="mt-1 flex min-w-0 items-center gap-1 text-11 font-serif text-theme-text-tertiary">
-                          <Hash
-                            size={11}
-                            className="shrink-0"
-                            aria-hidden="true"
-                          />
+                          <InteractiveIcon>
+                            <Hash
+                              size={11}
+                              className="shrink-0"
+                              aria-hidden="true"
+                            />
+                          </InteractiveIcon>
                           <span className="truncate" title={projectName}>
                             {projectName}
                           </span>

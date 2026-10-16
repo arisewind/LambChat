@@ -1,3 +1,4 @@
+import { InteractiveIcon } from "../common/InteractiveIcon";
 import type { PersistentGoal } from "../../services/api/session";
 import {
   memo,
@@ -23,7 +24,6 @@ import {
   getSelectedTeamStarterPrompts,
   getWelcomePersonaCards,
   getWelcomePersonaCardClass,
-  getWelcomePersonaSkeletonClass,
   getWelcomePersonaSkeletonCount,
   getWelcomeTeamCards,
   getWelcomeSuggestionsContainerClass,
@@ -39,7 +39,10 @@ import {
   getTeamFallbackAvatar,
   getTeamFallbackTag,
 } from "../team/teamAvatarUtils";
-import { WelcomeSkeleton } from "../skeletons/ChatSkeletons";
+import {
+  WelcomeSkeleton,
+  WelcomePersonaCardSkeleton,
+} from "../skeletons/ChatSkeletons";
 import {
   beginTeamRequest,
   isWelcomeContentReady,
@@ -547,14 +550,16 @@ export const WelcomePage = memo(function WelcomePage({
                     backgroundColor: "transparent",
                   }}
                 >
-                  <RefreshCw
-                    size={12}
-                    className={
-                      isRefreshing
-                        ? "animate-spin"
-                        : "xl:w-3.5 xl:h-3.5 2xl:w-3.5 2xl:h-3.5"
-                    }
-                  />
+                  <InteractiveIcon>
+                    <RefreshCw
+                      size={12}
+                      className={
+                        isRefreshing
+                          ? "animate-spin"
+                          : "xl:w-3.5 xl:h-3.5 2xl:w-3.5 2xl:h-3.5"
+                      }
+                    />
+                  </InteractiveIcon>
                   <span>
                     {canChangeTeam
                       ? t("team.change", "更换团队")
@@ -629,24 +634,10 @@ export const WelcomePage = memo(function WelcomePage({
             )}
             {showTeamCards &&
               Array.from({ length: teamSkeletonCount }).map((_, i) => (
-                <div
+                <WelcomePersonaCardSkeleton
                   key={`team-skeleton-${i}`}
-                  className={getWelcomePersonaSkeletonClass()}
-                  style={{
-                    backgroundColor: "var(--theme-bg-card)",
-                    borderColor: "var(--theme-border)",
-                  }}
-                  aria-hidden="true"
-                >
-                  <span className="welcome-skeleton-avatar" />
-                  <span className="welcome-skeleton-info">
-                    <span className="welcome-skeleton-name-row">
-                      <span className="welcome-skeleton-line welcome-skeleton-title" />
-                      <span className="welcome-skeleton-line welcome-skeleton-tag" />
-                    </span>
-                    <span className="welcome-skeleton-line welcome-skeleton-desc" />
-                  </span>
-                </div>
+                  showTag
+                />
               ))}
             {showTeamCards &&
               displayTeamCards.map((team, i) => {
@@ -720,24 +711,7 @@ export const WelcomePage = memo(function WelcomePage({
               })}
             {showPersonaCards &&
               Array.from({ length: personaSkeletonCount }).map((_, i) => (
-                <div
-                  key={`persona-skeleton-${i}`}
-                  className={getWelcomePersonaSkeletonClass()}
-                  style={{
-                    backgroundColor: "var(--theme-bg-card)",
-                    borderColor: "var(--theme-border)",
-                  }}
-                  aria-hidden="true"
-                >
-                  <span className="welcome-skeleton-avatar" />
-                  <span className="welcome-skeleton-info">
-                    <span className="welcome-skeleton-name-row">
-                      <span className="welcome-skeleton-line welcome-skeleton-title" />
-                      <span className="welcome-skeleton-line welcome-skeleton-tag" />
-                    </span>
-                    <span className="welcome-skeleton-line welcome-skeleton-desc" />
-                  </span>
-                </div>
+                <WelcomePersonaCardSkeleton key={`persona-skeleton-${i}`} />
               ))}
             {showPersonaCards &&
               displayCards.map((preset, i) => {

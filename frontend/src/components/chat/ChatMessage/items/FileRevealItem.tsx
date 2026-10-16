@@ -1,3 +1,4 @@
+import { InteractiveIcon } from "../../../common/InteractiveIcon";
 import { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import { clsx } from "clsx";
 import { ExternalLink, Clock } from "lucide-react";
@@ -436,7 +437,7 @@ export function FileRevealItem({
                   )}
                   {isImage && (fileName || parsed.description) && (
                     <div className="absolute bottom-0 left-0 right-0 opacity-0 group-hover/img:opacity-100 transition-opacity z-[2]">
-                      <div className="px-2 py-1.5 bg-gradient-to-t from-black/60 to-transparent">
+                      <div className="px-2 py-1.5 bg-linear-to-t from-black/60 to-transparent">
                         <span className="text-11 text-white/90 truncate block font-serif">
                           {parsed.description || fileName}
                         </span>
@@ -507,7 +508,9 @@ export function FileRevealItem({
 
           {success && parsed.filePath && (
             <div className="shrink-0 p-2 rounded-lg bg-theme-bg-subtle text-theme-text-tertiary">
-              <ExternalLink size={16} />
+              <InteractiveIcon>
+                <ExternalLink size={16} />
+              </InteractiveIcon>
             </div>
           )}
         </button>

@@ -1,3 +1,4 @@
+import { InteractiveIcon } from "../common/InteractiveIcon";
 import { EmptyState } from "../common/EmptyState";
 /**
  * 书签面板 - 列出当前用户收藏的消息（大纲/总结等），
@@ -78,7 +79,9 @@ export function BookmarksPanel() {
             title={t("bookmarks.refresh")}
             aria-label={t("bookmarks.refresh")}
           >
-            <RefreshCw size={16} />
+            <InteractiveIcon>
+              <RefreshCw size={16} />
+            </InteractiveIcon>
           </button>
         }
       />
@@ -98,7 +101,9 @@ export function BookmarksPanel() {
               onClick={handleRefresh}
               className="glass-tag cursor-pointer"
             >
-              <RefreshCw size={12} />
+              <InteractiveIcon>
+                <RefreshCw size={12} />
+              </InteractiveIcon>
               {t("bookmarks.refresh")}
             </button>
           </div>
@@ -126,7 +131,7 @@ export function BookmarksPanel() {
                     handleJump(bookmark);
                   }
                 }}
-                className="resource-detail-card glass-card group relative flex flex-col rounded-xl p-4 sm:p-5 cursor-pointer transition-all duration-200 animate-glass-enter"
+                className="resource-detail-card glass-card group relative flex flex-col gap-2 rounded-xl p-3 cursor-pointer transition-all duration-200 animate-glass-enter"
               >
                 <div className="flex items-start justify-between gap-2">
                   <p className="line-clamp-2 min-w-0 flex-1 text-left font-serif text-14 font-semibold leading-relaxed text-[var(--theme-text)] sm:text-16">
@@ -142,13 +147,17 @@ export function BookmarksPanel() {
                     title={t("bookmarks.remove")}
                     aria-label={t("bookmarks.remove")}
                   >
-                    <Trash2 size={14} />
+                    <InteractiveIcon>
+                      <Trash2 size={14} />
+                    </InteractiveIcon>
                   </button>
                 </div>
 
-                <div className="mt-3 flex flex-wrap gap-1.5">
+                <div className="flex flex-wrap gap-1.5">
                   <span className="glass-tag">
-                    <MessageSquare size={12} />
+                    <InteractiveIcon>
+                      <MessageSquare size={12} />
+                    </InteractiveIcon>
                     <span className="max-w-44 truncate">
                       {bookmark.session_name ||
                         t("fileLibrary.untitledSession")}
@@ -156,12 +165,16 @@ export function BookmarksPanel() {
                   </span>
                   {!bookmark.session_is_active && (
                     <span className="glass-tag">
-                      <Archive size={12} />
+                      <InteractiveIcon>
+                        <Archive size={12} />
+                      </InteractiveIcon>
                       {t("bookmarks.archivedSession")}
                     </span>
                   )}
                   <span className="glass-tag">
-                    <Clock size={12} />
+                    <InteractiveIcon>
+                      <Clock size={12} />
+                    </InteractiveIcon>
                     {formatDateTimeShort(bookmark.created_at)}
                   </span>
                 </div>

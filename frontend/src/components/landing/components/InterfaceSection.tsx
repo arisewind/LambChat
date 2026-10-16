@@ -1,13 +1,17 @@
 import { useTranslation } from "react-i18next";
-import { MAIN_SHOTS } from "../data";
+import type { ScreenshotItem } from "../data";
 import { SectionHeading } from "./SectionHeading";
 import { ScreenshotCard } from "./ScreenshotCard";
 
 interface InterfaceSectionProps {
+  shots: ScreenshotItem[];
   onOpenViewer: (src: string, alt: string) => void;
 }
 
-export function InterfaceSection({ onOpenViewer }: InterfaceSectionProps) {
+export function InterfaceSection({
+  shots,
+  onOpenViewer,
+}: InterfaceSectionProps) {
   const { t } = useTranslation();
 
   return (
@@ -22,9 +26,9 @@ export function InterfaceSection({ onOpenViewer }: InterfaceSectionProps) {
           description={t("landing.mainInterfaceDesc")}
         />
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-5 sm:gap-6">
-          {MAIN_SHOTS.map((s) => (
+          {shots.map((s) => (
             <ScreenshotCard
-              key={s.src}
+              key={s.altKey}
               src={s.src}
               alt={t(`landing.${s.altKey}`)}
               onClick={() => onOpenViewer(s.src, t(`landing.${s.altKey}`))}

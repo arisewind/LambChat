@@ -108,9 +108,12 @@ async def test_mongo_checkpointer_accepts_string_channel_versions(
 
 
 @pytest.mark.asyncio
+@pytest.mark.parametrize("saver_version", ["3.1.2", "3.2.0"])
 async def test_pg_checkpointer_initializes_once_under_concurrency(
     monkeypatch: pytest.MonkeyPatch,
+    saver_version: str,
 ) -> None:
+    monkeypatch.setattr("importlib.metadata.version", lambda _package: saver_version)
     monkeypatch.setattr(
         checkpoint_mod,
         "get_pg_checkpointer",
@@ -149,7 +152,7 @@ async def test_pg_checkpointer_initializes_once_under_concurrency(
     monkeypatch.setattr(checkpoint_mod.settings, "CHECKPOINT_PG_POOL_MIN_SIZE", 1)
     monkeypatch.setattr(checkpoint_mod.settings, "CHECKPOINT_PG_POOL_MAX_SIZE", 3)
     monkeypatch.setattr(
-        "langgraph.checkpoint.postgres.aio.AsyncPostgresSaver",
+        "src.infra.storage.checkpoint_postgres.BatchedDeltaPostgresSaver",
         _FakeSaver,
     )
     monkeypatch.setattr("psycopg_pool.AsyncConnectionPool", _FakePool)

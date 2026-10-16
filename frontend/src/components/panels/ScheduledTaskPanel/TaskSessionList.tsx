@@ -1,10 +1,11 @@
+import { InteractiveIcon } from "../../common/InteractiveIcon";
 import { EmptyState } from "../../common/EmptyState";
 import { useCallback, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router-dom";
 import toast from "react-hot-toast";
 import i18n from "../../../i18n";
-import { resolveAgentDisplayName } from "../../agent/agentCatalog";
+import { resolveAgentReferenceName } from "../../agent/agentCatalog";
 import { AgentIcon } from "../../agent/AgentIcon";
 import { ArrowLeft, ChevronRight, MessageSquare } from "lucide-react";
 import { PanelHeader } from "../../common/PanelHeader";
@@ -82,7 +83,9 @@ export function TaskSessionList({
             onClick={() => navigate("/scheduled-tasks", { replace: true })}
             className="scheduled-task-button scheduled-task-button--secondary font-serif"
           >
-            <ArrowLeft size={16} />
+            <InteractiveIcon>
+              <ArrowLeft size={16} />
+            </InteractiveIcon>
             <span className="translate-y-[0.5px]">
               {t("scheduledTask.backToTasks")}
             </span>
@@ -102,9 +105,13 @@ export function TaskSessionList({
           <div className="scheduled-task-list">
             {sessions.map((session) => {
               const agent = agents.find((a) => a.id === session.agent_id);
-              const agentName = agent
-                ? resolveAgentDisplayName(agent, i18n.language, t)
-                : session.agent_id;
+              const agentName = resolveAgentReferenceName(
+                session.agent_id,
+                "",
+                agents,
+                i18n.language,
+                t,
+              );
 
               return (
                 <button
@@ -115,7 +122,7 @@ export function TaskSessionList({
                   {/* Left indicator: agent's real icon (emoji / lobe icon) */}
                   <AgentIcon
                     icon={agent?.icon}
-                    seed={agent?.id}
+                    seed={session.agent_id}
                     size={40}
                     className={`scheduled-task-session-card__indicator ${
                       session.is_active
@@ -162,10 +169,12 @@ export function TaskSessionList({
                           : session.unread_count}
                       </span>
                     )}
-                    <ChevronRight
-                      size={16}
-                      className="text-stone-300 dark:text-stone-600"
-                    />
+                    <InteractiveIcon>
+                      <ChevronRight
+                        size={16}
+                        className="text-stone-300 dark:text-stone-600"
+                      />
+                    </InteractiveIcon>
                   </div>
                 </button>
               );

@@ -1,3 +1,4 @@
+import { InteractiveIcon } from "../common/InteractiveIcon";
 import { LoadingSpinner } from "../common/LoadingSpinner";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { ToggleLeft, ToggleRight, Wrench } from "lucide-react";
@@ -157,7 +158,7 @@ export function MCPToolPolicyEditor({
           <LoadingSpinner
             color="text-current"
             size={13}
-            className="text-stone-300 dark:text-stone-600"
+            className="text-theme-text-tertiary dark:text-stone-600"
           />
         ) : (
           tools.length > 0 && (
@@ -210,15 +211,19 @@ export function MCPToolPolicyEditor({
                   }
                 >
                   {disabled ? (
-                    <ToggleLeft
-                      size={17}
-                      className="text-stone-300 dark:text-stone-600"
-                    />
+                    <InteractiveIcon>
+                      <ToggleLeft
+                        size={17}
+                        className="text-theme-text-tertiary dark:text-stone-600"
+                      />
+                    </InteractiveIcon>
                   ) : (
-                    <ToggleRight
-                      size={17}
-                      className="text-emerald-500 dark:text-emerald-400"
-                    />
+                    <InteractiveIcon>
+                      <ToggleRight
+                        size={17}
+                        className="text-emerald-500 dark:text-emerald-400"
+                      />
+                    </InteractiveIcon>
                   )}
                 </button>
 
@@ -231,7 +236,7 @@ export function MCPToolPolicyEditor({
                       <LoadingSpinner
                         color="text-current"
                         size={11}
-                        className="text-stone-300 dark:text-stone-600"
+                        className="text-theme-text-tertiary dark:text-stone-600"
                       />
                     )}
                   </div>

@@ -1,9 +1,10 @@
+import "../../styles/welcome.css";
 import {
   WELCOME_PERSONA_CLASS_NAME,
   getWelcomePersonaSkeletonClass,
+  getWelcomePersonaSkeletonCount,
 } from "../chat/welcomeLayout";
 import { SkeletonLine } from "./primitives";
-import { PANEL_CARD_SKELETON_COUNT } from "./PanelSkeletonHelpers";
 import { SidebarSkeleton } from "./SidebarSkeleton";
 
 const appSafeAreaTop =
@@ -152,7 +153,7 @@ function ChatInputSkeleton({
 function ChatInputShellSkeleton() {
   return (
     <div
-      className="chat-input-container flex flex-col relative w-full rounded-3xl px-1 border transition-all duration-300"
+      className="chat-input-container flex flex-col relative w-full rounded-2xl px-1 border"
       style={{
         backgroundColor: "var(--theme-bg-card)",
       }}
@@ -170,10 +171,10 @@ function ChatInputShellSkeleton() {
         </div>
       </div>
       {/* Toolbar — 1:1 with real ChatInputToolbar default idle state */}
-      <div className="chat-input-toolbar font-serif flex max-w-full flex-nowrap justify-between gap-1.5 px-1 py-2.5 sm:px-2 sm:py-3 mx-0.5">
-        <div className="flex min-h-9 min-w-0 flex-1 items-center gap-1.5">
-          {/* FeatureMenu button (chat-tool-btn: fixed 2.25rem height, rounded-full) */}
-          <div className="skeleton-line h-9 w-9 rounded-full shrink-0" />
+      <div className="chat-input-toolbar font-serif flex max-w-full flex-nowrap justify-between gap-2.5 px-1 py-2.5 sm:px-2 sm:py-3 mx-0.5">
+        <div className="flex min-h-9 min-w-0 flex-1 items-center gap-2.5">
+          {/* FeatureMenu button (chat-tool-btn: fixed 2.25rem height, rounded-lg) */}
+          <div className="skeleton-line h-9 w-9 rounded-lg shrink-0" />
           {/* Agent chip (chat-tool-btn + avatar 18px + text-14 label) */}
           <div className="chat-tool-btn group shrink min-w-0 overflow-hidden pointer-events-none">
             <div className="flex flex-row items-center gap-2 min-w-0">
@@ -184,10 +185,10 @@ function ChatInputShellSkeleton() {
             </div>
           </div>
         </div>
-        <div className="flex shrink-0 items-center gap-1.5 self-center">
+        <div className="flex shrink-0 items-center gap-2.5 self-center">
           {/* Settings / Run Mode button (chat-tool-btn) */}
-          <div className="skeleton-line h-9 w-9 rounded-full shrink-0" />
-          {/* Send button (h-9 w-9 rounded-full) */}
+          <div className="skeleton-line h-9 w-9 rounded-lg shrink-0" />
+          {/* Send button */}
           <div className="skeleton-line h-9 w-9 rounded-full shrink-0" />
         </div>
       </div>
@@ -246,6 +247,42 @@ export function ChatSkeletonMessagesOnly({ count = 3 }: { count?: number }) {
           </div>
         );
       })}
+    </div>
+  );
+}
+
+/** Uses the loaded welcome card's header so responsive spacing stays in sync. */
+export function WelcomePersonaCardSkeleton({
+  showTag = false,
+}: {
+  showTag?: boolean;
+}) {
+  return (
+    <div
+      className={getWelcomePersonaSkeletonClass()}
+      style={{
+        backgroundColor: "var(--theme-bg-card)",
+        borderColor: "var(--theme-border)",
+      }}
+      aria-hidden="true"
+    >
+      <span className="welcome-persona-header relative flex items-center gap-3">
+        <span className="welcome-persona-avatar welcome-skeleton-avatar size-11 rounded-xl shrink-0" />
+        <span className="welcome-persona-info min-w-0 flex-1">
+          <span className="flex items-center justify-between gap-2">
+            <span className="welcome-persona-name-row relative flex flex-1 items-center gap-1.5 min-w-0">
+              <span className="welcome-skeleton-line welcome-skeleton-title !h-[13px] sm:!h-[15px]" />
+            </span>
+            {showTag && (
+              <span className="welcome-skeleton-line welcome-skeleton-tag shrink-0" />
+            )}
+          </span>
+          <span className="welcome-persona-description block mt-1 text-12 leading-[1.5]">
+            <span className="welcome-skeleton-line w-full !h-2.5 mt-1" />
+            <span className="welcome-skeleton-line welcome-skeleton-desc !h-2.5 mt-1.5" />
+          </span>
+        </span>
+      </span>
     </div>
   );
 }
@@ -309,26 +346,11 @@ export function WelcomeSkeleton() {
         </div>
         {/* Persona card grid skeleton */}
         <div className="welcome-persona-gallery welcome-persona-gallery--loading relative pb-1 sm:pb-0">
-          {Array.from({ length: PANEL_CARD_SKELETON_COUNT }).map((_, i) => (
-            <div
-              key={i}
-              className={getWelcomePersonaSkeletonClass()}
-              style={{
-                backgroundColor: "var(--theme-bg-card)",
-                borderColor: "var(--theme-border)",
-              }}
-              aria-hidden="true"
-            >
-              <span className="welcome-skeleton-avatar" />
-              <span className="welcome-skeleton-info">
-                <span className="welcome-skeleton-name-row">
-                  <span className="welcome-skeleton-line welcome-skeleton-title" />
-                  <span className="welcome-skeleton-line welcome-skeleton-tag" />
-                </span>
-                <span className="welcome-skeleton-line welcome-skeleton-desc" />
-              </span>
-            </div>
-          ))}
+          {Array.from({ length: getWelcomePersonaSkeletonCount(true) }).map(
+            (_, i) => (
+              <WelcomePersonaCardSkeleton key={i} />
+            ),
+          )}
         </div>
       </div>
     </div>

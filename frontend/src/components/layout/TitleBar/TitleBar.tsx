@@ -1,3 +1,4 @@
+import { InteractiveIcon } from "../../common/InteractiveIcon";
 import { useEffect, useState, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 import {
@@ -5,10 +6,10 @@ import {
   ChevronRight,
   Copy,
   Minus,
-  PanelLeft,
   Square,
   X,
 } from "lucide-react";
+import { SidebarToggleIcon } from "../../common/SidebarToggleIcon";
 import { useNavigationHistory } from "../../../hooks/useNavigationHistory";
 import {
   closeWindow,
@@ -131,7 +132,9 @@ export function WindowControls() {
         onClick={() => void minimizeWindow()}
         className={controlClass}
       >
-        <Minus size={14} strokeWidth={1.6} aria-hidden="true" />
+        <InteractiveIcon>
+          <Minus size={14} strokeWidth={1.6} aria-hidden="true" />
+        </InteractiveIcon>
       </button>
       <button
         type="button"
@@ -141,9 +144,13 @@ export function WindowControls() {
         className={controlClass}
       >
         {maximized ? (
-          <Copy size={12} strokeWidth={1.6} aria-hidden="true" />
+          <InteractiveIcon>
+            <Copy size={12} strokeWidth={1.6} aria-hidden="true" />
+          </InteractiveIcon>
         ) : (
-          <Square size={11} strokeWidth={1.6} aria-hidden="true" />
+          <InteractiveIcon>
+            <Square size={11} strokeWidth={1.6} aria-hidden="true" />
+          </InteractiveIcon>
         )}
       </button>
       <button
@@ -153,7 +160,9 @@ export function WindowControls() {
         onClick={() => void closeWindow()}
         className="flex h-full w-[46px] items-center justify-center text-[var(--color-text-secondary)] transition-colors hover:bg-[#e81123] hover:text-white"
       >
-        <X size={15} strokeWidth={1.6} aria-hidden="true" />
+        <InteractiveIcon>
+          <X size={15} strokeWidth={1.6} aria-hidden="true" />
+        </InteractiveIcon>
       </button>
     </div>
   );
@@ -199,7 +208,9 @@ export function TitleBar({
         onClick={back}
         label={t("titlebar.back", "后退")}
       >
-        <ChevronLeft size={isMac ? 14 : 16} strokeWidth={2} />
+        <InteractiveIcon>
+          <ChevronLeft size={isMac ? 14 : 16} strokeWidth={2} />
+        </InteractiveIcon>
       </NavButton>
       <NavButton
         direction="forward"
@@ -207,7 +218,9 @@ export function TitleBar({
         onClick={forward}
         label={t("titlebar.forward", "前进")}
       >
-        <ChevronRight size={isMac ? 14 : 16} strokeWidth={2} />
+        <InteractiveIcon>
+          <ChevronRight size={isMac ? 14 : 16} strokeWidth={2} />
+        </InteractiveIcon>
       </NavButton>
 
       <TitleIconButton
@@ -216,7 +229,7 @@ export function TitleBar({
           window.dispatchEvent(new CustomEvent(DESKTOP_SIDEBAR_TOGGLE_EVENT))
         }
       >
-        <PanelLeft size={isMac ? 14 : 16} strokeWidth={2} aria-hidden="true" />
+        <SidebarToggleIcon />
       </TitleIconButton>
 
       {/* 拖拽区：flex 弹性占位（双击最大化由 Tauri 运行时处理） */}

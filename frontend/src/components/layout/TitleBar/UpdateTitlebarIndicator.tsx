@@ -1,3 +1,4 @@
+import { InteractiveIcon } from "../../common/InteractiveIcon";
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { useTranslation } from "react-i18next";
@@ -191,7 +192,7 @@ export function UpdateTitlebarIndicator({
             role="dialog"
             tabIndex={-1}
             aria-label={t("update.availableTitle", "发现新版本")}
-            className="fixed z-[302] w-96 max-w-[calc(100vw-1rem)] max-h-[calc(100dvh-var(--titlebar-inset,40px)-1rem)] overflow-y-auto rounded-xl border shadow-xl animate-scale-in motion-reduce:animate-none outline-none"
+            className="fixed z-[302] w-96 max-w-[calc(100vw-1rem)] max-h-[calc(100dvh-var(--titlebar-inset,40px)-1rem)] overflow-y-auto rounded-xl border shadow-xl animate-scale-in motion-reduce:animate-none outline-hidden"
             style={{
               ...menuPosition,
               backgroundColor: "var(--theme-bg-card)",
@@ -246,7 +247,9 @@ export function UpdateTitlebarIndicator({
                   rel="noopener noreferrer"
                   className="inline-flex min-h-9 [@media(pointer:coarse)]:min-h-11 items-center gap-1 text-12 text-theme-text-secondary hover:text-theme-text hover:underline"
                 >
-                  <ExternalLink size={12} />
+                  <InteractiveIcon>
+                    <ExternalLink size={12} />
+                  </InteractiveIcon>
                   {t("update.viewFullNotes", "查看完整更新日志")}
                 </a>
               )}

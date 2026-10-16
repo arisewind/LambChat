@@ -1,7 +1,7 @@
 """
 Team Agent 节点 - 团队路由，角色分派
 
-基于 fast_agent/nodes.py 扩展，增加团队解析和多角色子代理。
+基于 Search Agent 的无沙箱模式扩展，增加团队解析和多角色子代理。
 """
 
 import asyncio
@@ -44,7 +44,7 @@ from src.agents.core.subagent_prompts import (
 )
 from src.agents.core.thinking import build_thinking_config
 from src.agents.core.todo_middleware import create_todo_middleware
-from src.agents.fast_agent.prompt import FAST_SYSTEM_PROMPT
+from src.agents.search_agent.prompt import DEFAULT_SYSTEM_PROMPT
 from src.agents.search_agent.prompt import (
     SANDBOX_SYSTEM_PROMPT as SEARCH_SANDBOX_SYSTEM_PROMPT,
 )
@@ -112,7 +112,7 @@ def build_no_team_fallback_system_prompt(*, sandbox_active: bool) -> str:
     """Choose the single-agent fallback prompt when no explicit team is selected."""
     if sandbox_active:
         return SEARCH_SANDBOX_SYSTEM_PROMPT
-    return FAST_SYSTEM_PROMPT
+    return DEFAULT_SYSTEM_PROMPT
 
 
 async def resolve_runtime_team(
@@ -270,12 +270,13 @@ async def team_router_node(state: Dict[str, Any], config: RunnableConfig) -> Dic
             from src.infra.persona_preset.manager import get_persona_preset_manager
 
             preset_mgr = get_persona_preset_manager()
-            for member in team.active_members:
-                preset_snapshot = await preset_mgr.use_preset(
-                    member.persona_preset_id,
-                    user_id=context.user_id or "default",
-                    is_admin=False,
-                )
+            members = team.active_members
+            preset_snapshots = await preset_mgr.use_presets(
+                [member.persona_preset_id for member in members],
+                user_id=context.user_id or "default",
+                is_admin=False,
+            )
+            for member, preset_snapshot in zip(members, preset_snapshots, strict=True):
                 role_system_prompts[member.member_id] = preset_snapshot.system_prompt
                 role_skill_names = set(getattr(preset_snapshot, "skill_names", []) or [])
                 if role_skill_names:
@@ -316,13 +317,11 @@ async def team_router_node(state: Dict[str, Any], config: RunnableConfig) -> Dic
             role_summaries=role_summaries,
         )
     else:
-        system_prompt = FAST_SYSTEM_PROMPT
+        system_prompt = DEFAULT_SYSTEM_PROMPT
     runtime_enabled_skills = None if team else configurable.get("enabled_skills")
 
-    if sandbox_backend is not None and team:
-        system_prompt = f"{SEARCH_SANDBOX_SYSTEM_PROMPT}\n\n{system_prompt}"
-    elif sandbox_backend is not None:
-        system_prompt = build_no_team_fallback_system_prompt(sandbox_active=True)
+    mode_prompt = build_no_team_fallback_system_prompt(sandbox_active=sandbox_backend is not None)
+    system_prompt = f"{mode_prompt}\n\n{system_prompt}" if team else mode_prompt
 
     # 过滤工具（懒加载 MCP 工具）
     if context.deferred_manager is not None and not any(
@@ -370,8 +369,14 @@ async def team_router_node(state: Dict[str, Any], config: RunnableConfig) -> Dic
         _image_mw = image_url_middleware_for_mode(member_image_url_mode)
         if _image_mw:
             mw.append(_image_mw)
-        if prompt_sections:
-            mw.append(SectionPromptMiddleware(sections=prompt_sections))
+        mode_prompt = build_no_team_fallback_system_prompt(
+            sandbox_active=sandbox_backend is not None
+        )
+        sections = [
+            mode_prompt,
+            *[section for section in (prompt_sections or []) if section != mode_prompt],
+        ]
+        mw.append(SectionPromptMiddleware(sections=sections))
         if sandbox_backend:
             mw.append(
                 EnvVarPromptMiddleware(

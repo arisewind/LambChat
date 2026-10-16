@@ -291,13 +291,14 @@ def test_release_workflow_publishes_assets_immediately_per_platform() -> None:
     # （v2.10.3 实测泄漏，#539 修复）
     assert merge_step["if"] == (
         "matrix.updater_key != '' && vars.DESKTOP_UPDATER_AUTO_PUBLISH == 'true'"
+        " && !contains(env.RELEASE_TAG, '-dev.')"
     )
     # node 合并（三平台镜像都有 Node；Windows 无 python3）
     assert "node -e" in merge_step["run"]
 
     # 汇总 job 保留：权威 latest.json + 兜底重发
     release_job = workflow["jobs"]["release"]
-    assert release_job["if"] == "always()"
+    assert release_job["if"] == "always() && needs.release_guard.result == 'success'"
     release_steps = job_step_names("release")
     assert "Generate latest.json updater manifest" in release_steps
     assert "Publish release" in release_steps
@@ -370,7 +371,7 @@ def test_updater_manifest_download_urls_go_through_self_hosted_proxy() -> None:
     """国内用户直连 GitHub 下载安装包必挂：latest.json 的平台下载 URL 必须
     走 lambchat.com 自托管反代（/api/version/assets/<name>/download）并锁
     ``?tag=``（发新版瞬间 latest 前移不 404）。生成器与 workflow 增量合并
-    两条写入路径同一契约；检查端点反代在前、GitHub 直连兜底。"""
+    两条写入路径同一契约；检查端点仅走支持通道的反代。"""
     generator = _source("scripts/generate_updater_manifest.py")
     assert "https://lambchat.com/api/version/assets" in generator
     assert "?tag=" in generator
@@ -387,7 +388,8 @@ def test_updater_manifest_download_urls_go_through_self_hosted_proxy() -> None:
 
     tauri = _source("frontend/src-tauri/tauri.conf.json")
     endpoints = tauri.split('"endpoints"', 1)[1]
-    assert endpoints.index("lambchat.com") < endpoints.index("github.com")
+    assert "lambchat.com/api/version/assets/latest.json/download" in endpoints
+    assert "github.com" not in endpoints
 
 
 def test_release_workflow_macos_collect_requires_app_tar_gz() -> None:
@@ -715,3 +717,165 @@ def test_network_smoke_rejects_request_without_daemon_connection(tmp_path):
     )
     assert result.returncode != 0
     assert "PACKAGED_ASYNC_NETWORK_PASS" not in result.stdout
+
+
+def test_dev_release_preflight_checks_real_platform_versions_and_rejects_bad_tags(tmp_path):
+    import json
+    import os
+    import re
+    import subprocess
+
+    version = json.loads(Path("frontend/package.json").read_text())["version"]
+    for name in (
+        "frontend/package.json",
+        "frontend/src-tauri/tauri.conf.json",
+        "frontend/src-tauri/Cargo.toml",
+        "frontend/android/app/build.gradle",
+        "frontend/ios/App/App.xcodeproj/project.pbxproj",
+        "pyproject.toml",
+        "client/lambchat_sandbox/__init__.py",
+    ):
+        target = tmp_path / name
+        target.parent.mkdir(parents=True, exist_ok=True)
+        text = Path(name).read_text().replace(version, "2.15.2")
+        text = re.sub(r"versionCode \d+", "versionCode 21502001", text)
+        text = re.sub(r"CURRENT_PROJECT_VERSION = \d+;", "CURRENT_PROJECT_VERSION = 1;", text)
+        target.write_text(text)
+    workflow = _release_workflow()
+    for job in ("desktop", "android", "ios"):
+        script = next(
+            step["run"]
+            for step in workflow["jobs"][job]["steps"]
+            if step.get("name") == "Preflight version consistency"
+        )
+        for tag, valid in (
+            ("v2.15.2-dev.1", True),
+            ("v2.15.2-dev.2", False),
+            ("v2.15.2-dev.999", False),
+            ("v2.15.2-evil.1", False),
+            ("v2.15.2-dev.01", False),
+            ("v2.15.2", False),
+        ):
+            result = subprocess.run(
+                ["bash", "-c", script],
+                env={**os.environ, "RELEASE_TAG": tag},
+                cwd=tmp_path,
+                capture_output=True,
+                text=True,
+            )
+            assert (result.returncode == 0) is valid, (job, tag, result.stdout, result.stderr)
+        android = tmp_path / "frontend/android/app/build.gradle"
+        ios = tmp_path / "frontend/ios/App/App.xcodeproj/project.pbxproj"
+        android.write_text(android.read_text().replace("21502001", "21502999"))
+        ios.write_text(
+            ios.read_text().replace(
+                "CURRENT_PROJECT_VERSION = 1;", "CURRENT_PROJECT_VERSION = 999;"
+            )
+        )
+        result = subprocess.run(
+            ["bash", "-c", script],
+            cwd=tmp_path,
+            env={**os.environ, "RELEASE_TAG": "v2.15.2"},
+            capture_output=True,
+            text=True,
+        )
+        assert result.returncode == 0, result.stdout + result.stderr
+        android.write_text(android.read_text().replace("21502999", "21502001"))
+        ios.write_text(
+            ios.read_text().replace(
+                "CURRENT_PROJECT_VERSION = 999;", "CURRENT_PROJECT_VERSION = 1;"
+            )
+        )
+
+
+def test_dev_release_cannot_enter_stable_distribution():
+    workflow = _release_workflow()
+    for job in ("desktop", "android", "ios"):
+        publish = next(
+            step
+            for step in workflow["jobs"][job]["steps"]
+            if "gh release create" in step.get("run", "")
+        )
+        assert "--prerelease --latest=false" in publish["run"]
+        assert '"${release_flags[@]}"' in publish["run"]
+    steps = {step.get("name"): step for step in workflow["jobs"]["release"]["steps"]}
+    publish = steps["Publish release"]["with"]
+    assert "contains(env.RELEASE_TAG, '-dev.')" in publish["prerelease"]
+    assert "'false'" in publish["make_latest"]
+    script = steps["Generate latest.json updater manifest"]["run"]
+    assert script.index('if [[ "$RELEASE_TAG" == *-dev.* ]]') < script.index(
+        "scripts/generate_updater_manifest.py"
+    )
+    updater = _source(".github/workflows/desktop-updater-publish.yml")
+    assert "Only stable tags may publish the updater" in updater
+    assert '[ "$prerelease" = false ]' in updater
+
+
+def test_dev_release_removes_cached_updater_manifests_before_any_upload(tmp_path):
+    import os
+    import subprocess
+
+    workflow = _release_workflow()
+    scripts = [
+        next(step["run"] for step in workflow["jobs"][job]["steps"] if step.get("name") == name)
+        for job, name in (
+            ("desktop", "Collect updater manifest artifacts"),
+            ("release", "Ensure release has useful installable artifacts"),
+            ("release", "Generate latest.json updater manifest"),
+        )
+    ]
+    assets = tmp_path / "release-assets"
+    assets.mkdir()
+    (assets / "lambchat-daemon-fixture").write_bytes(b"fixture")
+    cached = tmp_path / "frontend/src-tauri/target/release/bundle"
+    cached.mkdir(parents=True)
+    (cached / "latest-cached.json").write_text("stale")
+    for script in scripts:
+        for name in ("latest.json", "latest-cached.json"):
+            (assets / name).write_text("stale")
+        result = subprocess.run(
+            ["bash", "-c", script],
+            cwd=tmp_path,
+            env={**os.environ, "RELEASE_TAG": "v2.15.2-dev.1"},
+            capture_output=True,
+            text=True,
+        )
+        assert result.returncode == 0, result.stdout + result.stderr
+        assert not list(assets.glob("latest*.json"))
+
+
+def test_locked_onnxruntime_has_a_wheel_for_intel_macos_daemon() -> None:
+    import tomllib
+    from urllib.parse import unquote, urlparse
+
+    import yaml
+    from packaging.markers import Marker, default_environment
+    from packaging.tags import cpython_tags, mac_platforms
+    from packaging.utils import parse_wheel_filename
+
+    workflow = yaml.safe_load(_source(".github/workflows/app-release.yml"))
+    assert workflow["jobs"]["desktop"]["env"]["UV_PYTHON"] == "3.12"
+
+    environment = default_environment()
+    environment.update(
+        sys_platform="darwin",
+        platform_machine="x86_64",
+        python_version="3.12",
+        python_full_version="3.12.15",
+    )
+    packages = tomllib.loads(_source("uv.lock"))["package"]
+    selected = [
+        package
+        for package in packages
+        if package["name"] == "onnxruntime"
+        and any(
+            Marker(marker).evaluate(environment)
+            for marker in package.get("resolution-markers", ["python_version >= '3.12'"])
+        )
+    ]
+    assert len(selected) == 1
+    supported = set(cpython_tags((3, 12), platforms=mac_platforms((15, 0), "x86_64")))
+    assert any(
+        parse_wheel_filename(unquote(urlparse(wheel["url"]).path.rsplit("/", 1)[-1]))[3] & supported
+        for wheel in selected[0].get("wheels", [])
+    ), "The Intel macOS daemon needs an installable CPython 3.12 ONNX Runtime wheel"

@@ -1,14 +1,16 @@
 import { useTranslation } from "react-i18next";
-import { STATS, shotSrc } from "../data";
+import { STATS } from "../data";
 import { SectionHeading } from "./SectionHeading";
 import { AnimatedNumber } from "./AnimatedNumber";
 import { ImageWithSkeleton } from "../../chat/ChatMessage/ImageWithSkeleton";
 
 interface ArchitectureSectionProps {
+  src: string;
   onOpenViewer: (src: string, alt: string) => void;
 }
 
 export function ArchitectureSection({
+  src,
   onOpenViewer,
 }: ArchitectureSectionProps) {
   const { t } = useTranslation();
@@ -29,13 +31,11 @@ export function ArchitectureSection({
             type="button"
             aria-label={t("landing.architecture")}
             data-reveal-scale
-            className="public-preview blog-arch-frame blog-arch-card blog-glass-inner-glow group relative rounded-xl overflow-hidden cursor-pointer bg-white/80 dark:bg-stone-900/30 transition-all duration-500 hover:-translate-y-1.5 hover:shadow-2xl"
-            onClick={() =>
-              onOpenViewer(shotSrc("architecture"), t("landing.architecture"))
-            }
+            className="public-preview blog-arch-frame blog-arch-card group relative overflow-hidden cursor-pointer bg-theme-bg-card"
+            onClick={() => onOpenViewer(src, t("landing.architecture"))}
           >
             <ImageWithSkeleton
-              src={shotSrc("architecture")}
+              src={src}
               alt={t("landing.architecture")}
               skipUrlResolve
               inline
@@ -57,7 +57,7 @@ export function ArchitectureSection({
                   : ""
               }`}
             >
-              <div className="text-30 sm:text-36 font-extrabold font-serif tracking-tight text-transparent bg-clip-text bg-gradient-to-b from-stone-900 via-stone-800 to-stone-500 dark:from-stone-50 dark:via-stone-200 dark:to-stone-400 leading-none mb-2.5">
+              <div className="text-30 sm:text-36 font-extrabold font-serif tracking-tight text-transparent bg-clip-text bg-linear-to-b from-stone-900 via-stone-800 to-stone-500 dark:from-stone-50 dark:via-stone-200 dark:to-stone-400 leading-none mb-2.5">
                 <AnimatedNumber value={s.num} />
               </div>
               <div className="text-11 sm:text-12 font-medium text-theme-text-secondary dark:text-theme-text-secondary leading-snug">

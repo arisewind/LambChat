@@ -1,3 +1,5 @@
+import { InteractiveIcon } from "../common/InteractiveIcon";
+import "../../styles/app-content.css";
 import { LoadingSpinner } from "../common/LoadingSpinner";
 import { LanguageToggle } from "../common/LanguageToggle";
 /**
@@ -34,7 +36,7 @@ import { ChatMessage } from "../chat/ChatMessage";
 import { SessionImageGalleryProvider } from "../chat/ChatMessage/sessionImageGallery";
 import { ImageWithSkeleton } from "../chat/ChatMessage/ImageWithSkeleton";
 import { BrandLogo } from "../common/BrandLogo";
-import { RevealPreviewHost } from "../chat/ChatMessage/items/RevealPreviewHost";
+import { LazyRevealPreviewHost } from "../chat/ChatMessage/items/LazyRevealPreviewHost";
 import {
   PersistentToolPanelHost,
   closeAllPersistentToolPanels,
@@ -68,6 +70,7 @@ import { formatDate, formatDateTimeShort } from "../../utils/datetime";
 import { getModelIconUrl, isMonochromeIcon } from "../agent/modelIcon";
 import { ScrollButtons } from "../landing/components/ScrollButtons";
 import { AgentAvatar } from "../common/AgentAvatar";
+import { resolveAgentReferenceName } from "../agent/agentCatalog";
 
 const metadataClassName =
   "inline-flex min-w-0 max-w-full items-center gap-1.5 text-12 text-theme-text-secondary [overflow-wrap:anywhere] [&>svg]:shrink-0";
@@ -78,12 +81,22 @@ export function SharedPage({
   initialData?: SharedContentResponse;
 } = {}) {
   const { shareId } = useParams<{ shareId: string }>();
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const { theme, toggleTheme } = useSharedPageTheme();
 
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [data, setData] = useState<SharedContentResponse | null>(null);
+  const agentName = data
+    ? resolveAgentReferenceName(
+        data.session.agent_id,
+        data.session.agent_name || "",
+        [],
+        i18n.language,
+        t,
+        data.session.agent_labels,
+      )
+    : "";
   const [showScrollTop, setShowScrollTop] = useState(false);
   const [showScrollBottom, setShowScrollBottom] = useState(false);
   const [scrollProgress, setScrollProgress] = useState(0);
@@ -365,7 +378,7 @@ export function SharedPage({
     }
 
     const metaParts: string[] = [];
-    if (data.session.agent_name) metaParts.push(data.session.agent_name);
+    if (agentName) metaParts.push(agentName);
     if (data.session.model) metaParts.push(data.session.model);
     if (messages.length > 0) metaParts.push(`${messages.length} messages`);
 
@@ -395,7 +408,7 @@ export function SharedPage({
       document.title = t("share.platformTitle", { appName: APP_NAME });
       setDescription(t("share.platformDescription", { appName: APP_NAME }));
     };
-  }, [data, messages, shareId, t]);
+  }, [agentName, data, messages, shareId, t]);
 
   // Fade out server-rendered preview when React content is ready
   useEffect(() => {
@@ -437,7 +450,9 @@ export function SharedPage({
                 className="inline-flex items-center gap-2 px-6 py-3 bg-stone-900 dark:bg-stone-100 hover:bg-stone-800 dark:hover:bg-stone-200 text-white dark:text-stone-900 rounded-xl font-medium transition-all duration-200 hover:scale-[1.02] active:scale-[0.98]"
               >
                 {t("auth.loginNow")}
-                <ExternalLink size={16} />
+                <InteractiveIcon>
+                  <ExternalLink size={16} />
+                </InteractiveIcon>
               </Link>
             </div>
           </div>
@@ -506,9 +521,11 @@ export function SharedPage({
               title={t("share.goToChat")}
               aria-label={t("share.goToChat")}
             >
-              <MessageCircle size={18} />
+              <InteractiveIcon>
+                <MessageCircle size={18} />
+              </InteractiveIcon>
             </Link>
-            <LanguageToggle sync={false} />
+            <LanguageToggle sync={false} className="!min-h-11 !min-w-11" />
             <IconButton
               size="lg"
               onClick={toggleTheme}
@@ -521,14 +538,11 @@ export function SharedPage({
               )}
               icon={
                 theme === "light" ? (
-                  <Moon
-                    size={18}
-                    className="text-stone-600 dark:text-stone-300"
-                  />
+                  <Moon size={18} />
                 ) : theme === "dark" ? (
-                  <Coffee size={18} className="text-amber-400" />
+                  <Coffee size={18} />
                 ) : (
-                  <Sun size={18} className="text-amber-500" />
+                  <Sun size={18} />
                 )
               }
             />
@@ -599,10 +613,8 @@ export function SharedPage({
                       {messages.length} {t("share.messages")}
                     </span>
                   )}
-                  {data.session.agent_name && (
-                    <span className={metadataClassName}>
-                      {data.session.agent_name}
-                    </span>
+                  {agentName && (
+                    <span className={metadataClassName}>{agentName}</span>
                   )}
                   {data.session.persona_preset_name && (
                     <span className={metadataClassName}>
@@ -625,12 +637,14 @@ export function SharedPage({
                         const iconUrl = getModelIconUrl(
                           data.session.model,
                           (data.session as Record<string, unknown>).provider as
-                            string | undefined,
+                            | string
+                            | undefined,
                         );
                         const mono = isMonochromeIcon(
                           data.session.model,
                           (data.session as Record<string, unknown>).provider as
-                            string | undefined,
+                            | string
+                            | undefined,
                         );
                         return iconUrl ? (
                           <ImageWithSkeleton
@@ -819,7 +833,7 @@ export function SharedPage({
         onScrollToBottom={scrollToBottom}
       />
 
-      <RevealPreviewHost
+      <LazyRevealPreviewHost
         preview={activePreview}
         onClose={() => handleClosePreview(true)}
         onUserInteraction={handlePreviewInteraction}

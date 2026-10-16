@@ -1,3 +1,4 @@
+import { InteractiveIcon } from "../common/InteractiveIcon";
 import { memo, useState, useCallback, useEffect, useRef, useMemo } from "react";
 import { createPortal } from "react-dom";
 import { ChevronDown, Check, Info, Pin, Eye, Star, Search } from "lucide-react";
@@ -153,10 +154,12 @@ const ModelItem = memo(function ModelItem({
             {model.profile?.supports_vision && (
               <Tooltip content="Vision">
                 <span className="inline-flex items-center shrink-0 ml-0.5">
-                  <Eye
-                    size={13}
-                    className="text-stone-400 dark:text-stone-500"
-                  />
+                  <InteractiveIcon>
+                    <Eye
+                      size={13}
+                      className="text-stone-400 dark:text-stone-500"
+                    />
+                  </InteractiveIcon>
                 </span>
               </Tooltip>
             )}
@@ -168,10 +171,12 @@ const ModelItem = memo(function ModelItem({
                 onMouseLeave={hide}
                 onTouchStart={toggle}
               >
-                <Info
-                  size={13}
-                  className="text-stone-400 hover:text-stone-600 dark:text-stone-500 dark:hover:text-stone-300 transition-colors"
-                />
+                <InteractiveIcon>
+                  <Info
+                    size={13}
+                    className="text-stone-400 hover:text-stone-600 dark:text-stone-500 dark:hover:text-stone-300 transition-colors"
+                  />
+                </InteractiveIcon>
                 {showTip && (
                   <span
                     className="fixed z-[60] max-w-[240px] w-max rounded-lg bg-stone-700 dark:bg-stone-900 px-2.5 py-1.5 text-12 leading-relaxed text-white shadow-lg whitespace-normal"
@@ -199,15 +204,17 @@ const ModelItem = memo(function ModelItem({
             }}
             className="shrink-0 flex items-center justify-center w-5 h-5 rounded-md transition-opacity cursor-pointer"
           >
-            <Star
-              size={13}
-              className={
-                isDefault
-                  ? "text-amber-400 dark:text-amber-500"
-                  : "text-stone-400 hover:text-stone-600 dark:text-stone-500 dark:hover:text-stone-300"
-              }
-              fill={isDefault ? "currentColor" : "none"}
-            />
+            <InteractiveIcon>
+              <Star
+                size={13}
+                className={
+                  isDefault
+                    ? "text-amber-400 dark:text-amber-500"
+                    : "text-stone-400 hover:text-stone-600 dark:text-stone-500 dark:hover:text-stone-300"
+                }
+                fill={isDefault ? "currentColor" : "none"}
+              />
+            </InteractiveIcon>
           </button>
         </Tooltip>
         <Tooltip
@@ -228,17 +235,19 @@ const ModelItem = memo(function ModelItem({
               !canPin && !isPinned ? "cursor-not-allowed" : "cursor-pointer"
             }`}
           >
-            <Pin
-              size={13}
-              className={
-                isPinned
-                  ? "text-stone-500 dark:text-stone-400"
-                  : canPin
-                    ? "text-stone-400 hover:text-stone-600 dark:text-stone-500 dark:hover:text-stone-300"
-                    : "text-stone-300 dark:text-stone-600"
-              }
-              fill={isPinned ? "currentColor" : "none"}
-            />
+            <InteractiveIcon>
+              <Pin
+                size={13}
+                className={
+                  isPinned
+                    ? "text-stone-500 dark:text-stone-400"
+                    : canPin
+                      ? "text-stone-400 hover:text-stone-600 dark:text-stone-500 dark:hover:text-stone-300"
+                      : "text-stone-300 dark:text-stone-600"
+                }
+                fill={isPinned ? "currentColor" : "none"}
+              />
+            </InteractiveIcon>
           </button>
         </Tooltip>
         <span
@@ -451,17 +460,19 @@ const ModelSelector = memo(function ModelSelector({
     >
       <button
         onClick={toggleSelector}
-        className="flex items-center gap-1.5 text-stone-600 hover:opacity-70 dark:text-stone-300 transition-opacity"
+        className="flex items-center gap-1.5 rounded-lg text-theme-text-secondary hover:bg-theme-bg-subtle hover:text-theme-text transition-colors"
       >
-        <span className="text-16 font-semibold font-serif !font-serif max-w-[200px] truncate">
+        <span className="text-14 leading-5 font-medium font-serif !font-serif max-w-[200px] truncate">
           {currentModelInfo?.label || currentModelId}
         </span>
-        <ChevronDown
-          size={14}
-          className={`transition-transform duration-200 ${
-            showSelector ? "rotate-180" : ""
-          }`}
-        />
+        <InteractiveIcon>
+          <ChevronDown
+            size={14}
+            className={`transition-transform duration-200 ${
+              showSelector ? "rotate-180" : ""
+            }`}
+          />
+        </InteractiveIcon>
       </button>
 
       {showSelector &&
@@ -508,13 +519,17 @@ const ModelSelector = memo(function ModelSelector({
 
             <div className="border-t border-stone-100 dark:border-stone-700/70 px-3 py-2">
               <div className="flex items-center gap-2 text-stone-400 dark:text-stone-500">
-                <Search size={14} strokeWidth={2.2} className="block shrink-0" />
+                <Search
+                  size={14}
+                  strokeWidth={2.2}
+                  className="block shrink-0"
+                />
                 <PanelSearchInput
                   value={modelSearch}
                   onValueChange={setModelSearch}
                   placeholder={t("profile.searchModels", "搜索模型")}
                   autoComplete="off"
-                  className="block h-5 min-w-0 flex-1 appearance-none border-0 bg-transparent p-0 text-13 leading-5 text-stone-700 outline-none placeholder:text-stone-400 dark:text-stone-100 dark:placeholder:text-stone-500"
+                  className="block h-5 min-w-0 flex-1 appearance-none border-0 bg-transparent p-0 text-13 leading-5 text-theme-text outline-hidden placeholder:text-theme-text-tertiary dark:text-stone-100 dark:placeholder:text-stone-500"
                 />
               </div>
             </div>

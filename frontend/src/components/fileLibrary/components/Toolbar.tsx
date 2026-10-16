@@ -1,3 +1,4 @@
+import { InteractiveIcon } from "../../common/InteractiveIcon";
 import { PanelHeader } from "../../common/PanelHeader";
 import { useState, useCallback } from "react";
 import { useTranslation } from "react-i18next";
@@ -41,7 +42,7 @@ interface ToolbarProps {
 const btnBase =
   "flex items-center h-9 gap-1.5 rounded-lg border transition-all duration-150 text-14";
 const btnDefault =
-  "border-theme-border text-theme-text-secondary hover:bg-theme-bg-subtle hover:border-theme-border-hover";
+  "border-theme-border bg-theme-bg-card text-theme-text hover:bg-theme-bg-subtle hover:border-theme-border-hover";
 const btnActive =
   "border-theme-border-hover bg-theme-bg-subtle text-theme-text";
 
@@ -127,7 +128,15 @@ export function Toolbar({
             }`}
           >
             <span className="relative z-10">
-              {mode === "grid" ? <LayoutGrid size={16} /> : <List size={16} />}
+              {mode === "grid" ? (
+                <InteractiveIcon>
+                  <LayoutGrid size={16} />
+                </InteractiveIcon>
+              ) : (
+                <InteractiveIcon>
+                  <List size={16} />
+                </InteractiveIcon>
+              )}
             </span>
             <span className="file-library-view-label">{label}</span>
             {viewMode === mode && (
@@ -171,17 +180,21 @@ export function Toolbar({
                 className={`${btnBase} ${btnDefault} px-2 @sm:px-2.5`}
               >
                 {currentFilterItem?.icon && (
-                  <currentFilterItem.icon size={16} />
+                  <InteractiveIcon>
+                    <currentFilterItem.icon size={16} />
+                  </InteractiveIcon>
                 )}
                 <span className="truncate max-w-[56px] @sm:max-w-none">
                   {t(currentFilterItem?.labelKey || "fileLibrary.types.all")}
                 </span>
-                <ChevronDown
-                  size={16}
-                  className={`text-theme-text-tertiary hidden @sm:block transition-transform duration-200 ${
-                    showFilter ? "rotate-180" : ""
-                  }`}
-                />
+                <InteractiveIcon>
+                  <ChevronDown
+                    size={16}
+                    className={`text-theme-text-tertiary hidden @sm:block transition-transform duration-200 ${
+                      showFilter ? "rotate-180" : ""
+                    }`}
+                  />
+                </InteractiveIcon>
               </button>
               <DropdownShell
                 show={showFilter}
@@ -201,7 +214,11 @@ export function Toolbar({
                       activeFilter === f.key ? ddItemActive : ddItemDef
                     }`}
                   >
-                    {f.icon && <f.icon size={16} />}
+                    {f.icon && (
+                      <InteractiveIcon>
+                        <f.icon size={16} />
+                      </InteractiveIcon>
+                    )}
                     {t(f.labelKey)}
                   </button>
                 ))}
@@ -213,19 +230,21 @@ export function Toolbar({
               onClick={onFavoritesToggle}
               aria-label={t("fileLibrary.favorites")}
               aria-pressed={favoritesOnly}
-              className={`${btnBase} w-9 h-9 p-0 flex items-center justify-center transition-all duration-150 ${
+              className={`${btnBase} w-9 @xl:w-auto @xl:px-2.5 shrink-0 whitespace-nowrap h-9 p-0 flex items-center justify-center transition-all duration-150 ${
                 favoritesOnly
                   ? "border-amber-300/80 dark:border-amber-600/60 bg-amber-50 dark:bg-amber-500/10 text-amber-600 dark:text-amber-400 shadow-sm shadow-amber-100"
-                  : "border-theme-border text-theme-text-secondary hover:bg-theme-bg-subtle hover:border-theme-border-hover"
+                  : btnDefault
               }`}
             >
-              <Star
-                size={16}
-                className={
-                  favoritesOnly ? "fill-amber-400 dark:fill-amber-500" : ""
-                }
-              />
-              <span className="hidden @sm:inline">
+              <InteractiveIcon>
+                <Star
+                  size={16}
+                  className={
+                    favoritesOnly ? "fill-amber-400 dark:fill-amber-500" : ""
+                  }
+                />
+              </InteractiveIcon>
+              <span className="hidden @xl:inline">
                 {t("fileLibrary.favorites", "我的收藏")}
               </span>
             </button>
@@ -245,16 +264,20 @@ export function Toolbar({
                     selectedProject ? btnActive : btnDefault
                   }`}
                 >
-                  <FolderKanban size={16} />
+                  <InteractiveIcon>
+                    <FolderKanban size={16} />
+                  </InteractiveIcon>
                   <span className="max-w-[72px] truncate">
                     {selectedProjectName || t("fileLibrary.projectFilter")}
                   </span>
-                  <ChevronDown
-                    size={16}
-                    className={`text-theme-text-tertiary transition-transform duration-200 ${
-                      showProject ? "rotate-180" : ""
-                    }`}
-                  />
+                  <InteractiveIcon>
+                    <ChevronDown
+                      size={16}
+                      className={`text-theme-text-tertiary transition-transform duration-200 ${
+                        showProject ? "rotate-180" : ""
+                      }`}
+                    />
+                  </InteractiveIcon>
                 </button>
                 <DropdownShell
                   show={showProject}
@@ -307,19 +330,23 @@ export function Toolbar({
                 }}
                 className={`${btnBase} gap-1 px-2 @sm:px-2.5 ${btnDefault}`}
               >
-                <ArrowUpDown
-                  size={16}
-                  className="text-theme-text-tertiary @sm:hidden"
-                />
+                <InteractiveIcon>
+                  <ArrowUpDown
+                    size={16}
+                    className="text-theme-text-tertiary @sm:hidden"
+                  />
+                </InteractiveIcon>
                 <span className="max-w-[80px] truncate hidden @sm:inline">
                   {t(currentSortLabel ?? "fileLibrary.sort.newest")}
                 </span>
-                <ChevronDown
-                  size={16}
-                  className={`text-theme-text-tertiary transition-transform duration-200 ${
-                    showSort ? "rotate-180" : ""
-                  }`}
-                />
+                <InteractiveIcon>
+                  <ChevronDown
+                    size={16}
+                    className={`text-theme-text-tertiary transition-transform duration-200 ${
+                      showSort ? "rotate-180" : ""
+                    }`}
+                  />
+                </InteractiveIcon>
               </button>
               <DropdownShell
                 show={showSort}
@@ -350,10 +377,12 @@ export function Toolbar({
                         />
                         <span className="flex-1">{t(o.labelKey)}</span>
                         {isActive && (
-                          <Check
-                            size={16}
-                            className="text-theme-text-tertiary shrink-0"
-                          />
+                          <InteractiveIcon>
+                            <Check
+                              size={16}
+                              className="text-theme-text-tertiary shrink-0"
+                            />
+                          </InteractiveIcon>
                         )}
                       </button>
                     </div>
@@ -367,7 +396,7 @@ export function Toolbar({
           {/* ─── Right group: Search + View toggle ─── */}
           <div className="file-library-toolbar__search-group flex items-center gap-1.5 min-w-0">
             {/* Search */}
-            <div className="file-library-toolbar__search group flex items-center h-9 rounded-lg border border-theme-border bg-theme-bg-subtle/50 px-2 @sm:px-3 pl-9 relative focus-within:border-theme-border-hover focus-within:bg-theme-bg-elevated transition-all duration-150">
+            <div className="file-library-toolbar__search group flex items-center h-9 rounded-lg border border-theme-border bg-theme-bg-card pr-2 @sm:pr-3 pl-9 relative focus-within:border-theme-border-hover focus-within:bg-theme-bg-elevated transition-all duration-150">
               <Search
                 size={16}
                 className="absolute left-2 @sm:left-3 top-1/2 -translate-y-1/2 text-theme-text-tertiary pointer-events-none"
@@ -377,7 +406,7 @@ export function Toolbar({
                 value={search}
                 onValueChange={onSearchChange}
                 placeholder={t("fileLibrary.searchPlaceholder")}
-                className="h-full min-w-0 flex-1 bg-transparent text-14 text-theme-text placeholder:text-theme-text-tertiary focus:outline-none"
+                className="h-full min-w-0 flex-1 bg-transparent text-14 text-theme-text placeholder:text-theme-text-tertiary focus:outline-hidden"
               />
               {search && (
                 <button
@@ -385,7 +414,9 @@ export function Toolbar({
                   aria-label={t("common.clear")}
                   className="shrink-0 text-theme-text-tertiary hover:text-theme-text-secondary transition-colors rounded"
                 >
-                  <X size={16} />
+                  <InteractiveIcon>
+                    <X size={16} />
+                  </InteractiveIcon>
                 </button>
               )}
             </div>

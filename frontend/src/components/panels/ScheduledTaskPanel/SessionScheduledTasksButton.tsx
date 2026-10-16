@@ -1,3 +1,4 @@
+import { InteractiveIcon } from "../../common/InteractiveIcon";
 import { LoadingSpinner } from "../../common/LoadingSpinner";
 import { EmptyState } from "../../common/EmptyState";
 import { useCallback, useEffect, useMemo, useState } from "react";
@@ -5,7 +6,6 @@ import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router-dom";
 import toast from "react-hot-toast";
 import {
-  Bot,
   CalendarClock,
   Clock,
   History,
@@ -17,6 +17,9 @@ import {
 import { scheduledTaskApi } from "../../../services/api/scheduledTask";
 import { useAuth } from "../../../hooks/useAuth";
 import { Permission } from "../../../types";
+import { AgentIcon } from "../../agent/AgentIcon";
+import { useAgentCatalog } from "../../agent/useAgentCatalog";
+import { resolveAgentReferenceName } from "../../agent/agentCatalog";
 import type { ScheduledTask } from "../../../types/scheduledTask";
 import { formatDateTimeShort } from "../../../utils/datetime";
 import {
@@ -40,10 +43,11 @@ function SessionScheduledTaskPanelBody({
   refreshKey?: string | number;
   onMutate?: () => void;
 }) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const navigate = useNavigate();
   const { hasPermission } = useAuth();
   const canWrite = hasPermission(Permission.SCHEDULED_TASK_WRITE);
+  const agents = useAgentCatalog();
   const [tasks, setTasks] = useState<ScheduledTask[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
@@ -100,7 +104,7 @@ function SessionScheduledTaskPanelBody({
         <div className="flex flex-1 items-center justify-center">
           <LoadingSpinner
             color="text-current"
-            className="h-5 w-5 text-stone-400"
+            className="h-5 w-5 text-theme-text-tertiary"
           />
         </div>
       ) : tasks.length === 0 ? (
@@ -147,8 +151,22 @@ function SessionScheduledTaskPanelBody({
                   <span className="truncate">{formatTaskTrigger(task, t)}</span>
                 </span>
                 <span className="scheduled-task-mini-card__pill">
-                  <Bot size={12} />
-                  <span className="truncate">{task.agent_id}</span>
+                  <AgentIcon
+                    icon={
+                      agents.find((agent) => agent.id === task.agent_id)?.icon
+                    }
+                    seed={task.agent_id}
+                    size={14}
+                  />
+                  <span className="truncate">
+                    {resolveAgentReferenceName(
+                      task.agent_id,
+                      "",
+                      agents,
+                      i18n.language,
+                      t,
+                    )}
+                  </span>
                 </span>
                 {task.last_run_at ? (
                   <>
@@ -177,7 +195,9 @@ function SessionScheduledTaskPanelBody({
                   className="scheduled-task-button scheduled-task-button--secondary font-serif"
                   title={t("scheduledTask.details", "详情")}
                 >
-                  <History size={14} />
+                  <InteractiveIcon>
+                    <History size={14} />
+                  </InteractiveIcon>
                   <span className="hidden sm:inline">
                     {t("scheduledTask.details", "详情")}
                   </span>
@@ -190,7 +210,9 @@ function SessionScheduledTaskPanelBody({
                       className="scheduled-task-button"
                       title={t("scheduledTask.pause")}
                     >
-                      <Pause size={14} />
+                      <InteractiveIcon>
+                        <Pause size={14} />
+                      </InteractiveIcon>
                       <span className="hidden sm:inline">
                         {t("scheduledTask.pause")}
                       </span>
@@ -202,7 +224,9 @@ function SessionScheduledTaskPanelBody({
                       className="scheduled-task-button scheduled-task-button--success"
                       title={t("scheduledTask.resume")}
                     >
-                      <Play size={14} />
+                      <InteractiveIcon>
+                        <Play size={14} />
+                      </InteractiveIcon>
                       <span className="hidden sm:inline">
                         {t("scheduledTask.resume")}
                       </span>
@@ -214,7 +238,9 @@ function SessionScheduledTaskPanelBody({
                       className="scheduled-task-button scheduled-task-button--info"
                       title={t("scheduledTask.runNow")}
                     >
-                      <RotateCcw size={14} />
+                      <InteractiveIcon>
+                        <RotateCcw size={14} />
+                      </InteractiveIcon>
                       <span className="hidden sm:inline">
                         {t("scheduledTask.runNow")}
                       </span>
@@ -312,7 +338,9 @@ export function SessionScheduledTasksButton({
       }
       title={t("scheduledTask.conversationTasks", "会话定时任务")}
     >
-      <CalendarClock size={17} />
+      <InteractiveIcon>
+        <CalendarClock size={17} />
+      </InteractiveIcon>
       <span className="absolute -right-1 -top-1 flex h-5 min-w-[20px] items-center justify-center rounded-full bg-orange-500 px-1 text-10 font-semibold leading-none text-white">
         {count > 99 ? "99+" : count}
       </span>

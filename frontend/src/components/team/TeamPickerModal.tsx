@@ -1,3 +1,4 @@
+import { InteractiveIcon } from "../common/InteractiveIcon";
 import { DialogCloseButton } from "../common/DialogCloseButton";
 import { ModalSurface } from "../common/ModalSurface";
 import { useState, useEffect, useCallback, useRef } from "react";
@@ -145,7 +146,9 @@ export function TeamPickerModal({
               }}
             >
               <span className="inline-flex h-full items-center justify-center gap-1.5">
-                <Plus size={13} />
+                <InteractiveIcon>
+                  <Plus size={13} />
+                </InteractiveIcon>
                 {t("common.new", "新建")}
               </span>
             </button>
@@ -178,7 +181,9 @@ export function TeamPickerModal({
                 }}
               >
                 <span className="inline-flex h-full items-center justify-center gap-1.5">
-                  <Settings2 size={13} />
+                  <InteractiveIcon>
+                    <Settings2 size={13} />
+                  </InteractiveIcon>
                   <span className="hidden sm:inline">
                     {t("team.manage", "管理")}
                   </span>
@@ -199,7 +204,7 @@ export function TeamPickerModal({
               }}
               maxLength={100}
               placeholder={t("team.search", "搜索团队")}
-              className="w-full rounded-lg border bg-transparent py-2 pl-9 pr-3 text-14 outline-none"
+              className="w-full rounded-lg border bg-transparent py-2 pl-9 pr-3 text-14 outline-hidden"
               style={{
                 borderColor: "var(--theme-border)",
                 color: "var(--theme-text)",
@@ -320,7 +325,9 @@ export function TeamPickerModal({
                               : "pps-card__action--primary"
                           }`}
                         >
-                          <Sparkles size={13} />
+                          <InteractiveIcon>
+                            <Sparkles size={13} />
+                          </InteractiveIcon>
                           {selected
                             ? t("personaPresets.using", "使用中")
                             : t("personaPresets.use", "使用")}

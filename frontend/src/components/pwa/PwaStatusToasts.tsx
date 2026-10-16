@@ -1,7 +1,9 @@
+import { InteractiveIcon } from "../common/InteractiveIcon";
 import { useEffect, useRef } from "react";
-import { RefreshCw, WifiOff, X } from "lucide-react";
+import { RefreshCw, WifiOff } from "lucide-react";
 import { toast } from "react-hot-toast";
 import { useTranslation } from "react-i18next";
+import { ToastDismissButton } from "../common/ToastDismissButton";
 import {
   type LambChatPwaUpdateEventDetail,
   activateWaitingLambChatPwaUpdate,
@@ -20,7 +22,6 @@ function PwaStatusToast({
   bodyKey,
   tone,
   actionLabelKey,
-  dismissLabelKey,
   onAction,
   onDismiss,
 }: {
@@ -28,9 +29,8 @@ function PwaStatusToast({
   bodyKey: string;
   tone: "update" | "offline";
   actionLabelKey?: string;
-  dismissLabelKey?: string;
   onAction?: () => void;
-  onDismiss?: () => void;
+  onDismiss: () => void;
 }) {
   const { t } = useTranslation();
 
@@ -63,27 +63,32 @@ function PwaStatusToast({
           type="button"
           onClick={onAction}
         >
-          <RefreshCw size={14} aria-hidden="true" />
+          <InteractiveIcon>
+            <RefreshCw size={14} aria-hidden="true" />
+          </InteractiveIcon>
           <span>{t(actionLabelKey)}</span>
         </button>
       )}
-      {dismissLabelKey && onDismiss && (
-        <button
-          className="pwa-status-toast__dismiss"
-          type="button"
-          aria-label={t(dismissLabelKey)}
-          onClick={onDismiss}
-        >
-          <X size={14} aria-hidden="true" />
-        </button>
-      )}
+      <ToastDismissButton
+        className="pwa-status-toast__dismiss"
+        label={t("common.dismiss", "关闭")}
+        onDismiss={onDismiss}
+      />
     </div>
   );
 }
 
 function showOfflineToast(titleKey: string, bodyKey: string) {
   toast.custom(
-    <PwaStatusToast titleKey={titleKey} bodyKey={bodyKey} tone="offline" />,
+    (currentToast) =>
+      currentToast.visible ? (
+        <PwaStatusToast
+          titleKey={titleKey}
+          bodyKey={bodyKey}
+          tone="offline"
+          onDismiss={() => toast.dismiss(currentToast.id)}
+        />
+      ) : null,
     {
       id: PWA_OFFLINE_TOAST_ID,
       duration: Infinity,
@@ -108,19 +113,21 @@ export function PwaStatusToasts() {
       if (!registration) return;
 
       toast.custom(
-        <PwaStatusToast
-          titleKey="pwaStatus.updateReadyTitle"
-          bodyKey="pwaStatus.updateReadyBody"
-          tone="update"
-          actionLabelKey="common.refresh"
-          onAction={() => {
-            if (activateWaitingLambChatPwaUpdate(registration)) {
-              toast.dismiss(PWA_UPDATE_TOAST_ID);
-            }
-          }}
-          dismissLabelKey="pwaStatus.dismiss"
-          onDismiss={() => toast.dismiss(PWA_UPDATE_TOAST_ID)}
-        />,
+        (currentToast) =>
+          currentToast.visible ? (
+            <PwaStatusToast
+              titleKey="pwaStatus.updateReadyTitle"
+              bodyKey="pwaStatus.updateReadyBody"
+              tone="update"
+              actionLabelKey="common.refresh"
+              onAction={() => {
+                if (activateWaitingLambChatPwaUpdate(registration)) {
+                  toast.dismiss(PWA_UPDATE_TOAST_ID);
+                }
+              }}
+              onDismiss={() => toast.dismiss(currentToast.id)}
+            />
+          ) : null,
         {
           id: PWA_UPDATE_TOAST_ID,
           duration: Infinity,

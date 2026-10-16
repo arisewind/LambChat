@@ -1,4 +1,4 @@
-import { AgentAvatar } from "../common/AgentAvatar";
+import { InteractiveIcon } from "../common/InteractiveIcon";
 /**
  * Channels Page - Lists all available channels and their instances
  */
@@ -17,7 +17,7 @@ import { ChannelPanel } from "../panels/ChannelPanel";
 import { FeishuPanel } from "../panels/channel/feishu/FeishuPanel";
 import { PanelHeader } from "../common/PanelHeader";
 import { Button } from "../common/ui";
-import { ChannelsGridSkeleton } from "../skeletons";
+import { ChannelsGridSkeleton, ChannelInstancesSkeleton } from "../skeletons";
 import { EmptyState } from "../common/EmptyState";
 import { ConfigPanelErrorCallout } from "../panels/ConfigPanelErrorCallout";
 import { getRightPanelSnapshot } from "../common/rightPanelCoordinator";
@@ -75,19 +75,21 @@ function ChannelCard({
     >
       {gradient && (
         <div
-          className="scb__banner relative h-12 shrink-0"
+          className="scb__banner relative shrink-0"
           style={{
             background: `linear-gradient(45deg, ${gradient[0]}, ${gradient[1]}, ${gradient[2]})`,
           }}
         >
-          <div className="absolute inset-0 z-[3] flex items-start justify-end p-2">
+          <div className="relative z-[3] flex min-h-12 flex-wrap items-start justify-end gap-1.5 px-3 py-2">
             {bannerOverlay}
           </div>
         </div>
       )}
       <div className="scb__body flex flex-1 flex-col p-3 -mt-3 pt-4">
         <div className="scb__header flex items-center gap-2">
-          <AgentAvatar seed={title} size={36}>{icon}</AgentAvatar>
+          <div className="flex size-9 shrink-0 items-center justify-center">
+            {icon}
+          </div>
           <div className="min-w-0 flex-1">
             <h3 className="truncate text-16 font-semibold font-serif text-theme-text leading-tight">
               <button
@@ -327,7 +329,7 @@ export function ChannelsPage() {
         />
         <div className="panel-body flex-1 overflow-y-auto">
           {isLoading ? (
-            <ChannelsGridSkeleton />
+            <ChannelsGridSkeleton contentOnly />
           ) : loadError ? (
             retryNotice(loadData)
           ) : (
@@ -366,8 +368,11 @@ export function ChannelsPage() {
                         : statusUnavailable
                           ? "channel.statusUnavailable"
                           : "channel.disconnected";
-                    const receivesMessages = ct.capabilities.some((capability) =>
-                      ["websocket", "webhook", "long_polling"].includes(capability),
+                    const receivesMessages = ct.capabilities.some(
+                      (capability) =>
+                        ["websocket", "webhook", "long_polling"].includes(
+                          capability,
+                        ),
                     );
                     const gradient = nameToGradient(
                       rawChannelTypes.find(
@@ -381,12 +386,23 @@ export function ChannelsPage() {
                         title={ct.display_name}
                         description={ct.description}
                         gradient={gradient}
-                        icon={<ChannelIcon channelType={ct.channel_type} />}
+                        icon={
+                          <ChannelIcon
+                            channelType={ct.channel_type}
+                            size={24}
+                          />
+                        }
                         statusPills={
                           <div className="mt-1 flex flex-wrap gap-1.5">
                             {instanceCount > 0 && (
                               <span
-                                className={`rounded-full px-2 py-0.5 text-12 font-medium ${hasAnyConnected ? "bg-green-100 text-green-700 dark:bg-green-900/50 dark:text-green-300" : allDisabled || statusUnavailable ? "bg-[var(--theme-primary-light)] text-theme-text-secondary" : "bg-amber-100 text-amber-700 dark:bg-amber-900/50 dark:text-amber-300"}`}
+                                className={`rounded-full px-2 py-0.5 text-12 font-medium ${
+                                  hasAnyConnected
+                                    ? "bg-[color-mix(in_srgb,var(--theme-success)_14%,transparent)] text-[color-mix(in_srgb,var(--theme-success)_50%,var(--theme-text))] dark:bg-green-900/50 dark:text-green-300"
+                                    : allDisabled || statusUnavailable
+                                      ? "bg-[var(--theme-primary-light)] text-theme-text-secondary"
+                                      : "bg-amber-100 text-amber-700 dark:bg-amber-900/50 dark:text-amber-300"
+                                }`}
                               >
                                 {t(summaryStatus)}
                               </span>
@@ -475,7 +491,9 @@ export function ChannelsPage() {
                 onClick={() => navigate(`/channels/${selectedChannel}/new`)}
                 className="btn-primary btn-sm"
               >
-                <Plus size={16} />
+                <InteractiveIcon>
+                  <Plus size={16} />
+                </InteractiveIcon>
                 <span>{t("channel.addInstance", "Add Instance")}</span>
               </button>
             )
@@ -484,7 +502,7 @@ export function ChannelsPage() {
 
         <div className="panel-body flex-1 overflow-y-auto">
           {isLoading || instanceLoading[selectedChannel!] ? (
-            <ChannelsGridSkeleton />
+            <ChannelInstancesSkeleton />
           ) : loadError ? (
             retryNotice(loadData)
           ) : instanceErrors[selectedChannel!] ? (
@@ -545,7 +563,7 @@ export function ChannelsPage() {
                       : "channel.disconnected";
                 const statusClass =
                   instance.enabled && status?.connected
-                    ? "bg-green-100 text-green-700 dark:bg-green-900/50 dark:text-green-300"
+                    ? "bg-[color-mix(in_srgb,var(--theme-success)_14%,transparent)] text-[color-mix(in_srgb,var(--theme-success)_50%,var(--theme-text))] dark:bg-green-900/50 dark:text-green-300"
                     : instance.enabled && status
                       ? "bg-amber-100 text-amber-700 dark:bg-amber-900/50 dark:text-amber-300"
                       : "bg-[var(--theme-primary-light)] text-theme-text-secondary";
@@ -573,11 +591,13 @@ export function ChannelsPage() {
                         </p>
                       </div>
                     </div>
-                    <ChevronRight
-                      size={18}
-                      className="shrink-0 text-theme-text-tertiary"
-                      aria-hidden="true"
-                    />
+                    <InteractiveIcon>
+                      <ChevronRight
+                        size={18}
+                        className="shrink-0 text-theme-text-tertiary"
+                        aria-hidden="true"
+                      />
+                    </InteractiveIcon>
                   </Link>
                 );
               })}

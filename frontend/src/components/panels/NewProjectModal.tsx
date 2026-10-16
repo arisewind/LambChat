@@ -32,7 +32,7 @@ export function NewProjectModal({
     <ModalSurface open={true} onClose={onClose} dismissible={true}>
       <div className="relative bg-theme-bg-card rounded-xl shadow-2xl p-5 w-[90vw] max-w-md space-y-3">
         <div className="flex items-center justify-between gap-3">
-          <h3 className="min-w-0 text-14 font-semibold font-sans text-stone-800 dark:text-stone-100">
+          <h3 className="min-w-0 text-14 font-semibold font-sans text-theme-text dark:text-stone-100">
             {t("sidebar.newProject")}
           </h3>
           <DialogCloseButton onClick={onClose} />
@@ -47,7 +47,7 @@ export function NewProjectModal({
             value={icon}
             onChange={(e) => onIconChange(e.target.value)}
             placeholder={t("sidebar.projectName")}
-            className="w-8 text-14 bg-transparent text-stone-500 dark:text-stone-400 placeholder-stone-400 focus:outline-none"
+            className="w-8 text-14 bg-transparent text-stone-500 dark:text-stone-400 placeholder-stone-400 focus:outline-hidden"
           />
           <div className="w-px h-5 bg-stone-300 dark:bg-stone-600" />
           <input
@@ -71,7 +71,7 @@ export function NewProjectModal({
               }
             }}
             placeholder={t("sidebar.projectName")}
-            className="flex-1 text-14 bg-transparent text-stone-700 dark:text-stone-200 placeholder-stone-400 focus:outline-none"
+            className="flex-1 text-14 bg-transparent text-stone-700 dark:text-stone-200 placeholder-stone-400 focus:outline-hidden"
           />
         </div>
         {onWorkspaceChange && (

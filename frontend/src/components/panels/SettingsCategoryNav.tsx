@@ -1,3 +1,4 @@
+import { InteractiveIcon } from "../common/InteractiveIcon";
 import { useId, useState } from "react";
 import { ChevronDown } from "lucide-react";
 import { Select } from "../common/ui/Select";
@@ -28,7 +29,9 @@ export function SettingsCategoryNav({
 }: Props) {
   const { t } = useTranslation();
   const navigationId = useId();
-  const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(new Set());
+  const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(
+    new Set(),
+  );
   const groups = buildSettingsNavigation(categories, navigation);
   if (mobile)
     return (
@@ -91,16 +94,18 @@ export function SettingsCategoryNav({
                     return next;
                   })
                 }
-                className="flex min-h-8 w-full items-center gap-2 rounded-lg px-[9px] py-1 text-left text-14 font-medium [@media(pointer:coarse)]:min-h-11 text-stone-500 hover:bg-[var(--glass-bg-subtle)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--theme-primary)] disabled:cursor-default dark:text-stone-400"
+                className="flex min-h-8 w-full items-center gap-2 rounded-lg px-[9px] py-1 text-left text-14 font-medium [@media(pointer:coarse)]:min-h-11 text-theme-text-secondary hover:bg-[var(--glass-bg-subtle)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--theme-primary)] disabled:cursor-default dark:text-stone-400"
               >
                 <span className="min-w-0 break-words">
                   {t(`settings.navigation.groups.${group.id}`)}
                 </span>
-                <ChevronDown
-                  size={14}
-                  aria-hidden="true"
-                  className={`shrink-0 ${expanded ? "" : "-rotate-90"}`}
-                />
+                <InteractiveIcon>
+                  <ChevronDown
+                    size={14}
+                    aria-hidden="true"
+                    className={`shrink-0 ${expanded ? "" : "-rotate-90"}`}
+                  />
+                </InteractiveIcon>
               </button>
             </h3>
             <div id={contentId} hidden={!expanded} className="space-y-0.5">
@@ -115,13 +120,13 @@ export function SettingsCategoryNav({
                     className={`flex min-h-10 w-full items-center justify-between gap-3 rounded-lg px-3 py-2 text-left text-14 focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--theme-primary)] ${
                       active
                         ? "bg-[var(--glass-bg)] font-semibold text-[var(--theme-primary)]"
-                        : "text-stone-600 hover:bg-[var(--glass-bg-subtle)] dark:text-stone-400"
+                        : "text-theme-text-secondary hover:bg-[var(--glass-bg-subtle)] dark:text-stone-400"
                     }`}
                   >
                     <span className="min-w-0 break-words">
                       {labels[category]}
                     </span>
-                    <span className="text-12 tabular-nums text-stone-500 dark:text-stone-400">
+                    <span className="text-12 tabular-nums text-theme-text-secondary dark:text-stone-400">
                       {count}
                     </span>
                   </button>

@@ -1,3 +1,4 @@
+import { InteractiveIcon } from "../../common/InteractiveIcon";
 import type { ReactNode } from "react";
 import { Tooltip } from "../../common/Tooltip";
 import { ChevronDown, Plus, SquarePen } from "lucide-react";
@@ -6,7 +7,7 @@ import { ChevronDown, Plus, SquarePen } from "lucide-react";
 export const sectionRevealClass = "sidebar-action-reveal";
 /** 分组头部动作按钮（新增、多选等）的统一样式。 */
 export const sectionActionClass =
-  "inline-flex h-8 w-6 max-sm:h-9 max-sm:w-9 shrink-0 items-center justify-center rounded-md text-stone-500 hover:text-stone-700 dark:text-stone-400 dark:hover:text-stone-200 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2";
+  "inline-flex h-8 w-6 max-sm:h-9 max-sm:w-9 shrink-0 items-center justify-center rounded-md text-theme-text-secondary hover:text-theme-text dark:text-stone-400 dark:hover:text-stone-200 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2";
 
 export function SidebarSectionHeader({
   label,
@@ -34,11 +35,15 @@ export function SidebarSectionHeader({
         className="flex min-w-0 flex-1 items-center gap-2 self-stretch text-14 font-medium text-stone-400 dark:text-stone-500 group-hover/section:text-stone-500 dark:group-hover/section:text-stone-400 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2"
       >
         <span className="truncate">{label}</span>
-        <ChevronDown
-          size={14}
-          aria-hidden="true"
-          className={`shrink-0 transition-transform motion-reduce:transition-none ${sectionRevealClass} ${collapsed ? "-rotate-90" : ""}`}
-        />
+        <InteractiveIcon>
+          <ChevronDown
+            size={14}
+            aria-hidden="true"
+            className={`shrink-0 transition-transform motion-reduce:transition-none ${sectionRevealClass} ${
+              collapsed ? "-rotate-90" : ""
+            }`}
+          />
+        </InteractiveIcon>
       </button>
       <div
         className={`flex shrink-0 items-center gap-1 sidebar-action-controls ${sectionRevealClass}`}
@@ -52,9 +57,13 @@ export function SidebarSectionHeader({
               className={sectionActionClass}
             >
               {createIcon === "compose" ? (
-                <SquarePen size={14} />
+                <InteractiveIcon>
+                  <SquarePen size={14} />
+                </InteractiveIcon>
               ) : (
-                <Plus size={14} />
+                <InteractiveIcon>
+                  <Plus size={14} />
+                </InteractiveIcon>
               )}
             </button>
           </Tooltip>

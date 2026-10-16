@@ -1,7 +1,9 @@
+import { InteractiveIcon } from "../../common/InteractiveIcon";
 import { LoadingSpinner } from "../../common/LoadingSpinner";
 import { type ReactNode, useCallback, useId, useMemo, useState } from "react";
 import {
   FolderTree,
+  Folder as FolderIcon,
   Code2,
   ChevronRight,
   ChevronDown,
@@ -31,43 +33,11 @@ import {
 import { ImageWithSkeleton } from "./ImageWithSkeleton";
 import { exportProjectZip } from "../../../utils/exportProjectZip";
 
-function FolderIcon({
-  size = 36,
-  className,
-}: {
-  size?: number;
-  className?: string;
-}) {
-  return (
-    <svg
-      width={size}
-      height={size}
-      viewBox="0 0 1024 1024"
-      xmlns="http://www.w3.org/2000/svg"
-      className={className}
-      aria-hidden="true"
-    >
-      <path
-        d="M54.9632 228.8128c-1.152-21.376 0.64-43.1872 10.0352-62.4128 13.696-28.032 32.2816-45.7728 59.776-57.9072 17.1008-7.552 36.0448-9.344 54.7328-9.344h196.5056a93.696 93.696 0 0 1 59.0592 21.248l38.4512 31.1552a76.8 76.8 0 0 0 48.384 17.152h316.1088c54.1952 0 98.0992 43.5968 98.0992 97.3824l17.792 538.4704c0 53.7856-24.5248 83.456-77.0048 111.3088H184.32c-45.6192-27.8528-70.144-55.6544-98.0992-97.3824L54.9632 228.8128z"
-        fill="#FFE8A3"
-      />
-      <path
-        d="M170.1632 310.9632a51.2 51.2 0 0 1 51.2-51.2h601.344a51.2 51.2 0 0 1 51.2 51.2v397.7216a128 128 0 0 1-128 128h-447.744a128 128 0 0 1-128-128V310.9632z"
-        fill="#FFCF40"
-      />
-      <path
-        d="M116.736 413.5424a107.9296 107.9296 0 0 1 30.9248-68.1984 92.9792 92.9792 0 0 1 65.536-27.5968H882.176c13.2352 0 26.368 2.944 38.5024 8.6272 12.1344 5.7088 23.0912 14.0288 32.1536 24.4736 9.0368 10.4448 16.0256 22.784 20.48 36.2496 4.48 13.4656 6.3232 27.776 5.4528 42.0608l-24.1152 397.9776a108.1856 108.1856 0 0 1-30.464 69.4784 93.056 93.056 0 0 1-66.176 28.2368h-675.84a90.7264 90.7264 0 0 1-38.912-8.8064c-12.288-5.8368-23.296-14.336-32.384-24.9856a106.5984 106.5984 0 0 1-20.3264-36.9152 112.4352 112.4352 0 0 1-4.864-42.6496l31.0016-397.952z"
-        fill="#FFE8A3"
-      />
-    </svg>
-  );
-}
-
 /* ------------------------------------------------------------------ */
 /*  Tree renderer                                                      */
 /* ------------------------------------------------------------------ */
 
-const FILE_ICON_SIZE = 24;
+const FILE_ICON_SIZE = 20;
 
 function formatSize(bytes?: number): string {
   if (bytes == null) return "";
@@ -169,7 +139,11 @@ function TreeFileRow({
         >
           {imageSrc ? (
             <span
-              className={inline ? "flex h-8 w-8 shrink-0 items-center justify-center" : "contents"}
+              className={
+                inline
+                  ? "flex h-10 w-10 shrink-0 items-center justify-center"
+                  : "contents"
+              }
             >
               <ImageWithSkeleton
                 src={imageSrc}
@@ -177,22 +151,33 @@ function TreeFileRow({
                 skipUrlResolve
                 inline
                 className={clsx(
-                  inline ? "w-6 h-6" : "w-9 h-9",
-                  "rounded-lg object-cover shrink-0 bg-stone-100 dark:bg-stone-800",
+                  inline ? "w-10 h-10" : "w-9 h-9",
+                  "rounded-lg object-cover shrink-0 bg-theme-bg-subtle dark:bg-stone-800",
                 )}
               />
             </span>
           ) : inline ? (
-            <span className="flex h-8 w-8 shrink-0 items-center justify-center text-theme-text-secondary">
-              <FileIcon size={24} strokeWidth={1.5} className={fileType.color} />
+            <span
+              className={clsx(
+                "flex h-10 w-10 shrink-0 items-center justify-center rounded-lg",
+                fileType.bg,
+              )}
+            >
+              <FileIcon
+                size={24}
+                strokeWidth={1.5}
+                className={fileType.color}
+              />
             </span>
           ) : (
-            getFileIcon(node.artifact.name)
+            <span className="flex size-9 shrink-0 items-center justify-center">
+              {getFileIcon(node.artifact.name)}
+            </span>
           )}
           <div className="flex-1 min-w-0 text-left">
             <div
               className={clsx(
-                "text-14 text-theme-text-secondary",
+                "text-14 font-medium text-theme-text",
                 inline
                   ? "truncate leading-5"
                   : "line-clamp-2 break-all text-balance",
@@ -203,7 +188,7 @@ function TreeFileRow({
             <div
               className={clsx(
                 "text-theme-text-tertiary mt-0.5 truncate",
-                inline ? "font-mono text-11 tracking-tight" : "text-12",
+                "text-12",
               )}
             >
               {inline
@@ -279,7 +264,11 @@ function TreeDirRow({
           onClick={toggleExpanded}
           className="flex !min-w-0 min-h-[44px] flex-1 items-center gap-3 text-left rounded-lg focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--theme-primary)]"
         >
-          <FolderIcon size={36} className="shrink-0" />
+          <span className="flex size-9 shrink-0 items-center justify-center">
+            <InteractiveIcon>
+              <FolderIcon size={20} className="shrink-0" />
+            </InteractiveIcon>
+          </span>
           <div className="flex-1 min-w-0">
             <div className="text-14 font-medium text-stone-800 dark:text-stone-200 truncate">
               {node.name}
@@ -411,23 +400,27 @@ function ProjectRow({
       onClick={() => onOpenPreview?.(artifact.preview, "manual")}
       className="group flex min-h-[60px] w-full cursor-pointer items-center gap-3 px-3 py-2 text-left transition-colors hover:bg-theme-text/[0.04] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--theme-primary)] motion-reduce:transition-none"
     >
-      <span className="flex items-center justify-center size-8 shrink-0">
-        <Icon
-          size={24}
-          strokeWidth={1.8}
-          className="shrink-0 text-[var(--theme-primary)]"
-        />
+      <span className="flex items-center justify-center size-10 rounded-lg bg-theme-bg-subtle shrink-0">
+        <InteractiveIcon>
+          <Icon
+            size={24}
+            strokeWidth={1.8}
+            className="shrink-0 text-[var(--theme-primary)]"
+          />
+        </InteractiveIcon>
       </span>
       <span className="min-w-0 flex-1 text-left">
-        <span className="block truncate text-14 leading-5 text-theme-text-secondary">
+        <span className="block truncate text-14 font-medium leading-5 text-theme-text">
           {artifact.name}
         </span>
-        <span className="mt-0.5 block truncate font-mono text-11 leading-4 text-theme-text-tertiary">
+        <span className="mt-0.5 block truncate text-12 leading-4 text-theme-text-tertiary">
           {subtitle}
         </span>
       </span>
       <span className="flex size-8 shrink-0 items-center justify-center">
-        <ChevronRight size={18} className="text-theme-text-tertiary" />
+        <InteractiveIcon>
+          <ChevronRight size={18} className="text-theme-text-tertiary" />
+        </InteractiveIcon>
       </span>
     </button>
   );
@@ -473,7 +466,7 @@ function SectionTitle({
       <span className="text-11 font-semibold uppercase tracking-wider text-[var(--theme-text-secondary)]">
         {children}
       </span>
-      <span className="h-px flex-1 bg-gradient-to-r from-[var(--theme-border)]/80 to-transparent" />
+      <span className="h-px flex-1 bg-linear-to-r from-[var(--theme-border)]/80 to-transparent" />
       <span className="flex min-w-[20px] items-center justify-center rounded-full bg-[var(--theme-primary)]/10 px-1.5 py-0.5 text-10 font-bold tabular-nums text-[var(--theme-primary)]">
         {count}
       </span>
@@ -646,7 +639,10 @@ export function RevealArtifactsSummary({
   }
 
   const useSidePanel = artifacts.length >= 4;
-  const collapsedNames = artifacts.slice(0, 2).map((artifact) => artifact.name).join(" · ");
+  const collapsedNames = artifacts
+    .slice(0, 2)
+    .map((artifact) => artifact.name)
+    .join(" · ");
 
   const handleOpenPanel = () => {
     openPersistentToolPanel({
@@ -723,39 +719,61 @@ export function RevealArtifactsSummary({
 
   return (
     <>
-      <section className="reveal-artifacts-summary my-2 w-full min-w-0 sm:my-3" aria-label={subtitle}>
-        <div className="w-full min-w-0 overflow-hidden rounded-xl border border-[var(--theme-border)] bg-theme-text/[0.02]">
+      <section
+        className="reveal-artifacts-summary my-2 w-full min-w-0 sm:my-3"
+        aria-label={subtitle}
+      >
+        <div className="message-artifact-card w-full min-w-0 overflow-hidden">
           {artifacts.length > 1 && (
             <div className="relative">
               <button
                 type="button"
-                aria-label={useSidePanel ? t("chat.message.allFiles", "全部文件") : subtitle}
+                aria-label={
+                  useSidePanel
+                    ? t("chat.message.allFiles", "全部文件")
+                    : subtitle
+                }
                 aria-expanded={useSidePanel ? undefined : expanded}
                 aria-controls={useSidePanel ? undefined : disclosureId}
-                onClick={useSidePanel ? handleOpenPanel : () => setExpanded(!expanded)}
+                onClick={
+                  useSidePanel ? handleOpenPanel : () => setExpanded(!expanded)
+                }
                 className="reveal-artifacts-toggle flex min-h-[52px] w-full items-center gap-3 pl-3 pr-40 py-2 text-left hover:bg-theme-text/[0.04] transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-[var(--theme-primary)] motion-reduce:transition-none"
               >
-                <span className="flex h-8 w-8 shrink-0 items-center justify-center">
-                  <FolderIcon size={24} className="shrink-0" />
+                <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-theme-bg-subtle text-theme-text-secondary">
+                  <InteractiveIcon>
+                    <FolderIcon size={24} className="shrink-0" />
+                  </InteractiveIcon>
                 </span>
                 <span className="min-w-0 flex-1">
-                  <span className="block truncate text-13 text-theme-text-secondary">{subtitle}</span>
+                  <span className="block truncate text-13 text-theme-text-secondary">
+                    {subtitle}
+                  </span>
                   {(useSidePanel || !expanded) && (
-                    <span className="mt-0.5 block truncate text-12 text-theme-text-tertiary">{collapsedNames}</span>
+                    <span className="mt-0.5 block truncate text-12 text-theme-text-tertiary">
+                      {collapsedNames}
+                    </span>
                   )}
                 </span>
                 <span className="absolute right-3 flex h-8 w-8 items-center justify-center">
-                {useSidePanel ? (
-                  <ChevronRight size={16} className="shrink-0 text-theme-text-tertiary" />
-                ) : (
-                  <ChevronDown
-                    size={16}
-                    className={clsx(
-                      "shrink-0 text-theme-text-tertiary transition-transform motion-reduce:transition-none",
-                      expanded && "rotate-180",
-                    )}
-                  />
-                )}
+                  {useSidePanel ? (
+                    <InteractiveIcon>
+                      <ChevronRight
+                        size={16}
+                        className="shrink-0 text-theme-text-tertiary"
+                      />
+                    </InteractiveIcon>
+                  ) : (
+                    <InteractiveIcon>
+                      <ChevronDown
+                        size={16}
+                        className={clsx(
+                          "shrink-0 text-theme-text-tertiary transition-transform motion-reduce:transition-none",
+                          expanded && "rotate-180",
+                        )}
+                      />
+                    </InteractiveIcon>
+                  )}
                 </span>
               </button>
               <div className="absolute right-12 top-1/2 -translate-y-1/2">
@@ -766,7 +784,10 @@ export function RevealArtifactsSummary({
           {!useSidePanel && (artifacts.length === 1 || expanded) && (
             <div
               id={disclosureId}
-              className={clsx("divide-y divide-[var(--theme-border)]", artifacts.length > 1 && "border-t border-[var(--theme-border)]")}
+              className={clsx(
+                "divide-y divide-[var(--theme-border)]",
+                artifacts.length > 1 && "border-t border-[var(--theme-border)]",
+              )}
             >
               {artifacts.map((artifact) =>
                 artifact.kind === "file" ? (

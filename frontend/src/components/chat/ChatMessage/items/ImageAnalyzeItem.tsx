@@ -63,7 +63,7 @@ function ImageAnalyzeDetail({ args, result }: ToolDetailProps) {
   const analysis = useMemo(() => getAnalysisText(result), [result]);
 
   return (
-    <div className="p-4 sm:p-5 space-y-4 tool-panel-content">
+    <div className="p-4 sm:p-5 tool-panel-content tool-panel-content--fill">
       {prompt && (
         <ToolArgsBlock size="detail" copyText={prompt} wrap>
           <MessageSquareText
@@ -96,7 +96,7 @@ function ImageAnalyzeDetail({ args, result }: ToolDetailProps) {
                 inline
                 className="w-full aspect-square object-cover"
               />
-              <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-transparent opacity-0 group-hover/img:opacity-100 transition-opacity pointer-events-none">
+              <div className="absolute inset-0 bg-linear-to-t from-black/50 via-transparent to-transparent opacity-0 group-hover/img:opacity-100 transition-opacity pointer-events-none">
                 <span className="absolute bottom-1.5 left-1.5 right-1.5 text-white/90 text-10 font-medium truncate drop-shadow-sm block">
                   {image.name}
                 </span>
@@ -165,8 +165,7 @@ const ImageAnalyzeItem = memo(function ImageAnalyzeItem({
   const prompt = (args.prompt as string) || "";
   const analysis = useMemo(() => getAnalysisText(result), [result]);
   // 参数生成中（无结果）也允许打开面板：实时等待分析结果
-  const canExpand =
-    images.length > 0 || !!prompt || !!analysis || !!isPending;
+  const canExpand = images.length > 0 || !!prompt || !!analysis || !!isPending;
   const status = isPending
     ? "loading"
     : cancelled
@@ -211,9 +210,7 @@ const ImageAnalyzeItem = memo(function ImageAnalyzeItem({
 
   // 进行中：标签学「思考中」，平滑流出正在生成的参数尾部
   const { label, isStreamingLabel } = useToolStreamingLabel(
-    `${t("chat.message.toolImageAnalyze")} ${
-      prompt || imageSummary
-    }`,
+    `${t("chat.message.toolImageAnalyze")} ${prompt || imageSummary}`,
     args,
     { isPending, result },
   );

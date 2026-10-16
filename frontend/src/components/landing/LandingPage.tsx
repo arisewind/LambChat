@@ -2,6 +2,7 @@ import { useEffect, useState, useCallback, useMemo } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { ImageViewer } from "../common/ImageViewer";
+import { useTheme } from "../../contexts/ThemeContext";
 import { useAuth } from "../../hooks/useAuth";
 import { getAccessToken } from "../../services/api/token";
 import { useSEO } from "../../hooks/usePageTitle";
@@ -15,7 +16,13 @@ import {
   SECTION_IDS,
   SECTION_ROUTE_BY_ID,
 } from "./constants";
-import { MAIN_SHOTS, MGMT_SHOTS, RESPONSIVE_SHOTS, shotSrc } from "./data";
+import {
+  MAIN_SHOTS,
+  MGMT_SHOTS,
+  RESPONSIVE_SHOTS,
+  shotSrc,
+  themedShots,
+} from "./data";
 import { Navbar } from "./components/Navbar";
 import { MobileMenu } from "./components/MobileMenu";
 import { HeroSection } from "./components/HeroSection";
@@ -43,7 +50,7 @@ export function LandingPage() {
     omitSuffix: true,
   });
   const navigate = useNavigate();
-  const { t, i18n } = useTranslation();
+  const { t } = useTranslation();
   const containerRef = useScrollReveal();
   const { isAuthenticated, isLoading, token } = useAuth();
   const scrollProgress = useScrollProgress();
@@ -54,21 +61,34 @@ export function LandingPage() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [viewerIndex, setViewerIndex] = useState<number | null>(null);
 
+  const { theme } = useTheme();
+  const [mainShots, managementShots, responsiveShots] = useMemo(
+    () =>
+      [MAIN_SHOTS, MGMT_SHOTS, RESPONSIVE_SHOTS].map((shots) =>
+        themedShots(shots, theme),
+      ),
+    [theme],
+  );
+
+  const architectureSrc = shotSrc("architecture", theme);
+
   const galleryItems = useMemo(
     () => [
-      ...MAIN_SHOTS.map((s) => ({ src: s.src, alt: t(`landing.${s.altKey}`) })),
+      ...mainShots.map((s) => ({ src: s.src, alt: t(`landing.${s.altKey}`) })),
       {
-        src: shotSrc("architecture"),
+        src: architectureSrc,
         alt: t("landing.architecture"),
       },
-      ...MGMT_SHOTS.map((s) => ({ src: s.src, alt: t(`landing.${s.altKey}`) })),
-      ...RESPONSIVE_SHOTS.map((s) => ({
+      ...managementShots.map((s) => ({
+        src: s.src,
+        alt: t(`landing.${s.altKey}`),
+      })),
+      ...responsiveShots.map((s) => ({
         src: s.src,
         alt: t(`landing.${s.altKey}`),
       })),
     ],
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [i18n.language],
+    [t, mainShots, managementShots, responsiveShots, architectureSrc],
   );
 
   const openViewer = useCallback(
@@ -140,14 +160,11 @@ export function LandingPage() {
       if (route && window.location.pathname !== route) {
         navigate(route, { replace: false });
       }
-      document
-        .getElementById(id)
-        ?.scrollIntoView({
-          behavior: window.matchMedia("(prefers-reduced-motion: reduce)")
-            .matches
-            ? "auto"
-            : "smooth",
-        });
+      document.getElementById(id)?.scrollIntoView({
+        behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches
+          ? "auto"
+          : "smooth",
+      });
     },
     [navigate],
   );
@@ -229,7 +246,7 @@ export function LandingPage() {
         <div className="blog-ornament-diamond" />
       </div>
 
-      <InterfaceSection onOpenViewer={openViewer} />
+      <InterfaceSection shots={mainShots} onOpenViewer={openViewer} />
 
       <div className="blog-section-divider py-2" aria-hidden="true">
         <div className="blog-ornament-diamond" />
@@ -241,19 +258,19 @@ export function LandingPage() {
         <div className="blog-ornament-diamond" />
       </div>
 
-      <ArchitectureSection onOpenViewer={openViewer} />
+      <ArchitectureSection src={architectureSrc} onOpenViewer={openViewer} />
 
       <div className="blog-section-divider py-2" aria-hidden="true">
         <div className="blog-ornament-diamond" />
       </div>
 
-      <DashboardSection onOpenViewer={openViewer} />
+      <DashboardSection shots={managementShots} onOpenViewer={openViewer} />
 
       <div className="blog-section-divider py-2" aria-hidden="true">
         <div className="blog-ornament-diamond" />
       </div>
 
-      <ResponsiveSection onOpenViewer={openViewer} />
+      <ResponsiveSection shots={responsiveShots} onOpenViewer={openViewer} />
 
       <CTASection onLogin={goLogin} />
 

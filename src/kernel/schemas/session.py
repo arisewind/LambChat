@@ -34,7 +34,7 @@ class Session(SessionBase):
 
     id: str
     user_id: Optional[str] = None
-    agent_id: str = "fast"
+    agent_id: str = "search"
     created_at: datetime = Field(default_factory=utc_now)
     updated_at: datetime = Field(default_factory=utc_now)
     is_active: bool = True
@@ -43,6 +43,7 @@ class Session(SessionBase):
     task_error: Optional[str] = None
     completed_at: Optional[datetime] = None
     unread_count: int = 0
+    last_read_at: Optional[datetime] = None
 
     class Config:
         from_attributes = True

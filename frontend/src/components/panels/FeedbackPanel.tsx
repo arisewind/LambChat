@@ -1,3 +1,4 @@
+import { InteractiveIcon } from "../common/InteractiveIcon";
 import { EmptyState } from "../common/EmptyState";
 import { DialogCloseButton } from "../common/DialogCloseButton";
 import { ModalSurface } from "../common/ModalSurface";
@@ -323,7 +324,9 @@ function FeedbackCard({
             hover:text-stone-600 dark:hover:text-stone-300 transition-colors"
         >
           <span>{t("feedback.viewDetail", "查看详情")}</span>
-          <ChevronRight size={12} />
+          <InteractiveIcon>
+            <ChevronRight size={12} />
+          </InteractiveIcon>
         </button>
 
         {canDelete && (
@@ -336,7 +339,9 @@ function FeedbackCard({
               hover:text-red-500 dark:hover:text-red-400 transition-colors"
             title={t("feedback.delete")}
           >
-            <Trash2 size={12} />
+            <InteractiveIcon>
+              <Trash2 size={12} />
+            </InteractiveIcon>
             <span>{t("feedback.delete")}</span>
           </button>
         )}
@@ -367,7 +372,7 @@ function FeedbackDetailModal({
     <>
       <ModalSurface open onClose={onClose}>
         <div
-          className="w-full sm:max-w-lg bg-theme-bg-card sm:rounded-2xl rounded-t-2xl shadow-2xl border-t sm:border border-stone-200/50 dark:border-stone-700/50 max-h-[85vh] flex flex-col animate-slide-up-sheet sm:animate-in sm:fade-in sm:zoom-in-95 sm:duration-200 safe-area-bottom"
+          className="w-full sm:max-w-lg bg-theme-bg-card sm:rounded-2xl rounded-t-2xl shadow-2xl border-t sm:border border-theme-border/50 dark:border-stone-700/50 max-h-[85vh] flex flex-col animate-slide-up-sheet sm:animate-in sm:fade-in sm:zoom-in-95 sm:duration-200 safe-area-bottom"
           onClick={(e) => e.stopPropagation()}
         >
           {/* Header */}
@@ -375,7 +380,7 @@ function FeedbackDetailModal({
             <div className="flex items-center gap-3">
               <div
                 className="flex h-9 w-9 items-center justify-center rounded-full
-                bg-gradient-to-br from-stone-200 to-stone-300 dark:from-stone-600 dark:to-stone-700
+                bg-linear-to-br from-stone-200 to-stone-300 dark:from-stone-600 dark:to-stone-700
                 text-stone-600 dark:text-stone-200 font-bold text-12"
               >
                 {feedback.username.charAt(0).toUpperCase()}
@@ -448,9 +453,13 @@ function FeedbackDetailModal({
                   className="flex-shrink-0 p-1 rounded hover:bg-stone-100 dark:hover:bg-stone-700 transition-colors"
                 >
                   {copiedField === "session" ? (
-                    <Check size={12} className="text-emerald-500" />
+                    <InteractiveIcon>
+                      <Check size={12} className="text-emerald-500" />
+                    </InteractiveIcon>
                   ) : (
-                    <Copy size={12} className="text-stone-400" />
+                    <InteractiveIcon>
+                      <Copy size={12} className="text-stone-400" />
+                    </InteractiveIcon>
                   )}
                 </button>
               </div>
@@ -466,9 +475,13 @@ function FeedbackDetailModal({
                   className="flex-shrink-0 p-1 rounded hover:bg-stone-100 dark:hover:bg-stone-700 transition-colors"
                 >
                   {copiedField === "run" ? (
-                    <Check size={12} className="text-emerald-500" />
+                    <InteractiveIcon>
+                      <Check size={12} className="text-emerald-500" />
+                    </InteractiveIcon>
                   ) : (
-                    <Copy size={12} className="text-stone-400" />
+                    <InteractiveIcon>
+                      <Copy size={12} className="text-stone-400" />
+                    </InteractiveIcon>
                   )}
                 </button>
               </div>

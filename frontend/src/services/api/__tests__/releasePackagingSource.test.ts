@@ -28,7 +28,7 @@ test("release workflow publishes branded desktop and mobile artifacts", () => {
   expect(workflow).toMatch(/package:desktop/);
   expect(workflow).toMatch(/assembleRelease/);
   expect(workflow).toMatch(/softprops\/action-gh-release/);
-  expect(workflow).toMatch(/java-version: '21'/);
+  expect(workflow).toMatch(/java-version: ['"]21['"]/);
   expect(workflow).toMatch(/if: always\(\)/);
   expect(workflow).toMatch(/continue-on-error: true/);
   expect(workflow).toMatch(/-workspace App\.xcworkspace/);
@@ -80,9 +80,7 @@ test("release workflow publishes branded desktop and mobile artifacts", () => {
   expect(workflow).toMatch(/LambChat-\$\{RELEASE_TAG\}-Linux-\$\{arch\}\.deb/);
   expect(workflow).toMatch(/LambChat-\$\{RELEASE_TAG\}-Linux-\$\{arch\}\.rpm/);
   // Windows：NSIS setup 为主推（updater 载体），MSI 企业部署保留
-  expect(workflow).toMatch(
-    /LambChat-\$env:RELEASE_TAG-Windows-x64-setup\.exe/,
-  );
+  expect(workflow).toMatch(/LambChat-\$env:RELEASE_TAG-Windows-x64-setup\.exe/);
   expect(workflow).toMatch(/LambChat-\$env:RELEASE_TAG-Windows\.msi/);
   expect(workflow).toMatch(/LambChat-\$env:RELEASE_TAG-Windows-Portable\.zip/);
   // macOS 资产名带架构段（asset_suffix 矩阵变量）：双架构产物不得同名互踩
@@ -155,20 +153,20 @@ test("iOS release builds only the modern package line", () => {
   const infoPlist = readRepoFile("frontend/ios/App/App/Info.plist");
   const workflow = readRepoFile(".github/workflows/app-release.yml");
 
-  expect(packageJson.dependencies["@capacitor/core"]).toBe("7.6.5");
+  expect(packageJson.dependencies["@capacitor/core"]).toBe("8.5.3");
   expect(packageJson.dependencies["@capacitor/local-notifications"]).toBe(
-    "^7.0.7",
+    "8.3.1",
   );
-  expect(packageJson.devDependencies["@capacitor/cli"]).toBe("7.6.5");
-  expect(packageJson.devDependencies["@capacitor/ios"]).toBe("7.6.5");
-  expect(podfile).toMatch(/platform :ios, '14\.0'/);
-  expect(podfile).toMatch(/@capacitor\+ios@7\.6\.5_@capacitor\+core@7\.6\.5/);
-  expect(podfile).toMatch(
-    /@capacitor\+local-notifications@7\.0\.6_@capacitor\+core@7\.6\.5/,
+  expect(packageJson.devDependencies["@capacitor/cli"]).toBe("8.5.3");
+  expect(packageJson.devDependencies["@capacitor/ios"]).toBe("8.5.3");
+  expect(podfile).toMatch(/platform :ios, '16\.4'/);
+  expect(podfile).toContain("../../node_modules/@capacitor/ios");
+  expect(podfile).toContain(
+    "../../node_modules/@capacitor/local-notifications",
   );
   expect(
     [...project.matchAll(/IPHONEOS_DEPLOYMENT_TARGET = ([0-9.]+);/g)].every(
-      ([, target]) => target === "14.0",
+      ([, target]) => target === "16.4",
     ),
   ).toBe(true);
   expect(infoPlist).toMatch(/<string>arm64<\/string>/);
@@ -196,7 +194,7 @@ test("desktop package script bundles the frontend before Tauri packaging", () =>
   expect(script).toMatch(/LAMBCHAT_APP_URL:\s*normalizedAppUrl/);
   expect(script).not.toMatch(/spawnSync\(pnpmCommand, \["build"\]/);
   expect(script).not.toMatch(/spawnSync\(pnpmCommand, \["packaged:build"\]/);
-  expect(script).toMatch(/tauriCliPackage = "@tauri-apps\/cli@2\.11\.2"/);
+  expect(script).toMatch(/tauriCliPackage = "@tauri-apps\/cli@2\.12\.3"/);
   expect(script).toMatch(/"icon", "resources\/native-icon\.png"/);
   expect(script).toMatch(/TAURI_TARGET/);
   expect(script).toMatch(/"--target", target/);
@@ -214,6 +212,51 @@ test("desktop package uses committed Tauri project and branded icons", () => {
   expect(config).toMatch(/"beforeBuildCommand": "pnpm packaged:build"/);
   expect(config).toMatch(/"icons\/icon\.ico"/);
   expect(config).toMatch(/"icons\/icon\.icns"/);
-  expect(cargo).toMatch(/tauri = \{ version = "2\.11\.2"/);
+  expect(config).toMatch(/"minimumSystemVersion": "11\.0"/);
+  expect(cargo).toMatch(/tauri = \{ version = "2\.12\.4"/);
   expect(readRepoFile(".gitignore")).toMatch(/frontend\/src-tauri\/icons\//);
 });
+
+test("Windows install and uninstall wizards explicitly use LambChat branding", () => {
+  const config = JSON.parse(
+    readRepoFile("frontend/src-tauri/tauri.windows.conf.json"),
+  );
+  expect(config.bundle.windows.nsis).toMatchObject({
+    installerIcon: "icons/icon.ico",
+    uninstallerIcon: "icons/icon.ico",
+    headerImage: "windows/installer/nsis-header.bmp",
+    uninstallerHeaderImage: "windows/installer/nsis-header.bmp",
+    sidebarImage: "windows/installer/nsis-sidebar.bmp",
+  });
+  expect(config.bundle.windows.wix).toMatchObject({
+    bannerPath: "windows/installer/wix-banner.bmp",
+    dialogImagePath: "windows/installer/wix-dialog.bmp",
+  });
+});
+
+test.each([
+  ["nsis-header.bmp", 150, 57],
+  ["nsis-sidebar.bmp", 164, 314],
+  ["wix-banner.bmp", 493, 58],
+  ["wix-dialog.bmp", 493, 312],
+])(
+  "%s is an opaque installer bitmap containing the brand artwork",
+  (name, width, height) => {
+    const bitmap = readFileSync(
+      new URL(
+        `../../../../../frontend/src-tauri/windows/installer/${name}`,
+        import.meta.url,
+      ),
+    );
+    expect(bitmap.toString("ascii", 0, 2)).toBe("BM");
+    expect(bitmap.readUInt32LE(2)).toBe(bitmap.length);
+    expect(bitmap.readUInt32LE(18)).toBe(width);
+    expect(bitmap.readUInt32LE(22)).toBe(height);
+    expect(bitmap.readUInt16LE(28)).toBe(24);
+    expect(bitmap.readUInt32LE(30)).toBe(0);
+    const pixels = bitmap.subarray(bitmap.readUInt32LE(10));
+    expect(
+      pixels.filter((channel) => channel > 0 && channel < 220).length,
+    ).toBeGreaterThan(100);
+  },
+);

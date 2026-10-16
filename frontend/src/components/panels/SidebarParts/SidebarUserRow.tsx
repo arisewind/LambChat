@@ -1,3 +1,4 @@
+import { InteractiveIcon } from "../../common/InteractiveIcon";
 import { ChevronsUpDown } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { ImageWithSkeleton } from "../../chat/ChatMessage/ImageWithSkeleton";
@@ -41,7 +42,7 @@ export function SidebarUserRow({
             className="w-full h-full object-cover rounded-full"
             style={{ borderRadius: "50%" }}
             errorFallback={
-              <div className="flex w-full h-full items-center justify-center bg-gradient-to-br from-amber-400 to-orange-500 rounded-full">
+              <div className="flex w-full h-full items-center justify-center bg-linear-to-br from-amber-400 to-orange-500 rounded-full">
                 <span className="text-12 font-semibold text-white font-serif">
                   {user?.username?.charAt(0).toUpperCase() || "U"}
                 </span>
@@ -49,7 +50,7 @@ export function SidebarUserRow({
             }
           />
         ) : (
-          <div className="flex w-full h-full items-center justify-center bg-gradient-to-br from-amber-400 to-orange-500 rounded-full">
+          <div className="flex w-full h-full items-center justify-center bg-linear-to-br from-amber-400 to-orange-500 rounded-full">
             <span className="text-12 font-semibold text-white font-serif">
               {user?.username?.charAt(0).toUpperCase() || "U"}
             </span>
@@ -68,7 +69,9 @@ export function SidebarUserRow({
               )}
             </div>
           </div>
-          <ChevronsUpDown className="size-4 text-stone-400 shrink-0" />
+          <InteractiveIcon>
+            <ChevronsUpDown className="size-4 text-stone-400 shrink-0" />
+          </InteractiveIcon>
         </>
       )}
     </button>

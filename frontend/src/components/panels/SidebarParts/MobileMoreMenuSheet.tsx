@@ -1,3 +1,4 @@
+import { InteractiveIcon } from "../../common/InteractiveIcon";
 import { DialogCloseButton } from "../../common/DialogCloseButton";
 import { ModalSurface } from "../../common/ModalSurface";
 
@@ -37,13 +38,15 @@ export function MobileMoreMenuSheet({
     <button
       key={item.path}
       type="button"
-      className="sidebar-nav-btn w-full h-8 rounded-[10px] flex items-center gap-3 px-[9px] focus:outline-none transition-colors"
+      className="sidebar-nav-btn w-full h-8 rounded-[10px] flex items-center gap-3 px-[9px] focus:outline-hidden transition-colors"
       onClick={() => {
         onClose();
         navigate(item.path);
       }}
     >
-      <item.icon size={20} />
+      <InteractiveIcon>
+        <item.icon size={20} />
+      </InteractiveIcon>
       <span>{item.label}</span>
     </button>
   );

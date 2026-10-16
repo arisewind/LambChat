@@ -1,4 +1,4 @@
-import { X } from "lucide-react";
+import { ToastDismissButton } from "../../common/ToastDismissButton";
 interface TaskNotificationToastProps {
   visible: boolean;
   title: string;
@@ -16,13 +16,10 @@ export function TaskNotificationToast({ visible, title, body, openLabel, dismiss
         <span className="mt-1 line-clamp-2 block text-12 leading-snug text-theme-text-secondary">{body}</span>
       </span>
       <button type="button" onClick={onOpen} aria-label={`${openLabel}: ${title}`}
-        className="min-h-11 max-w-full rounded-lg text-left text-12 text-theme-primary underline underline-offset-4 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-theme-primary">
+        className="min-h-11 max-w-full rounded-lg text-left text-12 text-theme-primary underline underline-offset-4 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-theme-primary">
         {openLabel}
       </button>
     </div>
-    <button type="button" onClick={onDismiss} aria-label={dismissLabel}
-      className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg text-theme-text-secondary hover:bg-theme-bg-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-theme-primary">
-      <X size={14} aria-hidden="true" />
-    </button>
+    <ToastDismissButton label={dismissLabel} onDismiss={onDismiss} />
   </div>;
 }
