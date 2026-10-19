@@ -208,6 +208,7 @@
     "parameters": "Parameters",
     "preferenceSaved": "Default agent preference saved",
     "pricingBackfill": "Backfill costs",
+    "pricingBackfillPartial": "{{count}} partially calculated",
     "pricingBackfillFailed": "Failed to backfill costs",
     "pricingBackfillSuccess": "Backfilled {{priced}}/{{scanned}} records",
     "pricingBackfillUnpriced": "{{count}} unpriced",
@@ -306,7 +307,7 @@
       "name": "Fast Agent"
     },
     "quick": {
-      "description": "Everyday questions, writing and translation, with direct responses.",
+      "description": "Fast answers, writing and translation, with automatic handoff for search and execution.",
       "name": "Everyday Assistant"
     },
     "search": {
@@ -331,6 +332,8 @@
     "previous": "Previous item",
     "reject": "Reject",
     "scheduledTask": {
+      "conversationSummary": "Runs independently with its own history and sends results to this chat.",
+      "standaloneSummary": "Each run creates a new chat where its results are saved.",
       "searchPlaceholder": "Search task names or descriptions…",
       "noResults": "No matching scheduled tasks",
       "noResultsDesc": "Try another keyword or adjust the status filter.",
@@ -705,7 +708,8 @@
     "systemRoleProtected": "System roles cannot be modified or deleted",
     "agentNotRegistered": "Agent '{{agent}}' is not registered",
     "bookmarkUpdateFailed": "Failed to update bookmark state",
-    "modelEmptyResponse": "The model returned an empty response after retries, please try again or switch models",
+    "modelEmptyResponse": "The model returned no usable answer, please try again or switch models",
+    "modelOutputLimit": "The model exhausted its output limit before returning an answer. Review the progress or use another model.",
     "patNotFound": "Personal access token not found or revoked",
     "patExpired": "Personal access token expired",
     "patScopeDenied": "Token missing required scope '{{scope}}'",
@@ -719,7 +723,10 @@
     "sandboxMachineNotFound": "Sandbox machine '{{machine}}' not found or removed",
     "pluginNoEditPermission": "No permission to edit plugin {{name}}",
     "modelConfigIncomplete": "Model config is incomplete: missing {{field}} for provider {{provider}}",
-    "goalConflict": "Goal changed; refresh and retry"
+    "goalConflict": "Goal changed; refresh and retry",
+    "usageQuotaExceeded": "Your 5-hour or weekly model budget has been exhausted.",
+    "usageQuotaUnavailable": "The model budget could not be checked. Please try again later.",
+    "usageQuotaUnpriced": "This paid API call lacks reliable USD pricing or token bounds, so it cannot be used with a budget."
   },
   "categories": {
     "scheduled_task": "Scheduled tasks",
@@ -1184,6 +1191,7 @@
     }
   },
   "chat": {
+    "agentHandoff": "{{agent}} has taken over",
     "addMoreFiles": "Add more files",
     "assistant": "Assistant",
     "attachFile": "Attach file",
@@ -1212,6 +1220,7 @@
     },
     "features": "Features",
     "goal": {
+      "turnEnded": "Turn ended",
       "active": "Goal",
       "clear": "Clear goal",
       "command": "Goal",
@@ -1221,6 +1230,7 @@
       "placeholder": "Enter your goal…",
       "required": "Enter a goal",
       "running": "Running",
+      "waiting_human": "Awaiting input",
       "runningStatus": "Running",
       "startedAt": "Started"
     },
@@ -1454,6 +1464,8 @@
       "subagentMessage": "Follow-up message",
       "toolSubagentRunning": "Running",
       "toolSubagentMessageQueued": "Message queued",
+      "rubricGraderName": "Rubric Grader",
+      "rubricGraderInput": "Rubric evaluation",
       "toolSubagentCompleted": "Completed",
       "toolSubagentWaitingHuman": "Waiting for human input",
       "toolSubagentFailed": "Failed",
@@ -1684,13 +1696,16 @@
     "welcomeSubtitle": "What can I do for you?",
     "welcomeSuggestions": "Suggestions",
     "goalPersistent": {
+      "edit": "Edit goal",
+      "criteria": "Acceptance criteria",
+      "label": "Goal",
       "pause": "Pause goal",
       "resume": "Resume goal",
       "clear": "Clear goal",
       "noGoal": "Create a persistent goal first.",
       "tokensUnknown": "Token usage unknown",
-      "turns": "{{count}} / {{max}} turns",
-      "tokens": "{{count}} / {{max}} tokens",
+      "turns": "{{count}} turns",
+      "tokens": "{{count}} tokens",
       "timeLimit": "{{minutes}} min limit",
       "status": {
         "active": "Active",
@@ -1702,7 +1717,18 @@
         "cleared": "Cleared"
       },
       "modeHint": "Persistent goal: {{status}}",
-      "attachmentsUnsupported": "Send attachments in a regular message before setting a persistent goal."
+      "attachmentsUnsupported": "Send attachments in a regular message before setting a persistent goal.",
+      "currentTurn": "Working on turn {{count}}",
+      "stopReason": {
+        "user_paused": "Paused by you",
+        "no_progress": "No new progress across consecutive turns",
+        "invalid_rubric": "Completion criteria could not be evaluated",
+        "turn_limit": "Turn limit reached",
+        "token_limit": "Token budget reached",
+        "time_limit": "Time limit reached",
+        "execution_error": "Execution failed; review the last response before resuming",
+        "budget_limit": "Goal budget reached"
+      }
     }
   },
   "common": {
@@ -2581,7 +2607,7 @@
     "auto": "Auto",
     "autoDesc": "Auto-execute, skip confirmations",
     "goal": "Goal",
-    "goalDesc": "Messages as goals for guided execution",
+    "goalDesc": "Keep one goal working across turns until completed or paused",
     "hint": "Both modes can be active simultaneously",
     "title": "Run Mode"
   },
@@ -3054,10 +3080,28 @@
     "uploadLimitsTitle": "Upload Limits",
     "validation": {
       "enterName": "Please enter role name",
-      "selectPermission": "Please select at least one permission"
-    }
+      "selectPermission": "Please select at least one permission",
+      "budgetNonnegative": "Enter a finite amount between 0 and 1,000,000 USD."
+    },
+    "budgetTitle": "Model budgets (USD)",
+    "weeklyBudgetUsd": "Weekly budget (USD)",
+    "budgetHint": "Empty = this role contributes no budget limit. For multiple roles, the highest configured limit applies; usage is unlimited only when no matching role sets a limit. 0 blocks model calls. The first model call starts separate 5-hour and 7-day windows. After each expires, the next call starts a new window of that duration. Viewing the balance does not start either timer.",
+    "fiveHourBudgetUsd": "5-hour budget (USD)"
   },
   "scheduledTask": {
+    "noTimeLimit": "No total execution time limit",
+    "executionMode": "Execution mode",
+    "conversationMode": "Send results to this conversation",
+    "standaloneMode": "Start a new conversation each run",
+    "targetConversation": "Target conversation",
+    "targetRequired": "Select a conversation",
+    "currentConversation": "Current conversation",
+    "inheritContext": "Runs independently with its own history and the settings selected at creation. Sends results here without interrupting your chat.",
+    "notificationPolicy": "Notifications",
+    "meaningfulChanges": "Only changes or required action",
+    "alwaysNotify": "Notify on every run",
+    "openConversation": "Open conversation",
+    "noUpdate": "Check complete, no updates",
     "searchPlaceholder": "Search task names or descriptions…",
     "noResults": "No matching scheduled tasks",
     "noResultsDesc": "Try another keyword or adjust the status filter.",
@@ -4294,7 +4338,15 @@
   "updateRetry": "Retry",
   "updateSkip": "Later",
   "usage": {
+    "resetConfirmTitle": "Confirm budget reset",
+    "resetFiveHourConfirm": "This uses one 5-hour card and starts a new 5-hour budget period. The weekly budget stays unchanged.",
+    "resetWeeklyConfirm": "This uses one weekly card and starts new weekly and 5-hour budget periods.",
+    "resetLegacyConfirm": "This uses one legacy card to reset exhausted budgets. Resetting the weekly budget also resets the 5-hour budget.",
+    "tokensInputReported": "Input (reported)",
+    "historicalEstimate": "Historical estimate",
+    "partialCostHint": "Known amount only; the remaining cost is unknown.",
     "sources": {
+      "auxiliary": "Auxiliary calls",
       "chat": "Chat",
       "scheduled_task": "Scheduled task"
     },
@@ -4307,6 +4359,7 @@
     "agent": "Agent",
     "allPeriods": "All Time",
     "cache": "Cache",
+    "cacheRateUnknown": "Input, cache reads, or their accounting basis is incomplete. Cost is assessed separately.",
     "cacheHitRate": "Cache Hit",
     "cacheRead": "Cache Read",
     "cacheTokens": "{{count}} tokens",
@@ -4390,6 +4443,7 @@
     "statsScopeHint": "Summary covers all matching records",
     "status": "Status",
     "statusCancelled": "Canceled",
+    "statusRunning": "Running",
     "statusError": "Err",
     "statusOk": "OK",
     "subtitle": "Token consumption tracking",
@@ -4423,7 +4477,65 @@
     },
     "unpricedHint": "{{count}} unpriced",
     "user": "User",
-    "viewDetails": "View details"
+    "viewDetails": "View details",
+    "quotaAndCards": "Quota & reset cards",
+    "quotaTitle": "Remaining budget",
+    "quotaWeekly": "Weekly",
+    "quotaLoading": "Loading budgets…",
+    "quotaUnavailable": "Temporarily unavailable",
+    "quotaUnlimited": "Unlimited",
+    "quotaBlocked": "Budget exhausted; new model calls are blocked.",
+    "quotaReserved": "Reserved for active calls: {{amount}}",
+    "quotaResets": "Resets",
+    "quotaFiveHour": "5 hours",
+    "quotaWindowNotStarted": "Timer starts on first use.",
+    "adminQuotaTitle": "Model budgets",
+    "adminQuotaHint": "Reset windows with recorded spending or unknown costs without changing role limits. Reservations alone, unused windows and zero limits cannot be reset.",
+    "resetFiveHour": "Reset 5-hour budget",
+    "resetWeekly": "Reset weekly budget",
+    "issueFiveHourCard": "Issue 5-hour card",
+    "issueWeeklyCard": "Issue weekly card",
+    "useFiveHourCard": "Reset 5 hours",
+    "useWeeklyCard": "Reset week",
+    "issueResetCard": "Issue reset card",
+    "bulkCardsTitle": "Issue cards to all users",
+    "bulkCardsScope": "Every existing account, including inactive accounts, receives exactly one card of the selected type, valid for 30 days. Search and pagination do not limit recipients.",
+    "bulkCardsType": "Card type",
+    "bulkCardsConfirm": "Issue one card to every user",
+    "bulkCardsPreparing": "Preparing recipient list…",
+    "bulkCardsProgress": "Processed {{processed}} / {{total}} users",
+    "bulkCardsComplete": "Issuance completed",
+    "bulkCardsSummary": "Issued: {{issued}} · Failed: {{failed}}",
+    "bulkCardsPending": "The previous request has an unconfirmed result. Retry uses the same request and card type.",
+    "bulkCardsResumeHint": "Closing pauses this batch. Reopen to resume; completed issuances will not be repeated. Up to 10 errors are shown.",
+    "resetCardGrantHint": "5-hour cards reset the short window; weekly cards reset both. Valid for 30 days.",
+    "resetCardIssued": "Reset card issued to this user.",
+    "fiveHourCard": "5-hour card",
+    "weeklyCard": "Weekly card",
+    "legacyResetCard": "Legacy card",
+    "resetCardGranted": "Granted",
+    "resetCardExpires": "Expires",
+    "resetCardsEmpty": "No reset cards available.",
+    "resetCardUsageHint": "5-hour cards reset the short window; weekly cards reset both. The earliest-expiring card of the selected type is used first.",
+    "resetLegacyCardHint": "Legacy cards can only be used after a budget is exhausted.",
+    "resetCardsTitle": "Budget reset cards",
+    "resetCardsAvailable": "{{count}} reset cards available",
+    "resetCardHistory": "Usage log",
+    "resetCardUsedAt": "Used at",
+    "resetCardUsed": "Reset completed",
+    "resetCardHistoryEmpty": "No usage records yet",
+    "resetCardHistoryRetention": "Records are retained until 7 days after the card expires.",
+    "resetCardsShort": "Reset cards {{count}}",
+    "useResetCard": "Use reset card",
+    "resetSuccess": "Budget reset.",
+    "resetAlreadyRedeemed": "This operation was already completed. Budgets refreshed.",
+    "resetNothingToReset": "Nothing to reset. Card kept.",
+    "resetNoCredit": "No reset cards are available. Refresh and try again.",
+    "quotaReservedBlocked": "Available budget is reserved for active calls.",
+    "quotaErrorExhausted": "{{windows}} model budget is exhausted.",
+    "quotaErrorReserved": "{{windows}} available budget is reserved for active calls. Wait for them to finish.",
+    "quotaErrorUnknown": "Some {{windows}} costs are unknown; the available budget cannot be verified.",
+    "quotaErrorResets": "Resets at {{time}}."
   },
   "users": {
     "actions": "Actions",
@@ -4516,7 +4628,7 @@
     "readyToast": "v{{version}} is ready to install",
     "downloadingToast": "Downloading v{{version}}; install when it finishes",
     "channel": "Update channel",
-    "channelStable": "Stable (default)",
+    "channelStable": "Stable",
     "channelDev": "Preview",
     "channelDevHint": "Preview builds may contain unresolved issues. dev.2 and earlier require one manual reinstall before channel updates are supported."
   },

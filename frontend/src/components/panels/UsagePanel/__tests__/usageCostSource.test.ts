@@ -28,12 +28,12 @@ test("usage log table renders a cost column across desktop, tablet and mobile", 
 
   expect(source).toMatch(/usage\.cost/);
   expect(source).toMatch(
-    /fmtCostUsd\(log\.cost_usd, Boolean\(log\.cost_available\)/,
+    /fmtCostUsd\(log\.cost_usd, log\.cost_available === true/,
   );
   // 桌面网格、平板行、移动卡三处都要渲染费用
-  expect(
-    source.match(/fmtCostUsd\(\s*log\.cost_usd/g)?.length,
-  ).toBeGreaterThanOrEqual(3);
+  expect(source.match(/<LogCost log=\{log\}/g)?.length).toBeGreaterThanOrEqual(
+    3,
+  );
 });
 
 test("mobile usage card caps cost to 3 decimals", () => {
@@ -54,7 +54,20 @@ test("ranking rows show per-model cost", () => {
     "utf8",
   );
 
-  expect(source).toMatch(/item\.cost_usd \?\? 0/);
+  expect(source).toMatch(/fmtCostUsd\(item\.cost_usd, true/);
+  expect(source).toMatch(/usageCostOptions\(item\)/);
+});
+
+test("usage log cache counts distinguish unknown from zero at every breakpoint", () => {
+  const source = readFileSync(
+    resolve(currentDir, "../UsageLogsTable.tsx"),
+    "utf8",
+  );
+  expect(
+    source.match(
+      /formatUsageTokenCount\(\s*log,\s*"cache_read_tokens",\s*fmt,?\s*\)/g,
+    ),
+  ).toHaveLength(3);
 });
 
 test("usage cost labels are available in every locale", () => {
@@ -63,7 +76,13 @@ test("usage cost labels are available in every locale", () => {
       resolve(frontendSrc, "i18n", "locales", `${locale}.json`),
     ).usage;
 
-    for (const key of ["cost", "costTotal", "unpricedHint"]) {
+    for (const key of [
+      "cost",
+      "costTotal",
+      "unpricedHint",
+      "historicalEstimate",
+      "partialCostHint",
+    ]) {
       expect(typeof messages[key]).toBe("string");
       expect(messages[key].trim()).not.toBe("");
     }

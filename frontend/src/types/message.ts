@@ -52,11 +52,18 @@ export type MessagePart =
   | ThinkingPart
   | SandboxPart
   | MemoryStatusPart
+  | AgentHandoffPart
   | TokenUsagePart
   | CancelledPart
   | TodoPart
   | SummaryPart
   | RecommendQuestionsPart;
+
+export interface AgentHandoffPart {
+  type: "agentHandoff";
+  agentId: string;
+  timestamp?: string;
+}
 
 // Sandbox 状态块类型（用于渲染沙箱初始化状态）
 export interface SandboxPart {
@@ -87,10 +94,26 @@ export interface TokenUsagePart {
   total_tokens: number;
   cache_creation_tokens?: number;
   cache_read_tokens?: number;
+  usage_incomplete?: boolean;
+  unknown_usage_fields?: string[];
+  input_includes_cache?: boolean;
   model_id?: string;
   model?: string;
   // USD 金额（models.dev 计价；undefined 表示该模型未匹配到价格）
-  cost_usd?: number;
+  cost_complete?: boolean;
+  cost_source?: string | null;
+  cost_units?: number | null;
+  actual_models?: Array<{
+    model: string;
+    model_id: string | null;
+    provider: string | null;
+  }>;
+  cost_usd?: number | null;
+  partial_cost_usd?: number | null;
+  estimated_cost_usd?: number | null;
+  partial_cost_breakdown?: Partial<
+    Record<"input" | "output" | "cache_read" | "cache_write", number>
+  >;
   cost_breakdown?: {
     input: number;
     output: number;
@@ -104,6 +127,7 @@ export interface TokenUsagePart {
     output: number | null;
     cache_read: number | null;
     cache_write: number | null;
+    cache_write_included?: boolean;
   };
 }
 
@@ -235,6 +259,7 @@ export interface ArtifactPart {
 
 export interface SubagentPart {
   type: "subagent";
+  agent_call_id?: string;
   agent_id: string;
   agent_name: string;
   agent_avatar?: string;

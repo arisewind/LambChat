@@ -17,6 +17,7 @@
 from __future__ import annotations
 
 import asyncio
+import contextvars
 import json
 import re
 from dataclasses import dataclass
@@ -27,6 +28,7 @@ from typing import Any
 from pymongo import ReturnDocument
 from pymongo.errors import DuplicateKeyError
 
+from src.infra.llm.quota import bind_quota_user, is_quota_error
 from src.infra.logging import get_logger
 from src.infra.memory.control_frames import CONTROL_FRAME_BLOCK_RE, escape_control_frame_tags
 from src.infra.utils.datetime import utc_now
@@ -146,7 +148,11 @@ async def find_candidate_sessions(db, user_id: str, *, limit: int) -> list[dict[
         .limit(limit)
     )
     docs = await cursor.to_list(length=limit)
-    return [doc for doc in docs if doc.get("session_id")]
+    return [
+        {**doc, "session_id": str(doc.get("session_id") or doc["_id"])}
+        for doc in docs
+        if doc.get("session_id") or doc.get("_id")
+    ]
 
 
 async def ensure_extraction_job_indexes(jobs_collection) -> None:
@@ -509,6 +515,7 @@ def _fallback_index_fields(payload: dict[str, Any]) -> dict[str, Any]:
     }
 
 
+@bind_quota_user
 async def extract_session_memory(
     backend, db, user_id: str, session_doc: dict[str, Any]
 ) -> ExtractionOutcome:
@@ -552,6 +559,8 @@ async def extract_session_memory(
             operation="memory-extraction-phase1",
         )
     except Exception as exc:
+        if is_quota_error(exc):
+            raise
         logger.warning("[MemoryExtraction] LLM call failed for session %s: %s", session_id, exc)
         return ExtractionOutcome("failed", error=str(exc))
 
@@ -590,6 +599,8 @@ async def extract_session_memory(
             project_id=session_project_id,
         )
     except Exception as exc:
+        if is_quota_error(exc):
+            raise
         # 只记异常类型：异常原文可能携带用户记忆内容（详细原因进 job.error）
         logger.warning(
             "[MemoryExtraction] retain failed for session %s: %s",
@@ -598,7 +609,11 @@ async def extract_session_memory(
         )
         return ExtractionOutcome("failed", error=str(exc))
     if not result.get("success"):
-        return ExtractionOutcome("failed", error=str(result.get("error") or "retain_rejected"))
+        return ExtractionOutcome(
+            "failed",
+            error=str(result.get("error") or "retain_rejected"),
+            retryable=result.get("retryable") is not False,
+        )
     memory_id = result.get("memory_id")
     if memory_id and getattr(backend, "_collection", None) is not None:
         try:
@@ -627,6 +642,7 @@ def _backoff_next_retry(attempts: int, *, now: datetime | None = None) -> dateti
     return now + timedelta(seconds=min(300, 60 * (2 ** max(0, attempts - 1))))
 
 
+@bind_quota_user
 async def run_extraction_pass(user_id: str, *, backend=None) -> dict[str, Any]:
     """一轮提取：认领 ≤N 个空闲会话逐个处理，更新 job 终态/退避。
 
@@ -660,6 +676,19 @@ async def run_extraction_pass(user_id: str, *, backend=None) -> dict[str, Any]:
     if await check_auto_retain_daily_limit(user_id) == "exceeded":
         return {"skipped": 1, "reason": "daily_limit"}
 
+    from src.infra.usage.quota import UsageQuota, user_budgets
+
+    # Leave untouched jobs eligible after reset; mid-extraction denials remain terminal.
+    try:
+        budgets = await user_budgets(user_id)
+        quota = await UsageQuota().snapshot(user_id, budgets)
+    except Exception as exc:
+        if is_quota_error(exc):
+            return {"skipped": 1, "reason": exc.error_code.code}
+        raise
+    if any(quota[name]["blocked"] for name in ("five_hour", "weekly")):
+        return {"skipped": 1, "reason": "usage_quota_exceeded"}
+
     client = get_mongo_client()
     db = client[settings.MONGODB_DB]
     jobs = db[EXTRACTION_JOBS_COLLECTION]
@@ -673,6 +702,7 @@ async def run_extraction_pass(user_id: str, *, backend=None) -> dict[str, Any]:
     )
     results = {"claimed": 0, "succeeded": 0, "succeeded_no_output": 0, "failed": 0}
     stored_memory = False
+    quota_denied = False
     for session_doc, job in claimed_jobs:
         # 中途额度耗尽（其它 pass 抢先记满）即停：剩余 job 留给租约/下次扫描
         if await check_auto_retain_daily_limit(user_id) == "exceeded":
@@ -684,7 +714,8 @@ async def run_extraction_pass(user_id: str, *, backend=None) -> dict[str, Any]:
             outcome = await extract_session_memory(backend, db, user_id, session_doc)
         except Exception as exc:
             logger.warning("[MemoryExtraction] unexpected failure for %s: %s", session_id, exc)
-            outcome = ExtractionOutcome("failed", error=str(exc))
+            quota_denied = is_quota_error(exc)
+            outcome = ExtractionOutcome("failed", error=str(exc), retryable=not quota_denied)
         now = utc_now()
         if outcome.status == "succeeded":
             stored_memory = True
@@ -719,6 +750,8 @@ async def run_extraction_pass(user_id: str, *, backend=None) -> dict[str, Any]:
                     "[MemoryExtraction] stale claim for %s, skip failure write", session_id
                 )
             results["failed"] += 1
+            if quota_denied:
+                break
             continue
         # 终态写清理退避残留；memory_id 仅在成功时更新（no-op 不得抹掉历史血缘）
         terminal_set: dict[str, Any] = {
@@ -735,7 +768,7 @@ async def run_extraction_pass(user_id: str, *, backend=None) -> dict[str, Any]:
             logger.warning("[MemoryExtraction] stale claim for %s, skip terminal write", session_id)
         results[outcome.status] += 1
 
-    if stored_memory:
+    if stored_memory and not quota_denied:
         try:
             from src.infra.memory.compaction_agent import get_memory_compaction_agent
 
@@ -783,7 +816,8 @@ def schedule_memory_extraction(user_id: str) -> None:
             await run_extraction_pass(user_id)
 
     _extraction_inflight_users.add(user_id)
-    task = loop.create_task(_detached())
+    # A pass may process older sessions; foreground callbacks and runtime must not follow it.
+    task = loop.create_task(_detached(), context=contextvars.Context())
     _extraction_tasks.add(task)
 
     def _done(t: asyncio.Task) -> None:

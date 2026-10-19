@@ -1,5 +1,22 @@
 @reference "./tailwind.css";
 
+/* Numeric badges share the notification count's size, color and padding. */
+.count-badge {
+  @apply inline-flex h-3.5 min-w-3.5 shrink-0 items-center justify-center rounded-full bg-red-500 px-1 font-sans text-10 font-medium tabular-nums leading-none text-white;
+}
+
+.count-badge--overlay {
+  position: absolute;
+  top: 0;
+  right: 0;
+  pointer-events: none;
+}
+
+.count-badge--loading {
+  width: 0.875rem;
+  padding-inline: 0;
+}
+
 /* Soften clipped sidebar rows without changing the list spacing. */
 [data-sidebar-scroll] {
   scroll-padding-block: 12px;
@@ -23,6 +40,13 @@
 .chat-header,
 [data-sidebar-brand] {
   --header-content-size: 1rem;
+}
+
+.chat-header .interactive-action-icon > div,
+[data-sidebar-brand] .interactive-action-icon > div {
+  width: var(--header-content-size);
+  height: var(--header-content-size);
+  flex-shrink: 0;
 }
 
 .chat-header__identity > button > svg,
@@ -441,6 +465,7 @@
 .panel-header .btn-secondary,
 .panel-header .ui-button--secondary {
   height: 2.5rem;
+  border-radius: 0.5rem;
   border-color: var(--theme-border);
   background: var(--theme-bg-card);
 }
@@ -452,13 +477,13 @@
   background: var(--theme-bg-hover);
 }
 
-.panel-header :is(.ui-button--secondary, .btn-secondary) {
-  border-color: transparent;
-  background: color-mix(in srgb, var(--theme-text) 6%, var(--theme-bg-card));
+.panel-header .panel-filter-trigger--active {
+  box-shadow: none;
 }
-.panel-header :is(.ui-button--secondary, .btn-secondary):hover {
-  border-color: transparent;
-  background: var(--theme-bg-hover);
+
+.panel-header .panel-filter-trigger:focus:not(:focus-visible) {
+  border-color: var(--theme-border);
+  box-shadow: none;
 }
 
 @container panel (max-width: 639px) {
@@ -1191,10 +1216,6 @@
   border-color: var(--theme-primary);
   box-shadow: 0 0 0 2px
     color-mix(in srgb, var(--theme-primary) 20%, transparent);
-}
-
-.dark .panel-search {
-  background-color: var(--theme-bg-subtle);
 }
 
 /* Mobile bottom sheet modal */
@@ -2152,6 +2173,10 @@
   .es-form {
     padding: 1.5rem;
   }
+}
+
+.es-form.user-quota-panel {
+  gap: 1rem;
 }
 
 /* Visual section card */
@@ -3449,6 +3474,9 @@
 }
 
 .scheduled-task-session-card__title {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
   min-width: 0;
   overflow: hidden;
   color: var(--theme-text);
@@ -3512,22 +3540,6 @@
 .scheduled-task-session-card:hover .scheduled-task-session-card__trail svg {
   color: var(--theme-primary);
   transform: translateX(2px);
-}
-
-.scheduled-task-session-card__unread {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  min-width: 1.25rem;
-  height: 1.25rem;
-  border-radius: 9999px;
-  background: var(--theme-primary);
-  color: var(--glass-bg, #fff);
-  font-size: 0.6875rem;
-  font-weight: 600;
-  padding: 0 0.375rem;
-  line-height: 1;
-  box-shadow: 0 2px 8px -2px color-mix(in srgb, var(--theme-primary) 60%, transparent);
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -3641,6 +3653,8 @@
    ═══════════════════════════════════════════ */
 
 .tool-detail-section {
+  min-width: 0;
+  max-width: 100%;
   border-radius: 0.75rem;
   border: 1px solid color-mix(in srgb, var(--theme-border) 92%, transparent);
   background: var(--theme-bg-card);
@@ -3767,6 +3781,7 @@
 }
 
 .tool-console-header {
+  font-size: var(--tool-font-size);
   min-height: 3.5rem;
   padding-inline: 0.625rem;
   border-bottom-color: transparent;
@@ -3831,11 +3846,17 @@
   }
 }
 
+.tool-console-panel .right-panel-tab [role="tab"] {
+  font-size: var(--tool-font-size);
+}
+
 .tool-console-title {
+  font-size: var(--tool-font-size);
   letter-spacing: 0;
 }
 
 .tool-console-subtitle-pill {
+  font-size: var(--tool-font-size);
   border-radius: 0;
 }
 
@@ -3960,6 +3981,8 @@
 
 /* Collapsible body */
 .tool-detail-section__body {
+  min-width: 0;
+  overflow-wrap: anywhere;
   padding: 0 0.75rem 0.75rem;
   animation: tool-section-expand 0.22s cubic-bezier(0.2, 0, 0, 1);
 }
@@ -4048,7 +4071,7 @@
   padding: 0.5rem 1rem;
   border-top: 1px solid color-mix(in srgb, var(--theme-border) 35%, transparent);
   color: var(--theme-text-tertiary);
-  font-size: 0.6875rem;
+  font-size: var(--tool-font-size);
   font-variant-numeric: tabular-nums;
   letter-spacing: 0.01em;
 }
@@ -4760,6 +4783,24 @@
   );
 }
 
+@supports not (color: color-mix(in srgb, black, white)) {
+  .usage-panel,
+  .dark .usage-panel {
+    --usage-surface: var(--theme-bg-card);
+    --usage-surface-hover: var(--theme-bg-elevated);
+    --usage-inset-bg: var(--theme-bg-subtle);
+    --usage-code-bg: var(--theme-bg-subtle);
+    --usage-icon-bg: var(--theme-primary-light);
+    --usage-border: var(--theme-border);
+    --usage-border-hover: var(--theme-border-hover);
+    --usage-shadow: none;
+    --usage-accent-soft: var(--theme-primary-light);
+    --usage-accent-mid: var(--theme-primary);
+    --usage-chart-secondary: var(--theme-text-tertiary);
+    --usage-progress-fill: var(--theme-primary);
+  }
+}
+
 /* ── Shared surface ── */
 .usage-surface {
   border: 1px solid var(--usage-border);
@@ -5033,15 +5074,17 @@
   }
 }
 
-/* Reveal per row, independent of viewport width or ancestor Tailwind groups.
-   WKWebView can report hover:none on desktop; native chrome is still mouse UI. */
+/* Keep action feedback local; touch uses the row's timed reveal state. */
 .sidebar-action-reveal:where(:not(.opacity-100)) {
   opacity: 0;
+  pointer-events: none;
 }
 
 @media (hover: hover) {
-  .sidebar-session-row:not([data-selected="true"]):hover {
-    background: var(--theme-bg-hover);
+  :is(.sidebar-session-row, .sidebar-project-row, .sidebar-nav-btn):not(
+      [data-selected="true"]
+    ):not(.ring-1):hover {
+    background: color-mix(in srgb, var(--theme-text) 5%, transparent);
   }
 }
 
@@ -5053,13 +5096,32 @@
   background: color-mix(in srgb, var(--theme-text) 10%, transparent);
 }
 
-.sidebar-action-row:hover > .sidebar-action-reveal,
-.sidebar-action-row:focus-within > .sidebar-action-reveal,
-.sidebar-action-row:hover > button > .sidebar-action-reveal,
-.sidebar-action-row:focus-within > button > .sidebar-action-reveal,
-.sidebar-action-row:hover > span > .sidebar-action-reveal,
-.sidebar-action-row:focus-within > span > .sidebar-action-reveal {
+.sidebar-action-reveal[data-revealed="true"],
+.sidebar-action-row:is([data-revealed="true"], :has(:focus-visible))
+  > .sidebar-action-reveal,
+.sidebar-action-row:is([data-revealed="true"], :has(:focus-visible))
+  > button
+  > .sidebar-action-reveal,
+.sidebar-action-row:is([data-revealed="true"], :has(:focus-visible))
+  > span
+  > .sidebar-action-reveal {
   opacity: 1;
+  pointer-events: auto;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .sidebar-action-row:hover > .sidebar-action-reveal,
+  .sidebar-action-row:hover > button > .sidebar-action-reveal,
+  .sidebar-action-row:hover > span > .sidebar-action-reveal {
+    opacity: 1;
+    pointer-events: auto;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :is(.sidebar-action-row, .sidebar-nav-btn, .sidebar-action-reveal) {
+    transition: none;
+  }
 }
 
 .sidebar-session-menu button:focus-visible,
@@ -5195,27 +5257,31 @@
 
 /* Shared reading scale for built-in and MCP tool detail panels. */
 .tool-readable {
-  @apply font-serif;
-  font-size: var(--chat-font-size);
+  font-family: var(--chat-font-family);
+  min-width: 0;
+  max-width: 100%;
+  overflow-wrap: anywhere;
+  font-size: var(--tool-font-size);
   line-height: 1.7;
 }
 .tool-readable :is(.text-10, .text-11) {
-  font-size: 0.8125rem;
+  font-size: var(--tool-font-size);
   line-height: 1.5;
 }
 .tool-readable :is(.text-12, .text-13) {
-  font-size: 0.9375rem;
+  font-size: var(--tool-font-size);
   line-height: 1.65;
 }
 .tool-readable .text-14 {
-  font-size: var(--chat-font-size);
+  font-size: var(--tool-font-size);
   line-height: 1.7;
+}
+.tool-readable :is(.markdown-preview, .sidebar-reasoning-preview__scroll) {
+  font-size: var(--tool-font-size);
 }
 .tool-readable :is(pre, code) {
   font-family: theme("fontFamily.mono");
-}
-.tool-readable :is(pre, code) {
-  font-size: 0.875rem;
+  font-size: var(--tool-font-size);
   line-height: 1.65;
 }
 .tool-readable pre {
@@ -5237,8 +5303,8 @@
 }
 
 .tool-readable .tool-detail-section__title {
-  @apply font-sans;
-  font-size: 0.9375rem;
+  font-family: inherit;
+  font-size: var(--tool-font-size);
   line-height: 1.5;
 }
 
@@ -5261,7 +5327,7 @@
 }
 .tool-readable :is(.font-mono, .cm-editor, .cm-scroller) {
   font-family: theme("fontFamily.mono");
-  font-size: 0.875rem;
+  font-size: var(--tool-font-size);
   line-height: 1.65;
 }
 
@@ -5334,7 +5400,7 @@
 .run-steps-collapse > button,
 .collapsible-section-card__trigger,
 .tool-detail-section__header {
-  font-family: theme("fontFamily.sans");
+  @apply font-serif;
 }
 .sidebar-reasoning-preview__scroll {
   overscroll-behavior: contain;
@@ -5383,13 +5449,13 @@
   border-bottom: 1px solid var(--theme-border);
   background: var(--theme-bg-subtle);
   color: var(--theme-text-secondary);
-  font-family: theme("fontFamily.sans");
+  font-family: var(--chat-font-family);
 }
 .tool-surface__title,
 .tool-surface--collapsible
   .collapsible-section-card__trigger
   > span:last-child {
-  font-size: 0.8125rem;
+  font-size: var(--tool-font-size);
   font-weight: 500;
   letter-spacing: normal;
   text-transform: none;

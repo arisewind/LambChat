@@ -1,7 +1,7 @@
 import { useTranslation } from "react-i18next";
 import { InteractiveIcon } from "./InteractiveIcon";
 import { clsx } from "clsx";
-import { Children, useId, useState } from "react";
+import { Children, useEffect, useId, useRef, useState } from "react";
 import { ChevronRight } from "lucide-react";
 
 export type CollapsibleStatus =
@@ -49,6 +49,12 @@ export function CollapsiblePill({
   const { t } = useTranslation();
   const [isExpanded, setIsExpanded] = useState(defaultExpanded);
   const contentId = useId();
+  const descriptionRef = useRef<HTMLSpanElement>(null);
+  const streamingThinking = _variant === "thinking" && status === "loading";
+  useEffect(() => {
+    const node = descriptionRef.current;
+    if (node) node.scrollLeft = streamingThinking ? node.scrollWidth : 0;
+  }, [description, streamingThinking]);
   const hasChildren = Children.toArray(children).length > 0;
 
   const handleToggle = () => {
@@ -103,13 +109,22 @@ export function CollapsiblePill({
           className={clsx(
             "pill-btn__label min-w-0 flex-1 truncate overflow-hidden",
             description && "flex items-center gap-2",
-            animatedDots && !description && "typing-dots",
+            animatedDots &&
+              !description &&
+              _variant !== "tool" &&
+              "typing-dots",
           )}
         >
           {description ? (
             <>
-              <span className="shrink-0">{displayedLabel}</span>
-              <span className="min-w-0 truncate font-normal text-theme-text-secondary">
+              <span className="max-w-full shrink-0">{displayedLabel}</span>
+              <span
+                ref={descriptionRef}
+                className={clsx(
+                  "min-w-0 truncate font-normal text-theme-text-secondary",
+                  streamingThinking && "text-clip",
+                )}
+              >
                 {description}
               </span>
             </>
@@ -122,14 +137,14 @@ export function CollapsiblePill({
           !displayedLabel.includes(terminalLabel) && (
             <span
               className={
-                status === "error" ? "sr-only" : "shrink-0 text-12 font-normal"
+                status === "error" ? "sr-only" : "shrink-0 font-normal"
               }
             >
               {terminalLabel}
             </span>
           )}
         {suffix != null && (
-          <span className="pill-btn__suffix min-w-0 max-w-[40%] truncate text-12 font-normal text-theme-text-secondary tabular-nums">
+          <span className="pill-btn__suffix min-w-0 max-w-[40%] truncate font-normal text-theme-text-secondary tabular-nums">
             {suffix}
           </span>
         )}

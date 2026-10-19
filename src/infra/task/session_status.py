@@ -28,6 +28,15 @@ class TaskSessionStatusMixin:
 
         def _schedule_idle_pause_check(self, session_id: str) -> None: ...
 
+    async def _set_trace_waiting_human(self, trace_id: str, *, waiting: bool) -> None:
+        """HITL 挂起标记（#583）：失败只降级为日志，不影响挂起/恢复主流程。"""
+        try:
+            from src.infra.session.trace_storage import get_trace_storage
+
+            await get_trace_storage().set_trace_waiting_human(trace_id, waiting=waiting)
+        except Exception as e:
+            logger.warning("Failed to mark trace %s waiting_human=%s: %s", trace_id, waiting, e)
+
     async def _record_uncertain_effect(self, session_id: str, run_id: str, error: AppError) -> None:
         await self._storage.update_metadata_for_run(
             session_id,
@@ -45,6 +54,19 @@ class TaskSessionStatusMixin:
             },
         )
 
+    async def _record_quota_error(self, session_id: str, run_id: str, error: AppError) -> None:
+        await self._storage.update_metadata_for_run(
+            session_id,
+            run_id,
+            self._state_machine.build_metadata(
+                TaskStatus.FAILED,
+                run_id=run_id,
+                error=error.display_message,
+                error_code=error.error_code.code,
+                recoverable=True,
+            ),
+        )
+
     async def _update_session_status(
         self,
         session_id: str,
@@ -53,6 +75,7 @@ class TaskSessionStatusMixin:
         run_id: Optional[str] = None,
         *,
         expected_run_id: str | None = None,
+        expected_statuses: list[str] | None = None,
     ) -> None:
         """更新 session 状态；恢复接入要求原子保留当前 run 的所有权。"""
         try:
@@ -100,7 +123,22 @@ class TaskSessionStatusMixin:
             update_for_run = getattr(self._storage, "update_metadata_for_run", None)
             if expected_run_id:
                 if not callable(update_for_run) or not await update_for_run(
-                    session_id, expected_run_id, metadata
+                    session_id,
+                    expected_run_id,
+                    metadata,
+                    **(
+                        {
+                            "expected_statuses": [
+                                "queued",
+                                "pending",
+                                "starting",
+                                "running",
+                                "recovering",
+                            ]
+                        }
+                        if status in {TaskStatus.STARTING, TaskStatus.RUNNING}
+                        else {}
+                    ),
                 ):
                     raise GoalRunAdmissionError("Goal session ownership changed before admission")
             elif (
@@ -108,9 +146,20 @@ class TaskSessionStatusMixin:
                 and status not in {TaskStatus.QUEUED, TaskStatus.PENDING, TaskStatus.STARTING}
                 and callable(update_for_run)
             ):
-                if not await update_for_run(session_id, run_id, metadata):
+                if not await update_for_run(
+                    session_id,
+                    run_id,
+                    metadata,
+                    **(
+                        {"expected_statuses": expected_statuses}
+                        if expected_statuses is not None
+                        else {}
+                    ),
+                ):
                     return
             else:
+                if expected_statuses is not None:
+                    return
                 await self._storage.update(
                     session_id,
                     SessionUpdate(metadata=metadata),

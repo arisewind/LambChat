@@ -197,6 +197,7 @@ class FakePresenter:
         depth: int = 1,
         agent_avatar: str | None = None,
         status: str | None = None,
+        agent_call_id: str | None = None,
     ) -> dict[str, Any]:
         return {
             "event": "agent:call",
@@ -205,6 +206,7 @@ class FakePresenter:
                 "agent_name": agent_name,
                 "agent_avatar": agent_avatar,
                 **({"status": status} if status else {}),
+                **({"agent_call_id": agent_call_id} if agent_call_id else {}),
                 "input": input_message,
                 "depth": depth,
             },
@@ -218,6 +220,7 @@ class FakePresenter:
         depth: int = 1,
         error: str | None = None,
         status: str | None = None,
+        agent_call_id: str | None = None,
     ) -> dict[str, Any]:
         return {
             "event": "agent:result",
@@ -225,6 +228,7 @@ class FakePresenter:
                 "agent_id": agent_id,
                 "result": result,
                 **({"status": status} if status else {}),
+                **({"agent_call_id": agent_call_id} if agent_call_id else {}),
                 "success": success,
                 "depth": depth,
                 "error": error,
@@ -237,12 +241,14 @@ class FakePresenter:
         output_tokens: int = 0,
         total_tokens: int = 0,
         duration: float = 0.0,
-        cache_creation_tokens: int = 0,
-        cache_read_tokens: int = 0,
+        cache_creation_tokens: int | None = 0,
+        cache_read_tokens: int | None = 0,
         model_id: str | None = None,
         model: str | None = None,
         cost: Any = None,
         rates: Any = None,
+        unknown_usage_fields: list[str] | None = None,
+        input_includes_cache: bool = False,
     ) -> dict[str, Any]:
         data: dict[str, Any] = {
             "input_tokens": input_tokens,
@@ -250,10 +256,15 @@ class FakePresenter:
             "total_tokens": total_tokens,
             "duration": duration,
         }
-        if cache_creation_tokens:
+        if input_includes_cache:
+            data["input_includes_cache"] = True
+        if cache_creation_tokens is not None:
             data["cache_creation_tokens"] = cache_creation_tokens
-        if cache_read_tokens:
+        if cache_read_tokens is not None:
             data["cache_read_tokens"] = cache_read_tokens
+        if unknown_usage_fields:
+            data["unknown_usage_fields"] = unknown_usage_fields
+            data["usage_incomplete"] = True
         if model_id:
             data["model_id"] = model_id
         if model:
@@ -1210,7 +1221,7 @@ async def test_emit_token_usage_flushes_accumulated_totals_once() -> None:
         model_id="model-config-1",
         model="openai/gpt-4.1",
     )
-    emitted_again = await processor.emit_token_usage(duration=2.0)
+    emitted_again = await processor.emit_token_usage()
 
     assert emitted is True
     assert emitted_again is False

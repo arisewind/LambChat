@@ -14,6 +14,7 @@ export type EventType =
   | "metadata"
   | "message:chunk"
   | "user:message"
+  | "scheduled:result"
   | "steer:message"
   | "user:cancel"
   | "run:resumed"
@@ -38,6 +39,7 @@ export type EventType =
   | "skills:changed"
   | "queue_update"
   | "status"
+  | "goal:continuation"
   | "goal:updated"
   | "goal:start"
   | "goal:end"
@@ -60,6 +62,8 @@ export interface EventData {
   /** user:cancel 的中断原因（"steer" = 插话打断 ask_human 挂起） */
   reason?: string;
   agent_id?: string;
+  agent_call_id?: string;
+  target_agent_id?: string;
   agent_name?: string;
   agent_avatar?: string;
   tool?: string;
@@ -87,6 +91,7 @@ export interface EventData {
   message?: string;
   fields?: FormField[];
   expires_at?: string | null;
+  timeout?: number;
   metadata?: Record<string, unknown>;
   choices?: string[];
   default?: string;
@@ -101,9 +106,25 @@ export interface EventData {
   timestamp?: string;
   cache_creation_tokens?: number;
   cache_read_tokens?: number;
+  usage_incomplete?: boolean;
+  unknown_usage_fields?: string[];
+  input_includes_cache?: boolean;
   model_id?: string;
   model?: string;
-  cost_usd?: number;
+  cost_complete?: boolean;
+  cost_source?: string | null;
+  cost_units?: number | null;
+  actual_models?: Array<{
+    model: string;
+    model_id: string | null;
+    provider: string | null;
+  }>;
+  cost_usd?: number | null;
+  partial_cost_usd?: number | null;
+  estimated_cost_usd?: number | null;
+  partial_cost_breakdown?: Partial<
+    Record<"input" | "output" | "cache_read" | "cache_write", number>
+  >;
   cost_breakdown?: {
     input: number;
     output: number;
@@ -116,6 +137,7 @@ export interface EventData {
     output: number | null;
     cache_read: number | null;
     cache_write: number | null;
+    cache_write_included?: boolean;
   };
   // user:message event fields
   message_id?: string;
@@ -179,6 +201,7 @@ export interface EventData {
 export interface UseAgentOptions {
   onApprovalRequired?: (approval: {
     id: string;
+    session_id?: string | null;
     message: string;
     type: string;
     fields?: FormField[];
@@ -218,6 +241,7 @@ export interface ActiveGoalSpec {
 // Subagent tracking item
 export interface SubagentStackItem {
   agent_id: string;
+  agent_call_id?: string;
   depth: number;
   message_id: string;
 }
@@ -243,6 +267,7 @@ export interface HistoryEventData {
   error?: string;
   depth?: number;
   agent_id?: string;
+  agent_call_id?: string;
   agent_name?: string;
   input?: string;
   timestamp?: string;
@@ -321,6 +346,11 @@ export interface UseAgentReturn {
   controlPersistentGoal: (
     action: "pause" | "resume" | "clear",
   ) => Promise<void>;
+  updatePersistentGoal: (
+    objective: string,
+    rubric: string,
+    expectedRevision: number,
+  ) => Promise<boolean>;
   activeGoal: ActiveGoalSpec | null;
   goalsByRunId: Record<string, ActiveGoalSpec>;
   isInitializingSandbox: boolean;

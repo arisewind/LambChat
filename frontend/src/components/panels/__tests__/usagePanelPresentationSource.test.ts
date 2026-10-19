@@ -53,7 +53,9 @@ test("usage table keeps admin-only user column and aligned numeric columns", () 
   expect(usageTableSource).toMatch(/usage\.cache/);
   expect(usageTableSource).toMatch(/usage\.cacheRead/);
   expect(usageTableSource).toMatch(/text-right/);
-  expect(usageTableSource).toMatch(/fmt\(log\.cache_read_tokens\)/);
+  expect(usageTableSource).toMatch(
+    /formatUsageTokenCount\(\s*log,\s*"cache_read_tokens",\s*fmt,?\s*\)/,
+  );
   expect(usageTableSource).not.toMatch(/opacity-15/);
   expect(usageTableSource).not.toMatch(/<table/);
   expect(usageTableSource).not.toMatch(
@@ -93,9 +95,11 @@ test("usage console code chips carry font-serif directly, not via CSS overrides"
 test("model ranking alone exposes per-model cache diagnostics", () => {
   expect(rankingSource).toMatch(/showCacheMetrics\?: boolean/);
   expect(rankingSource).toMatch(/usage\.cacheHitRate/);
-  expect(rankingSource).toMatch(/pct\(item\.cache_read_share\)/);
+  expect(rankingSource).toMatch(/pct\(item\.cache_read_share, 1\)/);
   expect(rankingSource).toMatch(/usage\.cacheRead/);
-  expect(rankingSource).toMatch(/fmt\(item\.cache_read_tokens\)/);
+  expect(rankingSource).toMatch(
+    /fmtUsageCount\(\s*item\.cache_read_tokens,\s*"cache_read_tokens",\s*item\.unknown_usage_fields,?\s*\)/,
+  );
   expect(usagePanelSource.match(/showCacheMetrics/g)).toHaveLength(1);
   expect(usagePanelSource).toMatch(
     /title=\{modelRankingTitle\}[\s\S]*?showCacheMetrics/,
@@ -105,7 +109,8 @@ test("model ranking alone exposes per-model cache diagnostics", () => {
 test("stats header cache hit label uses the normalized prompt-input denominator", () => {
   // 与输入框用量卡同一口径：分母取 max(input, cacheRead+cacheWrite)，
   // 避免 provider input 不含缓存 token 时低估或除零。
-  expect(usagePanelSource).toMatch(/effectivePromptInput\(/);
+  expect(usagePanelSource).toMatch(/aggregateCacheShare\(/);
+  expect(usagePanelSource).not.toMatch(/stats\.cache_unknown_requests/);
   expect(usagePanelSource).not.toMatch(
     /total_cache_read_tokens \/ stats\.total_input_tokens/,
   );

@@ -275,11 +275,35 @@ class DualEventWriter:
                     self._flush_task = asyncio.create_task(self._schedule_flush())
                     self._flush_task.add_done_callback(self._on_flush_task_done)
 
-            if should_flush_now:
+            if event_type == "token:usage":
+                from src.infra.session.trace_usage_log import _write_usage_log
+
+                await self.flush_mongo_buffer(require_trace_id=trace_id)
+                await _write_usage_log(trace_id)
+            elif should_flush_now:
                 await self.flush_mongo_buffer()
             elif event_type in ("complete", "error", "done"):
                 await self.flush_mongo_buffer()
 
+        if (
+            session_id.startswith("sch_conversation_")
+            and run_id
+            and run_id.startswith("scheduled-")
+        ):
+            try:
+                from src.infra.scheduler.results import relay_stored_event
+
+                await relay_stored_event(
+                    self,
+                    session_id=session_id,
+                    run_id=run_id,
+                    trace_id=trace_id,
+                    event_type=event_type,
+                    data=data,
+                    timestamp=timestamp,
+                )
+            except Exception:
+                logger.warning("Scheduled event relay deferred", exc_info=True)
         return redis_success
 
     def get_diagnostics(self) -> dict[str, Any]:
@@ -578,9 +602,9 @@ class DualEventWriter:
         require_trace_id: str | None = None,
     ) -> None:
         """强制刷新缓冲（外部调用）"""
-        flushed_by_scheduled_task = await self._drain_scheduled_flush_task()
-        if not flushed_by_scheduled_task:
-            await self._do_flush()
+        await self._drain_scheduled_flush_task()
+        # Events may have arrived after the scheduled task drained its batch.
+        await self._do_flush()
         if require_empty:
             async with self._mongo_lock:
                 remaining = len(self._mongo_buffer)

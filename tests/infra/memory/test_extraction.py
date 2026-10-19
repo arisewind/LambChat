@@ -28,6 +28,66 @@ def _now() -> datetime:
     return datetime(2026, 9, 3, 12, 0, 0, tzinfo=timezone.utc)
 
 
+@pytest.mark.parametrize(
+    ("retryability", "expected_retryable"),
+    [
+        ({"retryable": False}, False),
+        ({}, True),
+        ({"retryable": True}, True),
+        ({"retryable": "false"}, True),
+    ],
+)
+async def test_retain_rejection_only_stops_retry_when_backend_explicitly_forbids_it(
+    monkeypatch, retryability, expected_retryable
+):
+    import src.infra.llm.retry as retry_module
+
+    async def fake_model():
+        return object()
+
+    async def fake_invoke(*args, **kwargs):
+        return SimpleNamespace(
+            content='{"raw_memory":"User prefers SQL for analytics.",'
+            '"rollout_summary":"SQL preference","rollout_slug":"sql"}'
+        )
+
+    monkeypatch.setattr(extraction, "_get_extraction_model", fake_model)
+    monkeypatch.setattr(retry_module, "ainvoke_with_retry", fake_invoke)
+    backend = FakeBackend(
+        {"success": False, "error": "Content rejected: not durable enough", **retryability}
+    )
+    outcome = await extract_session_memory(
+        backend,
+        _fake_db([_started_trace("r1", _now(), "Prefer SQL", "Understood")]),
+        "u1",
+        {"session_id": "s1", "metadata": {}},
+    )
+    assert outcome.status == "failed"
+    assert outcome.retryable is expected_retryable
+    assert outcome.error == "Content rejected: not durable enough"
+    assert not backend._collection.updates
+
+    session = {"session_id": "s1", "updated_at": _now() - timedelta(hours=1)}
+    job = {
+        "_id": "j1",
+        "session_id": "s1",
+        "status": "claimed",
+        "attempts": 1,
+        "lease_expires_at": _now() + timedelta(minutes=15),
+    }
+    jobs, recorded = _patch_pass_env(monkeypatch, claimed=[(session, job)], job_docs=[dict(job)])
+
+    async def fake_extract(*args, **kwargs):
+        return outcome
+
+    monkeypatch.setattr(extraction, "extract_session_memory", fake_extract)
+    result = await extraction.run_extraction_pass("u1", backend=backend)
+    assert result["failed"] == 1 and result["succeeded"] == 0
+    assert jobs.docs["j1"]["status"] == ("failed" if expected_retryable else "exhausted")
+    assert (jobs.docs["j1"]["next_retry_at"] is not None) is expected_retryable
+    assert recorded["records"] == 0
+
+
 # ---------------------------------------------------------------------------
 # 候选查询（codex startup claim rules 的 Mongo 化）
 # ---------------------------------------------------------------------------
@@ -927,8 +987,22 @@ class FencedJobsCollection:
 
 
 def _patch_pass_env(monkeypatch, *, claimed, quota="allowed", job_docs=None):
+    from unittest.mock import AsyncMock
+
     from src.infra.memory import distributed, user_pref
     from src.infra.storage import mongodb
+    from src.infra.usage import quota as usage_quota
+
+    monkeypatch.setattr(usage_quota, "user_budgets", AsyncMock(return_value=(None, None)))
+    monkeypatch.setattr(
+        usage_quota,
+        "UsageQuota",
+        lambda: SimpleNamespace(
+            snapshot=AsyncMock(
+                return_value={"five_hour": {"blocked": False}, "weekly": {"blocked": False}}
+            )
+        ),
+    )
 
     recorded = {"quota_checks": 0, "quota": quota, "records": 0}
 
@@ -968,6 +1042,50 @@ def _patch_pass_env(monkeypatch, *, claimed, quota="allowed", job_docs=None):
     monkeypatch.setattr(extraction, "ensure_extraction_job_indexes", noop_indexes)
     monkeypatch.setattr(extraction, "claim_candidate_jobs", fake_claim)
     return jobs, recorded
+
+
+@pytest.mark.parametrize("denial", ["five_hour", "weekly", "unavailable"])
+async def test_quota_preflight_leaves_idle_session_claimable_after_recovery(monkeypatch, denial):
+    from unittest.mock import AsyncMock
+
+    from src.infra.usage import quota
+    from src.kernel.errors import AppError, ErrorCode
+
+    session = {"session_id": "s1", "updated_at": _now() - timedelta(hours=1)}
+    job = {
+        "_id": "j1",
+        "status": "claimed",
+        "attempts": 1,
+        "lease_expires_at": _now() + timedelta(minutes=15),
+    }
+    jobs, _ = _patch_pass_env(monkeypatch, claimed=[], job_docs=[job])
+    claim = AsyncMock(return_value=[(session, job)])
+    extract = AsyncMock(return_value=extraction.ExtractionOutcome("succeeded_no_output"))
+    monkeypatch.setattr(extraction, "claim_candidate_jobs", claim)
+    monkeypatch.setattr(extraction, "extract_session_memory", extract)
+    available = {"five_hour": {"blocked": False}, "weekly": {"blocked": False}}
+    refused = (
+        AppError(ErrorCode.USAGE_QUOTA_UNAVAILABLE)
+        if denial == "unavailable"
+        else {**available, denial: {"blocked": True}}
+    )
+    snapshot = AsyncMock(side_effect=[refused, available])
+    monkeypatch.setattr(quota, "UsageQuota", lambda: SimpleNamespace(snapshot=snapshot))
+
+    result = await extraction.run_extraction_pass("u1", backend=object())
+    assert result == {
+        "skipped": 1,
+        "reason": "usage_quota_unavailable" if denial == "unavailable" else "usage_quota_exceeded",
+    }
+    claim.assert_not_awaited()
+    extract.assert_not_awaited()
+    assert jobs.update_calls == []
+
+    result = await extraction.run_extraction_pass("u1", backend=object())
+    claim.assert_awaited_once()
+    assert extract.await_args.args[-1] is session
+    assert result["succeeded_no_output"] == 1
+    assert jobs.docs["j1"]["status"] == "succeeded_no_output"
 
 
 @pytest.mark.asyncio

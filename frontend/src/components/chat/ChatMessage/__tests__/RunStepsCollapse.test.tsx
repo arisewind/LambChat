@@ -15,6 +15,7 @@ vi.mock("react-i18next", () => ({
         "chat.message.runStepsWorking": "Working… {{duration}}",
         "chat.message.runStepsWorkingNoTimer": "Working…",
         "chat.message.runStepsStopped": "Stopped",
+        "chat.message.waitingConfirm": "Waiting for confirmation",
       };
       let out = templates[key] ?? key;
       if (opts && typeof opts === "object") {
@@ -42,6 +43,32 @@ function WorkingRowText() {
 }
 
 describe("RunStepsCollapse", () => {
+  test("confirmation uses the shared status row and keeps the process visible until resumed", () => {
+    const view = render(
+      <RunStepsCollapse
+        active
+        awaitingConfirmation
+        steps={1}
+        durationMs={1000}
+        renderExpanded={() => <div>command details</div>}
+      />,
+    );
+    expect(
+      screen.getByRole("status", { name: "Waiting for confirmation" }),
+    ).toHaveAttribute("aria-live", "polite");
+    expect(screen.getByText("command details")).toBeVisible();
+    expect(screen.queryByText(/Working/)).toBeNull();
+    view.rerender(
+      <RunStepsCollapse
+        active
+        steps={1}
+        durationMs={1000}
+        renderExpanded={() => <div>command details</div>}
+      />,
+    );
+    expect(screen.getByRole("status", { name: "Working…" })).toBeVisible();
+    expect(screen.queryByText("Waiting for confirmation")).toBeNull();
+  });
   test("active work has a named status without announcing every timer tick", () => {
     render(
       <RunStepsCollapse
@@ -230,16 +257,24 @@ describe("RunStepsCollapse", () => {
     expect(workingSpan.className).toContain("text-theme-text-secondary");
   });
 
-  test("summary row keeps the original process typography", () => {
-    render(
+  test.each([
+    ["completed", {}],
+    ["working", { active: true }],
+    ["stopped", { stopped: true }],
+    ["waiting for confirmation", { active: true, awaitingConfirmation: true }],
+  ])("%s summary row follows the body font size", (_status, props) => {
+    const { container } = render(
       <RunStepsCollapse
+        {...props}
         steps={2}
         durationMs={45000}
         renderExpanded={() => <div>step-details</div>}
       />,
     );
-    const span = SummaryRow().querySelector("span");
-    expect(span?.className).toContain("text-[0.9375rem]");
+    const span = container.querySelector(
+      ".run-steps-collapse > :first-child > span",
+    );
+    expect(span?.className).toContain("text-[length:var(--chat-font-size)]");
   });
 
   test("summary row keeps the original divider", () => {

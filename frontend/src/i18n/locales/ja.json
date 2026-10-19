@@ -208,6 +208,7 @@
     "parameters": "パラメータ",
     "preferenceSaved": "デフォルトエージェントの設定を保存しました",
     "pricingBackfill": "履歴費用を再計算",
+    "pricingBackfillPartial": "{{count}} 件の費用を一部算出",
     "pricingBackfillFailed": "履歴費用の再計算に失敗しました",
     "pricingBackfillSuccess": "再計算完了：{{priced}}/{{scanned}} 件",
     "pricingBackfillUnpriced": "{{count}} 件は未計価",
@@ -306,7 +307,7 @@
       "name": "ファストエージェント"
     },
     "quick": {
-      "description": "日常の質問、文章作成、翻訳に直接回答します。",
+      "description": "日常の質問、文章作成、翻訳に回答し、検索や実行が必要なら自動で引き継ぎます。",
       "name": "ライトアシスタント"
     },
     "search": {
@@ -331,6 +332,8 @@
     "previous": "前の項目",
     "reject": "拒否",
     "scheduledTask": {
+      "conversationSummary": "独立した履歴で実行し、結果をこのチャットに送信します。",
+      "standaloneSummary": "実行ごとに新しいチャットを作成し、結果を保存します。",
       "searchPlaceholder": "タスク名や説明を検索…",
       "noResults": "一致する定期タスクはありません",
       "noResultsDesc": "別のキーワードを試すか、ステータスの絞り込みを変更してください。",
@@ -705,7 +708,8 @@
     "systemRoleProtected": "システムロールは変更・削除できません",
     "agentNotRegistered": "エージェント '{{agent}}' は登録されていません",
     "bookmarkUpdateFailed": "ブックマーク状態の更新に失敗しました",
-    "modelEmptyResponse": "モデルは再試行後も空の応答を返しました。再試行するか、モデルを変更してください",
+    "modelEmptyResponse": "モデルから利用可能な回答が返されませんでした。再試行するか、モデルを変更してください",
+    "modelOutputLimit": "回答を返す前にモデルの出力上限に達しました。現在の進捗を確認するか、別のモデルを使用してください。",
     "patNotFound": "パーソナルアクセストークンが見つからないか失効しています",
     "patExpired": "パーソナルアクセストークンの有効期限が切れました",
     "patScopeDenied": "トークンに必要なスコープ {{scope}} がありません",
@@ -719,7 +723,10 @@
     "sandboxMachineNotFound": "サンドボックスマシン「{{machine}}」が見つからないか、削除されました",
     "pluginNoEditPermission": "プラグイン {{name}} を編集する権限がありません",
     "modelConfigIncomplete": "モデル設定が不完全です：プロバイダー {{provider}} の {{field}} が不足しています",
-    "goalConflict": "目標が変更されました。更新して再試行してください"
+    "goalConflict": "目標が変更されました。更新して再試行してください",
+    "usageQuotaExceeded": "5時間または1週間のモデル利用予算を使い切りました。",
+    "usageQuotaUnavailable": "モデル利用予算を確認できません。後でもう一度お試しください。",
+    "usageQuotaUnpriced": "この有料 API 呼び出しには信頼できる USD 料金設定またはトークン上限がないため、予算制限下では使用できません。"
   },
   "categories": {
     "scheduled_task": "スケジュールタスク",
@@ -1184,6 +1191,7 @@
     }
   },
   "chat": {
+    "agentHandoff": "{{agent}}が引き継ぎました",
     "addMoreFiles": "さらにファイルを追加",
     "assistant": "アシスタント",
     "attachFile": "ファイルを添付",
@@ -1212,6 +1220,7 @@
     },
     "features": "機能",
     "goal": {
+      "turnEnded": "このターンは終了しました",
       "active": "目標",
       "clear": "目標をクリア",
       "command": "目標",
@@ -1221,6 +1230,7 @@
       "placeholder": "目標を入力…",
       "required": "目標を入力してください",
       "running": "実行中",
+      "waiting_human": "確認待ち",
       "runningStatus": "実行中",
       "startedAt": "開始時間"
     },
@@ -1450,6 +1460,8 @@
       "subagentMessage": "追加メッセージ",
       "toolSubagentRunning": "実行中",
       "toolSubagentMessageQueued": "メッセージをキューに追加しました",
+      "rubricGraderName": "評価基準採点アシスタント",
+      "rubricGraderInput": "評価基準による評価",
       "toolSubagentCompleted": "完了",
       "toolSubagentWaitingHuman": "人の入力を待機中",
       "toolSubagentFailed": "失敗",
@@ -1684,13 +1696,16 @@
     "welcomeSubtitle": "何かお手伝いできることはありますか？",
     "welcomeSuggestions": "おすすめ",
     "goalPersistent": {
+      "edit": "目標を編集",
+      "criteria": "受け入れ基準",
+      "label": "目標",
       "pause": "目標を一時停止",
       "resume": "目標を再開",
       "clear": "目標をクリア",
       "noGoal": "先に継続目標を作成してください。",
       "tokensUnknown": "トークン使用量は不明",
-      "turns": "{{count}} / {{max}} 回",
-      "tokens": "{{count}} / {{max}} トークン",
+      "turns": "{{count}} 回",
+      "tokens": "{{count}} トークン",
       "timeLimit": "制限 {{minutes}} 分",
       "status": {
         "active": "実行中",
@@ -1702,7 +1717,18 @@
         "cleared": "クリア済み"
       },
       "modeHint": "継続目標：{{status}}",
-      "attachmentsUnsupported": "継続目標を設定する前に、通常のメッセージで添付ファイルを送信してください。"
+      "attachmentsUnsupported": "継続目標を設定する前に、通常のメッセージで添付ファイルを送信してください。",
+      "currentTurn": "第 {{count}} ターンを実行中",
+      "stopReason": {
+        "user_paused": "リクエストにより一時停止しました",
+        "no_progress": "連続するターンで新しい進展がありません",
+        "invalid_rubric": "完了条件を評価できませんでした",
+        "turn_limit": "ターン数の上限に達しました",
+        "token_limit": "トークン予算に達しました",
+        "time_limit": "制限時間に達しました",
+        "execution_error": "実行に失敗しました。再開前に直前の応答を確認してください",
+        "budget_limit": "目標の予算に達しました"
+      }
     }
   },
   "common": {
@@ -2581,7 +2607,7 @@
     "auto": "自動",
     "autoDesc": "自動実行、確認をスキップ",
     "goal": "ゴール",
-    "goalDesc": "メッセージをゴールとしてガイド実行",
+    "goalDesc": "完了または一時停止まで、同じ目標を複数ターンで進めます",
     "hint": "両モードを同時に有効にできます",
     "title": "実行モード"
   },
@@ -3054,10 +3080,28 @@
     "uploadLimitsTitle": "アップロード制限",
     "validation": {
       "enterName": "ロール名を入力してください",
-      "selectPermission": "少なくとも1つの権限を選択してください"
-    }
+      "selectPermission": "少なくとも1つの権限を選択してください",
+      "budgetNonnegative": "0〜1,000,000 USD の有限な金額を入力してください。"
+    },
+    "budgetTitle": "モデル利用予算（USD）",
+    "weeklyBudgetUsd": "1週間の予算（USD）",
+    "budgetHint": "空欄の場合、このロールは予算上限を設定しません。複数のロールでは設定済みの最大上限を適用し、該当するすべてのロールに上限がない場合のみ無制限になります。0 はモデル呼び出しを禁止します。最初のモデル呼び出しで5時間と7日間の期間を個別に開始します。各期間の終了後、次の呼び出しで新しい期間を開始します。残高の確認では計時を開始しません。",
+    "fiveHourBudgetUsd": "5時間の予算（USD）"
   },
   "scheduledTask": {
+    "noTimeLimit": "実行時間の上限なし",
+    "executionMode": "実行方法",
+    "conversationMode": "この会話に結果を送信",
+    "standaloneMode": "実行ごとに新しい会話",
+    "targetConversation": "対象の会話",
+    "targetRequired": "会話を選択してください",
+    "currentConversation": "現在の会話",
+    "inheritContext": "作成時の設定と専用の履歴を使って独立して実行します。チャットを中断せず、この会話に結果を送信します。",
+    "notificationPolicy": "通知",
+    "meaningfulChanges": "進展または対応が必要な場合のみ",
+    "alwaysNotify": "毎回通知",
+    "openConversation": "元の会話を開く",
+    "noUpdate": "確認完了、更新なし",
     "searchPlaceholder": "タスク名や説明を検索…",
     "noResults": "一致する定期タスクはありません",
     "noResultsDesc": "別のキーワードを試すか、ステータスの絞り込みを変更してください。",
@@ -4294,7 +4338,15 @@
   "updateRetry": "再試行",
   "updateSkip": "後で",
   "usage": {
+    "resetConfirmTitle": "予算リセットの確認",
+    "resetFiveHourConfirm": "5時間カードを1枚使用し、新しい5時間の予算期間を開始します。週間予算は変わりません。",
+    "resetWeeklyConfirm": "週間カードを1枚使用し、週間と5時間の両方の予算期間を新しく開始します。",
+    "resetLegacyConfirm": "共通カードを1枚使用し、使い切った予算をリセットします。週間予算をリセットすると、5時間枠もリセットされます。",
+    "tokensInputReported": "入力（報告値）",
+    "historicalEstimate": "過去の概算",
+    "partialCostHint": "判明している金額のみです。残りの費用は不明です。",
     "sources": {
+      "auxiliary": "補助呼び出し",
       "chat": "チャット",
       "scheduled_task": "定期タスク"
     },
@@ -4307,6 +4359,7 @@
     "agent": "エージェント",
     "allPeriods": "全期間",
     "cache": "キャッシュ",
+    "cacheRateUnknown": "入力、キャッシュ読み取り、または集計基準が不完全なため計算できません。料金は別途算定します。",
     "cacheHitRate": "キャッシュ命中",
     "cacheRead": "キャッシュ読取",
     "cacheTokens": "{{count}} tokens",
@@ -4390,6 +4443,7 @@
     "statsScopeHint": "集計はすべての一致するレコードを対象としています",
     "status": "ステータス",
     "statusCancelled": "取消済み",
+    "statusRunning": "実行中",
     "statusError": "Err",
     "statusOk": "OK",
     "subtitle": "Token消費の追跡",
@@ -4423,7 +4477,65 @@
     },
     "unpricedHint": "{{count}} 件は未計価",
     "user": "ユーザー",
-    "viewDetails": "詳細を見る"
+    "viewDetails": "詳細を見る",
+    "quotaAndCards": "予算とリセットカード",
+    "quotaTitle": "残り予算",
+    "quotaWeekly": "1週間",
+    "quotaLoading": "予算を読み込み中…",
+    "quotaUnavailable": "現在利用できません",
+    "quotaUnlimited": "無制限",
+    "quotaBlocked": "予算を使い切ったため、新しいモデル呼び出しはできません。",
+    "quotaReserved": "実行中の呼び出しの予約額：{{amount}}",
+    "quotaResets": "リセット",
+    "quotaFiveHour": "5時間",
+    "quotaWindowNotStarted": "初回利用時に計時を開始します。",
+    "adminQuotaTitle": "モデル利用予算",
+    "adminQuotaHint": "支出がある期間や不明な費用で停止した期間をリセットし、ロールの上限は変更しません。予約額のみの期間、未使用の期間、上限 0 はリセットできません。",
+    "resetFiveHour": "5時間予算をリセット",
+    "resetWeekly": "週間予算をリセット",
+    "issueFiveHourCard": "5時間カードを発行",
+    "issueWeeklyCard": "週間カードを発行",
+    "useFiveHourCard": "5時間枠をリセット",
+    "useWeeklyCard": "週間枠をリセット",
+    "issueResetCard": "リセットカードを発行",
+    "bulkCardsTitle": "全ユーザーにカードを配布",
+    "bulkCardsScope": "無効なアカウントを含むすべての既存アカウントに、選択した種類のカードを1枚ずつ配布します。有効期間は30日です。検索やページ分けは対象を制限しません。",
+    "bulkCardsType": "カードの種類",
+    "bulkCardsConfirm": "全ユーザーに1枚ずつ配布する",
+    "bulkCardsPreparing": "対象ユーザーを準備中…",
+    "bulkCardsProgress": "{{processed}} / {{total}} 人を処理済み",
+    "bulkCardsComplete": "配布が完了しました",
+    "bulkCardsSummary": "成功：{{issued}} · 失敗：{{failed}}",
+    "bulkCardsPending": "前回のリクエスト結果が未確認です。同じリクエストとカードの種類で再試行します。",
+    "bulkCardsResumeHint": "閉じるとこの配布を一時停止します。再度開くと続行し、配布済みのカードは重複しません。エラーは最大10件表示します。",
+    "resetCardGrantHint": "5時間カードは短期枠のみ、週間カードは両方をリセットします。有効期間は30日です。",
+    "resetCardIssued": "このユーザーにリセットカードを付与しました。",
+    "fiveHourCard": "5時間カード",
+    "weeklyCard": "週間カード",
+    "legacyResetCard": "共通カード",
+    "resetCardGranted": "受取日時",
+    "resetCardExpires": "有効期限",
+    "resetCardsEmpty": "利用可能なリセットカードはありません。",
+    "resetCardUsageHint": "5時間カードは短期枠のみ、週間カードは両方をリセットします。同じ種類の中で有効期限が最も早いカードから使用します。",
+    "resetLegacyCardHint": "共通カードは予算を使い切った場合のみ利用できます。",
+    "resetCardsTitle": "予算リセットカード",
+    "resetCardsAvailable": "リセットカード {{count}} 枚が利用可能",
+    "resetCardHistory": "使用履歴",
+    "resetCardUsedAt": "使用日時",
+    "resetCardUsed": "リセット完了",
+    "resetCardHistoryEmpty": "使用履歴はありません",
+    "resetCardHistoryRetention": "記録はカードの有効期限から7日後まで保存されます。",
+    "resetCardsShort": "リセットカード {{count}}",
+    "useResetCard": "リセットカードを使う",
+    "resetSuccess": "予算をリセットしました。",
+    "resetAlreadyRedeemed": "この操作は完了済みです。予算を更新しました。",
+    "resetNothingToReset": "リセット不要。カードは保持されます。",
+    "resetNoCredit": "利用可能なカードがありません。更新して再試行してください。",
+    "quotaReservedBlocked": "利用可能な予算は実行中の呼び出し用に予約されています。",
+    "quotaErrorExhausted": "{{windows}}のモデル利用予算を使い切りました。",
+    "quotaErrorReserved": "{{windows}}の利用可能な予算は実行中の呼び出し用に予約されています。終了までお待ちください。",
+    "quotaErrorUnknown": "{{windows}}の一部の費用が不明なため、利用可能な予算を確認できません。",
+    "quotaErrorResets": "{{time}} にリセット。"
   },
   "users": {
     "actions": "操作",
@@ -4516,7 +4628,7 @@
     "readyToast": "v{{version}} のインストール準備ができました",
     "downloadingToast": "v{{version}} をダウンロード中です。完了後にインストールできます",
     "channel": "更新チャンネル",
-    "channelStable": "安定版（既定）",
+    "channelStable": "安定版",
     "channelDev": "テスト版",
     "channelDevHint": "テスト版には未解決の問題が含まれる場合があります。dev.2 以前は一度手動で新版をインストールしてください。以後は通常の更新を利用できます。"
   },

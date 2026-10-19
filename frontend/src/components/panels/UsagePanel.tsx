@@ -22,8 +22,10 @@ import {
 } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { useFxRates } from "../../hooks/useFxRates";
-import { effectivePromptInput } from "../chat/todayUsageSnapshot";
-import { fmtCostUsd } from "./UsagePanel/formatters";
+import { TODAY_USAGE_REFRESH_EVENT } from "../../hooks/useTodayUsageCost";
+import { aggregateCacheShare } from "./UsagePanel/formatters";
+import { fmtCostUsd, fmtUsageCount } from "./UsagePanel/formatters";
+import { usageCostOptions, historicalEstimateHint } from "../../utils/currency";
 import {
   buildModelLabelMap,
   withModelDisplayNames,
@@ -86,19 +88,31 @@ export function UsagePanel() {
     null,
   );
   const displayLogs = useMemo(
-    () => logs.map((log) => ({
-      ...log,
-      agent_name: resolveAgentReferenceName(
-        log.agent_id, log.agent_name, agents, i18n.language, t,
-      ),
-    })),
+    () =>
+      logs.map((log) => ({
+        ...log,
+        agent_name: resolveAgentReferenceName(
+          log.agent_id,
+          log.agent_name,
+          agents,
+          i18n.language,
+          t,
+        ),
+      })),
     [logs, agents, i18n.language, t],
   );
   const agentRanking = useMemo(
-    () => (dashboard?.top_agents ?? []).map((item) => ({
-      ...item,
-      name: resolveAgentReferenceName(item.id, item.name, agents, i18n.language, t),
-    })),
+    () =>
+      (dashboard?.top_agents ?? []).map((item) => ({
+        ...item,
+        name: resolveAgentReferenceName(
+          item.id,
+          item.name,
+          agents,
+          i18n.language,
+          t,
+        ),
+      })),
     [dashboard, agents, i18n.language, t],
   );
   const [isLoading, setIsLoading] = useState(true);
@@ -180,11 +194,35 @@ export function UsagePanel() {
     } finally {
       setIsLoading(false);
     }
-    fetchDashboard();
+    await fetchDashboard();
   }, [fetchLogs, fetchDashboard]);
 
   useEffect(() => {
-    fetchData();
+    let active = true;
+    let inFlight = false;
+    let pending = false;
+    const refresh = async () => {
+      if (inFlight) {
+        pending = true;
+        return;
+      }
+      inFlight = true;
+      try {
+        await fetchData();
+      } finally {
+        inFlight = false;
+        if (active && pending) {
+          pending = false;
+          void refresh();
+        }
+      }
+    };
+    void refresh();
+    window.addEventListener(TODAY_USAGE_REFRESH_EVENT, refresh);
+    return () => {
+      active = false;
+      window.removeEventListener(TODAY_USAGE_REFRESH_EVENT, refresh);
+    };
   }, [fetchData]);
 
   const isInitialLoading =
@@ -197,17 +235,13 @@ export function UsagePanel() {
   );
 
   const cacheHitLabel = useMemo(() => {
-    // 与输入框用量卡同口径：分母取 max(input, cacheRead+cacheWrite)，
-    // 兼容 input_tokens 不含缓存 token 的 provider。
-    if (!stats) return "0%";
-    const effectiveInput = effectivePromptInput(
+    if (!stats) return "—";
+    const rate = aggregateCacheShare(
       stats.total_input_tokens,
       stats.total_cache_read_tokens,
       stats.total_cache_creation_tokens,
     );
-    if (effectiveInput <= 0) return "0%";
-    const rate = Math.min(stats.total_cache_read_tokens / effectiveInput, 1);
-    return `${Math.round(rate * 100)}%`;
+    return pct(rate, 1);
   }, [stats]);
 
   const dashboardSummary = dashboard?.summary;
@@ -333,16 +367,32 @@ export function UsagePanel() {
               label={t("usage.cacheHitRate")}
               value={cacheHitLabel}
               hint={t("usage.cacheTokens", {
-                count: fmt(stats.total_cache_read_tokens),
+                count: fmtUsageCount(
+                  stats.total_cache_read_tokens,
+                  "cache_read_tokens",
+                  stats.unknown_usage_fields,
+                ),
               })}
             />
             <StatMetric
               icon={ArrowUpFromLine}
               label={t("usage.totalTokens")}
-              value={fmt(stats.total_tokens)}
+              value={fmtUsageCount(
+                stats.total_tokens,
+                "total_tokens",
+                stats.unknown_usage_fields,
+              )}
               hint={t("usage.kpi.tokensHint", {
-                in: fmt(stats.total_input_tokens),
-                out: fmt(stats.total_output_tokens),
+                in: fmtUsageCount(
+                  stats.total_input_tokens,
+                  "input_tokens",
+                  stats.unknown_usage_fields,
+                ),
+                out: fmtUsageCount(
+                  stats.total_output_tokens,
+                  "output_tokens",
+                  stats.unknown_usage_fields,
+                ),
               })}
             />
             <StatMetric
@@ -351,13 +401,26 @@ export function UsagePanel() {
               value={fmtCostUsd(stats.total_cost_usd, true, {
                 language: i18n.language,
                 rates: fxRates,
+                ...usageCostOptions(stats),
               })}
               hint={
-                (stats.unpriced_requests ?? 0) > 0
-                  ? t("usage.unpricedHint", {
-                      count: fmt(stats.unpriced_requests ?? 0),
-                    })
-                  : undefined
+                [
+                  (stats.unpriced_requests ?? 0) > 0
+                    ? t("usage.unpricedHint", {
+                        count: fmt(stats.unpriced_requests ?? 0),
+                      })
+                    : undefined,
+                  historicalEstimateHint(
+                    {
+                      ...usageCostOptions(stats),
+                      language: i18n.language,
+                      rates: fxRates,
+                    },
+                    t("usage.historicalEstimate"),
+                  ),
+                ]
+                  .filter(Boolean)
+                  .join(" · ") || undefined
               }
             />
           </div>

@@ -224,6 +224,8 @@ export function handleStreamEvent(
 
   // Events handled entirely by side effects (no message transformation)
   switch (eventType) {
+    case "goal:continuation":
+      return;
     case "metadata": {
       if (
         data.session_id &&
@@ -329,9 +331,6 @@ export function handleStreamEvent(
           },
         }));
       }
-      // Auto-dismiss the goal chip after a short delay so the user sees
-      // the completed state briefly before it disappears.
-      if (!ctx.replayOnly) setTimeout(() => ctx.setActiveGoal(null), 2000);
       return;
     }
 
@@ -504,7 +503,7 @@ export function handleStreamEvent(
 
     case "approval_required": {
       appendAskHumanToolPart(data, messageId, eventTimestamp, ctx);
-      handleApprovalRequired(data, ctx);
+      handleApprovalRequired(data, ctx, eventTimestamp);
       return;
     }
 
@@ -578,12 +577,18 @@ export function handleStreamEvent(
     if (
       !subagentStack.some(
         (item) =>
-          item.agent_id === agentId &&
-          item.depth === depth &&
+          (data.agent_call_id
+            ? item.agent_call_id === data.agent_call_id
+            : item.agent_id === agentId && item.depth === depth) &&
           item.message_id === messageId,
       )
     ) {
-      subagentStack.push({ agent_id: agentId, depth, message_id: messageId });
+      subagentStack.push({
+        agent_id: agentId,
+        depth,
+        message_id: messageId,
+        ...(data.agent_call_id ? { agent_call_id: data.agent_call_id } : {}),
+      });
     }
   }
 
@@ -654,7 +659,11 @@ export function handleStreamEvent(
   if (eventType === "agent:result") {
     const agentId = data.agent_id || "unknown";
     const stackIndex = subagentStack.findIndex(
-      (item) => item.agent_id === agentId && item.message_id === messageId,
+      (item) =>
+        item.message_id === messageId &&
+        (data.agent_call_id
+          ? item.agent_call_id === data.agent_call_id
+          : item.agent_id === agentId && item.depth === depth),
     );
     if (stackIndex !== -1) {
       subagentStack.splice(stackIndex, 1);
@@ -731,7 +740,11 @@ function handleUserMessage(
         // 误命中上一轮的同内容消息，把流式助手插到旧消息下面。
         for (let index = prev.length - 1; index >= 0; index -= 1) {
           const candidate = prev[index];
-          if (candidate?.role === "user" && candidate.content === userContent) {
+          if (
+            candidate?.role === "user" &&
+            !candidate.runId &&
+            candidate.content === userContent
+          ) {
             existingUserIndex = index;
             break;
           }
@@ -744,6 +757,7 @@ function handleUserMessage(
           const candidate = prev[index];
           if (
             candidate?.role === "user" &&
+            !candidate.runId &&
             candidate.content === optimisticContent
           ) {
             existingUserIndex = index;
@@ -831,7 +845,7 @@ function handleError(
   options?: { keepConnectionOpen?: boolean; skipCancelledPart?: boolean },
 ): void {
   const errorMsg = data.error
-    ? translateApiError(data.code, data.error, undefined, i18n.t.bind(i18n))
+    ? translateApiError(data.code, data.error, data.args, i18n.t.bind(i18n))
     : i18n.t("chat.unknownError");
   const isCancelled = forceCancelled || isCancelledErrorType(data.type);
 
@@ -930,8 +944,19 @@ function appendAskHumanToolPart(
 function handleApprovalRequired(
   data: EventData,
   ctx: EventHandlerContext,
+  eventTimestamp: string | undefined,
 ): void {
   if (!data.id || !ctx.options?.onApprovalRequired) return;
+
+  const fallbackDeadline =
+    eventTimestamp && typeof data.timeout === "number" && data.timeout > 0
+      ? new Date(parseDate(eventTimestamp).getTime() + data.timeout * 1000)
+      : null;
+  const expiresAt =
+    data.expires_at ||
+    (fallbackDeadline && Number.isFinite(fallbackDeadline.getTime())
+      ? fallbackDeadline.toISOString()
+      : null);
 
   // The SSE event is emitted after the approval is created and already carries
   // the complete form payload. Render it immediately instead of making the UI
@@ -941,7 +966,8 @@ function handleApprovalRequired(
     message: data.message || "",
     type: data.type || "form",
     fields: data.fields || [],
-    expires_at: data.expires_at || null,
+    expires_at: expiresAt,
+    timeout: data.timeout,
     metadata:
       data.metadata || (data.interrupt_id ? { mode: "interrupt" } : undefined),
   });

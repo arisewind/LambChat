@@ -74,7 +74,7 @@ function RatingSummary({ stats }: { stats: FeedbackStats }) {
                 strokeWidth="2.5"
                 strokeDasharray={`${upPct * 0.9738} 100`}
                 strokeLinecap="round"
-                className="text-emerald-500 dark:text-emerald-400"
+                className="text-theme-success"
               />
             </svg>
             <div className="absolute inset-0 flex flex-col items-center justify-center">
@@ -97,13 +97,13 @@ function RatingSummary({ stats }: { stats: FeedbackStats }) {
             </span>
             <div className="h-2 rounded-full bg-theme-border overflow-hidden">
               <div
-                className="h-full rounded-full bg-emerald-500 dark:bg-emerald-400"
+                className="h-full rounded-full bg-theme-success"
                 style={{
                   width: `${upPct}%`,
                 }}
               />
             </div>
-            <span className="w-8 text-right text-11 font-semibold text-emerald-600 dark:text-emerald-400 tabular-nums flex-shrink-0">
+            <span className="w-8 text-right text-11 font-semibold text-theme-success tabular-nums flex-shrink-0">
               {stats.up_count}
             </span>
           </div>
@@ -168,22 +168,14 @@ function FilterTabs({
             type="button"
             aria-pressed={isActive}
             onClick={() => onChange(tab.key)}
-            className={`relative flex items-center gap-1.5 px-3.5 py-[7px] rounded-lg text-13 font-medium whitespace-nowrap transition-all duration-200 ${
+            className={`relative flex items-center gap-2 px-3.5 py-[7px] rounded-lg text-13 font-medium whitespace-nowrap transition-all duration-200 ${
               isActive
                 ? "bg-stone-900 text-white dark:bg-white dark:text-stone-900 shadow-sm"
                 : "text-theme-text-secondary hover:text-stone-700 dark:hover:text-stone-200 hover:bg-theme-bg-hover dark:hover:bg-white/5"
             }`}
           >
             <span className="feedback-filter-label">{tab.label}</span>
-            <span
-              className={`min-w-[20px] text-center px-1 py-0.5 rounded-full text-10 font-semibold tabular-nums ${
-                isActive
-                  ? "bg-white/20 dark:bg-stone-900/20 text-inherit"
-                  : "bg-stone-100 dark:bg-stone-700 text-theme-text-tertiary"
-              }`}
-            >
-              {tab.count}
-            </span>
+            <span className="count-badge">{Math.min(tab.count, 99)}</span>
           </button>
         );
       })}
@@ -454,7 +446,7 @@ function FeedbackDetailModal({
                 >
                   {copiedField === "session" ? (
                     <InteractiveIcon>
-                      <Check size={12} className="text-emerald-500" />
+                      <Check size={12} className="text-theme-success" />
                     </InteractiveIcon>
                   ) : (
                     <InteractiveIcon>
@@ -476,7 +468,7 @@ function FeedbackDetailModal({
                 >
                   {copiedField === "run" ? (
                     <InteractiveIcon>
-                      <Check size={12} className="text-emerald-500" />
+                      <Check size={12} className="text-theme-success" />
                     </InteractiveIcon>
                   ) : (
                     <InteractiveIcon>

@@ -22,7 +22,7 @@ from src.infra.llm.anthropic_chat import LambChatAnthropicChatModel as ChatAnthr
 from src.infra.llm.azure_chat import LambChatAzureChatModel as AzureChatOpenAI
 from src.infra.llm.azure_chat import parse_azure_endpoint
 from src.infra.llm.budget import (
-    ANTHROPIC_DEFAULT_MAX_TOKENS,
+    default_anthropic_max_tokens,
     warn_if_input_budget_strangled,
 )
 from src.infra.llm.google_chat import LambChatGoogleChatModel as ChatGoogleGenerativeAI
@@ -222,6 +222,20 @@ def _version_tuple(match: "re.Match[str]") -> tuple[int, int]:
     return int(match.group(1)), int(match.group(2) or 0)
 
 
+def _resolve_glm_effort(model_name: str, thinking: dict[str, Any]) -> Optional[str]:
+    match = re.match(r"glm-5[.-]([23])(?:[-\[]|$)", model_name.lower())
+    if match is None or thinking.get("level") is None:
+        return None
+    level = str(thinking["level"])
+    # GLM-5.2 folds low into high; GLM-5.3 supports low/high/max on both protocols.
+    return {
+        "low": "high" if match[1] == "2" else "low",
+        "medium": "high",
+        "high": "high",
+        "max": "max",
+    }.get(level)
+
+
 def _resolve_reasoning_effort(
     provider: str,
     model_name: str,
@@ -234,6 +248,9 @@ def _resolve_reasoning_effort(
     """
     provider = normalize_provider(provider)
     name = model_name.lower()
+    glm_effort = _resolve_glm_effort(name, thinking)
+    if glm_effort is not None:
+        return glm_effort
     if is_deepseek_thinking_model(name):
         level = str(thinking.get("level") or "medium")
         return {"low": "low", "medium": "high", "high": "high", "max": "max"}.get(level, "high")
@@ -267,7 +284,7 @@ def _resolve_zhipu_thinking_body(
 ) -> Optional[dict[str, Any]]:
     """Map a thinking config to zhipu's `thinking` request-body field."""
     # 全渠道支持：任意 OpenAI 协议渠道上托管的 GLM 思考系都发送（中转对未知
-    # body 字段透传或忽略）；GLM 无档位语义，任何强度都只是 enabled。
+    # body 字段透传或忽略）；强度由独立的 reasoning_effort 字段控制。
     name = model_name.lower()
     if not _is_zhipu_thinking_model(name):
         return None
@@ -295,13 +312,13 @@ def _resolve_anthropic_thinking(
         return None, None, None
     name = model_name.lower()
     # GLM 思考系挂在 Anthropic 协议渠道（zai 等）：注入 Claude Code 同款 thinking
-    # 体（智谱 Anthropic 兼容端点直接接受）。GLM 无档位语义，任何强度都只是
-    # enabled；budget_tokens 纯透传无实效。不覆盖 temperature（智谱无 Claude
+    # 体（智谱 Anthropic 兼容端点直接接受）。5.2/5.3 同时传 output_config.effort；
+    # 老家族保持原有行为。不覆盖 temperature（智谱无 Claude
     # manual thinking 的 temp=1 约束）。
     if _is_zhipu_thinking_model(name):
         glm_thinking: dict[str, Any] = {"type": "enabled"}
         glm_thinking["budget_tokens"] = thinking.get("budget_tokens") or 1024
-        return glm_thinking, None, None
+        return glm_thinking, _resolve_glm_effort(name, thinking), None
     match = _CLAUDE_VERSION_RE.search(name)
     if match is None:
         return None, None, None
@@ -483,7 +500,9 @@ class LLMClient:
             # 未配置 max_tokens 时注入显式默认：langchain-anthropic 会把 None
             # 静默换成 4096（见 budget.ANTHROPIC_DEFAULT_MAX_TOKENS 注释）。
             effective_max_tokens = (
-                max_tokens if max_tokens is not None else ANTHROPIC_DEFAULT_MAX_TOKENS
+                max_tokens
+                if max_tokens is not None
+                else default_anthropic_max_tokens(model_name, effort=effort, profile=profile)
             )
             warn_if_input_budget_strangled(profile, effective_max_tokens, model_name)
             anthropic_kwargs: dict[str, Any] = {
@@ -797,6 +816,7 @@ class LLMClient:
             model_map = {m.get("value"): m for m in available_models}
             model_cfg = model_map.get(model)
             if model_cfg:
+                model_id = model_id or model_cfg.get("id")
                 # Apply per-model overrides (explicit params still take priority)
                 if not explicit_provider and model_cfg.get("provider"):
                     explicit_provider = model_cfg["provider"]
@@ -861,6 +881,7 @@ class LLMClient:
         )
 
         # LRU cache hit — move to end (most recently used)
+        cache_key = (*cache_key, model_id)
         if cache_key in LLMClient._model_cache:
             LLMClient._model_cache.move_to_end(cache_key)
             return LLMClient._model_cache[cache_key]
@@ -895,6 +916,11 @@ class LLMClient:
             if pooled_client is not None:
                 _release_pool_client(_pool_key(api_key, api_base))
             raise
+        from src.infra.llm.quota import QuotaChatMixin
+
+        if isinstance(instance, QuotaChatMixin):
+            instance.quota_provider = provider
+            instance.quota_model_config_id = model_id
         if pooled_client is not None:
             _model_pool_keys[id(instance)] = _pool_key(api_key, api_base)
         LLMClient._model_cache[cache_key] = instance

@@ -3,7 +3,15 @@ import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, expect, test } from "vitest";
 
-import { fmt, fmtCostUsd, pct, precise, usageStatusKind } from "../formatters";
+import {
+  fmt,
+  aggregateCacheShare,
+  fmtCostUsd,
+  fmtUsageCount,
+  pct,
+  precise,
+  usageStatusKind,
+} from "../formatters";
 
 describe("fmt number abbreviation", () => {
   test("keeps plain numbers below 1K", () => {
@@ -38,6 +46,11 @@ describe("pct", () => {
     expect(pct(0.1234)).toBe("12%");
     expect(pct(0.005)).toBe("1%");
   });
+  test("unknown percentages are not zero cache hits", () => {
+    expect(pct(null)).toBe("—");
+    expect(pct(Number.NaN)).toBe("—");
+    expect(pct(0)).toBe("0%");
+  });
 });
 
 describe("precise", () => {
@@ -63,8 +76,24 @@ describe("fmtCostUsd", () => {
     expect(fmtCostUsd(undefined, false, { language: "en" })).toBe("—");
   });
 
-  test("priced log with missing amount formats zero", () => {
-    expect(fmtCostUsd(undefined, true, { language: "en" })).toBe("$0.00");
+  test("missing amounts stay unknown even with a legacy priced flag", () => {
+    expect(fmtCostUsd(undefined, true, { language: "en" })).toBe("—");
+  });
+  test("aggregate fees retain unknown requests without inventing a zero total", () => {
+    expect(
+      fmtCostUsd(0, true, {
+        language: "en",
+        pricedRequests: 0,
+        unpricedRequests: 2,
+      }),
+    ).toBe("—");
+    expect(
+      fmtCostUsd(0.2, true, {
+        language: "en",
+        pricedRequests: 1,
+        unpricedRequests: 2,
+      }),
+    ).toMatch(/\+$/);
   });
 
   test("maxDecimals caps tiny cost precision for mobile", () => {
@@ -106,4 +135,93 @@ test("usage status labels exist in all five locales", () => {
       `${locale} statusCancelled`,
     ).toBeTruthy();
   }
+});
+
+describe("partial and historical cost display", () => {
+  test("restores historical estimates with an approximation marker", () => {
+    expect(
+      fmtCostUsd(0, true, {
+        language: "en",
+        pricedRequests: 0,
+        unpricedRequests: 2,
+        estimatedRequests: 2,
+        estimatedCostUsd: 0.4,
+      }),
+    ).toBe("≈$0.4");
+  });
+  test("retains independently calculated costs including explicit zero", () => {
+    expect(
+      fmtCostUsd(undefined, false, { language: "en", partialCostUsd: 0.2 }),
+    ).toBe("$0.2+");
+    expect(
+      fmtCostUsd(0, true, {
+        language: "en",
+        pricedRequests: 0,
+        unpricedRequests: 1,
+        partialRequests: 1,
+        partialCostUsd: 0,
+      }),
+    ).toBe("$0.00+");
+  });
+  test("adds confirmed and partial costs without blending historical estimates", () => {
+    expect(
+      fmtCostUsd(0.3, true, {
+        language: "en",
+        pricedRequests: 1,
+        unpricedRequests: 2,
+        partialRequests: 1,
+        partialCostUsd: 0.2,
+        estimatedRequests: 1,
+        estimatedCostUsd: 9,
+      }),
+    ).toBe("$0.5+");
+  });
+  test("invalid amounts remain unknown", () => {
+    expect(
+      fmtCostUsd(null, false, {
+        language: "en",
+        partialCostUsd: null,
+        estimatedCostUsd: null,
+      }),
+    ).toBe("—");
+    expect(
+      fmtCostUsd(undefined, false, {
+        language: "en",
+        partialCostUsd: Number.NaN,
+        estimatedCostUsd: -1,
+      }),
+    ).toBe("—");
+  });
+});
+
+describe("reported aggregate counters", () => {
+  test("unknown summed input stays unknown while known output and zero remain reportable", () => {
+    const unknown = ["input_tokens", "total_tokens"];
+    expect(fmtUsageCount(0, "input_tokens", unknown)).toBe("—");
+    expect(fmtUsageCount(0, "total_tokens", unknown)).toBe("—");
+    expect(fmtUsageCount(1200, "output_tokens", unknown)).toBe("1.2K");
+    expect(fmtUsageCount(0, "cache_read_tokens", unknown)).toBe("0");
+  });
+  test("missing and invalid aggregate counters are not coerced into zero", () => {
+    for (const value of [undefined, null, Number.NaN, -1, true]) {
+      expect(fmtUsageCount(value, "total_tokens")).toBe("—");
+    }
+  });
+});
+
+test("aggregate cache share uses available counts and handles empty or exclusive input", () => {
+  expect(aggregateCacheShare(100, 60, 0)).toBe(0.6);
+  expect(aggregateCacheShare(0, 60, 40)).toBe(0.6);
+  expect(aggregateCacheShare(10, 100, 0)).toBe(1);
+  expect(aggregateCacheShare(0, 0, 0)).toBe(0);
+  expect(aggregateCacheShare(100, undefined, null)).toBe(0);
+  expect(aggregateCacheShare(undefined, 60, 40)).toBe(0.6);
+  expect(aggregateCacheShare()).toBe(0);
+});
+
+test("cache percentage precision retains one decimal including zero and whole values", () => {
+  expect(pct(0.67149, 1)).toBe("67.1%");
+  expect(pct(0.67151, 1)).toBe("67.2%");
+  expect(pct(0, 1)).toBe("0.0%");
+  expect(pct(1, 1)).toBe("100.0%");
 });

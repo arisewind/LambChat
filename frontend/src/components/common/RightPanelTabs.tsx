@@ -47,14 +47,15 @@ export function RightPanelTabs({
     const tabs = tabsRef.current;
     if (!tabs) return;
     const revealSelected = () => {
+      if (window.innerWidth >= 640) return;
       tabs
         .querySelector<HTMLElement>('[role="tab"][aria-selected="true"]')
         ?.scrollIntoView?.({ block: "nearest", inline: "nearest" });
     };
     revealSelected();
-    if (typeof ResizeObserver === "undefined") return;
+    if (typeof ResizeObserver === "undefined" || !tabs.parentElement) return;
     const observer = new ResizeObserver(revealSelected);
-    observer.observe(tabs);
+    observer.observe(tabs.parentElement);
     return () => observer.disconnect();
   }, [activeId, collapsed]);
   useEffect(() => {
@@ -81,7 +82,7 @@ export function RightPanelTabs({
             <PanelRightOpen size={16} aria-hidden="true" />
           </InteractiveIcon>
           <span>{t("common.panelTabs")}</span>
-          <span className="right-panel-restore-count">{entries.length}</span>
+          <span className="count-badge">{Math.min(entries.length, 99)}</span>
         </button>
         <DialogCloseButton
           aria-label={t("common.closeAllPanelTabs")}

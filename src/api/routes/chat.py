@@ -48,6 +48,8 @@ from src.infra.goal_runtime import (
     submit_chat_with_goal,
 )
 from src.infra.logging import get_logger
+from src.infra.scheduler.conversation import conversation_submission, execute_conversation_schedule
+from src.infra.scheduler.runner import execute_standalone_schedule
 from src.infra.session.manager import SessionManager
 from src.infra.task.concurrency import register_executor
 from src.infra.task.manager import get_task_manager
@@ -126,6 +128,8 @@ async def validate_agent_model_access(
     """Validate per-request model selection against enabled models and role access."""
     if agent_options is None:
         agent_options = {}
+    # Only the executor/recovery path may supply cumulative handoff accounting.
+    agent_options.pop("_handoff_usage", None)
 
     model_id = agent_options.get("model_id")
     selected_model = agent_options.get("model")
@@ -194,7 +198,7 @@ async def _update_session_config(
     )
     if prompt_state:
         conversation_config.update(prompt_state)
-    await session_manager.update_session_metadata(session_id, conversation_config)
+    await session_manager.storage.update_metadata_for_run(session_id, run_id, conversation_config)
 
 
 def resolve_goal_for_request(
@@ -210,6 +214,8 @@ def resolve_goal_for_request(
 
 # Register the default agent-stream executor so any worker can dispatch queued tasks
 register_executor("agent_stream", _execute_agent_stream)
+register_executor("scheduled_agent_stream", execute_standalone_schedule)
+register_executor("conversation_schedule", execute_conversation_schedule)
 
 
 @router.post("/stream")
@@ -236,8 +242,9 @@ async def chat_stream(
         status: 任务状态 (pending / queued)
         queue_position: 排队位置（仅排队时返回）
     """
-    async with timed_server_phase("chat_submit"):
-        return await submit_chat_with_goal(_submit_chat, request, http_request, agent_id, user)
+    async with conversation_submission(request.session_id, user.sub):
+        async with timed_server_phase("chat_submit"):
+            return await submit_chat_with_goal(_submit_chat, request, http_request, agent_id, user)
 
 
 async def _submit_chat(
@@ -293,7 +300,16 @@ async def _submit_chat(
     restrictions = BACKGROUND_RESTRICTIONS.get()
     if background_run and restrictions is not None:
         apply_background_restrictions(request, restrictions)
-    run_id = background_run or _generate_run_id()
+    from src.infra.scheduler.conversation import SCHEDULED_SUBMISSION
+
+    scheduled = SCHEDULED_SUBMISSION.get()
+    if scheduled:
+        from src.infra.scheduler.conversation import execute_conversation_schedule
+
+        register_executor("conversation_schedule", execute_conversation_schedule)
+        executor_key = "conversation_schedule"
+        executor = execute_conversation_schedule
+    run_id = (scheduled["run_id"] if scheduled else None) or background_run or _generate_run_id()
     active_goal_data, run_id = await bind_submission_goal(
         request, existing_metadata, session_id, user.sub, run_id
     )
@@ -328,6 +344,9 @@ async def _submit_chat(
             project_id=memory_project_id,
             session_id=session_id,
         )
+        from src.infra.scheduler.results import append_result_context
+
+        formatted = await append_result_context(formatted, session_id, user.sub)
         return formatted, inject
 
     async with timed_server_phase("chat_context"):
@@ -432,6 +451,7 @@ async def _submit_chat(
         "enabled_skills": request.enabled_skills,
         "persona_system_prompt": request.persona_system_prompt,
         "disabled_mcp_tools": request.disabled_mcp_tools,
+        "enabled_mcp_servers": request.enabled_mcp_servers,
         "team_id": request.team_id,
         "active_goal": active_goal_data,
         "recommendation_input": request.message,
@@ -459,7 +479,6 @@ async def _submit_chat(
 
     if concurrency_result.result == ConcurrencyResult.QUEUED:
         persistence_started = False
-        user_message_persisted = False
         try:
             # Task context already stored in Redis queue entry by acquire().
             # Ensure executor is initialized and create session immediately.
@@ -500,9 +519,9 @@ async def _submit_chat(
                 attachment_references_claimed=attachment_references_claimed,
                 schedule_search_index=settings.TASK_BACKEND != "arq",
                 run_modes=derive_user_message_run_modes(request.auto_mode, request.goal),
+                goal_continuation=(active_goal_data or {}).get("_continuation"),
                 assistant_identity=assistant_identity,
             )
-            user_message_persisted = True
             if not await limiter.mark_queued_run_ready(user.sub, run_id):
                 raise RuntimeError(f"Queued run disappeared before readiness: {run_id}")
 
@@ -535,9 +554,18 @@ async def _submit_chat(
                 "queue_position": concurrency_result.queue_position,
                 "max_concurrent": concurrency_result.max_concurrent,
             }
-        except Exception:
-            if not user_message_persisted:
+        except BaseException as error:
+            if not SUBMISSION_ACCEPTED.get():
                 await limiter.remove_queued_run(user.sub, run_id)
+                if task_manager._executor is not None:
+                    await task_manager._executor._update_session_status(
+                        session_id,
+                        TaskStatus.CANCELLED
+                        if isinstance(error, asyncio.CancelledError)
+                        else TaskStatus.FAILED,
+                        "Queued submission could not be persisted",
+                        run_id=run_id,
+                    )
                 if not persistence_started and file_records is not None:
                     await file_records.release_owned_references(attachment_keys, user.sub)
             raise
@@ -660,10 +688,7 @@ async def session_stream(
     async def event_generator():
         logger.info(f"[SSE] Generator started for session={session_id}, run_id={run_id}")
         try:
-            # 终态 stream 已过 60s TTL 被清（run 结束超过 60 秒后的重连）：重放
-            # 0 条事件且下方 xread 永远等不到新事件，只能靠 24h 兜底超时——
-            # 断线重连的客户端在途工具卡因此永远转圈（孤儿组件）。stream 为
-            # 空且 run 已终态时立即合成终态事件返回。
+            # 已过期的终态流无需等待新事件。
             if await dual_writer.get_stream_length(session_id, run_id=run_id) == 0:
                 terminal = await resolve_terminal_stream_status(session, run_id)
                 if terminal is not None:
@@ -682,9 +707,15 @@ async def session_stream(
                 session_id,
                 run_id=run_id,
             ):
-                # 心跳事件：具名 ping（空数据）。客户端以其为存活信号判定
-                # 半开死连接；旧客户端跳过未知事件，不受影响。
                 if event["event_type"] == "heartbeat":
+                    # Early cancellation can leave a nonempty stream without a terminal event.
+                    current = await session_manager.get_session(session_id)
+                    terminal = await resolve_terminal_stream_status(current, run_id)
+                    if terminal is not None:
+                        yield _format_sse_event(
+                            synthesize_terminal_stream_event(run_id, current, terminal)
+                        )
+                        return
                     yield "event: ping\ndata: {}\n\n"
                     continue
 
@@ -718,13 +749,7 @@ async def get_session_status(
     run_id: str = Query(None, description="Run ID (optional, defaults to current run)"),
     user: TokenPayload = Depends(get_current_user_required),
 ):
-    """
-    获取任务状态
-
-    Args:
-        session_id: 会话 ID
-        run_id: 运行 ID（可选，默认为当前 run）
-    """
+    """获取当前任务或指定运行的状态。"""
     # 验证用户对该 session 的所有权
     session_manager = SessionManager()
     session = await session_manager.get_session(session_id)
@@ -741,14 +766,16 @@ async def get_session_status(
         status = await task_manager.get_status(session_id)
         error = await task_manager.get_error(session_id)
 
-    # error 为动态原文；code 取任务中断码，无则按状态兜底
+    if status not in {TaskStatus.FAILED, TaskStatus.CANCELLED, TaskStatus.EXPIRED}:
+        error = None
+
+    # A recovered run can retain an older trace error; prefer its current session code.
     error_code = None
     if error:
-        error_code = (
-            await task_manager.get_run_error_code(run_id)
-            if run_id and hasattr(task_manager, "get_run_error_code")
-            else getattr(status, "error_code", None)
-        ) or ("internal_error" if status.value == "failed" else None)
+        metadata = session.metadata or {}
+        if not run_id or metadata.get("current_run_id") == run_id:
+            error_code = metadata.get("task_error_code")
+        error_code = error_code or ("internal_error" if status is TaskStatus.FAILED else None)
 
     result = {
         "session_id": session_id,
@@ -778,46 +805,47 @@ async def cancel_session(
         run_id: 被取消的运行 ID
         message: 状态信息
     """
-    # 验证用户对该 session 的所有权
-    session_manager = SessionManager()
-    session = await session_manager.get_session(session_id)
-    if not session:
-        raise AppError(ErrorCode.SESSION_NOT_FOUND)
-    verify_session_ownership(session, user)
+    async with conversation_submission(session_id, user.sub, allow_busy=True):
+        # 验证用户对该 session 的所有权
+        session_manager = SessionManager()
+        session = await session_manager.get_session(session_id)
+        if not session:
+            raise AppError(ErrorCode.SESSION_NOT_FOUND)
+        verify_session_ownership(session, user)
 
-    if (session.metadata or {}).get("persistent_goal_id"):
-        from src.infra.goal_continuation import publish_goal
-        from src.infra.persistent_goal import GoalService
+        if (session.metadata or {}).get("persistent_goal_id"):
+            from src.infra.goal_continuation import publish_goal
+            from src.infra.persistent_goal import GoalService
 
-        goal = await GoalService().control(session_id, user.sub, "pause")
-        if goal:
-            await publish_goal(goal)
+            goal = await GoalService().control(session_id, user.sub, "pause")
+            if goal:
+                await publish_goal(goal)
 
-    task_manager = get_task_manager()
-    result = await task_manager.cancel(session_id, user_id=user.sub)
+        task_manager = get_task_manager()
+        result = await task_manager.cancel(session_id, user_id=user.sub)
 
-    # 取消 × ask_human 挂起竞态调和：挂起 run 的协程已返回，cancel 只覆写
-    # task_status、不关挂起审批也不写终态事件——审批会因会话已离开
-    # WAITING_HUMAN 永远无法恢复，前端审批卡 + 隐藏输入框死锁会话。
-    from src.api.routes.hitl_interrupt_cleanup import reconcile_cancelled_hitl_approvals
+        # 取消 × ask_human 挂起竞态调和：挂起 run 的协程已返回，cancel 只覆写
+        # task_status、不关挂起审批也不写终态事件——审批会因会话已离开
+        # WAITING_HUMAN 永远无法恢复，前端审批卡 + 隐藏输入框死锁会话。
+        from src.api.routes.hitl_interrupt_cleanup import reconcile_cancelled_hitl_approvals
 
-    await reconcile_cancelled_hitl_approvals(
-        session_id, user_id=user.sub, task_manager=task_manager
-    )
+        await reconcile_cancelled_hitl_approvals(
+            session_id, user_id=user.sub, task_manager=task_manager
+        )
 
-    # 如果本地没有取消到，尝试从排队队列中移除
-    if not result.get("cancelled_locally"):
-        try:
-            from src.infra.task.concurrency import get_concurrency_limiter
+        # 如果本地没有取消到，尝试从排队队列中移除
+        if not result.get("cancelled_locally"):
+            try:
+                from src.infra.task.concurrency import get_concurrency_limiter
 
-            limiter = get_concurrency_limiter()
-            removed = await limiter.remove_from_queue(user.sub, session_id)
-            if removed:
-                result["message"] = f"已从排队中移除 ({removed} 个任务)"
-        except Exception as e:
-            logger.warning(f"Failed to remove from queue: {e}")
+                limiter = get_concurrency_limiter()
+                removed = await limiter.remove_from_queue(user.sub, session_id)
+                if removed:
+                    result["message"] = f"已从排队中移除 ({removed} 个任务)"
+            except Exception as e:
+                logger.warning(f"Failed to remove from queue: {e}")
 
-    return result
+        return result
 
 
 @router.post("/sessions/{session_id}/resume")
@@ -828,12 +856,14 @@ async def resume_session(
     """
     Resume an interrupted task from the latest checkpoint for this session.
     """
-    session_manager = SessionManager()
-    session = await session_manager.get_session(session_id)
-    if not session:
-        raise AppError(ErrorCode.SESSION_NOT_FOUND)
-    verify_session_ownership(session, user)
+    async with conversation_submission(session_id, user.sub, allow_busy=True):
+        session_manager = SessionManager()
+        session = await session_manager.get_session(session_id)
+        if not session:
+            raise AppError(ErrorCode.SESSION_NOT_FOUND)
+        verify_session_ownership(session, user)
 
+    # Recovery performs fresh run/Goal admission; release before its executor takes this fence.
     task_manager = get_task_manager()
     result = await task_manager.resume_session(session_id)
     if result.get("code") == ErrorCode.TASK_RECOVERY_NOT_AVAILABLE.code:

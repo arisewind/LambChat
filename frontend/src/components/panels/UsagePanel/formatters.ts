@@ -1,5 +1,9 @@
+import { reportedTokenCount } from "../../../utils/usageTokens";
 import { formatDuration } from "../../../utils/datetime";
-import { formatCostUsd, type FxRatesDoc } from "../../../utils/currency";
+import {
+  formatUsageCost,
+  type UsageCostFormatOpts,
+} from "../../../utils/currency";
 import type { UsageDailyPoint } from "../../../types/usage";
 
 export function fmt(n: number): string {
@@ -15,18 +19,19 @@ export function fmtDur(seconds: number): string {
   return formatDuration(seconds * 1000);
 }
 
-export type UsageStatusKind = "ok" | "cancelled" | "error";
+export type UsageStatusKind = "ok" | "cancelled" | "running" | "error";
 
-/** 用量记录状态三态归类：完成 / 用户取消 / 失败（未知按失败展示）。 */
+/** 用量记录状态：运行中 / 完成 / 用户取消 / 失败（未知按失败展示）。 */
 export function usageStatusKind(status: string): UsageStatusKind {
+  if (status === "running") return "running";
   if (status === "completed") return "ok";
   if (status === "cancelled") return "cancelled";
   return "error";
 }
 
-export function pct(value: number): string {
-  if (!Number.isFinite(value)) return "0%";
-  return `${Math.round(value * 100)}%`;
+export function pct(value: number | null | undefined, digits = 0): string {
+  if (typeof value !== "number" || !Number.isFinite(value)) return "—";
+  return `${(value * 100).toFixed(digits)}%`;
 }
 
 export function precise(n: number, digits = 1): string {
@@ -80,19 +85,45 @@ export function normalizeTrendPoints(
   return result;
 }
 
-export interface CostFormatOpts {
-  language?: string;
-  rates?: FxRatesDoc | null;
-  /** 小数位上限；手机端窄格子传 3 截短小金额精度 */
-  maxDecimals?: number;
-}
+export type CostFormatOpts = UsageCostFormatOpts;
 
-/** 用量日志成本展示：未计价显示占位符，已计价按展示货币格式化 */
+/** Shared certainty-aware cost display for usage logs and aggregates. */
 export function fmtCostUsd(
-  usd: number | undefined,
+  usd: number | null | undefined,
   available: boolean,
   opts: CostFormatOpts,
 ): string {
-  if (!available) return "—";
-  return formatCostUsd(usd ?? 0, opts);
+  return formatUsageCost(usd, available, opts);
+}
+
+/** A missing call does not erase a positive subtotal reported by other calls. */
+export function reportedAggregateCount(
+  value: unknown,
+  field: string,
+  unknownFields?: readonly string[] | null,
+): number | null {
+  return reportedTokenCount(
+    value,
+    field,
+    typeof value === "number" && value > 0 ? [] : unknownFields,
+  );
+}
+
+export function fmtUsageCount(
+  value: unknown,
+  field: string,
+  unknownFields?: readonly string[] | null,
+): string {
+  const count = reportedAggregateCount(value, field, unknownFields);
+  return count === null ? "—" : fmt(count);
+}
+
+/** Aggregate cache share uses the counters available in the selected window. */
+export function aggregateCacheShare(
+  input?: number | null,
+  read?: number | null,
+  write?: number | null,
+): number {
+  const denominator = Math.max(input ?? 0, (read ?? 0) + (write ?? 0));
+  return denominator > 0 ? Math.min((read ?? 0) / denominator, 1) : 0;
 }

@@ -10,6 +10,7 @@ from __future__ import annotations
 
 from types import SimpleNamespace
 from typing import Any
+from unittest.mock import AsyncMock
 
 import pytest
 
@@ -56,6 +57,17 @@ async def test_execute_agent_stream_forwards_base_url_to_agent(
 
     assert agent.stream_kwargs is not None
     assert agent.stream_kwargs.get("base_url") == "https://chat.example.com"
+
+
+@pytest.mark.parametrize("interrupted_resume", [False, True])
+async def test_execute_agent_stream_preserves_recovery_mode(monkeypatch, interrupted_resume):
+    agent = _Agent()
+    monkeypatch.setattr(chat_agent_execution.AgentFactory, "get", AsyncMock(return_value=agent))
+    async for _ in chat_agent_execution._execute_agent_stream(
+        "session-1", "fast", "hello", "user-1", interrupted_resume=interrupted_resume
+    ):
+        pass
+    assert agent.stream_kwargs["interrupted_resume"] is interrupted_resume
 
 
 class _Limiter:
@@ -282,6 +294,13 @@ async def test_existing_session_uses_persisted_project_scope_for_memory(
             return SimpleNamespace(metadata={})
 
     monkeypatch.setattr(chat, "SessionManager", lambda: _SessionManager())
+    monkeypatch.setattr("src.infra.session.manager.SessionManager", lambda: _SessionManager())
+    lease = SimpleNamespace(
+        acquire=AsyncMock(return_value=True),
+        renew=AsyncMock(return_value=True),
+        release=AsyncMock(),
+    )
+    monkeypatch.setattr("src.infra.channel.chat_lease.ChatLease", lambda *_args, **_kwargs: lease)
     monkeypatch.setattr(chat, "verify_session_ownership", lambda *_args: None)
 
     await _invoke_chat(

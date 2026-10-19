@@ -33,6 +33,7 @@ import {
   finishThinkingParts,
   createToolPart,
   mergeSummaryPart,
+  mergeThinkingPart,
   updateSubagentResult,
   updateToolResultInDepth,
   clearAllLoadingStates,
@@ -42,7 +43,6 @@ import {
   markPendingToolsAwaiting,
   takeOverDanglingToolPart,
 } from "./suspendedToolParts";
-import type { ThinkingPart } from "../../types";
 
 // ============================================
 // Shared utilities
@@ -90,10 +90,13 @@ export interface ProcessMessageEventResult {
   cancelled?: boolean;
 }
 
-/** 用户取消的 SSE error 事件类型：executor 侧写 CancelledError，
- * chat_stream_terminal 重连合成 task_cancelled——两者同属取消，不是失败。 */
+/** Explicit cancellation and Goal authority interruption retain partial output. */
 export function isCancelledErrorType(type: unknown): boolean {
-  return type === "CancelledError" || type === "task_cancelled";
+  return (
+    type === "CancelledError" ||
+    type === "TaskInterruptedError" ||
+    type === "task_cancelled"
+  );
 }
 
 /**
@@ -153,6 +156,7 @@ export function processMessageEvent(
         data.timestamp,
         data.agent_avatar,
         data.status,
+        data.agent_call_id,
       );
       result.parts = addPartToDepth(
         parts,
@@ -175,6 +179,7 @@ export function processMessageEvent(
         data.error,
         data.timestamp,
         data.status,
+        data.agent_call_id,
       );
       if (result.parts === parts) {
         const recovered = createSubagentPart(
@@ -184,6 +189,8 @@ export function processMessageEvent(
           depth,
           data.timestamp,
           data.agent_avatar,
+          data.status,
+          data.agent_call_id,
         );
         result.parts = [
           ...parts,
@@ -196,6 +203,7 @@ export function processMessageEvent(
             data.error,
             data.timestamp,
             data.status,
+            data.agent_call_id,
           ),
         ];
       }
@@ -227,40 +235,10 @@ export function processMessageEvent(
           messageId,
         );
       } else {
-        const newParts = [...parts];
-        let existingIndex = -1;
-
-        // Reverse scan: matching thinking part is usually at the end
-        for (let i = newParts.length - 1; i >= 0; i--) {
-          const p = newParts[i];
-          if (p.type === "thinking") {
-            const tid = (p as ThinkingPart).thinking_id;
-            if (
-              data.thinking_id !== undefined
-                ? tid === data.thinking_id
-                : tid === undefined
-            ) {
-              existingIndex = i;
-              break;
-            }
-          }
-        }
-
-        if (existingIndex >= 0) {
-          const existing = newParts[existingIndex] as ThinkingPart;
-          newParts[existingIndex] = {
-            ...existing,
-            content: existing.content + thinkingContent,
-            startedAt: existing.startedAt ?? thinkingPart.startedAt,
-            lastUpdatedAt: thinkingPart.lastUpdatedAt ?? existing.lastUpdatedAt,
-            completedAt: undefined,
-            ...(existing.status ? { status: undefined } : {}),
-            isStreaming: isStreaming ? true : existing.isStreaming,
-          };
-        } else {
-          newParts.push(thinkingPart);
-        }
-        result.parts = newParts;
+        result.parts = mergeThinkingPart(parts, thinkingPart, isStreaming) ?? [
+          ...parts,
+          thinkingPart,
+        ];
       }
       break;
     }
@@ -389,6 +367,15 @@ export function processMessageEvent(
           ? data.result
           : { status: data.success === false ? "rejected" : "success" };
       if (batchToolCallIds.length > 0) {
+        // Approval resumes the command; only its real tool result completes it.
+        if (data.success !== false) {
+          result.parts = markPendingToolsAwaiting(
+            parts,
+            false,
+            new Set(batchToolCallIds),
+          );
+          break;
+        }
         // 沙箱确认门整批：执行卡（等待确认→结果）按 tool_call_ids 批量转终态；
         // 确认门不合成 ask_human 卡（保持 Codex 式执行卡体验）
         let updatedParts = parts;
@@ -562,7 +549,24 @@ export function processMessageEvent(
     // ---- Memory status events（首轮记忆装配进度，沙箱初始化同款 item）----
 
     case "status": {
-      if (data.stage === "memory") {
+      if (data.stage === "agent_handoff" && data.target_agent_id === "search") {
+        if (
+          !parts.some(
+            (part) =>
+              part.type === "agentHandoff" &&
+              part.agentId === data.target_agent_id,
+          )
+        ) {
+          result.parts = [
+            ...parts,
+            {
+              type: "agentHandoff",
+              agentId: data.target_agent_id,
+              timestamp: data.timestamp,
+            },
+          ];
+        }
+      } else if (data.stage === "memory") {
         result.parts = upsertMemoryStatusPart(parts, {
           type: "memoryStatus",
           status: "starting",
@@ -619,16 +623,58 @@ export function processMessageEvent(
     // ---- Token usage ----
 
     case "token:usage": {
+      const unknownUsageFields = new Set(data.unknown_usage_fields ?? []);
+      for (const field of [
+        "input_tokens",
+        "output_tokens",
+        "cache_creation_tokens",
+        "cache_read_tokens",
+      ] as const) {
+        if (
+          typeof data[field] !== "number" ||
+          !Number.isFinite(data[field]) ||
+          data[field]! < 0
+        ) {
+          unknownUsageFields.add(field);
+        }
+      }
       result.tokenUsage = {
         type: "token_usage",
         input_tokens: data.input_tokens || 0,
         output_tokens: data.output_tokens || 0,
         total_tokens: data.total_tokens || 0,
-        cache_creation_tokens: data.cache_creation_tokens || 0,
-        cache_read_tokens: data.cache_read_tokens || 0,
+        cache_creation_tokens: unknownUsageFields.has("cache_creation_tokens")
+          ? undefined
+          : data.cache_creation_tokens,
+        cache_read_tokens: unknownUsageFields.has("cache_read_tokens")
+          ? undefined
+          : data.cache_read_tokens,
+        usage_incomplete:
+          unknownUsageFields.size > 0
+            ? true
+            : typeof data.usage_incomplete === "boolean"
+              ? data.usage_incomplete
+              : undefined,
+        ...(unknownUsageFields.size > 0
+          ? { unknown_usage_fields: [...unknownUsageFields] }
+          : {}),
+        ...(data.input_includes_cache === true
+          ? { input_includes_cache: true }
+          : {}),
         model_id: data.model_id,
         model: data.model,
+        cost_complete: data.cost_complete,
+        ...(data.cost_source !== undefined
+          ? {
+              cost_source: data.cost_source,
+              cost_units: data.cost_units,
+              actual_models: data.actual_models,
+            }
+          : {}),
         cost_usd: data.cost_usd,
+        partial_cost_usd: data.partial_cost_usd,
+        estimated_cost_usd: data.estimated_cost_usd,
+        partial_cost_breakdown: data.partial_cost_breakdown,
         cost_breakdown: data.cost_breakdown,
         cost_rates: data.cost_rates,
       };
@@ -740,7 +786,7 @@ export function processMessageEvent(
 
     case "error": {
       const errorMsg = data.error
-        ? translateApiError(data.code, data.error, undefined, i18n.t.bind(i18n))
+        ? translateApiError(data.code, data.error, data.args, i18n.t.bind(i18n))
         : i18n.t("chat.unknownError");
       if (isTransientAskHumanCancellation(errorMsg)) {
         result.parts = parts;

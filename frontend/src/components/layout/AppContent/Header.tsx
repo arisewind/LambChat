@@ -269,7 +269,7 @@ export function Header({
 
   const actions = (
     /* Right */
-    <div className="chat-header__actions flex items-center gap-0 sm:gap-1 flex-shrink-0">
+    <div className="chat-header__actions flex items-center gap-1 sm:gap-2 flex-shrink-0">
       {/* Overflow menu (unified for all screen sizes) */}
       <div className="relative">
         <button
@@ -307,7 +307,7 @@ export function Header({
       </div>
 
       {headerActions}
-      <ComposerUsageChip />
+      <ComposerUsageChip key={user?.id} />
       <UserMenu onShowProfile={onShowProfile} />
     </div>
   );

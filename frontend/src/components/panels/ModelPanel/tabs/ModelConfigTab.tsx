@@ -1,3 +1,4 @@
+import { useRightPanelState } from "../../../../hooks/useRightPanelState";
 import { InteractiveIcon } from "../../../common/InteractiveIcon";
 import { Cpu } from "lucide-react";
 import { Pagination } from "../../../common/Pagination";
@@ -288,7 +289,7 @@ const ModelCard = React.memo(function ModelCard({
           )}
           <button
             onClick={handleEdit}
-            className="p-2 text-stone-500 hover:text-stone-700 hover:bg-white/50 rounded-lg transition-all duration-200 dark:text-stone-400 dark:hover:text-stone-200 dark:hover:bg-theme-bg-hover"
+            className="p-2 text-theme-text-secondary hover:text-theme-text hover:bg-theme-bg-hover rounded-lg transition-all duration-200"
             title={t("agentConfig.edit")}
           >
             <InteractiveIcon>
@@ -377,7 +378,7 @@ const ModelCard = React.memo(function ModelCard({
             />
             <button
               onClick={handleEdit}
-              className="p-2 text-stone-500 hover:text-stone-700 hover:bg-white/50 rounded-lg transition-all duration-200 dark:text-stone-400 dark:hover:text-stone-200 dark:hover:bg-theme-bg-hover"
+              className="p-2 text-theme-text-secondary hover:text-theme-text hover:bg-theme-bg-hover rounded-lg transition-all duration-200"
               title={t("agentConfig.edit")}
             >
               <InteractiveIcon>
@@ -428,9 +429,13 @@ export function ModelConfigTab({ models, onReload }: ModelConfigTabProps) {
   });
 
   // Modal state — only these booleans, all form state lives inside the modal components
-  const [editingModel, setEditingModel] = useState<ModelConfig | null>(null);
-  const [isCreating, setIsCreating] = useState(false);
-  const [showBatchModal, setShowBatchModal] = useState(false);
+  const [editingModel, setEditingModel] =
+    useRightPanelState<ModelConfig | null>("models:form", null);
+  const [isCreating, setIsCreating] = useRightPanelState("models:form", false);
+  const [showBatchModal, setShowBatchModal] = useRightPanelState(
+    "models:batch",
+    false,
+  );
   const [isSyncingPrices, setIsSyncingPrices] = useState(false);
   const [isBackfillingCosts, setIsBackfillingCosts] = useState(false);
   const [batchInitialTab, setBatchInitialTab] = useState<
@@ -565,16 +570,16 @@ export function ModelConfigTab({ models, onReload }: ModelConfigTabProps) {
     setEditingModel(null);
     setIsCreating(false);
     onReload();
-  }, [onReload]);
+  }, [onReload, setEditingModel, setIsCreating]);
 
   const handleBatchSaved = useCallback(() => {
     setShowBatchModal(false);
     onReload();
-  }, [onReload]);
+  }, [onReload, setShowBatchModal]);
 
   const handleBatchClosed = useCallback(() => {
     setShowBatchModal(false);
-  }, []);
+  }, [setShowBatchModal]);
 
   const menuId = useId();
   const menuTrigger = useRef<HTMLButtonElement | null>(null);
@@ -625,14 +630,24 @@ export function ModelConfigTab({ models, onReload }: ModelConfigTabProps) {
         priced: result.priced,
         scanned: result.scanned,
       });
-      toast.success(
-        result.still_unpriced > 0
-          ? `${base} · ${t("agentConfig.pricingBackfillUnpriced", {
-              defaultValue: "{{count}} 条未计价",
-              count: result.still_unpriced,
-            })}`
-          : base,
-      );
+      const details = [base];
+      if ((result.partial_priced ?? 0) > 0) {
+        details.push(
+          t("agentConfig.pricingBackfillPartial", {
+            defaultValue: "{{count}} partially calculated",
+            count: result.partial_priced,
+          }),
+        );
+      }
+      if (result.still_unpriced > 0) {
+        details.push(
+          t("agentConfig.pricingBackfillUnpriced", {
+            defaultValue: "{{count}} 条未计价",
+            count: result.still_unpriced,
+          }),
+        );
+      }
+      toast.success(details.join(" · "));
     } catch (err) {
       const message =
         (err as Error).message ||
@@ -791,6 +806,7 @@ export function ModelConfigTab({ models, onReload }: ModelConfigTabProps) {
       {/* Create / Edit Modal — isolated component, form state lives here */}
       {(editingModel || isCreating) && (
         <ModelFormModal
+          key={editingModel?.id ?? "new"}
           model={editingModel}
           models={models}
           onClose={() => {

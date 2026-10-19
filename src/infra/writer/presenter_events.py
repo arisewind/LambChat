@@ -9,6 +9,7 @@ from __future__ import annotations
 from itertools import islice
 from typing import TYPE_CHECKING, Any, Dict, List, Optional, Sequence
 
+from src.infra.pricing.calculator import PartialCostBreakdown
 from src.infra.utils.datetime import utc_now_iso
 from src.infra.writer.presenter_config import _bounded_attachments
 
@@ -273,6 +274,7 @@ class EventPresenterMixin:
         depth: int = 1,
         agent_avatar: Optional[str] = None,
         status: Optional[str] = None,
+        agent_call_id: Optional[str] = None,
     ) -> Dict[str, Any]:
         """输出子 Agent 调用
 
@@ -288,6 +290,7 @@ class EventPresenterMixin:
             {
                 "step": self._step_count,
                 "agent_name": agent_name,
+                **({"agent_call_id": agent_call_id} if agent_call_id else {}),
                 "agent_avatar": agent_avatar,
                 **({"status": status} if status else {}),
                 "input": input_message,
@@ -305,6 +308,7 @@ class EventPresenterMixin:
         depth: int = 1,
         error: Optional[str] = None,
         status: Optional[str] = None,
+        agent_call_id: Optional[str] = None,
     ) -> Dict[str, Any]:
         """输出子 Agent 返回结果
 
@@ -320,6 +324,8 @@ class EventPresenterMixin:
             "success": success,
             "timestamp": utc_now_iso(),
         }
+        if agent_call_id:
+            data["agent_call_id"] = agent_call_id
         if error:
             data["error"] = error
         if status:
@@ -567,12 +573,15 @@ class EventPresenterMixin:
         output_tokens: int = 0,
         total_tokens: int = 0,
         duration: float = 0.0,
-        cache_creation_tokens: int = 0,
-        cache_read_tokens: int = 0,
+        cache_creation_tokens: int | None = None,
+        cache_read_tokens: int | None = None,
         model_id: str | None = None,
         model: str | None = None,
         cost: Any = None,
         rates: Any = None,
+        unknown_usage_fields: list[str] | None = None,
+        input_includes_cache: bool = False,
+        settlement_usage: dict | None = None,
     ) -> Dict[str, Any]:
         """输出 Token 使用统计
 
@@ -595,25 +604,80 @@ class EventPresenterMixin:
             "duration": duration,
             "timestamp": utc_now_iso(),
         }
-        # 添加缓存token统计（如果有）
-        if cache_creation_tokens > 0:
+        unknown = set(unknown_usage_fields or [])
+        if cache_creation_tokens is None:
+            unknown.add("cache_creation_tokens")
+        if cache_read_tokens is None:
+            unknown.add("cache_read_tokens")
+        data["usage_incomplete"] = bool(unknown)
+        data["unknown_usage_fields"] = sorted(unknown)
+        if input_includes_cache is True:
+            data["input_includes_cache"] = True
+        if cache_creation_tokens is not None:
             data["cache_creation_tokens"] = cache_creation_tokens
-        if cache_read_tokens > 0:
+        if cache_read_tokens is not None:
             data["cache_read_tokens"] = cache_read_tokens
         if model_id:
             data["model_id"] = model_id
         if model:
             data["model"] = model
+        if settlement_usage is not None:
+            units = settlement_usage["cost_units"]
+            if type(units) is not int or units < 0:
+                raise ValueError("Invalid settled cost units")
+            complete = settlement_usage.get("cost_complete") is True
+            models = settlement_usage.get("actual_models", [])
+            data.update(
+                cost_source="provider_settlement",
+                cost_units=units,
+                cost_complete=complete,
+                actual_models=models,
+            )
+            # Recovery needs call identities to replace partial receipts rather than add twice.
+            for key in (
+                "cost_receipts",
+                "legacy_cost_units",
+                "legacy_cost_unknown",
+                "legacy_actual_models",
+                "legacy_model_identity_complete",
+                "model_identity_complete",
+            ):
+                if key in settlement_usage:
+                    data[key] = settlement_usage[key]
+            data["cost_usd" if complete else "partial_cost_usd"] = units / 1_000_000_000
+            if len(models) == 1 and settlement_usage.get("model_identity_complete", True):
+                data["model"] = models[0].get("model") or ""
+                data["model_id"] = models[0].get("model_id") or ""
+            else:
+                data["model"] = "mixed" if models else ""
+                data["model_id"] = ""
+            return self._build_event("token:usage", data)
         # 金额字段仅在可计价时携带，前端据此区分「未计价」与「0 美元」
-        if cost is not None:
+        if isinstance(cost, PartialCostBreakdown):
+            if cost.components and input_includes_cache is True:
+                data["partial_cost_usd"] = cost.total_usd
+                data["partial_cost_breakdown"] = dict(cost.components)
+        elif cost is not None and (
+            not unknown
+            or unknown <= {"cache_creation_tokens", "total_tokens"}
+            and input_includes_cache is True
+            and rates is not None
+            and getattr(rates, "cache_write_included", False) is True
+        ):
             data["cost_usd"] = cost.total_usd
             data["cost_breakdown"] = cost.to_event_data()
+            data["cost_complete"] = True
         if rates is not None:
             data["cost_rates"] = {
                 "input": rates.input,
                 "output": rates.output,
                 "cache_read": rates.cache_read,
                 "cache_write": rates.cache_write,
+                **(
+                    {"cache_write_included": True}
+                    if getattr(rates, "cache_write_included", False) is True
+                    else {}
+                ),
             }
         return self._build_event("token:usage", data)
 
