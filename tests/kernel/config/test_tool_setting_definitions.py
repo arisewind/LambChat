@@ -21,6 +21,8 @@ def test_web_search_settings_are_registered() -> None:
         # 默认挂载为系统内置工具（未配 provider 时工具自述引导，而非不挂载）
         "ENABLE_WEB_SEARCH": True,
         "WEB_SEARCH_PROVIDER": "auto",
+        "ANYSEARCH_API_KEYS": "",
+        "DEEPSEEK_API_KEYS": "",
         "TAVILY_API_KEYS": "",
         "BRAVE_API_KEYS": "",
         "SEARXNG_BASE_URL": "",
@@ -32,16 +34,20 @@ def test_web_search_settings_are_registered() -> None:
 
     assert TOOLS_SETTING_DEFINITIONS["WEB_SEARCH_PROVIDER"]["options"] == [
         "auto",
+        "anysearch",
+        "deepseek",
         "tavily",
         "brave",
         "searxng",
     ]
+    assert TOOLS_SETTING_DEFINITIONS["DEEPSEEK_API_KEYS"]["is_sensitive"] is True
     assert TOOLS_SETTING_DEFINITIONS["TAVILY_API_KEYS"]["is_sensitive"] is True
+    assert TOOLS_SETTING_DEFINITIONS["ANYSEARCH_API_KEYS"]["is_sensitive"] is True
     assert TOOLS_SETTING_DEFINITIONS["BRAVE_API_KEYS"]["is_sensitive"] is True
     assert TOOLS_SETTING_DEFINITIONS["SEARXNG_API_KEY"]["is_sensitive"] is True
     assert TOOLS_SETTING_DEFINITIONS["SEARXNG_BASE_URL"].get("is_sensitive") is not True
     for key in expected_defaults:
-        if key != "ENABLE_WEB_SEARCH":
+        if key not in ("ENABLE_WEB_SEARCH", "DEEPSEEK_API_KEYS"):
             assert TOOLS_SETTING_DEFINITIONS[key]["depends_on"] == "ENABLE_WEB_SEARCH"
 
 
@@ -63,6 +69,7 @@ def test_web_fetch_settings_are_registered() -> None:
     assert TOOLS_SETTING_DEFINITIONS["WEB_FETCH_PROVIDER"]["options"] == [
         "auto",
         "direct",
+        "deepseek",
         "tavily",
         "firecrawl",
         "exa",
