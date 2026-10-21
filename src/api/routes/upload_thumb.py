@@ -12,6 +12,7 @@ from __future__ import annotations
 import asyncio
 from typing import Any
 
+import httpx
 from fastapi.responses import Response
 
 from src.api.routes.upload_cover import (
@@ -21,6 +22,7 @@ from src.api.routes.upload_cover import (
     _key_ext,
     _path_exists,
     cover_signature_expiry,
+    get_file_cover_response,
 )
 from src.infra.async_utils import run_long_blocking_io
 from src.infra.logging import get_logger
@@ -36,10 +38,37 @@ _THUMB_CACHE_PREFIX = f"thumbs/{THUMB_SIZE}"
 _thumb_inflight: dict[str, asyncio.Task] = {}
 
 
+async def get_file_image_variant_response(
+    storage: Any, key: str, cover: bool, proxy: bool, t: int | None
+) -> Response:
+    """Fetch a server-signed thumbnail/cover without forwarding account credentials."""
+    variant = (
+        await get_file_cover_response(storage, key, t)
+        if cover
+        else await get_file_thumb_response(storage, key)
+    )
+    if not proxy or variant.status_code != 302:
+        return variant
+    try:
+        async with httpx.AsyncClient(timeout=30, follow_redirects=False) as client:
+            upstream = await client.get(variant.headers["location"])
+            upstream.raise_for_status()
+        content_type = upstream.headers.get("content-type", "")
+        if not content_type.startswith("image/"):
+            raise AppError(ErrorCode.FILE_READ_FAILED)
+        return Response(
+            content=upstream.content,
+            media_type=content_type,
+            headers={"Cache-Control": variant.headers["cache-control"]},
+        )
+    except httpx.HTTPError:
+        raise AppError(ErrorCode.FILE_READ_FAILED)
+
+
 def thumb_process_for_key(key: str) -> str | None:
     """OSS processing directive for a chat thumbnail, or None when unsupported."""
     if _key_ext(key) in _THUMB_IMAGE_EXTS:
-        return f"image/resize,m_lfit,w_{THUMB_SIZE},h_{THUMB_SIZE}"
+        return f"image/resize,m_lfit,w_{THUMB_SIZE},h_{THUMB_SIZE}/format,webp/quality,Q_82"
     return None
 
 
@@ -103,15 +132,7 @@ async def get_file_thumb_response(storage: Any, key: str) -> Response:
 
     provider = getattr(getattr(storage, "_config", None), "provider", None)
     if provider == S3Provider.ALIYUN:
-        try:
-            exists = await storage.file_exists(key)
-            if not exists:
-                raise AppError(ErrorCode.FILE_NOT_FOUND)
-        except AppError:
-            raise
-        except Exception as e:
-            logger.warning(f"Failed to check file existence for thumb {key}: {e}")
-
+        # OSS handles missing objects on GET; signing must not wait for a remote HEAD.
         try:
             url = await storage.get_cover_presigned_url(
                 key, cover_signature_expiry(), process=thumb_process_for_key(key)

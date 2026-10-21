@@ -42,9 +42,11 @@ class _FakeS3Storage:
 
     def __init__(self, provider: str = "aliyun") -> None:
         self.presigned_calls: list[dict] = []
+        self.existence_checks: list[str] = []
         self._config = SimpleNamespace(provider=provider, public_bucket=False)
 
     async def file_exists(self, key: str) -> bool:
+        self.existence_checks.append(key)
         return True
 
     async def get_presigned_url(
@@ -80,11 +82,26 @@ async def test_thumb_redirects_to_lfit_presigned_url_on_aliyun(
     resp = await upload.get_file_proxy("revealed_files/hero.jpg", _fake_request(), thumb=True)
 
     assert resp.status_code in (302, 307)
-    assert storage.presigned_calls[0]["process"] == "image/resize,m_lfit,w_560,h_560"
+    assert storage.presigned_calls[0]["process"] == (
+        "image/resize,m_lfit,w_560,h_560/format,webp/quality,Q_82"
+    )
     assert storage.presigned_calls[0]["expires"] >= 86400
     assert storage.presigned_calls[0]["expires"] % 86400 == 0
     assert "signed.example" in resp.headers["location"]
     assert resp.headers["cache-control"] == "public, max-age=86400"
+
+
+@pytest.mark.asyncio
+async def test_aliyun_thumb_signing_does_not_wait_for_a_remote_existence_check(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    storage = _FakeS3Storage()
+    monkeypatch.setattr(upload, "get_or_init_storage", _async_of(storage))
+
+    resp = await upload.get_file_proxy("revealed_files/hero.png", _fake_request(), thumb=True)
+
+    assert resp.status_code == 302
+    assert storage.existence_checks == []
 
 
 @pytest.mark.asyncio
@@ -306,3 +323,67 @@ async def test_thumb_concurrent_first_requests_render_only_once(
     assert all(r.status_code == 200 for r in responses)
     assert storage.downloads == ["revealed_files/hero.jpg"]
     assert storage.uploads == ["thumbs/560/revealed_files/hero.jpg.jpg"]
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("variant", ["thumb", "cover"])
+async def test_image_variant_proxy_fetches_processed_bytes_without_forwarding_user_headers(
+    monkeypatch: pytest.MonkeyPatch, variant: str
+) -> None:
+    import httpx
+
+    storage = _FakeS3Storage()
+    monkeypatch.setattr(upload, "get_or_init_storage", _async_of(storage))
+    requests: list[httpx.Request] = []
+
+    def respond(request: httpx.Request) -> httpx.Response:
+        requests.append(request)
+        return httpx.Response(
+            200, content=_jpeg_bytes((560, 315)), headers={"Content-Type": "image/jpeg"}
+        )
+
+    client_class = httpx.AsyncClient
+    monkeypatch.setattr(
+        httpx,
+        "AsyncClient",
+        lambda **kwargs: client_class(transport=httpx.MockTransport(respond), **kwargs),
+    )
+    request = _fake_request()
+    request.headers["authorization"] = "Bearer must-not-leak"
+    response = await upload.get_file_proxy(
+        "revealed_files/hero.jpg", request, proxy=True, **{variant: True}
+    )
+
+    assert response.status_code == 200
+    assert response.media_type == "image/jpeg"
+    assert Image.open(io.BytesIO(response.body)).size == (560, 315)
+    assert response.headers["cache-control"] == "public, max-age=86400"
+    assert len(requests) == 1
+    assert requests[0].url.host == "signed.example"
+    assert "authorization" not in requests[0].headers
+    assert "cookie" not in requests[0].headers
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("status", [302, 403, 500])
+async def test_image_variant_proxy_rejects_upstream_errors_and_redirects(
+    monkeypatch: pytest.MonkeyPatch, status: int
+) -> None:
+    import httpx
+
+    storage = _FakeS3Storage()
+    monkeypatch.setattr(upload, "get_or_init_storage", _async_of(storage))
+    client_class = httpx.AsyncClient
+    transport = httpx.MockTransport(
+        lambda request: httpx.Response(
+            status, headers={"Location": "https://elsewhere.example/image.jpg"}
+        )
+    )
+    monkeypatch.setattr(
+        httpx, "AsyncClient", lambda **kwargs: client_class(transport=transport, **kwargs)
+    )
+    with pytest.raises(AppError) as exc:
+        await upload.get_file_proxy(
+            "revealed_files/hero.jpg", _fake_request(), thumb=True, proxy=True
+        )
+    assert exc.value.error_code.code == "file_read_failed"

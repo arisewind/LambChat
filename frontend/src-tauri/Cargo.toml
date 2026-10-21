@@ -1,11 +1,18 @@
 [package]
 name = "lambchat"
-version = "2.15.2"
+version = "2.15.3"
 description = "LambChat desktop app"
 authors = ["LambChat"]
 license = ""
 repository = ""
 edition = "2021"
+
+[features]
+updater-verification = ["tauri/test"]
+
+[[example]]
+name = "verify_updater"
+required-features = ["updater-verification"]
 
 [lib]
 name = "lambchat_lib"
