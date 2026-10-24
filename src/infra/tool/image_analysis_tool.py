@@ -19,15 +19,20 @@ from langchain_core.tools import BaseTool, InjectedToolArg
 from src.agents.core.node_utils import (
     build_human_message,
     get_image_download_max_bytes,
-    inline_image_attachments_as_data_urls,
 )
-from src.infra.agent.middleware.image_url import _append_proxy_direct_param
+from src.infra.agent.middleware.image_url import prepare_image_messages
 from src.infra.async_utils import run_long_blocking_io
 from src.infra.image_utils import compress_image_bytes_if_needed
 from src.infra.llm.client import LLMClient
 from src.infra.llm.quota import is_quota_error
+from src.infra.llm.retry import is_retryable_model_error
 from src.infra.logging import get_logger
-from src.infra.tool.backend_utils import get_backend_from_runtime, get_base_url_from_runtime
+from src.infra.tool.backend_utils import (
+    get_backend_from_runtime,
+    get_base_url_from_runtime,
+    get_session_id_from_runtime,
+    get_user_id_from_runtime,
+)
 from src.kernel.config import settings
 from src.kernel.errors import AppError
 from src.kernel.schemas.model import ModelConfig, effective_image_url_mode
@@ -45,6 +50,7 @@ from langchain.tools import tool  # noqa: E402
 logger = get_logger(__name__)
 
 DEFAULT_IMAGE_ANALYSIS_PROMPT = "Describe the image clearly and objectively."
+_MODEL_CALL_TIMEOUT_SECONDS = 20.0
 IMAGE_ANALYSIS_INTERNAL_RUN_CONFIG = {
     "metadata": {"lc_source": "image_analysis_tool", "internal_tool_call": True},
     "tags": ["internal_tool_call", "image_analysis_tool"],
@@ -288,6 +294,44 @@ def _content_to_text(content: Any) -> str:
     return str(content)
 
 
+def _model_error_details(exc: BaseException) -> dict[str, Any]:
+    response = getattr(exc, "response", None)
+    status = getattr(exc, "status_code", None) or getattr(response, "status_code", None)
+    body = getattr(exc, "body", None)
+    if not isinstance(body, dict) and response is not None:
+        try:
+            if len(response.content) <= 8192:
+                body = response.json()
+        except Exception:
+            pass
+    error = body.get("error", body) if isinstance(body, dict) else {}
+    allowed = {
+        "invalid_request_error",
+        "authentication_error",
+        "permission_error",
+        "not_found_error",
+        "rate_limit_error",
+        "overloaded_error",
+        "api_error",
+        "invalid_image",
+        "unsupported_image",
+        "model_not_found",
+        "invalid_api_key",
+        "insufficient_quota",
+        "context_length_exceeded",
+    }
+    # Provider messages may echo the image/request. Only expose known protocol codes.
+    code = next(
+        (
+            error.get(k)
+            for k in ("code", "type")
+            if isinstance(error, dict) and isinstance(error.get(k), str) and error[k] in allowed
+        ),
+        "unknown",
+    )
+    return {"status_code": status, "provider_error": code}
+
+
 async def _call_with_retries(llm: Any, messages: list[Any]) -> Any:
     max_attempts = max(1, int(getattr(settings, "IMAGE_ANALYSIS_MAX_ATTEMPTS", 3) or 3))
     base_delay = float(getattr(settings, "IMAGE_ANALYSIS_RETRY_DELAY", 1.0) or 0)
@@ -295,12 +339,23 @@ async def _call_with_retries(llm: Any, messages: list[Any]) -> Any:
     last_exc: Exception | None = None
     for attempt in range(1, max_attempts + 1):
         try:
-            return await llm.ainvoke(messages, config=IMAGE_ANALYSIS_INTERNAL_RUN_CONFIG)
+            async with asyncio.timeout(_MODEL_CALL_TIMEOUT_SECONDS):
+                return await llm.ainvoke(messages, config=IMAGE_ANALYSIS_INTERNAL_RUN_CONFIG)
         except Exception as exc:
             if is_quota_error(exc):
                 raise
             last_exc = exc
-            if attempt >= max_attempts:
+            details = _model_error_details(exc)
+            logger.warning(
+                "[image_analyze] model call failed: error_type=%s status_code=%s provider_error=%s attempt=%s/%s retryable=%s",
+                type(exc).__name__,
+                details["status_code"],
+                details["provider_error"],
+                attempt,
+                max_attempts,
+                is_retryable_model_error(exc),
+            )
+            if attempt >= max_attempts or not is_retryable_model_error(exc):
                 break
             delay = base_delay * (2 ** max(0, attempt - 1))
             logger.warning(
@@ -351,28 +406,6 @@ async def image_analyze(
             return await _json_dumps_result({"error": "image_urls must include at least one image"})
 
         attachments = await _inline_backend_image_paths(attachments, runtime)
-        # 本工具直连 LLM,不经 agent 中间件链:base64 模式只能在此临场内联;
-        # proxy_direct 模式给 URL 加直出参数,不增加请求体体积。
-        image_url_mode = effective_image_url_mode(model_config.profile)
-        attachments = await inline_image_attachments_as_data_urls(
-            attachments,
-            base_url=get_base_url_from_runtime(runtime),
-            force_data_url=image_url_mode == "base64",
-        )
-        if image_url_mode == "proxy_direct":
-            attachments = [
-                ({**att, "url": _append_proxy_direct_param(att["url"])} if att.get("url") else att)
-                for att in attachments
-            ]
-        if image_url_mode == "storage_direct":
-            from src.infra.agent.middleware.image_url import _resolve_storage_image_url
-
-            attachments = [
-                {**att, "url": await _resolve_storage_image_url(att["url"])}
-                if att.get("url")
-                else att
-                for att in attachments
-            ]
         try:
             await run_long_blocking_io(_validate_attachment_data_urls, attachments)
         except ValueError:
@@ -384,8 +417,16 @@ async def image_analyze(
         if isinstance(message.content, str):
             return await _json_dumps_result({"error": "No readable image URLs were provided"})
 
+        messages = await prepare_image_messages(
+            [message],
+            mode=effective_image_url_mode(model_config.profile),
+            user_id=get_user_id_from_runtime(runtime),
+            session_id=get_session_id_from_runtime(runtime),
+            base_url=get_base_url_from_runtime(runtime),
+        )
         llm = await LLMClient.get_model(model_config=model_config)
-        response = await _call_with_retries(llm, [message])
+        async with asyncio.timeout(30):
+            response = await _call_with_retries(llm, messages)
         analysis = _content_to_text(getattr(response, "content", response))
         return await _json_dumps_result(
             {
@@ -405,10 +446,25 @@ async def image_analyze(
         # 全量落日志会泄露用户内容（test_image_analyze_model_error_omits_request_content 守卫）。
         if is_quota_error(exc):
             raise
+        details = _model_error_details(exc)
         logger.warning(
-            "[image_analyze] failed: error_type=%s",
+            "[image_analyze] failed: error_type=%s status_code=%s provider_error=%s",
             type(exc).__name__,
+            details["status_code"],
+            details["provider_error"],
         )
+        if isinstance(exc, TimeoutError):
+            return await _json_dumps_result(
+                {"error": "Image analysis timed out", "retryable": True}
+            )
+        if details["status_code"] is not None:
+            return await _json_dumps_result(
+                {
+                    "error": "Image analysis failed",
+                    **details,
+                    "retryable": is_retryable_model_error(exc),
+                }
+            )
         return await _json_dumps_result({"error": "Image analysis failed"})
 
 

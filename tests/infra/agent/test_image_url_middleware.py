@@ -1,3 +1,4 @@
+import asyncio
 import logging
 
 import pytest
@@ -10,6 +11,95 @@ from src.infra.agent.middleware.image_url import (
     _append_proxy_direct_param,
     _with_data_url,
 )
+
+
+@pytest.fixture(autouse=True)
+def authorized_transport_urls(monkeypatch):
+    from unittest.mock import AsyncMock
+
+    async def authorize(url, *args, **kwargs):
+        return url
+
+    monkeypatch.setattr("src.kernel.config.settings.APP_BASE_URL", "https://lambchat.com")
+    monkeypatch.setattr("src.infra.upload.access.authorize_file_url", authorize)
+    monkeypatch.setattr(
+        "src.infra.upload.file_record.FileRecordStorage.is_private_key",
+        AsyncMock(side_effect=lambda key: key.startswith("cua_screenshots/")),
+    )
+
+
+async def test_base64_preparation_overlaps_images_with_bounded_concurrency(monkeypatch):
+    active = peak = 0
+    release = asyncio.Event()
+    four_started = asyncio.Event()
+
+    async def download(url, mime):
+        nonlocal active, peak
+        active += 1
+        peak = max(peak, active)
+        if active == 4:
+            four_started.set()
+        try:
+            await release.wait()
+            return f"data:{mime};base64,{url.rsplit('/', 1)[-1]}"
+        finally:
+            active -= 1
+
+    monkeypatch.setattr(
+        "src.infra.agent.middleware.image_url._download_image_url_as_data_url", download
+    )
+    messages = [
+        HumanMessage(
+            content=[
+                {"type": "image_url", "image_url": {"url": f"https://cdn/{i}.png"}}
+                for i in range(start, start + 5)
+            ]
+        )
+        for start in (0, 5)
+    ]
+    task = asyncio.create_task(ImageUrlToBase64Middleware()._convert_messages(messages))
+    try:
+        await asyncio.wait_for(four_started.wait(), 0.5)
+        assert peak == 4
+    finally:
+        release.set()
+        converted = await task
+    assert peak == 4
+    assert active == 0
+    assert [b["image_url"]["url"] for m in converted for b in m.content] == [
+        f"data:image/png;base64,{i}.png" for i in range(10)
+    ]
+    assert messages[0].content[0]["image_url"]["url"] == "https://cdn/0.png"
+
+
+async def test_cancelling_base64_preparation_drains_inflight_downloads(monkeypatch):
+    active = 0
+    started = asyncio.Event()
+
+    async def download(url, mime):
+        nonlocal active
+        active += 1
+        if active == 4:
+            started.set()
+        try:
+            await asyncio.Event().wait()
+        finally:
+            active -= 1
+
+    monkeypatch.setattr(
+        "src.infra.agent.middleware.image_url._download_image_url_as_data_url", download
+    )
+    message = HumanMessage(
+        content=[
+            {"type": "image_url", "image_url": {"url": f"https://cdn/{i}.png"}} for i in range(10)
+        ]
+    )
+    task = asyncio.create_task(ImageUrlToBase64Middleware()._convert_messages([message]))
+    await asyncio.wait_for(started.wait(), 1)
+    task.cancel()
+    with pytest.raises(asyncio.CancelledError):
+        await task
+    assert active == 0
 
 
 def test_anthropic_image_block_uses_compressed_data_url_mime_type():
@@ -93,9 +183,10 @@ async def test_image_url_middleware_failure_log_omits_exception_details(
     middleware = ImageUrlToBase64Middleware()
 
     with caplog.at_level(logging.WARNING):
-        content = await middleware._convert_content_blocks(
-            [{"type": "image_url", "image_url": {"url": secret_url}}]
+        messages = await middleware._convert_messages(
+            [HumanMessage(content=[{"type": "image_url", "image_url": {"url": secret_url}}])]
         )
+        content = messages[0].content
 
     assert content[0]["image_url"]["url"] == secret_url
     assert secret_url not in caplog.text
@@ -311,8 +402,8 @@ async def test_storage_direct_does_not_sign_private_capture_urls(monkeypatch):
     async def handler(request):
         return request
 
-    assert (
+    from src.kernel.errors import AppError
+
+    with pytest.raises(AppError):
         await image_url_middleware_for_mode("storage_direct").awrap_model_call(request, handler)
-        is request
-    )
     storage.get_presigned_url.assert_not_awaited()

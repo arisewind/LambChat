@@ -38,6 +38,7 @@ import sys
 import time
 from collections import deque
 from collections.abc import AsyncIterator, Awaitable, Callable
+from dataclasses import replace
 from pathlib import Path
 
 import httpx
@@ -46,10 +47,12 @@ from lambchat_sandbox import paths, pbs
 from lambchat_sandbox.audit import Auditor
 from lambchat_sandbox.config import SandboxConfig
 from lambchat_sandbox.cua_ops import CUA_OPS, handle_cua_op
-from lambchat_sandbox.executor import Executor, ExecutorError
+from lambchat_sandbox.executor import Executor, ExecutorError, map_workspace
 from lambchat_sandbox.fsops import (
     FS_OPS,
     STREAM_OPS,
+    FsOpError,
+    _resolve,
     handle_fs_op,
     handle_fs_stream,
     make_stream_upload_writer,
@@ -75,6 +78,9 @@ _EXEC_ACK_DELAY_S = 8.0
 # 幂等跳过（重复执行用户机器上的命令是不可接受的副作用）。重复帧总在几秒
 # 内到达，容量只需覆盖一个重推窗口内的调用数。
 _RECENT_CALL_IDS_MAX = 512
+_TRANSFER_CONCURRENCY = 8
+_MAX_PENDING_CALLS = 64
+_TRANSFER_OPS = STREAM_OPS | {"fs_upload", "fs_download"}
 
 
 class _CallDedupe:
@@ -87,6 +93,7 @@ class _CallDedupe:
     def __init__(self, capacity: int = _RECENT_CALL_IDS_MAX) -> None:
         self._seen: set[str] = set()
         self._terminal: set[str] = set()
+        self._active: set[str] = set()
         self._order: deque[str] = deque()
         self._capacity = capacity
 
@@ -96,8 +103,11 @@ class _CallDedupe:
             return False
         self._seen.add(call_id)
         self._order.append(call_id)
-        while len(self._order) > self._capacity:
+        while len(self._order) > max(self._capacity, len(self._active)):
             expired = self._order.popleft()
+            if expired in self._active:
+                self._order.append(expired)
+                continue
             self._seen.discard(expired)
             self._terminal.discard(expired)
         return True
@@ -219,9 +229,46 @@ async def _handle_channel(
     auditor: Auditor,
     dedupe: _CallDedupe | None = None,
 ) -> None:
-    """单次连接内逐条处理 ToolCall；流结束/异常交回外层重连循环。"""
-    async for call in calls:
+    """Keep receiving while commands run; serialize dependent file and desktop operations."""
+    pending: dict[asyncio.Task[None], tuple[ToolCall, Path | None]] = {}
+    slots = asyncio.Semaphore(_TRANSFER_CONCURRENCY)
+
+    async def process(call: ToolCall, dependencies: list[asyncio.Task[None]]) -> None:
+        pinned = dedupe is not None and call.call_id not in dedupe._active
+        if pinned and dedupe is not None:
+            dedupe._active.add(call.call_id)
+        acquired = False
         try:
+            budget = call.timeout if call.timeout > 0 else DEFAULT_EXEC_TIMEOUT_S
+            queued = bool(dependencies) or slots.locked()
+            started = time.monotonic() if queued else 0.0
+            try:
+                async with asyncio.timeout(budget):
+                    if queued:
+                        await client.post_result(call.call_id, {"stage": "ack"})
+                    for dependency in dependencies:
+                        await asyncio.shield(dependency)
+                    await slots.acquire()
+                    acquired = True
+            except TimeoutError:
+                await client.post_result(
+                    call.call_id, {"stage": "done", "status": "error", "error": "expired"}
+                )
+                if dedupe is not None:
+                    dedupe.remember(call.call_id)
+                    dedupe.mark_terminal(call.call_id)
+                return
+            if queued:
+                remaining = budget - (time.monotonic() - started)
+                if remaining <= 0:
+                    await client.post_result(
+                        call.call_id, {"stage": "done", "status": "error", "error": "expired"}
+                    )
+                    if dedupe is not None:
+                        dedupe.remember(call.call_id)
+                        dedupe.mark_terminal(call.call_id)
+                    return
+                call = replace(call, timeout=remaining)
             completed = await _process_call(
                 client, call, cfg=cfg, executor=executor, auditor=auditor, dedupe=dedupe
             )
@@ -229,11 +276,89 @@ async def _handle_channel(
                 dedupe.mark_terminal(call.call_id)
         except ResultRejectedError:
             if dedupe is not None:
+                dedupe.remember(call.call_id)
                 dedupe.mark_terminal(call.call_id)
             auditor.log(
                 _session_id_from_cwd(str(call.payload.get("cwd", ""))),
                 {"event": "result_rejected", "call_id": call.call_id, "op": call.op},
             )
+        finally:
+            if acquired:
+                slots.release()
+            if pinned and dedupe is not None:
+                dedupe._active.discard(call.call_id)
+
+    try:
+        async with asyncio.TaskGroup() as group:
+            async for call in calls:
+                for task in list(pending):
+                    if task.done():
+                        await task
+                        del pending[task]
+                terminal = dedupe is not None and dedupe.is_terminal(call.call_id)
+                if terminal or any(
+                    previous.call_id == call.call_id for previous, _ in pending.values()
+                ):
+                    if not terminal:
+                        try:
+                            await client.post_result(call.call_id, {"stage": "ack"})
+                        except ResultRejectedError:
+                            if dedupe is not None:
+                                dedupe.remember(call.call_id)
+                                dedupe.mark_terminal(call.call_id)
+                    auditor.log(
+                        _session_id_from_cwd(str(call.payload.get("cwd", ""))),
+                        {"event": "duplicate_skipped", "call_id": call.call_id, "op": call.op},
+                    )
+                    continue
+                if len(pending) >= _MAX_PENDING_CALLS:
+                    with contextlib.suppress(ResultRejectedError):
+                        await client.post_result(
+                            call.call_id,
+                            {"stage": "done", "status": "error", "error": "sandbox_busy"},
+                        )
+                    if dedupe is not None:
+                        dedupe.remember(call.call_id)
+                        dedupe.mark_terminal(call.call_id)
+                    continue
+                key = _transfer_path(call, cfg)
+                dependencies = []
+                for task, (previous, path) in pending.items():
+                    if call.op == "exec" or previous.op == "exec":
+                        continue  # Explicitly parallel commands own their filesystem dependencies.
+                    if call.op in CUA_OPS or previous.op in CUA_OPS:
+                        if call.op in CUA_OPS and previous.op in CUA_OPS:
+                            dependencies.append(task)
+                    elif key is None or path is None or key == path:
+                        dependencies.append(task)
+                pending[group.create_task(process(call, dependencies))] = (call, key)
+                # Let scheduled calls pin dedupe IDs and start before consuming another buffered frame.
+                await asyncio.sleep(0)
+    except ExceptionGroup as exc:
+        # Preserve the reconnect loop's fatal auth/version handling.
+        errors = exc.exceptions
+        raise next(
+            (
+                error
+                for error in errors
+                if isinstance(error, (TransportAuthError, UpdateRequiredError))
+            ),
+            errors[0],
+        ) from None
+
+
+def _transfer_path(call: ToolCall, cfg: SandboxConfig) -> Path | None:
+    if call.op not in _TRANSFER_OPS:
+        return None
+    try:
+        workspace = map_workspace(str(call.payload.get("cwd", "")), cfg.data_root)
+        target = _resolve(call.payload.get("path"), workspace)
+        # Hard links share writes despite differing paths; keep those serialized.
+        if target.exists() and target.stat().st_nlink > 1:
+            return None
+        return target
+    except (ExecutorError, FsOpError, OSError, ValueError):
+        return None  # The operation handler returns the original validation error.
 
 
 async def _process_call(
@@ -271,7 +396,7 @@ async def _process_call(
     if dedupe is not None and not dedupe.remember(call.call_id):
         # The first ACK may have been lost with the previous SSE connection.
         # Re-ack only an unresolved duplicate. Confirmed terminal replies need
-        # no HTTP round trip and must not block later calls in this serial loop.
+        # no HTTP round trip and must not block later calls.
         if not dedupe.is_terminal(call.call_id):
             await client.post_result(call.call_id, {"stage": "ack"})
         auditor.log(
@@ -583,6 +708,14 @@ async def _process_stream_call(
     try:
         lines = handle_fs_stream(call.op, call.payload, cfg.data_root)
         await client.post_stream_result(call.call_id, lines, deadline_s=effective)
+    except (TransportError, httpx.TransportError):
+        # 回传失败也必须结束服务端等待；不重放已经执行的调用。
+        with contextlib.suppress(TransportError, httpx.TransportError):
+            await client.post_result(
+                call.call_id,
+                {"stage": "done", "status": "error", "error": "stream_transport_failed"},
+            )
+        raise
     except ExecutorError as exc:
         await client.post_result(
             call.call_id, {"stage": "done", "status": "error", "error": str(exc)}

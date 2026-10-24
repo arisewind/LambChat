@@ -195,7 +195,8 @@ async def test_legacy_sandbox_servers_are_hidden_from_runtime_reads() -> None:
     effective_config = await storage.get_effective_config("user-1")
 
     assert visible_servers == []
-    assert effective_config == {"mcpServers": {}}
+    # mcp_system_server_names 是熔断作用域标记（issue #991），空配置同样携带
+    assert effective_config == {"mcpServers": {}, "mcp_system_server_names": []}
 
 
 @pytest.mark.asyncio
@@ -272,3 +273,12 @@ async def test_admin_import_preserves_allowed_roles() -> None:
 
     assert (imported, skipped, errors) == (1, 0, [])
     assert storage.created_system_servers[0].allowed_roles == ["developer"]
+
+
+async def test_user_override_does_not_inherit_system_network_trust():
+    storage = _FakeMCPStorage(
+        system_docs=[{"name": "shared-name", "enabled": True}],
+        user_docs=[{"name": "shared-name", "enabled": True, "user_id": "owner"}],
+    )
+    config = await storage.get_effective_config("owner", ["user"])
+    assert not config["mcpServers"]["shared-name"].get("_trusted_network", False)

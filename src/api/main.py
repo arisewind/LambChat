@@ -20,6 +20,7 @@ from src.api.error_handlers import register_error_handlers
 from src.api.middleware.auth import AuthMiddleware
 from src.api.middleware.compression import add_compression_middleware
 from src.api.middleware.tracing import TracingMiddleware
+from src.api.middleware.upload_isolation import UploadIsolationMiddleware
 from src.api.middleware.user_context import UserContextMiddleware
 from src.api.routes import (
     agent,
@@ -110,6 +111,7 @@ _LIFESPAN_BACKGROUND_TASK_NAMES = (
     "agent_discovery_task",
     "models_preload_task",
     "mcp_cache_warmup_task",
+    "memory_cache_warmup_task",
     "stale_task_cleanup_task",
     "stale_task_cleanup_recheck_task",
     "feishu_task",
@@ -291,6 +293,14 @@ async def _warm_mcp_cache() -> None:
 def _schedule_mcp_cache_warmup(app: FastAPI) -> asyncio.Task[None]:
     task = asyncio.create_task(_warm_mcp_cache(), name="mcp-cache-warmup")
     app.state.mcp_cache_warmup_task = task
+    return task
+
+
+def _schedule_memory_cache_warmup(app: FastAPI) -> asyncio.Task[None]:
+    from src.infra.memory.tools import warmup_backend
+
+    task = asyncio.create_task(warmup_backend(), name="memory-cache-warmup")
+    app.state.memory_cache_warmup_task = task
     return task
 
 
@@ -476,6 +486,7 @@ async def lifespan(app: FastAPI):
 
     # 后台预加载模型列表；请求路径仍有 memory -> Redis -> DB 懒加载兜底。
     _schedule_models_cache_warmup(app)
+    _schedule_memory_cache_warmup(app)
 
     # 后台预热最近活跃用户的 MCP 工具目录；不阻塞应用就绪。
     _schedule_mcp_cache_warmup(app)
@@ -589,12 +600,16 @@ async def lifespan(app: FastAPI):
         _reset_memory_monitor_after_startup()
     )
 
+    from src.api.routes.upload_range import create_range_client
+
+    app.state.upload_range_client = create_range_client()
     try:
         yield
     except asyncio.CancelledError:
         # Ctrl+C / server cancellation during lifespan shutdown is a normal exit path.
         logger.info("Application lifespan cancelled, continuing graceful shutdown")
     finally:
+        await app.state.upload_range_client.aclose()
         # 关闭时清理
         from src.agents import AgentFactory
         from src.infra.async_utils import loop_bridge
@@ -744,6 +759,9 @@ def create_app() -> FastAPI:
         title=settings.APP_NAME,
         version=settings.APP_VERSION,
         lifespan=lifespan,
+        docs_url="/docs" if settings.DEBUG else None,
+        redoc_url="/redoc" if settings.DEBUG else None,
+        openapi_url="/openapi.json" if settings.DEBUG else None,
     )
 
     # CORS 中间件 — allow_credentials=True 下禁止 "*"，必须显式白名单
@@ -761,6 +779,7 @@ def create_app() -> FastAPI:
     app.add_middleware(AuthMiddleware)
     app.add_middleware(TracingMiddleware)
     app.add_middleware(RequestBodyLimitMiddleware)
+    app.add_middleware(UploadIsolationMiddleware)
 
     # gzip 压缩（最外层，压缩最终响应体；SSE 与已压缩二进制在模块内排除）
     add_compression_middleware(app)

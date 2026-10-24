@@ -67,7 +67,7 @@ class Settings(BaseSettings):
     SESSION_EVENT_CHUNK_STORAGE_ENABLED: bool = False
     SESSION_EVENT_CHUNK_DUAL_WRITE_LEGACY: bool = False
     SESSION_EVENT_CHUNK_SIZE: int = 5000
-    SESSION_ACTIVE_RUN_STALE_MINUTES: int = 10  # running trace 超过该时长未更新则视为已终止
+    SESSION_ACTIVE_RUN_STALE_MINUTES: int = 10  # 无新事件的活跃历史须进一步核对执行心跳
     FEISHU_UPLOAD_BYTES_MAX_SIZE: int = 20 * 1024 * 1024
 
     # ============================================
@@ -114,6 +114,16 @@ class Settings(BaseSettings):
     # 单次工具调用超时（秒）。识图等 vision 调用可持续生成 5 分钟以上，
     # 300s 会掐断健康长调用且三次重试全部作废（2026-10-08 生产事故）。
     MCP_TOOL_TIMEOUT: int = 900
+    # 单个 MCP server 工具加载（initialize + list_tools）总超时（秒）。
+    # mcp SDK 的请求级 read_timeout_seconds 默认 None，挂死型上游（TCP 通
+    # 但不响应）会永久挂起加载协程（issue #991 / python-sdk #2432）。
+    # 只作用于加载路径，不影响 MCP_TOOL_TIMEOUT 管的工具调用。
+    MCP_SERVER_LOAD_TIMEOUT: int = 30
+    # MCP server 加载熔断（issue #991）：连续失败达到阈值后跳过该 server
+    # 的加载，冷却到期后放行单次探测，成功闭合。阈值设得极大即事实关闭。
+    MCP_BREAKER_FAILURE_THRESHOLD: int = 3
+    MCP_BREAKER_COOLDOWN_SECONDS: int = 60
+    MCP_BREAKER_COOLDOWN_MAX_SECONDS: int = 1800
     MCP_GLOBAL_CACHE_TTL_SECONDS: int = 900
     MCP_GLOBAL_MAX_ENTRIES: int = 100
     MCP_GLOBAL_INIT_WAIT_SECONDS: int = 5
@@ -164,7 +174,7 @@ class Settings(BaseSettings):
     # 周期孤儿接管间隔：缩短实例死亡后对话自动恢复的停顿（心跳按龄判死 + 扫描间隔）
     TASK_ORPHAN_RECOVERY_INTERVAL_SECONDS: int = 15
     # 僵尸 trace 全局兜底扫描间隔（秒）：updated_at 超过 10 分钟仍 running 的
-    # trace 终结为 error（直连 SSE run / 挂死 run 的唯一回收路径）。<=0 禁用。
+    # trace 再核对执行心跳，确认失活才终结为 error。<=0 禁用。
     STALE_TRACE_RECOVERY_INTERVAL_SECONDS: int = 300
     # 心跳按龄判死阈值（秒）：实例死亡后允许接管的前置等待。恢复入口与 arq
     # worker 侧均有同款活性复核兜底，20s（2 个心跳周期）不会误接管活任务。
@@ -174,8 +184,8 @@ class Settings(BaseSettings):
     # 每隔该时长也强制下发一次，避免小尾巴要等流结束才出来（<=0 禁用）。
     STREAM_CHUNK_FLUSH_INTERVAL: float = 1.0
     # run 级停滞 watchdog：executor 事件流超过该秒数无任何事件即判定挂死，
-    # 迁移 error 终态（worker 存活但 LLM/工具挂起时心跳不会失效，issue #293）。
-    # 默认须覆盖最长合法静默窗口（沙箱工具执行期无事件，E2B/CUBE 上限 3600s）
+    # 迁移 error 终态（worker 存活但模型挂死时心跳不会失效，issue #293）。
+    # 正在执行工具时使用工具自身的 deadline，不以事件静默判死。
     TASK_RUN_STALL_TIMEOUT: int = 3600
 
     # MongoDB Settings
