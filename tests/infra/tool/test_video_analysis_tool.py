@@ -37,6 +37,9 @@ class _FakeStorage:
 def video_model(monkeypatch):
     from src.infra.tool import video_analysis_tool as module
 
+    monkeypatch.setattr(
+        "src.infra.auth.tool_authority.has_tool_permission", AsyncMock(return_value=True)
+    )
     model = ModelConfig(
         id="vision-id",
         value="google/gemini-test",
@@ -95,6 +98,255 @@ async def test_anthropic_image_model_is_rejected_before_video_download(monkeypat
     video_model[1].ainvoke.assert_not_called()
 
 
+@pytest.mark.parametrize(
+    "path",
+    [
+        r"C:\Users\reader\Videos\12月5日 (1).mp4",
+        "d:/Videos/clip.mp4",
+        r"\\server\share\clip.mp4",
+        r"\\?\C:\Videos\clip.mp4",
+        "/Users/reader/Movies/视频 (1).mp4",
+        "/home/reader/Videos/视频 (1).mp4",
+        "/workspace/session/clip.mp4",
+        "clip.mp4",
+    ],
+)
+async def test_native_video_path_reaches_backend_and_model(video_model, path):
+    from src.infra.tool import video_analysis_tool as module
+
+    class Backend:
+        async def adownload_files(self, paths):
+            assert paths == [path]
+            return [SimpleNamespace(path=path, content=_mp4_bytes(), error=None)]
+
+    result = json.loads(
+        await module.video_analyze.coroutine(video_urls=[path], runtime=_Runtime(Backend()))
+    )
+    assert result["success"] is True
+    assert result["analysis"] == "A cat."
+    message = video_model[1].ainvoke.call_args.args[0][0]
+    assert base64.b64decode(message.content[1]["base64"]) == _mp4_bytes()
+
+
+async def test_backend_video_download_uses_configured_video_deadline(monkeypatch, video_model):
+    from src.infra.tool import video_analysis_tool as module
+
+    monkeypatch.setattr(module, "_DOWNLOAD_TIMEOUT_SECONDS", 0.01)
+    monkeypatch.setattr(module.settings, "VIDEO_ANALYSIS_TIMEOUT_SECONDS", 1)
+
+    class Backend:
+        async def adownload_files(self, paths):
+            await asyncio.sleep(0.02)
+            return [SimpleNamespace(path=paths[0], content=_mp4_bytes(), error=None)]
+
+    result = json.loads(
+        await module.video_analyze.coroutine(
+            video_urls=[r"C:\Videos\clip.mp4"], runtime=_Runtime(Backend())
+        )
+    )
+    assert result["success"] is True
+
+
+async def test_native_video_preview_reuses_analysis_bytes_and_registers_owner(
+    monkeypatch, video_model
+):
+    from src.infra.logging.context import TraceContext
+    from src.infra.storage.s3.service import S3StorageService
+    from src.infra.storage.s3.types import S3Config, S3Provider
+    from src.infra.tool import video_analysis_tool as module
+
+    content = _mp4_bytes()
+    original = content + b"large" * 100
+    backend = SimpleNamespace(
+        adownload_files=AsyncMock(return_value=[SimpleNamespace(content=original, error=None)])
+    )
+    runtime = _Runtime(backend)
+    runtime.config["configurable"]["session_id"] = "session-1"
+    monkeypatch.setattr(
+        TraceContext,
+        "get_request_context",
+        lambda: SimpleNamespace(user_id="user-1", session_id="session-1"),
+    )
+    monkeypatch.setattr(module.settings, "VIDEO_ANALYSIS_INLINE_MAX_BYTES", len(content))
+    monkeypatch.setattr(module, "compress_video", AsyncMock(return_value=content))
+    storage = S3StorageService(S3Config(provider=S3Provider.LOCAL))
+    uploaded = None
+
+    async def upload(file, key, content_type, metadata):
+        nonlocal uploaded
+        assert file.read() == content
+        assert key.startswith("revealed_files/") and content_type == "video/mp4"
+        uploaded = SimpleNamespace(key=key, content_type=content_type, size=len(content))
+        return uploaded
+
+    storage._backend = SimpleNamespace(upload=upload)
+    monkeypatch.setattr(
+        "src.infra.storage.s3.service.get_or_init_storage", AsyncMock(return_value=storage)
+    )
+    register = AsyncMock()
+    monkeypatch.setattr(
+        "src.infra.upload.file_record.get_file_record_storage",
+        lambda: SimpleNamespace(register_generated=register),
+    )
+    path = r"C:\Users\yangyang\Videos\12月5日(1).mp4"
+    result = json.loads(await module.video_analyze.coroutine(video_urls=[path], runtime=runtime))
+    assert result["success"] is True
+    preview_url = result["videos"][0]["preview_url"]
+    assert preview_url == f"https://app.example.com/api/upload/file/{uploaded.key}"
+    register.assert_awaited_once_with(uploaded, "user-1", "session-1")
+    backend.adownload_files.assert_awaited_once_with([path])
+
+
+@pytest.mark.parametrize("failure", [RuntimeError("provider failed"), TimeoutError(), ""])
+async def test_unsuccessful_analysis_never_persists_a_preview(monkeypatch, video_model, failure):
+    from src.infra.tool import video_analysis_tool as module
+
+    runtime = _Runtime(
+        SimpleNamespace(
+            adownload_files=AsyncMock(
+                return_value=[SimpleNamespace(content=_mp4_bytes(), error=None)]
+            )
+        )
+    )
+    upload = AsyncMock(return_value="https://app.example.com/api/upload/file/preview.mp4")
+    monkeypatch.setattr(module, "_upload_video_preview", upload)
+    call = (
+        AsyncMock(side_effect=failure)
+        if isinstance(failure, Exception)
+        else AsyncMock(return_value=SimpleNamespace(content=failure))
+    )
+    monkeypatch.setattr(module, "_call_with_retries", call)
+    result = json.loads(
+        await module.video_analyze.coroutine(video_urls=[r"C:\Videos\clip.mp4"], runtime=runtime)
+    )
+    assert result["success"] is False
+    upload.assert_not_awaited()
+
+
+async def test_preview_upload_failure_does_not_fail_analysis(monkeypatch, video_model):
+    from src.infra.logging.context import TraceContext
+    from src.infra.tool import video_analysis_tool as module
+
+    runtime = _Runtime(
+        SimpleNamespace(
+            adownload_files=AsyncMock(
+                return_value=[SimpleNamespace(content=_mp4_bytes(), error=None)]
+            )
+        )
+    )
+    runtime.config["configurable"]["session_id"] = "session-1"
+    monkeypatch.setattr(
+        TraceContext,
+        "get_request_context",
+        lambda: SimpleNamespace(user_id="user-1", session_id="session-1"),
+    )
+    get_storage = AsyncMock(side_effect=OSError("storage unavailable"))
+    monkeypatch.setattr("src.infra.storage.s3.service.get_or_init_storage", get_storage)
+    result = json.loads(
+        await module.video_analyze.coroutine(video_urls=[r"C:\Videos\clip.mp4"], runtime=runtime)
+    )
+    assert result["success"] is True
+    assert "preview_url" not in result["videos"][0]
+    get_storage.assert_awaited_once()
+
+
+@pytest.mark.parametrize(
+    "owner,session", [("other", "session-1"), ("user-1", "other"), (None, None)]
+)
+async def test_preview_never_uses_another_request_owner(monkeypatch, video_model, owner, session):
+    from src.infra.logging.context import TraceContext
+    from src.infra.tool import video_analysis_tool as module
+
+    runtime = _Runtime(
+        SimpleNamespace(
+            adownload_files=AsyncMock(
+                return_value=[SimpleNamespace(content=_mp4_bytes(), error=None)]
+            )
+        )
+    )
+    runtime.config["configurable"]["session_id"] = "session-1"
+    monkeypatch.setattr(
+        TraceContext,
+        "get_request_context",
+        lambda: SimpleNamespace(user_id=owner, session_id=session),
+    )
+    get_storage = AsyncMock()
+    monkeypatch.setattr("src.infra.storage.s3.service.get_or_init_storage", get_storage)
+    result = json.loads(
+        await module.video_analyze.coroutine(video_urls=[r"C:\Videos\clip.mp4"], runtime=runtime)
+    )
+    assert result["success"] is True
+    assert "preview_url" not in result["videos"][0]
+    get_storage.assert_not_awaited()
+
+
+async def test_stalled_preview_is_bounded_without_losing_analysis(monkeypatch, video_model):
+    from src.infra.logging.context import TraceContext
+    from src.infra.tool import video_analysis_tool as module
+
+    runtime = _Runtime(
+        SimpleNamespace(
+            adownload_files=AsyncMock(
+                return_value=[SimpleNamespace(content=_mp4_bytes(), error=None)]
+            )
+        )
+    )
+    runtime.config["configurable"]["session_id"] = "session-1"
+    monkeypatch.setattr(
+        TraceContext,
+        "get_request_context",
+        lambda: SimpleNamespace(user_id="user-1", session_id="session-1"),
+    )
+    monkeypatch.setattr(module, "_DOWNLOAD_TIMEOUT_SECONDS", 0.01)
+    cancelled = asyncio.Event()
+
+    async def hang():
+        try:
+            await asyncio.Event().wait()
+        finally:
+            cancelled.set()
+
+    monkeypatch.setattr("src.infra.storage.s3.service.get_or_init_storage", hang)
+    async with asyncio.timeout(1):
+        result = json.loads(
+            await module.video_analyze.coroutine(
+                video_urls=[r"C:\Videos\clip.mp4"], runtime=runtime
+            )
+        )
+    assert result["success"] is True
+    assert cancelled.is_set()
+
+
+@pytest.mark.parametrize("uploaded", [False, True])
+async def test_stalled_video_download_is_cancelled(monkeypatch, video_model, uploaded):
+    from src.infra.tool import video_analysis_tool as module
+
+    monkeypatch.setattr(module, "_DOWNLOAD_TIMEOUT_SECONDS", 0.01)
+    monkeypatch.setattr(module.settings, "VIDEO_ANALYSIS_TIMEOUT_SECONDS", 0.01)
+    cancelled = asyncio.Event()
+
+    async def hang(*args):
+        try:
+            await asyncio.Event().wait()
+        finally:
+            cancelled.set()
+
+    monkeypatch.setattr(module, "_download_uploaded_video", hang)
+    ref = "/api/upload/file/videos/clip.mp4" if uploaded else r"C:\Videos\clip.mp4"
+    async with asyncio.timeout(1):
+        result = json.loads(
+            await module.video_analyze.coroutine(
+                video_urls=[ref], runtime=_Runtime(SimpleNamespace(adownload_files=hang))
+            )
+        )
+    assert result == {
+        "success": False,
+        "errors": [{"url": ref, "error": "video_download_timeout"}],
+    }
+    assert cancelled.is_set()
+    video_model[1].ainvoke.assert_not_called()
+
+
 async def test_video_permanent_model_error_is_not_retried(monkeypatch):
     from src.infra.tool import video_analysis_tool as module
 
@@ -108,7 +360,7 @@ async def test_video_permanent_model_error_is_not_retried(monkeypatch):
 async def test_video_model_total_deadline(monkeypatch):
     from src.infra.tool import video_analysis_tool as module
 
-    monkeypatch.setattr(module, "_MODEL_TIMEOUT_SECONDS", 0.01, raising=False)
+    monkeypatch.setattr(module.settings, "VIDEO_ANALYSIS_TIMEOUT_SECONDS", 0.01, raising=False)
 
     async def hang(*args, **kwargs):
         await asyncio.Event().wait()
@@ -226,9 +478,9 @@ def test_guess_video_mime_type_by_magic_bytes() -> None:
 def test_video_analysis_max_bytes_defaults_and_setting(monkeypatch: pytest.MonkeyPatch) -> None:
     from src.infra.tool import video_analysis_tool
 
-    # 0/负值视为未配置 → 回落默认 50MB（pydantic v2 字段删不得：类上无兜底属性）
+    # 0/负值视为未配置 → 回落默认 200MB（pydantic v2 字段删不得：类上无兜底属性）
     monkeypatch.setattr(video_analysis_tool.settings, "VIDEO_ANALYSIS_MAX_BYTES", 0)
-    assert video_analysis_tool.get_video_analysis_max_bytes() == (50 * 1024 * 1024)
+    assert video_analysis_tool.get_video_analysis_max_bytes() == (200 * 1024 * 1024)
 
     monkeypatch.setattr(video_analysis_tool.settings, "VIDEO_ANALYSIS_MAX_BYTES", 1024 * 1024)
     assert video_analysis_tool.get_video_analysis_max_bytes() == 1024 * 1024
@@ -415,6 +667,13 @@ async def test_internal_registry_exposes_video_analyze_with_image_analysis(
 
     monkeypatch.setattr(internal_registry, "get_internal_tool_policies", no_policies)
 
+    from src.kernel.schemas.user import TokenPayload
+
+    monkeypatch.setattr(
+        internal_registry,
+        "resolve_tool_user",
+        AsyncMock(return_value=TokenPayload(sub="user-1", username="user")),
+    )
     tools = await internal_registry.get_internal_tools_for_user(
         user_id="user-1", user_roles=[], is_admin=False
     )
@@ -493,3 +752,50 @@ async def test_video_analyze_errors_when_neither_model_configured(
         )
     )
     assert "Neither VIDEO_ANALYSIS_MODEL_ID nor IMAGE_ANALYSIS_MODEL_ID" in result["error"]
+
+
+async def test_uploaded_video_rechecks_file_read_before_storage(monkeypatch):
+    from src.infra.tool import video_analysis_tool as module
+    from src.infra.upload.file_record import FileRecordStorage
+    from src.kernel.errors import AppError
+
+    monkeypatch.setattr(
+        "src.infra.auth.tool_authority.has_tool_permission", AsyncMock(return_value=False)
+    )
+    lookup = AsyncMock(return_value={"uploaded_by": "user-1"})
+    monkeypatch.setattr(FileRecordStorage, "is_private_key", lookup)
+    with pytest.raises(AppError):
+        await module._download_uploaded_video("/api/upload/file/videos/clip.mp4", _Runtime(), 100)
+    lookup.assert_not_awaited()
+
+
+@pytest.mark.parametrize("count", [1, 2])
+async def test_large_video_is_compacted_before_native_model_request(
+    monkeypatch, video_model, count
+):
+    from src.infra.tool import video_analysis_tool as module
+
+    monkeypatch.setattr(
+        module,
+        "settings",
+        SimpleNamespace(**{**module.settings.model_dump(), "VIDEO_ANALYSIS_INLINE_MAX_BYTES": 64}),
+    )
+    original = _mp4_bytes() + b"x" * 100
+    backend = SimpleNamespace(
+        adownload_files=AsyncMock(return_value=[SimpleNamespace(content=original, error=None)])
+    )
+    compact = AsyncMock(return_value=_mp4_bytes())
+    monkeypatch.setattr(module, "compress_video", compact, raising=False)
+    result = json.loads(
+        await module.video_analyze.coroutine(
+            video_urls=["/workspace/a.mp4"] * count, runtime=_Runtime(backend)
+        )
+    )
+    assert result["success"] is True
+    assert compact.await_count == count
+    assert compact.call_args.args[1] == 64 // count
+    assert result["videos"][0]["compressed"] is True
+    assert result["videos"][0]["size_bytes"] == len(original)
+    assert result["videos"][0]["analysis_size_bytes"] == len(_mp4_bytes())
+    sent = video_model[1].ainvoke.call_args.args[0][0].content
+    assert base64.b64decode(sent[1]["base64"]) == _mp4_bytes()

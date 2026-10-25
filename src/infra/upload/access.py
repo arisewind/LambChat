@@ -27,7 +27,12 @@ def validate_file_key(key: str) -> None:
 
 
 def upload_key_from_url(url: str, base_url: str | None = None) -> str | None:
-    parsed = urlsplit(url)
+    # 伪 URL（裸 [ 前缀/多冒号等）会让 urlsplit 抛 ValueError：按"非本站上传 URL"处理，
+    # 与 scheme/netloc 不匹配同路返回 None，调用方（分享页授权重写等）不感知
+    try:
+        parsed = urlsplit(url)
+    except ValueError:
+        return None
     origin = urlsplit(base_url or settings.APP_BASE_URL)
     if parsed.scheme and parsed.scheme not in ("http", "https"):
         return None
@@ -94,6 +99,8 @@ async def require_file_access(
                 share = await ShareStorage().get_by_share_id(claims["share_id"])
                 if not share or share.updated_at.isoformat() != claims.get("share_version"):
                     raise ValueError("revoked share")
+                if not share.allow_files:
+                    raise ValueError("files are not shared")
                 return share
             return
         except (jwt.InvalidTokenError, ValueError, KeyError):
@@ -113,6 +120,9 @@ async def authorize_file_url(
     key = upload_key_from_url(url, base_url)
     if key is None:
         return url
+    from src.infra.auth.tool_authority import require_tool_file_read
+
+    await require_tool_file_read(user_id)
     await require_file_access(key, user_id, session_id=session_id)
     # Private captures must be read as authenticated bytes, never handed to third parties.
     if await get_file_record_storage().is_private_key(key):

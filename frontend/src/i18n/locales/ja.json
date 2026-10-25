@@ -1352,6 +1352,14 @@
       "toolAskHumanListSeparator": "、",
       "toolAudioTranscribe": "文字起こし",
       "toolCalls": "ツール呼び出し",
+      "toolGroupReadPending_one": "{{count}} 件のファイルを読み取り中",
+      "toolGroupReadPending_few": "{{count}} 件のファイルを読み取り中",
+      "toolGroupReadPending_many": "{{count}} 件のファイルを読み取り中",
+      "toolGroupReadPending_other": "{{count}} 件のファイルを読み取り中",
+      "toolGroupSearchPending_one": "検索中（{{count}} 回）",
+      "toolGroupSearchPending_few": "検索中（{{count}} 回）",
+      "toolGroupSearchPending_many": "検索中（{{count}} 回）",
+      "toolGroupSearchPending_other": "検索中（{{count}} 回）",
       "toolGroupRead_other": "{{count}} 件のファイルを読み取り",
       "toolGroupSearch_other": "{{count}} 回検索",
       "toolGroupExecute_other": "{{count}} 件のコマンドを実行",
@@ -1394,6 +1402,7 @@
       "toolImageAnalyzeAlt": "画像 {{index}}",
       "toolVideoAnalyze": "動画分析",
       "toolVideoAnalyzeCount": "{{count}} 本の動画",
+      "toolVideoPreviewUnavailable": "このローカル動画のプレビューはありません。再分析すると生成できます。",
       "toolImageCount": "{{count}} 枚の画像",
       "toolImageGenerate": "生成",
       "toolImageGenerateDesc": "AIによる画像生成",
@@ -3101,7 +3110,12 @@
     "budgetTitle": "モデル利用予算（USD）",
     "weeklyBudgetUsd": "1週間の予算（USD）",
     "budgetHint": "空欄の場合、このロールは予算上限を設定しません。複数のロールでは設定済みの最大上限を適用し、該当するすべてのロールに上限がない場合のみ無制限になります。0 はモデル呼び出しを禁止します。最初のモデル呼び出しで5時間と7日間の期間を個別に開始します。各期間の終了後、次の呼び出しで新しい期間を開始します。残高の確認では計時を開始しません。",
-    "fiveHourBudgetUsd": "5時間の予算（USD）"
+    "fiveHourBudgetUsd": "5時間の予算（USD）",
+    "grantablePermissions": "付与可能な権限",
+    "assignableRoles": "割当可能なロール",
+    "delegationHint": "ここで明示的に選択した権限とロールのみ委任できます。システム管理は委任できません。",
+    "unrestrictedModels": "設定済みのすべてのモデルを許可",
+    "explicitModelsHint": "モデルの選択が空の場合、利用は許可されません。無制限アクセスは明示的な有効化が必要です。"
   },
   "scheduledTask": {
     "noTimeLimit": "実行時間の上限なし",
@@ -3404,16 +3418,19 @@
     "FILE_UPLOAD_MAX_FILES": "アップロードごとの最大ファイル数",
     "FILE_UPLOAD_MAX_SIZE_AUDIO": "最大音声ファイルサイズ（MB）",
     "FILE_UPLOAD_MAX_SIZE_DOCUMENT": "最大ドキュメントファイルサイズ（MB）",
-    "FILE_UPLOAD_MAX_SIZE_IMAGE": "最大画像ファイルサイズ（MB）",
-    "FILE_UPLOAD_MAX_SIZE_VIDEO": "最大動画ファイルサイズ（MB）",
+    "FILE_UPLOAD_MAX_SIZE_IMAGE": "画像のアップロード・分析読み込み上限（MB）。既定100。モデル提供元の上限が優先される場合があります。",
+    "FILE_UPLOAD_MAX_SIZE_VIDEO": "動画アップロード上限（MB）。既定200。分析とモデル提供元の上限も適用されます。",
     "HITL_MODE": "ask_human ヒューマンインザループモード。blocking=コルーチンが待機中にブロック（旧方式）；interrupt=LangGraph interrupt() で中断し、プロセス再起動後もブレークポイントから再開（永続チェックポインタが必要）。",
+    "IMAGE_ANALYSIS_TIMEOUT_SECONDS": "画像分析の全モデル再試行を含むタイムアウト（秒）。既定600、最大3600まで設定可能。",
+    "VIDEO_ANALYSIS_TIMEOUT_SECONDS": "動画分析の全モデル再試行を含むタイムアウト（秒）。既定600、最大3600まで設定可能。",
     "IMAGE_ANALYSIS_MAX_ATTEMPTS": "画像解析モデル呼び出しの最大試行回数",
     "IMAGE_ANALYSIS_MODEL_ID": "image_analyze ツールで使う VLM モデル設定 ID。モデル設定で視覚対応としてマークしたモデルを選択してください。",
     "IMAGE_ANALYSIS_RETRY_DELAY": "画像解析リトライの基本待機時間（秒、指数バックオフの開始値）",
-    "VIDEO_ANALYSIS_MODEL_ID": "video_analyze ツールが使用する VLM モデル設定 ID。空の場合は画像分析のモデルにフォールバック。ビジョン対応モデルが必要です。",
+    "VIDEO_ANALYSIS_MODEL_ID": "video_analyze のモデル設定 ID。Google または OpenAI 互換 Chat Completions を使う動画入力対応モデルが必要です。画像対応だけでは不十分です。空欄の場合は画像分析モデルを使用しますが、同じ動画プロトコル要件を満たす必要があります。",
     "VIDEO_ANALYSIS_MAX_ATTEMPTS": "動画認識モデルの最大試行回数",
     "VIDEO_ANALYSIS_RETRY_DELAY": "動画認識のリトライ基準間隔（秒、指数バックオフ）",
-    "VIDEO_ANALYSIS_MAX_BYTES": "解析する動画のサイズ上限（バイト、デフォルト 50MB。base64 で 4/3 に膨張、超過は拒否）",
+    "VIDEO_ANALYSIS_INLINE_MAX_BYTES": "モデル送信動画のサイズ上限（バイト）。既定16 MiB。超える動画は全時間・音声を保持して再エンコードします。細かな文字の精度が下がる場合があります。提供元の制限に合わせて設定できます。",
+    "VIDEO_ANALYSIS_MAX_BYTES": "動画分析のファイル上限（バイト）。既定200 MiB、最大1 GiB。モデル提供元のリクエスト上限も適用されます。",
     "IMAGE_GENERATION_API_KEY": "画像生成・編集 API キー",
     "IMAGE_GENERATION_BASE_URL": "OpenAI互換画像APIのベースURL",
     "IMAGE_GENERATION_MODEL": "画像生成モデル名（マルチモデルリストが空の場合のみ有効）",
@@ -3707,6 +3724,8 @@
   },
   "share": {
     "agent": "エージェント",
+    "allowFiles": "添付ファイルと生成ファイルへのアクセスを許可",
+    "allowFilesDesc": "有効にすると、閲覧者はこの共有に含まれるアップロード済みの添付ファイルと AI 生成ファイルを表示・ダウンロードできます。初期設定はオフです。デスクトップのキャプチャは共有されません。",
     "authenticated": "ログイン必須",
     "authenticatedDesc": "ログイン済みユーザーのみ閲覧可能",
     "cancelEdit": "編集をキャンセル",
@@ -4767,5 +4786,390 @@
     "useAuthenticator": "認証アプリのコードを使う",
     "tokenNotice": "2段階認証の有効化またはリカバリーコードの再生成により、他のログインセッション、既存のAPIトークン、デバイス連携が無効になります。デバイスで再ログインして連携し直してください。無効化では他のログインセッションのみが終了します。",
     "optionalCode": "認証コードまたはリカバリーコード（2FA有効時）"
+  },
+  "permissionCatalog": {
+    "system:admin": {
+      "label": "保護されたシステム管理",
+      "description": "許可する操作：保護されたシステム管理。他の操作権限と所有者の制限も適用されます。"
+    },
+    "user:create": {
+      "label": "アカウント作成",
+      "description": "許可する操作：アカウント作成。他の操作権限と所有者の制限も適用されます。"
+    },
+    "user:status": {
+      "label": "アカウント有効化・停止",
+      "description": "許可する操作：アカウント有効化・停止。他の操作権限と所有者の制限も適用されます。"
+    },
+    "user:reset_password": {
+      "label": "アカウント認証情報の再設定",
+      "description": "許可する操作：アカウント認証情報の再設定。他の操作権限と所有者の制限も適用されます。"
+    },
+    "user:assign_roles": {
+      "label": "委任範囲内でアカウントにロールを割当",
+      "description": "許可する操作：委任範囲内でアカウントにロールを割当。他の操作権限と所有者の制限も適用されます。"
+    },
+    "role:read": {
+      "label": "ロールと権限規則の閲覧",
+      "description": "許可する操作：ロールと権限規則の閲覧。他の操作権限と所有者の制限も適用されます。"
+    },
+    "role:write": {
+      "label": "ロール作成と基本情報の編集",
+      "description": "許可する操作：ロール作成と基本情報の編集。他の操作権限と所有者の制限も適用されます。"
+    },
+    "role:delete": {
+      "label": "カスタムロール削除",
+      "description": "許可する操作：カスタムロール削除。他の操作権限と所有者の制限も適用されます。"
+    },
+    "role:grant": {
+      "label": "委任範囲内で権限を付与",
+      "description": "許可する操作：委任範囲内で権限を付与。他の操作権限と所有者の制限も適用されます。"
+    },
+    "settings:read": {
+      "label": "システム設定の閲覧",
+      "description": "許可する操作：システム設定の閲覧。他の操作権限と所有者の制限も適用されます。"
+    },
+    "settings:security": {
+      "label": "セキュリティと認証情報設定の編集",
+      "description": "許可する操作：セキュリティと認証情報設定の編集。他の操作権限と所有者の制限も適用されます。"
+    },
+    "settings:reset": {
+      "label": "システム設定のリセット",
+      "description": "許可する操作：システム設定のリセット。他の操作権限と所有者の制限も適用されます。"
+    },
+    "mcp:system_read": {
+      "label": "システム MCP 設定の閲覧",
+      "description": "許可する操作：システム MCP 設定の閲覧。他の操作権限と所有者の制限も適用されます。"
+    },
+    "mcp:system_delete": {
+      "label": "システム MCP サーバー削除",
+      "description": "許可する操作：システム MCP サーバー削除。他の操作権限と所有者の制限も適用されます。"
+    },
+    "mcp:policy_manage": {
+      "label": "MCP ツールのアクセス方針管理",
+      "description": "許可する操作：MCP ツールのアクセス方針管理。他の操作権限と所有者の制限も適用されます。"
+    },
+    "mcp:export": {
+      "label": "MCP 設定とシークレットのエクスポート",
+      "description": "許可する操作：MCP 設定とシークレットのエクスポート。他の操作権限と所有者の制限も適用されます。"
+    },
+    "file:read": {
+      "label": "自分のファイルの閲覧",
+      "description": "許可する操作：自分のファイルの閲覧。他の操作権限と所有者の制限も適用されます。"
+    },
+    "file:delete": {
+      "label": "自分のファイルの削除",
+      "description": "許可する操作：自分のファイルの削除。他の操作権限と所有者の制限も適用されます。"
+    },
+    "agent:config_read": {
+      "label": "Agent 設定の閲覧",
+      "description": "許可する操作：Agent 設定の閲覧。他の操作権限と所有者の制限も適用されます。"
+    },
+    "agent:assign": {
+      "label": "ロールへの Agent 割当",
+      "description": "許可する操作：ロールへの Agent 割当。他の操作権限と所有者の制限も適用されます。"
+    },
+    "model:read": {
+      "label": "モデル設定の閲覧",
+      "description": "許可する操作：モデル設定の閲覧。他の操作権限と所有者の制限も適用されます。"
+    },
+    "model:delete": {
+      "label": "モデル設定の削除",
+      "description": "許可する操作：モデル設定の削除。他の操作権限と所有者の制限も適用されます。"
+    },
+    "model:assign": {
+      "label": "ロールへのモデル割当",
+      "description": "許可する操作：ロールへのモデル割当。他の操作権限と所有者の制限も適用されます。"
+    },
+    "pricing:manage": {
+      "label": "価格管理と過去の使用料金の再計算",
+      "description": "許可する操作：価格管理と過去の使用料金の再計算。他の操作権限と所有者の制限も適用されます。"
+    },
+    "project:read": {
+      "label": "自分のプロジェクトの閲覧",
+      "description": "許可する操作：自分のプロジェクトの閲覧。他の操作権限と所有者の制限も適用されます。"
+    },
+    "project:write": {
+      "label": "自分のプロジェクトの作成・編集",
+      "description": "許可する操作：自分のプロジェクトの作成・編集。他の操作権限と所有者の制限も適用されます。"
+    },
+    "project:delete": {
+      "label": "自分のプロジェクトの削除",
+      "description": "許可する操作：自分のプロジェクトの削除。他の操作権限と所有者の制限も適用されます。"
+    },
+    "memory:read": {
+      "label": "自分のメモリーの閲覧",
+      "description": "許可する操作：自分のメモリーの閲覧。他の操作権限と所有者の制限も適用されます。"
+    },
+    "memory:write": {
+      "label": "自分のメモリーの作成・編集・インポート",
+      "description": "許可する操作：自分のメモリーの作成・編集・インポート。他の操作権限と所有者の制限も適用されます。"
+    },
+    "memory:delete": {
+      "label": "自分のメモリーの削除",
+      "description": "許可する操作：自分のメモリーの削除。他の操作権限と所有者の制限も適用されます。"
+    },
+    "memory:export": {
+      "label": "自分のメモリーのエクスポート",
+      "description": "許可する操作：自分のメモリーのエクスポート。他の操作権限と所有者の制限も適用されます。"
+    },
+    "sandbox:read": {
+      "label": "自分のサンドボックス接続とファイルの閲覧",
+      "description": "許可する操作：自分のサンドボックス接続とファイルの閲覧。他の操作権限と所有者の制限も適用されます。"
+    },
+    "sandbox:execute": {
+      "label": "自分のサンドボックスでの実行",
+      "description": "許可する操作：自分のサンドボックスでの実行。他の操作権限と所有者の制限も適用されます。"
+    },
+    "sandbox:manage": {
+      "label": "自分のサンドボックス接続の管理",
+      "description": "許可する操作：自分のサンドボックス接続の管理。他の操作権限と所有者の制限も適用されます。"
+    },
+    "persona_preset:delete": {
+      "label": "自分のペルソナプリセット削除",
+      "description": "許可する操作：自分のペルソナプリセット削除。他の操作権限と所有者の制限も適用されます。"
+    },
+    "envvar:reveal": {
+      "label": "自分の環境変数の秘密値を表示",
+      "description": "許可する操作：自分の環境変数の秘密値を表示。他の操作権限と所有者の制限も適用されます。"
+    },
+    "notification:read": {
+      "label": "通知管理の閲覧",
+      "description": "許可する操作：通知管理の閲覧。他の操作権限と所有者の制限も適用されます。"
+    },
+    "notification:delete": {
+      "label": "通知の削除",
+      "description": "許可する操作：通知の削除。他の操作権限と所有者の制限も適用されます。"
+    },
+    "usage:quota_manage": {
+      "label": "予算管理とリセットカード発行",
+      "description": "許可する操作：予算管理とリセットカード発行。他の操作権限と所有者の制限も適用されます。"
+    },
+    "chat:write": {
+      "label": "許可された Agent にメッセージ送信",
+      "description": "許可する操作：許可された Agent にメッセージ送信。他の操作権限と所有者の制限も適用されます。"
+    },
+    "session:read": {
+      "label": "自分の会話と設定の閲覧",
+      "description": "許可する操作：自分の会話と設定の閲覧。他の操作権限と所有者の制限も適用されます。"
+    },
+    "session:write": {
+      "label": "自分の会話の作成・編集",
+      "description": "許可する操作：自分の会話の作成・編集。他の操作権限と所有者の制限も適用されます。"
+    },
+    "session:delete": {
+      "label": "自分の会話とメッセージの削除",
+      "description": "許可する操作：自分の会話とメッセージの削除。他の操作権限と所有者の制限も適用されます。"
+    },
+    "session:share": {
+      "label": "自分の会話とプロジェクトの共有",
+      "description": "許可する操作：自分の会話とプロジェクトの共有。他の操作権限と所有者の制限も適用されます。"
+    },
+    "skill:read": {
+      "label": "自分のスキルの閲覧",
+      "description": "許可する操作：自分のスキルの閲覧。他の操作権限と所有者の制限も適用されます。"
+    },
+    "skill:write": {
+      "label": "自分のスキルの作成・編集・インストール",
+      "description": "許可する操作：自分のスキルの作成・編集・インストール。他の操作権限と所有者の制限も適用されます。"
+    },
+    "skill:delete": {
+      "label": "自分のスキルの削除",
+      "description": "許可する操作：自分のスキルの削除。他の操作権限と所有者の制限も適用されます。"
+    },
+    "user:read": {
+      "label": "アカウント一覧の閲覧",
+      "description": "許可する操作：アカウント一覧の閲覧。他の操作権限と所有者の制限も適用されます。"
+    },
+    "user:write": {
+      "label": "アカウント基本情報の編集",
+      "description": "許可する操作：アカウント基本情報の編集。他の操作権限と所有者の制限も適用されます。"
+    },
+    "user:delete": {
+      "label": "管理可能なアカウントの削除",
+      "description": "許可する操作：管理可能なアカウントの削除。他の操作権限と所有者の制限も適用されます。"
+    },
+    "settings:manage": {
+      "label": "運用システム設定の編集",
+      "description": "許可する操作：運用システム設定の編集。他の操作権限と所有者の制限も適用されます。"
+    },
+    "mcp:read": {
+      "label": "MCP メタデータと個人設定の閲覧",
+      "description": "許可する操作：MCP メタデータと個人設定の閲覧。他の操作権限と所有者の制限も適用されます。"
+    },
+    "mcp:write_sse": {
+      "label": "自分の SSE MCP サーバー作成・編集",
+      "description": "許可する操作：自分の SSE MCP サーバー作成・編集。他の操作権限と所有者の制限も適用されます。"
+    },
+    "mcp:write_http": {
+      "label": "自分の HTTP MCP サーバー作成・編集",
+      "description": "許可する操作：自分の HTTP MCP サーバー作成・編集。他の操作権限と所有者の制限も適用されます。"
+    },
+    "mcp:delete": {
+      "label": "自分の MCP サーバー削除",
+      "description": "許可する操作：自分の MCP サーバー削除。他の操作権限と所有者の制限も適用されます。"
+    },
+    "mcp:admin": {
+      "label": "システム MCP 設定の保守",
+      "description": "許可する操作：システム MCP 設定の保守。他の操作権限と所有者の制限も適用されます。"
+    },
+    "file:upload": {
+      "label": "自分のファイルのアップロード",
+      "description": "許可する操作：自分のファイルのアップロード。他の操作権限と所有者の制限も適用されます。"
+    },
+    "file:upload:image": {
+      "label": "自分の画像のアップロード",
+      "description": "許可する操作：自分の画像のアップロード。他の操作権限と所有者の制限も適用されます。"
+    },
+    "file:upload:video": {
+      "label": "自分の動画のアップロード",
+      "description": "許可する操作：自分の動画のアップロード。他の操作権限と所有者の制限も適用されます。"
+    },
+    "file:upload:audio": {
+      "label": "自分の音声のアップロード",
+      "description": "許可する操作：自分の音声のアップロード。他の操作権限と所有者の制限も適用されます。"
+    },
+    "file:upload:document": {
+      "label": "自分の文書のアップロード",
+      "description": "許可する操作：自分の文書のアップロード。他の操作権限と所有者の制限も適用されます。"
+    },
+    "avatar:upload": {
+      "label": "自分のアバターの管理",
+      "description": "許可する操作：自分のアバターの管理。他の操作権限と所有者の制限も適用されます。"
+    },
+    "feedback:write": {
+      "label": "自分のフィードバック送信",
+      "description": "許可する操作：自分のフィードバック送信。他の操作権限と所有者の制限も適用されます。"
+    },
+    "feedback:read": {
+      "label": "プラットフォームのフィードバック閲覧",
+      "description": "許可する操作：プラットフォームのフィードバック閲覧。他の操作権限と所有者の制限も適用されます。"
+    },
+    "feedback:admin": {
+      "label": "プラットフォームのフィードバック削除",
+      "description": "許可する操作：プラットフォームのフィードバック削除。他の操作権限と所有者の制限も適用されます。"
+    },
+    "channel:read": {
+      "label": "自分のチャネル設定の閲覧",
+      "description": "許可する操作：自分のチャネル設定の閲覧。他の操作権限と所有者の制限も適用されます。"
+    },
+    "channel:write": {
+      "label": "自分のチャネルの作成・編集・テスト",
+      "description": "許可する操作：自分のチャネルの作成・編集・テスト。他の操作権限と所有者の制限も適用されます。"
+    },
+    "channel:delete": {
+      "label": "自分のチャネルの削除",
+      "description": "許可する操作：自分のチャネルの削除。他の操作権限と所有者の制限も適用されます。"
+    },
+    "agent:read": {
+      "label": "許可された Agent の閲覧",
+      "description": "許可する操作：許可された Agent の閲覧。他の操作権限と所有者の制限も適用されます。"
+    },
+    "agent:admin": {
+      "label": "Agent 設定の保守",
+      "description": "許可する操作：Agent 設定の保守。他の操作権限と所有者の制限も適用されます。"
+    },
+    "model:admin": {
+      "label": "モデル設定の保守",
+      "description": "許可する操作：モデル設定の保守。他の操作権限と所有者の制限も適用されます。"
+    },
+    "marketplace:read": {
+      "label": "スキルマーケットの閲覧",
+      "description": "許可する操作：スキルマーケットの閲覧。他の操作権限と所有者の制限も適用されます。"
+    },
+    "marketplace:publish": {
+      "label": "自分のマーケットスキルの公開・更新",
+      "description": "許可する操作：自分のマーケットスキルの公開・更新。他の操作権限と所有者の制限も適用されます。"
+    },
+    "marketplace:admin": {
+      "label": "マーケット掲載内容の管理",
+      "description": "許可する操作：マーケット掲載内容の管理。他の操作権限と所有者の制限も適用されます。"
+    },
+    "persona_preset:read": {
+      "label": "利用可能なペルソナプリセット閲覧",
+      "description": "許可する操作：利用可能なペルソナプリセット閲覧。他の操作権限と所有者の制限も適用されます。"
+    },
+    "persona_preset:write": {
+      "label": "自分のペルソナプリセット作成・編集",
+      "description": "許可する操作：自分のペルソナプリセット作成・編集。他の操作権限と所有者の制限も適用されます。"
+    },
+    "persona_preset:admin": {
+      "label": "共有ペルソナプリセットの管理",
+      "description": "許可する操作：共有ペルソナプリセットの管理。他の操作権限と所有者の制限も適用されます。"
+    },
+    "scheduled_task:read": {
+      "label": "自分の定期タスク閲覧",
+      "description": "許可する操作：自分の定期タスク閲覧。他の操作権限と所有者の制限も適用されます。"
+    },
+    "scheduled_task:write": {
+      "label": "自分の定期タスク作成・編集",
+      "description": "許可する操作：自分の定期タスク作成・編集。他の操作権限と所有者の制限も適用されます。"
+    },
+    "scheduled_task:delete": {
+      "label": "自分の定期タスク削除",
+      "description": "許可する操作：自分の定期タスク削除。他の操作権限と所有者の制限も適用されます。"
+    },
+    "envvar:read": {
+      "label": "自分の環境変数名の閲覧",
+      "description": "許可する操作：自分の環境変数名の閲覧。他の操作権限と所有者の制限も適用されます。"
+    },
+    "envvar:write": {
+      "label": "自分の環境変数値の設定",
+      "description": "許可する操作：自分の環境変数値の設定。他の操作権限と所有者の制限も適用されます。"
+    },
+    "envvar:delete": {
+      "label": "自分の環境変数削除",
+      "description": "許可する操作：自分の環境変数削除。他の操作権限と所有者の制限も適用されます。"
+    },
+    "team:read": {
+      "label": "自分のチームと設定の閲覧",
+      "description": "許可する操作：自分のチームと設定の閲覧。他の操作権限と所有者の制限も適用されます。"
+    },
+    "team:write": {
+      "label": "自分のチーム作成・編集・複製",
+      "description": "許可する操作：自分のチーム作成・編集・複製。他の操作権限と所有者の制限も適用されます。"
+    },
+    "team:delete": {
+      "label": "自分のチーム削除",
+      "description": "許可する操作：自分のチーム削除。他の操作権限と所有者の制限も適用されます。"
+    },
+    "notification:manage": {
+      "label": "通知の作成・編集",
+      "description": "許可する操作：通知の作成・編集。他の操作権限と所有者の制限も適用されます。"
+    },
+    "usage:read": {
+      "label": "自分の使用量と予算の閲覧",
+      "description": "許可する操作：自分の使用量と予算の閲覧。他の操作権限と所有者の制限も適用されます。"
+    },
+    "usage:admin": {
+      "label": "プラットフォーム使用量の閲覧",
+      "description": "許可する操作：プラットフォーム使用量の閲覧。他の操作権限と所有者の制限も適用されます。"
+    }
+  },
+  "permissionGroups": {
+    "chat": "チャット",
+    "session": "会話",
+    "skill": "スキル",
+    "user": "アカウント",
+    "role": "ロール",
+    "settings": "システム設定",
+    "mcp": "MCP サーバー",
+    "file": "ファイル",
+    "avatar": "アバター",
+    "feedback": "フィードバック",
+    "agent": "エージェント",
+    "team": "チーム",
+    "model": "モデル",
+    "channel": "チャネル",
+    "marketplace": "マーケット",
+    "persona_preset": "ペルソナプリセット",
+    "scheduled_task": "定期タスク",
+    "notification": "通知",
+    "usage": "使用量と予算",
+    "envvar": "環境変数",
+    "system": "保護された管理",
+    "pricing": "料金",
+    "project": "プロジェクト",
+    "memory": "メモリー",
+    "sandbox": "サンドボックス"
   }
 }
